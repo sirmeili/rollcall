@@ -121,7 +121,7 @@ export function fakeFetch(
     if (!(key in routes))
       return new Response(JSON.stringify({ detail: "no route" }), { status: 404 });
     const answer = routes[key];
-    const value = typeof answer === "function" ? answer(body) : answer;
+    const value = await (typeof answer === "function" ? answer(body) : answer);
     if (value instanceof Response) return value;
     return new Response(JSON.stringify(value), { status: 200 });
   }) as typeof fetch & { calls: typeof calls };

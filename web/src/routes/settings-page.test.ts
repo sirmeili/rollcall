@@ -64,6 +64,14 @@ function serve(routes: Parameters<typeof fakeFetch>[0]) {
     "GET /settings/scanners": SCANNERS,
     "GET /settings/home-assistant": group(),
     "GET /tokens": [],
+    "GET /catalog/sync": {
+      last_success_at: null,
+      last_attempt_at: null,
+      last_result: null,
+      last_reason: null,
+      dataset_version: null,
+      colors: 0,
+    },
     ...routes,
   });
   vi.stubGlobal("fetch", fetch);
