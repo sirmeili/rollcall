@@ -1,6 +1,42 @@
 # RollCall server
 
-The FastAPI server for RollCall. See the [repository README](../README.md) for the project overview and [AGENTS.md](../AGENTS.md) for the build and test commands.
+The FastAPI server for RollCall, and the Docker image it ships in. See the [repository README](../README.md) for the project overview.
+
+## Development
+
+The server needs Python 3.12 and [uv](https://docs.astral.sh/uv/). Run these from `server/` before requesting a review. CI runs the same checks on every PR.
+
+```sh
+uv sync                        # Install dependencies
+uv run ruff check .            # Lint
+uv run ruff format --check .   # Check formatting
+uv run pytest                  # Run tests with the 90% coverage gate
+```
+
+Run the server with live reload: `uv run uvicorn filament_tracker.main:create_app --factory --reload`. It upgrades the database on startup; [Run it](#run-it) has the settings it needs.
+
+**Migrations.** Apply them by hand with `uv run alembic upgrade head`. After changing `db/models.py`, create one with `uv run alembic revision --autogenerate -m "describe the change"`, then review the generated file. Never edit a migration that has been merged. `uv run alembic check` checks that the models and migrations match.
+
+**Audit dependencies.** `uv export --quiet --no-hashes --no-emit-project -o requirements-audit.txt`, then `uv run pip-audit --disable-pip --no-deps -r requirements-audit.txt`. The exported file is ignored by git.
+
+**Tools.** Each has its own section below.
+
+- Accounts: `uv run ft-admin create-user <username> --role viewer|editor|admin` (the password is prompted). Reset one with `uv run ft-admin reset-password <username>`. On a new database, first-start setup also creates the first Admin from the web app, with the setup code the server logs at start. See [Accounts](#accounts).
+- Scan simulator: `uv run ft-sim scan <dump.bin|export.zip> --action lookup|received|opened|empty` and `uv run ft-sim generate <out.bin>`. `uv run ft-sim check-salt <dumps>` checks the salt in use (saved on the Settings page, else `BAMBU_KDF_SALT`) against saved dumps without printing keys. It needs `FT_TOKEN` (a registered device token); see [Register a scanner](#register-a-scanner). Tag dumps never go in the repo.
+- Real printer check: `uv run ft-printer check [--dump <dump.zip>] [--save captures/<name>.jsonl]`, using the printers saved in the app (or `PRINTERS` from `server/.env`); see [Check a real printer](#check-a-real-printer). Captures stay out of the repo.
+- Home Assistant check: `uv run ft-ha check [--event]`, using the Home Assistant settings the server uses; see [Check against Home Assistant](#check-against-home-assistant). It prints counts and states only.
+- Fake printer: `./fakeprinter/make-cert.sh`, then `docker compose -f fakeprinter/compose.yaml up -d --wait`, then `uv run ft-fakeprinter --serial FAKE01 --report tests/printer/reports/pushall.json` with `FT_ACCESS_CODE=fake-access-code`. Set `FT_FAKE_BROKER=127.0.0.1:8883` and `FT_HA_BROKER=127.0.0.1:11883` to include the printer and Home Assistant broker tests in `uv run pytest`; see [Fake printer](#fake-printer).
+
+## Docker
+
+Run these from the repository root (Docker with Compose v2). CI runs the same checks on every PR, and publishes the image on merges to `main`.
+
+- Build the image: `docker build -t rollcall:test .`
+- Run the end-to-end test stack against it: from `server/`, `FT_COMPOSE_STACK=1 uv run pytest tests/deploy --no-cov` (it starts `deploy/test/compose.yaml` and removes it with its volumes).
+- Scan the image before changing a base image digest: `docker scout cves --only-severity critical,high rollcall:test`. New base images follow the same rules as other dependencies (see [CODING_STANDARDS.md](../CODING_STANDARDS.md#dependencies)).
+- Make a backup now: `uv run ft-admin backup` (needs `BACKUP_DIR`), or `docker compose exec rollcall ft-admin backup` on the server. See [Backups](#backups).
+
+To run it on a server, see [docs/deploy.md](../docs/deploy.md).
 
 ## Run it
 
