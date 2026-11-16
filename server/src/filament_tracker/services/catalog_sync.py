@@ -96,9 +96,14 @@ class CatalogSyncer:
             self._running.release()
         return self.status()
 
+    def never_synced(self) -> bool:
+        """Whether no sync has ever worked, so there is no catalog yet."""
+        with self._sessions() as session:
+            return last_success(session) is None
+
     def status(self) -> SyncStatus:
         with self._sessions() as session:
-            last = session.scalars(select(CatalogSync).order_by(CatalogSync.id.desc())).first()
+            last = last_attempt(session)
             success = last_success(session)
             colors = session.scalar(select(func.count()).select_from(CatalogVariant)) or 0
         return SyncStatus(
@@ -214,6 +219,11 @@ class CatalogSyncer:
             etag=etag,
             last_modified=last_modified,
         )
+
+
+def last_attempt(session: Session) -> CatalogSync | None:
+    """The latest sync attempt, whatever its result."""
+    return session.scalars(select(CatalogSync).order_by(CatalogSync.id.desc())).first()
 
 
 def last_success(session: Session) -> CatalogSync | None:

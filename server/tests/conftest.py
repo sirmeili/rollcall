@@ -58,3 +58,10 @@ def fast_password_hashing(monkeypatch: pytest.MonkeyPatch) -> None:
 def no_web_app(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory) -> None:
     """Server tests do not depend on whether web/build happens to exist locally."""
     monkeypatch.setenv("WEB_DIR", str(tmp_path_factory.getbasetemp() / "no-web-app"))
+
+
+@pytest.fixture(autouse=True)
+def no_catalog_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Server tests never contact the Open Filament Database: scheduled syncs are off.
+    The catalog tests turn them back on, with OFDB faked."""
+    monkeypatch.setenv("CATALOG_SYNC", "off")

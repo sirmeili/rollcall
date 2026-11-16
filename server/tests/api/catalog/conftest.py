@@ -39,3 +39,9 @@ def token(client: TestClient) -> str:
 def db(app: FastAPI, client: TestClient) -> Iterator[Session]:
     with app.state.session_factory() as session:
         yield session
+
+
+@pytest.fixture(autouse=True)
+def catalog_sync_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The catalog's settings at their defaults; OFDB is faked here (see `app`)."""
+    monkeypatch.delenv("CATALOG_SYNC", raising=False)

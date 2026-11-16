@@ -57,6 +57,8 @@ ROUTES = [
     ("post", "/api/v1/printers/99/test", Role.ADMIN),
     ("get", "/api/v1/settings/general", Role.ADMIN),
     ("put", "/api/v1/settings/scanners", Role.ADMIN),
+    ("get", "/api/v1/settings/catalog", Role.ADMIN),
+    ("put", "/api/v1/settings/catalog", Role.ADMIN),
     ("post", "/api/v1/devices/scanner-9/rotate", Role.ADMIN),
     ("get", "/api/v1/devices", Role.ADMIN),
     ("post", "/api/v1/devices", Role.ADMIN),

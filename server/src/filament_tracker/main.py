@@ -35,6 +35,7 @@ from filament_tracker.db.migrate import upgrade
 from filament_tracker.ha.link import HomeAssistantLink
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.backup import BackupScheduler
+from filament_tracker.services.catalog_schedule import CatalogScheduler
 from filament_tracker.services.catalog_sync import CatalogSyncer
 from filament_tracker.services.printers import seed_printers
 from filament_tracker.services.setup import SetupGate
@@ -78,13 +79,19 @@ def create_app(
         app.state.home_assistant = home_assistant
         home_assistant.start()
         app.state.setup_gate.start(app.state.session_factory)
-        app.state.catalog = CatalogSyncer(app.state.session_factory, transport=ofdb_transport)
+        catalog = CatalogSyncer(app.state.session_factory, transport=ofdb_transport)
+        app.state.catalog = catalog
+        catalog_syncs = CatalogScheduler(
+            catalog, schedule=store.catalog_sync, time_zone=store.time_zone
+        )
+        catalog_syncs.start()
         backups = _backups(settings, store)
         try:
             yield
         finally:
             if backups is not None:
                 backups.stop()
+            catalog_syncs.stop()
             home_assistant.stop()
             printer_links.stop()
             engine.dispose()

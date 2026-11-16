@@ -7,7 +7,7 @@ table in the same branch (tests/test_configuration_doc.py checks they agree).
 import re
 from ipaddress import IPv4Network, IPv6Network, ip_network
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     session_days: int = Field(default=30, ge=1, le=365)
     # The time zone for every time the web app shows and for the nightly backup.
     tz: str = "UTC"
+    # How often the catalog syncs from the Open Filament Database: off, daily or weekly
+    # (at 04:00 in TZ; Mondays for weekly).
+    catalog_sync: Literal["off", "daily", "weekly"] = "daily"
+    # The largest ΔE (CIEDE2000) at which an in-stock product counts as similar to a
+    # catalog color.
+    similarity_cutoff: float = Field(default=10.0, ge=0.5, le=50)
     # Only for local development over plain HTTP; production sits behind HTTPS.
     cookie_secure: bool = True
     # Where the nightly backups go (03:00 in TZ, 14 kept). Unset: no backups.

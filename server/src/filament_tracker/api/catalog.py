@@ -9,6 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
+from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import Admin, DbSession, Viewer
 from filament_tracker.db.catalog_models import SyncResult
 from filament_tracker.services.catalog_read import read_catalog
@@ -17,12 +18,25 @@ from filament_tracker.services.catalog_sync import CatalogSyncer, SyncBusy
 router = APIRouter(tags=["catalog"])
 
 
+class SimilarColorOut(BaseModel):
+    product_id: int
+    name: str
+    hex: str
+    material: str
+    delta_e: float
+    sealed: int
+    open: int
+    different_material: bool
+
+
 class CatalogColorOut(BaseModel):
     uuid: str
     name: str
     hexes: list[str]
     discontinued: bool
     multi_color: bool
+    # In-stock products within the cutoff, closest first; empty for a multi-color one.
+    similar: list[SimilarColorOut]
 
 
 class FilamentLineOut(BaseModel):
@@ -37,6 +51,9 @@ class CatalogOut(BaseModel):
     synced: bool
     dataset_version: str | None
     last_success_at: datetime | None
+    cutoff: float
+    # Syncs have failed for 14 days since the last success.
+    out_of_date: bool
 
 
 class SyncStatusOut(BaseModel):
@@ -53,10 +70,12 @@ def _syncer(request: Request) -> CatalogSyncer:
 
 
 @router.get("/catalog", response_model=CatalogOut)
-def read(_: Viewer, session: DbSession) -> CatalogOut:
+def read(_: Viewer, session: DbSession, request: Request) -> CatalogOut:
     """Every filament line with its catalog colors. Search and filters run in the web app
     over this one answer, which is small (about 300 catalog colors)."""
-    return CatalogOut.model_validate(read_catalog(session), from_attributes=True)
+    store: SettingsStore = request.app.state.settings_store
+    catalog = read_catalog(session, store.similarity_cutoff())
+    return CatalogOut.model_validate(catalog, from_attributes=True)
 
 
 @router.get("/catalog/sync", response_model=SyncStatusOut)
