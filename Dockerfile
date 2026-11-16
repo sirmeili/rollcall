@@ -7,6 +7,7 @@
 FROM node:24-trixie-slim@sha256:0820eaa85e07d0490446dd01d14707e17e6108a36988cf374899cd057eb3812d AS web
 # npm 11.21.2: the npm bundled with Node 24 carries undici and brace-expansion versions with
 # known advisories. This stage is thrown away; only the built files are kept.
+# An approved exception: listed in CODING_STANDARDS.md, Approved exceptions.
 RUN npm install --global --no-audit --no-fund npm@11.21.2
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json web/.npmrc ./
