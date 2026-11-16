@@ -5,7 +5,7 @@ Where each top-level section now lives. Numbers are GitHub issues in `sirmeili/r
 | Section | Now lives in |
 | --- | --- |
 | Overview | `README.md` (goals, how it works); `GLOSSARY.md`; the non-goals that may come later are Roadmap stubs #91 (load-cell scale) and #93 (untagged filament) |
-| Background: Bambu RFID tags | `GLOSSARY.md`; ADR-0002 (a spool is its tray UID); ADR-0013 (the KDF salt is a published constant); the decoder: the code and its tests |
+| Background: Bambu RFID tags | `GLOSSARY.md`; ADR-0002 (a spool is its tray UID); ADR-0013 (the key-derivation constant is published); the decoder: the code and its tests |
 | User workflows | The code and its tests; `GLOSSARY.md`; ADR-0001 (spool state from an event log), ADR-0003 (flag, don't refuse), ADR-0004 (lookups write no events) |
 | System architecture | `README.md` (how it works, components); ADR-0005 (one Python process) |
 | Scanner device: hardware | Roadmap stubs #85 (M0b), #86 (M3b), #87 (M4) and #90 (custom PCB scanner); ADR-0015 (CYD buttons on a resistor ladder); `hardware/BOM.md`; `README.md` (enclosure); open questions #96, #98, #99 |
