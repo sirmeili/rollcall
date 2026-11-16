@@ -10,15 +10,30 @@ from filament_tracker.config import Settings
 DOC = Path(__file__).parents[2] / "docs" / "configuration.md"
 
 
-def _rows() -> dict[str, str]:
-    """Each setting named in the table, with its "In the app" cell."""
+def _cells(line: str) -> list[str]:
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def _rows(text: str | None = None) -> dict[str, str]:
+    """Each setting named in the table, with its "In the app" cell, finding both columns by
+    their header."""
+    if text is None:
+        text = DOC.read_text(encoding="utf-8")
     rows: dict[str, str] = {}
-    for line in DOC.read_text(encoding="utf-8").splitlines():
-        if not line.startswith("| `"):
+    header: list[str] | None = None
+    for line in text.splitlines():
+        if not line.startswith("|"):
+            header = None  # the table has ended
             continue
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        for name in re.findall(r"`([A-Z][A-Z0-9_]*)`", cells[0]):
-            rows[name] = cells[-1]
+        cells = _cells(line)
+        if {"Setting", "In the app"} <= set(cells):
+            header = cells
+            continue
+        if header is None or set(line) <= set("|- "):
+            continue
+        name_cell = cells[header.index("Setting")]
+        for name in re.findall(r"`([A-Z][A-Z0-9_]*)`", name_cell):
+            rows[name] = cells[header.index("In the app")]
     return rows
 
 
@@ -35,3 +50,16 @@ def test_the_table_marks_the_settings_the_app_can_set() -> None:
     marked = {name for name, cell in _rows().items() if cell.lower().startswith("yes")}
 
     assert marked == in_app
+
+
+def test_the_columns_are_found_by_their_headers_not_their_order() -> None:
+    table = "\n".join(
+        [
+            "| In the app | Purpose | Setting |",
+            "| --- | --- | --- |",
+            "| Yes | Where scans go | `TZ` |",
+            "| No | Who may connect | `TRUSTED_NETWORKS` |",
+        ]
+    )
+
+    assert _rows(table) == {"TZ": "Yes", "TRUSTED_NETWORKS": "No"}
