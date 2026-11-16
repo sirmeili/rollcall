@@ -1,7 +1,7 @@
 """Database tables.
 
-The event table is the source of truth (see ADR-0001). A spool's state and dates are a projection of
-its events, rebuilt by the event log after every write.
+The event table is the source of truth (see ADR-0001). A spool's state and dates are a
+projection of its events, rebuilt by the event log after every write.
 """
 
 import uuid
