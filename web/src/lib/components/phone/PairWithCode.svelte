@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Pairing with a code from the Devices page (Pairing in docs/SPEC.md): for a shared phone
-  // that belongs to no one. Scan the QR code, or type the details.
+  // Pairing with a code from the Devices page: for a shared phone, which belongs to no one.
+  // Scan the QR code, or type the details.
   import { goto } from "$app/navigation";
   import { checkPairing, parsePairing, type PairingFields } from "#lib/pairing.ts";
   import { bridge } from "#lib/phone/bridge.ts";

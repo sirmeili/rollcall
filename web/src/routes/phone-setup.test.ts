@@ -1,5 +1,4 @@
-// Setting a phone up by signing in, its opening screen, and a Viewer's phone (Pairing and
-// Phone scanner in docs/SPEC.md).
+// Setting a phone up by signing in, its opening screen, and a Viewer's phone.
 import { cleanup, render, screen, waitFor, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { createRawSnippet } from "svelte";

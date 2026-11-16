@@ -1,4 +1,4 @@
-/** Checks for the manual entry form (Manual entry in docs/SPEC.md). */
+/** Checks for the manual entry form. */
 
 export type ProductChoice = "existing" | "new";
 

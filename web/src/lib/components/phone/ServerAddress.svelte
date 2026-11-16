@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The first-start screen's address step (Pairing in docs/SPEC.md): the server to sign in to.
+  // The first-start screen's address step: the server to sign in to.
   import { normalizeUrl, serverUrlError } from "#lib/pairing.ts";
 
   interface Props {

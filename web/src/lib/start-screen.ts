@@ -1,4 +1,4 @@
-/** Timing for the phone app's start screen (docs/SPEC.md, Phone scanner).
+/** Timing for the phone app's start screen.
  *
  * The intro animation plays through at least one full cycle, so its ending (the check
  * landing) is always seen, and the screen stays until the app is ready, or LIMIT_MS at

@@ -1,6 +1,6 @@
-/** The Light / Dark / System theme choice (Server: web UI in docs/SPEC.md), remembered in
- * the browser. The script in app.html applies the saved choice before the page draws; this
- * keeps it applied afterwards, following the device while the choice is System. */
+/** The Light / Dark / System theme choice, remembered in the browser. The script in app.html
+ * applies the saved choice before the page draws; this keeps it applied afterwards,
+ * following the device while the choice is System. */
 
 export type ThemeChoice = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";

@@ -1,4 +1,4 @@
-/** The phone's Scan screen logic, mirroring the scanner (docs/SPEC.md, User workflows).
+/** The phone's Scan screen logic, mirroring the handheld scanner.
  *
  * Tap a spool: look it up, show the card and the actions for its state, wait up to 15
  * seconds for a choice, send it, show the result for 3 seconds, then go back to waiting for

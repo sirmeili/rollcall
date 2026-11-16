@@ -1,5 +1,5 @@
-/** Setting the phone up as the signed-in user's own phone (Pairing in docs/SPEC.md): after
- * signing in at home, the app asks the server for a device token of its own. */
+/** Setting the phone up as the signed-in user's phone: after signing in at home, the app
+ * asks the server for a device token of its own. */
 
 import { api, ApiError } from "#lib/api/client.ts";
 import type { PairingFields } from "#lib/pairing.ts";
