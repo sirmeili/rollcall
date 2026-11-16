@@ -1,12 +1,14 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
 from filament_tracker.api import (
     activity,
     auth,
+    catalog,
     devices,
     edits,
     events,
@@ -33,6 +35,7 @@ from filament_tracker.db.migrate import upgrade
 from filament_tracker.ha.link import HomeAssistantLink
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.backup import BackupScheduler
+from filament_tracker.services.catalog_sync import CatalogSyncer
 from filament_tracker.services.printers import seed_printers
 from filament_tracker.services.setup import SetupGate
 from filament_tracker.services.throttle import LoginThrottle
@@ -51,7 +54,10 @@ def _backups(settings: Settings, store: SettingsStore) -> BackupScheduler | None
     return scheduler
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, *, ofdb_transport: httpx.BaseTransport | None = None
+) -> FastAPI:
+    """The server. `ofdb_transport` replaces the network for catalog syncs, in tests."""
     settings = settings or Settings()
 
     @asynccontextmanager
@@ -72,6 +78,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.home_assistant = home_assistant
         home_assistant.start()
         app.state.setup_gate.start(app.state.session_factory)
+        app.state.catalog = CatalogSyncer(app.state.session_factory, transport=ofdb_transport)
         backups = _backups(settings, store)
         try:
             yield
@@ -108,6 +115,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         tokens,
         setup,
         app_settings,
+        catalog,
     ):
         app.include_router(module.router, prefix=API_PREFIX)
     mount_web_app(app, settings.web_dir or default_web_dir())
