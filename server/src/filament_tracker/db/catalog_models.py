@@ -1,0 +1,101 @@
+"""The catalog's tables: a local copy of the Open Filament Database's (OFDB's) Bambu Lab
+colors, and a record of each sync.
+
+Rows are keyed by OFDB's own UUIDs, which survive renames, and keep `moved_from` (the UUIDs
+a record had before OFDB merged or moved it), so links made to them later still resolve.
+A successful sync replaces every catalog row; nothing here refers to products, spools,
+tags or events.
+"""
+
+from datetime import datetime
+from enum import StrEnum
+
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from filament_tracker.db.models import Base
+from filament_tracker.db.types import str_enum
+
+UUID_LENGTH = 36
+
+
+class CatalogBrand(Base):
+    __tablename__ = "catalog_brand"
+
+    uuid: Mapped[str] = mapped_column(String(UUID_LENGTH), primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    moved_from: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class CatalogFilament(Base):
+    """A filament line, such as PLA Basic."""
+
+    __tablename__ = "catalog_filament"
+
+    uuid: Mapped[str] = mapped_column(String(UUID_LENGTH), primary_key=True)
+    brand_uuid: Mapped[str] = mapped_column(ForeignKey("catalog_brand.uuid"), index=True)
+    # The order OFDB lists it in.
+    position: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String(200))
+    material: Mapped[str] = mapped_column(String(64))
+    density: Mapped[float | None] = mapped_column(Float)
+    min_print_temperature: Mapped[int | None] = mapped_column(Integer)
+    max_print_temperature: Mapped[int | None] = mapped_column(Integer)
+    min_bed_temperature: Mapped[int | None] = mapped_column(Integer)
+    max_bed_temperature: Mapped[int | None] = mapped_column(Integer)
+    moved_from: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class CatalogVariant(Base):
+    """A catalog color: one color of a filament line. Hexes are RRGGBB, without the #."""
+
+    __tablename__ = "catalog_variant"
+
+    uuid: Mapped[str] = mapped_column(String(UUID_LENGTH), primary_key=True)
+    filament_uuid: Mapped[str] = mapped_column(ForeignKey("catalog_filament.uuid"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String(200))
+    color_hex: Mapped[str] = mapped_column(String(6))
+    # The other colors of a multi-color catalog color, in OFDB's order.
+    extra_hexes: Mapped[list[str]] = mapped_column(JSON, default=list)
+    discontinued: Mapped[bool] = mapped_column(Boolean, default=False)
+    moved_from: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class CatalogSize(Base):
+    """One way a catalog color is sold: a weight, as a refill or on a spool."""
+
+    __tablename__ = "catalog_size"
+
+    uuid: Mapped[str] = mapped_column(String(UUID_LENGTH), primary_key=True)
+    variant_uuid: Mapped[str] = mapped_column(ForeignKey("catalog_variant.uuid"), index=True)
+    filament_weight: Mapped[float] = mapped_column(Float)
+    refill: Mapped[bool] = mapped_column(Boolean, default=False)
+    article_number: Mapped[str | None] = mapped_column(String(64))
+    discontinued: Mapped[bool] = mapped_column(Boolean, default=False)
+    # [{"store": name or null, "url": url}], in OFDB's order.
+    purchase_links: Mapped[list[dict[str, str | None]]] = mapped_column(JSON, default=list)
+    moved_from: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class SyncResult(StrEnum):
+    UPDATED = "updated"  # a new export was downloaded and stored
+    NOT_MODIFIED = "not_modified"  # OFDB said nothing changed (304)
+    FAILED = "failed"  # the catalog was left as it was
+
+
+class CatalogSync(Base):
+    """One sync attempt. `etag` and `last_modified` are what OFDB sent with the copy in use,
+    so the next sync can ask whether it changed."""
+
+    __tablename__ = "catalog_sync"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    started_at: Mapped[datetime]
+    finished_at: Mapped[datetime]
+    result: Mapped[SyncResult] = mapped_column(str_enum(SyncResult, "sync_result"))
+    # Why it failed, in a few words; never OFDB's answer itself.
+    reason: Mapped[str | None] = mapped_column(String(200))
+    dataset_version: Mapped[str | None] = mapped_column(String(64))
+    etag: Mapped[str | None] = mapped_column(String(200))
+    last_modified: Mapped[str | None] = mapped_column(String(64))
