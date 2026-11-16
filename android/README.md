@@ -1,6 +1,6 @@
 # RollCall Android app
 
-The phone scanner from `docs/SPEC.md` (Phone scanner): a Capacitor wrapper around the web app in `web/`, with a Kotlin plugin for NFC tag reading, QR scanning and Keystore storage. It works only on phones whose NFC chip reads MIFARE Classic, such as Google Pixel phones.
+The phone app: a Capacitor wrapper around the web app in `web/`, with a Kotlin plugin for NFC tag reading, QR scanning and Keystore storage. It works only on phones whose NFC chip reads MIFARE Classic, such as Google Pixel phones. See ADR-0010 (`docs/adr/0010-phone-app-capacitor-and-kotlin-nfc.md`) for why it is built this way.
 
 ## Build
 
