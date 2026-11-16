@@ -9,6 +9,19 @@ permissions:
   contents: read
 
 jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The central spec and the progress log are retired; only docs/archive/ may name them.
+      # The brackets keep this file from matching its own pattern.
+      - name: Check nothing points at the retired spec or progress log
+        run: |
+          if git grep -nE 'docs/SPEC[.]md|PROGRESS[.]md' -- ':!docs/archive/'; then
+            echo "::error::These lines name the retired spec or progress log. Point at the issue, GLOSSARY.md, docs/adr/ or docs/archive/SPEC-v1.md instead."
+            exit 1
+          fi
+
   server:
     runs-on: ubuntu-latest
     defaults:
