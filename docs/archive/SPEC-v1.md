@@ -5,7 +5,7 @@ Where each top-level section now lives. Numbers are GitHub issues in `sirmeili/r
 | Section | Now lives in |
 | --- | --- |
 | Overview | `README.md` (goals, how it works); `GLOSSARY.md`; the non-goals that may come later are Roadmap stubs #91 (load-cell scale) and #93 (untagged filament) |
-| Background: Bambu RFID tags | `GLOSSARY.md`; ADR-0002 (a spool is its tray UID); ADR-0013 (the KDF salt is a published constant); the decoder: the code and its tests |
+| Background: Bambu RFID tags | `GLOSSARY.md`; ADR-0002 (a spool is its tray UID); ADR-0013 (the key-derivation constant is published); the decoder: the code and its tests |
 | User workflows | The code and its tests; `GLOSSARY.md`; ADR-0001 (spool state from an event log), ADR-0003 (flag, don't refuse), ADR-0004 (lookups write no events) |
 | System architecture | `README.md` (how it works, components); ADR-0005 (one Python process) |
 | Scanner device: hardware | Roadmap stubs #85 (M0b), #86 (M3b), #87 (M4) and #90 (custom PCB scanner); ADR-0015 (CYD buttons on a resistor ladder); `hardware/BOM.md`; `README.md` (enclosure); open questions #96, #98, #99 |
@@ -22,7 +22,7 @@ Where each top-level section now lives. Numbers are GitHub issues in `sirmeili/r
 | Milestones | Roadmap #69: M10 is #73–#78, M11 is #79–#83, M3a #84, M0b #85, M3b #86, M4 #87, M7 Later #88–#94. M0a, M1, M2, M5, M8, M6 and M9 are built: the code and its tests |
 | Future enhancements | Roadmap stubs #90 (custom PCB scanner), #91 (load-cell scale), #92 (Spoolman sync), #93 (untagged filament), #94 (second scanner by the printer), #71 (hide revoked devices) |
 | Future enhancements: print requests | Roadmap stubs #73–#78 (Phase 2, 2.1–2.6), #79–#83 (Phase 3, 3.1–3.5), #88 (L.1) and #89 (L.2); name and rename: #72; one app, two modules: ADR-0014; access from outside the home: ADR-0006 and #75. Each verification finding is copied into the stub it informs: #73, #74, #78, #79, #80, #81, #82 and #83 |
-| Open questions | #96 (PN532 through the box), #97 (AMS and non-Bambu spools), #72 (project name). The answered ones: ADR-0002 (tray UUID and refills), ADR-0015 (buttons), ADR-0012 (printer data source) |
+| Open questions | #96 (PN532 through the box), #97 (AMS and non-Bambu spools). The answered ones: ADR-0002 (tray UUID and refills), ADR-0015 (buttons), ADR-0012 (printer data source); the project name (answered: RollCall is the official name; the code rename is #72) |
 
 ---
 

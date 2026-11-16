@@ -39,7 +39,7 @@ The archived spec, `docs/archive/SPEC-v1.md`, is background only.
 
 ## README
 
-Keep `README.md` accurate. A change to what it describes (status, components, setup, the repository layout or the enclosure) updates it in the same branch.
+Keep `README.md` accurate. A change to what it describes (status, components, setup, the repository layout, the enclosure or the roadmap) updates it in the same branch.
 
 ## Commands
 

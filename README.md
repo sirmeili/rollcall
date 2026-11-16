@@ -4,7 +4,7 @@ A self-hosted system that tracks every Bambu Lab filament spool from delivery to
 
 It runs in Docker with no Bambu cloud dependency. Scanners and integrations stay on your LAN; the web app, with personal accounts and Viewer, Editor and Admin roles, can be reached from the internet through your own HTTPS reverse proxy.
 
-Planned next: print requests. A co-owner of the printer submits models, picks filament from what is in stock or from the full Bambu catalog (from the Open Filament Database), and follows each print to pick-up, with filament held for accepted requests and a shopping list. The repo is `sirmeili/rollcall`; the code keeps its old `filament_tracker` names until the code rename.
+Planned next: three small changes (the Android Back button, #70; hiding revoked devices, #71; and the code rename, #72), then print requests (M10). With print requests, a co-owner of the printer submits models, picks filament from what is in stock or from the full Bambu catalog (from the Open Filament Database), and follows each print to pick-up, with filament held for accepted requests and a shopping list. The repo is `sirmeili/rollcall`; the code keeps its old `filament_tracker` names until the code rename.
 
 > **Status: the server, web app and phone app are built; the scanner hardware is still to come.** Built (milestones M0a, M1, M2, M5, M6, M8 and M9): the server, with the tag decoder, the event log, the scanner API and a scan simulator; the web app, with personal accounts and Viewer, Editor and Admin roles, the Inventory, Spools, Spool detail, Products, Review, Activity, Devices, Users, Account and Settings pages, and a phone layout; the printer link, which reads AMS and AMS HT slots over MQTT and has been checked against a real P1S; the Home Assistant link, with MQTT discovery entities, events and an example low-stock automation, checked against a real Home Assistant; the Android phone app, a scanner with an offline queue and a Delivery mode, released through GitHub Releases for Obtainium and checked on a Pixel 9 Pro XL; and deployment, with printers, machine tokens and first-start setup in the app, one Docker image (`ghcr.io/sirmeili/rollcall`) run with Docker Compose, and nightly backups (see [docs/deploy.md](docs/deploy.md)). Not built yet: the scanner firmware and hardware, and print requests. What comes next, in order, is in the [Roadmap](https://github.com/sirmeili/rollcall/issues/69) issue.
 
@@ -65,6 +65,7 @@ The [Roadmap](https://github.com/sirmeili/rollcall/issues/69) issue lists the pl
 | M8 Phone scanner | Android app (Capacitor around the web app, Kotlin NFC plugin), QR pairing, offline queue | Built |
 | M6 Home Assistant | MQTT discovery entities, events, low-stock automation, the Settings page with the Home Assistant settings | Built |
 | M9 Deployment | Printers and the remaining settings in the app, machine tokens, first-start setup, Docker image and Compose file, nightly backups | Built |
+| Small changes | The Android Back button (#70), hiding revoked devices (#71), the code rename (#72) | Planned |
 | M10 Print requests, Phase 2 | Filament catalog and Bambu color codes, the Requester role, print requests and their status pipeline, holding filament, shopping list | Planned |
 | M11 Print requests, Phase 3 | Reading 3MF files, print jobs from the printer, push notifications, picking colors on the model, MCP server | Planned |
 | M3a Firmware without hardware | Scan flow, offline queue and dedupe logic with PC tests, screen simulator | Planned |
@@ -72,6 +73,7 @@ The [Roadmap](https://github.com/sirmeili/rollcall/issues/69) issue lists the pl
 | M3b Firmware on hardware | Breadboard build, real drivers, provisioning, OTA | Planned |
 | M4 Enclosure | Printed case, button labels, antenna placement, final wiring | Planned |
 | M7 Later | Asking RollCall questions, spool lifecycle stats, a custom PCB scanner, a load-cell scale, Spoolman sync, untagged filament, a second scanner by the printer | Planned |
+| Spec audit | Checking the archived v1 spec against the tests | Planned |
 
 ## Repository layout
 

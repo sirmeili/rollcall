@@ -6,7 +6,7 @@ The server is fully testable without hardware. Firmware logic is unit tested on 
 
 | Layer | What is tested | How |
 | --- | --- | --- |
-| Decoder | Every field; two rolls of the same product yield the same product key | pytest against generated tags in CI, plus own spools and the public Bambu RFID library locally |
+| Decoder | Every field; two spools of the same product yield the same product key | pytest against generated tags in CI, plus own spools and the public Bambu RFID library locally |
 | State machine | Every transition in the table, out-of-order flags, undo | pytest, property tests for event replay |
 | API | Auth on every route, idempotent scans, validation errors | pytest with FastAPI TestClient |
 | Security | Setup refused from outside the LAN, with a wrong code or once an admin exists; stored secrets never returned or logged, and unreadable without the key; machine tokens limited to their role and refused once revoked; unauthenticated access refused, role checked on every route, revoked tokens and ended sessions refused, sign-in throttling, bearer tokens refused from outside the LAN, CSRF header, security headers, oversized payloads rejected | pytest security suite, run in CI |
