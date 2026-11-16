@@ -3,6 +3,8 @@
 from alembic import command
 from alembic.config import Config
 
+# The migrations live inside the package, so they ship with the installed server and the
+# Docker image.
 SCRIPT_LOCATION = "filament_tracker:migrations"
 
 
