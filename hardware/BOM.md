@@ -1,6 +1,6 @@
 # Filament Scanner — Bill of Materials
 
-Per scanner unit, matching the RollCall spec (CYD prototype) and `filament-scanner-case.scad`.
+Per handheld scanner, for the CYD prototype and `filament-scanner-case.scad`.
 Prices are approximate USD as of 2026-10-31. "Sourced" prices come from the linked page; "Est." prices are typical marketplace prices, so check before ordering.
 
 ## Required parts
@@ -34,7 +34,7 @@ Prices are approximate USD as of 2026-10-31. "Sourced" prices come from the link
 
 **Total per unit: about $34 required, $36.55 with every mounting option.**
 
-The spec's target is under $30 per unit, excluding the printed case. Without the case and mounting options, a unit costs $31.65 with a $12 CYD (over target by $1.65) or $27.65 with an $8 CYD (under target).
+The target is under $30 per unit, excluding the printed case (set in `docs/archive/SPEC-v1.md`, Scanner device: hardware). Without the case and mounting options, a unit costs $31.65 with a $12 CYD (over target by $1.65) or $27.65 with an $8 CYD (under target).
 
 Per-unit prices understate a first order, because switches, resistors, magnets and similar parts are sold in packs.
 
