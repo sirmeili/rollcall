@@ -1,6 +1,6 @@
 # Web app mockups
 
-Mockups for the M2 web app pages (Server: web UI in [docs/SPEC.md](../../SPEC.md)), in the chosen style, direction A ("Workshop"). Build the M2 part 6 and 7 pages from these.
+Mockups for the M2 web app pages (Server: web UI in the archived spec, [docs/archive/SPEC-v1.md](../../archive/SPEC-v1.md), as background), in the chosen style, direction A ("Workshop"). Build the M2 part 6 and 7 pages from these.
 
 The live, clickable version is the Claude design canvas "Filament Tracker — Inventory page style samples", which is private to the owner. It also holds the two rejected directions, B (Ledger) and C (Shelf). They are not copied here.
 

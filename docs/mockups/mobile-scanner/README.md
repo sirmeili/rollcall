@@ -1,6 +1,6 @@
 # Phone app Scan screen mockups
 
-Mockups for the phone app's Scan screen (Phone scanner (Android app) in [docs/SPEC.md](../../SPEC.md); today `web/src/routes/scan/+page.svelte`). They use the same style and tokens as the web mockups: see [../web/README.md](../web/README.md) and [../web/tokens.css](../web/tokens.css).
+Mockups for the phone app's Scan screen (Phone scanner (Android app) in the archived spec, [docs/archive/SPEC-v1.md](../../archive/SPEC-v1.md), as background; today `web/src/routes/scan/+page.svelte`). They use the same style and tokens as the web mockups: see [../web/README.md](../web/README.md) and [../web/tokens.css](../web/tokens.css).
 
 The live, clickable version is on the owner's Claude design canvas, which also holds the three directions explored first (A: tap target, B: session list, C: color field). These files are the chosen combination: A by default, plus B as an "unpacking a delivery" mode.
 

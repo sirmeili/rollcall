@@ -106,7 +106,7 @@ uv run uvicorn filament_tracker.main:create_app --factory --host 0.0.0.0 --port 
 
 ## Checklist
 
-Run this before a release that changes the app, and record the results in `PROGRESS.md`.
+Run this before a release that changes the app, and record the results in the release's pull request.
 
 **Setup and pairing**
 
