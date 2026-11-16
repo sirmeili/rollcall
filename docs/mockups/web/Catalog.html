@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalog · RollCall (desktop mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Global styles from the approved mockups (docs/mockups/web/, direction A "Workshop").
+ * Tokens come from docs/mockups/web/tokens.css. The theme is set on <html data-theme>
+ * by the script in app.html and by lib/theme.svelte.ts. Components add scoped styles. */
+
+:root,
+:root[data-theme="light"] {
+  --bg: #f4f2ee; /* page background */
+  --surface: #ffffff; /* cards, header, tables */
+  --line: #ddd8cf; /* borders and dividers */
+  --text: #1c1b19;
+  --muted: #5e5a53; /* secondary text; 6.5:1 on --surface */
+  --accent: #b45309; /* primary buttons, active filter, Review badge */
+  --onaccent: #ffffff;
+  --chip: #ece8e1; /* neutral fills: hover, open-state chip, avatars */
+  --lowbg: #fdecd3; /* low stock, flagged, warnings */
+  --lowtext: #7c3500;
+  --okbg: #dcefe2;
+  --oktext: #1f5c33;
+  --okdot: #2f8a4e;
+  --track: #e9e5de; /* % left bar: track */
+  --fill: #3f3b35; /* % left bar: fill */
+  --fillLow: #c2410c; /* % left bar: nearly out */
+  --danger: #b3261e;
+
+  /* Spool ring swatch: same treatment for every color */
+  --ringShadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.16);
+  --holeShadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+  --ringShadowSmall: var(--ringShadow);
+
+  --font-head: "Space Grotesk", system-ui, sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* The phone layout's bottom bar, and what the pages leave free for it. */
+  --bottom-bar: calc(84px + env(safe-area-inset-bottom, 0px));
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1c1c1b;
+  --line: #34322e;
+  --text: #f2efe9;
+  --muted: #a9a49b;
+  --accent: #f59e0b;
+  --onaccent: #1a1205;
+  --chip: #262523;
+  --lowbg: #3a2608;
+  --lowtext: #fbbf5c;
+  --okbg: #173322;
+  --oktext: #86d9a3;
+  --okdot: #4ade80;
+  --track: #2c2b28;
+  --fill: #d9d4cb;
+  --fillLow: #fb923c;
+  --danger: #ff8a80;
+
+  /* A gap in the surface color, a thin light rim, then a soft glow, outside and inside the
+     ring, so white and black swatches both stay visible. */
+  --ringShadow:
+    0 0 0 1.5px var(--surface), 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    0 0 10px 2px rgba(255, 255, 255, 0.1);
+  --holeShadow:
+    inset 0 0 0 1.5px var(--surface), inset 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    inset 0 0 6px 1px rgba(255, 255, 255, 0.1);
+  --ringShadowSmall:
+    0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255, 255, 255, 0.28),
+    0 0 6px 1px rgba(255, 255, 255, 0.08), inset 0 0 0 1px var(--surface),
+    inset 0 0 0 1.75px rgba(255, 255, 255, 0.28);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(30px, 6vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Buttons: neutral by default, .primary for the main action. */
+button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* A link that looks like a button, for navigation actions such as "Open spool". */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+/* Filter chips: round, accent when pressed. */
+button.chip {
+  padding: 10px 16px;
+  border-radius: 999px;
+}
+
+button.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+  min-height: 44px;
+}
+
+textarea {
+  padding: 10px 12px;
+  min-height: 88px;
+  resize: vertical;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Tables sit in a box that scrolls sideways on phones. */
+/* Positioned so screen-reader-only text inside a table scrolls with it instead of widening
+   the page (on a phone that pushed the bottom bar off the screen). */
+.tablebox {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.notice {
+  color: var(--lowtext);
+  margin: 0;
+}
+
+.badge-low {
+  background: var(--lowbg);
+  color: var(--lowtext);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.badge-hand {
+  border: 1px dashed var(--muted);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Page heading: title, subtitle, and actions on the right. */
+.pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pagehead p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* ---- Ring swatch (lib/components/ui/Ring.svelte), plus a split ring for multi-color ---- */
+:root, :root[data-theme="light"] { --ringOuterSm: var(--ringShadow); --holeSm: none; }
+:root[data-theme="dark"] {
+  --ringOuterSm: 0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255,255,255,.28), 0 0 6px 1px rgba(255,255,255,.08);
+  --holeSm: inset 0 0 0 1px var(--surface), inset 0 0 0 1.75px rgba(255,255,255,.28);
+}
+.ring { display: inline-block; flex: none; border-radius: 50%; border-style: solid; background: var(--bg); box-shadow: var(--ringShadow), var(--holeShadow); }
+.ring.sm { width: 30px; height: 30px; border-width: 8px; box-shadow: var(--ringShadowSmall); }
+.ring.multi { border: 0; position: relative; box-shadow: var(--ringOuterSm); }
+.ring.multi::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bg); box-shadow: var(--holeSm); }
+li.open .ring.multi::after, .open .ring.multi::after { background: var(--bg); }
+[hidden] { display: none !important; }
+
+
+/* ---- Header (lib/components/Header.svelte, Nav.svelte) ---- */
+.hdr{border-bottom:1px solid var(--line);background:var(--surface)}
+.hdr .inner{max-width:1240px;margin:0 auto;padding:14px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-head);font-weight:700;font-size:20px;letter-spacing:-.01em}
+.mainnav{flex:1 1 auto}
+.mainnav ul{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0;list-style:none}
+.mainnav a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:8px;color:var(--muted);font-weight:500;font-size:15px}
+.mainnav a:hover{background:var(--chip);color:var(--text)}
+.mainnav a[aria-current=page]{background:var(--text);color:var(--bg)}
+.navbadge{background:var(--accent);color:var(--onaccent);border-radius:999px;font-size:12px;font-weight:700;padding:1px 7px}
+.hend{display:flex;align-items:center;gap:10px}
+.account{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:10px;border:1px solid var(--line);font-size:14px;font-weight:500}
+.initial{width:26px;height:26px;border-radius:50%;background:var(--chip);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+main{max-width:1240px;margin:0 auto;padding:32px 24px 56px}
+.page{gap:20px}
+
+/* ---- Controls (as InventoryControls) ---- */
+.controls{display:flex;flex-direction:column;gap:10px}
+.search{position:relative;flex:1;max-width:420px;display:block}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.search input{width:100%;padding-left:38px}
+.chiprow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.chip .n{margin-left:2px;font-family:var(--font-mono);font-size:12px;opacity:.75}
+.sep{width:1px;align-self:stretch;background:var(--line);margin:4px 4px}
+.clear{border:0;background:transparent;color:var(--muted);text-decoration:underline;padding:0 8px}
+.summary{margin:0;font-size:14px;color:var(--muted)}
+.summary b{color:var(--text);font-family:var(--font-mono)}
+
+/* ---- Groups and rows ---- */
+.groups{display:flex;flex-direction:column;gap:14px}
+.group{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.ghead{width:100%;justify-content:flex-start;gap:12px;min-height:60px;padding:0 18px;border:0;border-radius:0;background:transparent;text-align:left}
+.ghead:hover{background:var(--chip)}
+.gname{font-family:var(--font-head);font-size:19px;font-weight:600}
+.gmeta{color:var(--muted);font-weight:500;font-size:14px}
+.gchev{color:var(--muted);transition:transform .15s;flex:none}
+.ghead[aria-expanded=false] .gchev{transform:rotate(-90deg)}
+.rows{margin:0;padding:0;list-style:none;border-top:1px solid var(--line)}
+.rows > li + li{border-top:1px solid var(--line)}
+.rows > li.open{background:var(--bg)}
+.crow{width:100%;display:grid;grid-template-columns:30px minmax(150px,1fr) 190px minmax(0,1.6fr) 18px;align-items:center;gap:14px;min-height:56px;padding:8px 18px;border:0;border-radius:0;background:transparent;text-align:left;font-weight:400}
+.crow:hover{background:var(--chip)}
+.cname{font-weight:600;font-size:15px}
+.chex{font-family:var(--font-mono);font-size:13px;color:var(--muted);line-height:1.35}
+.badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.chev{color:var(--muted);transition:transform .15s}
+li.open .chev{transform:rotate(180deg)}
+.badge-disc{border:1px solid var(--muted);color:var(--muted);border-radius:6px;padding:1px 8px;font-size:12px;font-weight:600;white-space:nowrap}
+.badge-multi{background:var(--chip);color:var(--text);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600;white-space:nowrap}
+.badge-sim{background:var(--okbg);color:var(--oktext);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;white-space:nowrap}
+.nosim{color:var(--muted);font-size:13px}
+.detail{display:flex;flex-direction:column;gap:10px;padding:2px 18px 16px 62px}
+.detail h4{margin:4px 0 0}
+.matches{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;max-width:640px}
+.match{display:grid;grid-template-columns:30px minmax(0,1fr) 80px 140px;align-items:center;gap:12px;min-height:48px}
+.mtext{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+.mname{font-weight:600;font-size:14px}
+.mname:hover{text-decoration:underline}
+.warn{background:var(--lowbg);color:var(--lowtext);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600}
+.de{font-size:13px;font-weight:700}
+.stock{font-size:13px;color:var(--muted)}
+.none{margin:0;font-size:14px}
+.foot{margin:0;font-size:12px}
+.pagefoot{margin:8px 0 0;font-size:13px;color:var(--muted)}
+
+/* ---- Empty state ---- */
+.empty{align-items:flex-start;max-width:640px;padding:28px}
+.empty h2{margin:0;font-size:22px}
+.empty p{margin:0;color:var(--muted)}
+.emptyicon{width:56px;height:56px;border-radius:14px;background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.btnrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+/* ---- Mockup controls (not part of the design) ---- */
+.mock{background:#1c1b19;color:#f2efe9;padding:8px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;font-size:12px}
+.mock strong{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+.mock .mrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mock .mrow > span{opacity:.8}
+.mock .mseg{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.12)}
+.mock button{min-height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:inherit;font-size:12px}
+.mock button[aria-pressed=true]{background:#f2efe9;color:#1c1b19}
+</style>
+</head>
+<body>
+<aside class="mock" aria-label="Mockup controls">
+<strong>Mockup controls</strong>
+<div class="mrow"><span>State</span><div class="mseg" role="group" aria-label="State"><button type="button" data-state="synced" aria-pressed="true">Synced</button><button type="button" data-state="empty" aria-pressed="false">Before first sync</button></div></div>
+<div class="mrow"><span>Role</span><div class="mseg" role="group" aria-label="Role"><button type="button" data-role="admin" aria-pressed="true">Admin</button><button type="button" data-role="viewer" aria-pressed="false">Viewer</button></div></div>
+<div class="mrow"><span>Theme</span><div class="mseg" role="group" aria-label="Theme"><button type="button" data-theme="light" aria-pressed="true">Light</button><button type="button" data-theme="dark" aria-pressed="false">Dark</button></div></div>
+</aside>
+<header class="hdr">
+<div class="inner">
+<a class="brand" href="#"><svg width="30" height="30" viewBox="0 0 140 140" aria-hidden="true"><circle cx="70" cy="70" r="62" fill="#C8324B"></circle><circle cx="70" cy="70" r="50" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="40" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="30" fill="#FFF7F5"></circle><polyline points="56,71 66,81 85,60" fill="none" stroke="#C8324B" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>RollCall</a>
+<nav class="mainnav" aria-label="Main"><ul>
+<li><a href="#">Inventory</a></li>
+<li><a href="#">Spools</a></li>
+<li><a href="#">Products</a></li>
+<li><a href="#" aria-current="page">Catalog</a></li>
+<li><a href="#" aria-label="Review, 3 waiting">Review<span class="navbadge" aria-hidden="true">3</span></a></li>
+<li><a href="#">Activity</a></li>
+<li class="admin"><a href="#">Devices</a></li>
+<li class="admin"><a href="#">Users</a></li>
+<li class="admin"><a href="#">Settings</a></li>
+</ul></nav>
+<div class="hend"><a class="account" href="#" title="Account"><span class="initial" aria-hidden="true">F</span><span id="uname">frank</span></a></div>
+</div>
+</header>
+
+<main>
+<div class="page">
+<div class="pagehead"><div>
+<h1>Catalog</h1>
+<p>Every Bambu Lab color, and the spools on hand that look like it.</p>
+</div></div>
+
+<div id="synced" class="page" style="gap:20px">
+<div class="controls">
+<label class="search">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input id="q" type="search" aria-label="Search line or color" placeholder="Search line or color" autocomplete="off">
+</label>
+<div class="chiprow" id="chips" role="group" aria-label="Filters"></div>
+</div>
+<p class="summary" id="summary" aria-live="polite"></p>
+<div class="groups" id="groups"></div>
+<p class="pagefoot">Catalog data from the Open Filament Database (MIT license) · Updated Nov 15, 2026, dataset v2026.11.15</p>
+</div>
+
+<div id="empty" hidden>
+<section class="card empty" aria-labelledby="empty-h">
+<span class="emptyicon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path></svg></span>
+<h2 id="empty-h">The catalog hasn't been downloaded yet.</h2>
+<p id="empty-note">Download it now, or set how often it syncs in Settings.</p>
+<div class="btnrow" id="empty-actions">
+<button type="button" class="primary" id="refresh">Refresh now</button>
+<a class="button" href="#">Catalog settings</a>
+<span class="muted" id="refresh-msg" role="status"></span>
+</div>
+</section>
+</div>
+</div>
+</main>
+
+
+
+<script>
+/* Sample data and filter logic shared by the Catalog mockups (pasted into each page at build). */
+var STOCK = {
+  plablue: { name: "PLA Basic Blue", material: "PLA", hex: "#0A2CA5", sealed: 2, open: 0 },
+  marine: { name: "PLA Matte Marine Blue", material: "PLA", hex: "#0078BF", sealed: 0, open: 1 },
+  plabk: { name: "PLA Basic Black", material: "PLA", hex: "#000000", sealed: 1, open: 1 },
+  white: { name: "PLA Basic White", material: "PLA", hex: "#FFFFFF", sealed: 3, open: 0 },
+  petgbk: { name: "PETG HF Black", material: "PETG", hex: "#000000", sealed: 1, open: 0 },
+  absbk: { name: "ABS Black", material: "ABS", hex: "#000000", sealed: 0, open: 1 },
+  asared: { name: "ASA Red", material: "ASA", hex: "#E02928", sealed: 1, open: 0 },
+  brown: { name: "PETG Translucent Brown", material: "PETG", hex: "#C9A381", sealed: 0, open: 1 }
+};
+
+/* m: [stock id, ΔE] */
+var LINES = [
+  { id: "pla-basic", name: "PLA Basic", material: "PLA", colors: [
+    { name: "Jade White", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Black", hexes: ["#000000"], m: [["plabk", 0.0], ["petgbk", 0.0], ["absbk", 0.0]] },
+    { name: "Blue", hexes: ["#0A2CA5"], m: [["plablue", 0.0]] },
+    { name: "Cyan", hexes: ["#0086D6"], m: [["marine", 4.6]] },
+    { name: "Red", hexes: ["#C12E1F"], m: [["asared", 6.9]] },
+    { name: "Hot Pink", hexes: ["#F5547D"], m: [] },
+    { name: "Bambu Green", hexes: ["#00AE42"], m: [] },
+    { name: "Orange", hexes: ["#FF6A13"], m: [] },
+    { name: "Sunflower Yellow", hexes: ["#FEC600"], m: [] },
+    { name: "Gray", hexes: ["#8E9089"], m: [] },
+    { name: "Cocoa Brown", hexes: ["#6F5034"], m: [] },
+    { name: "Purple", hexes: ["#5E43B7"], m: [] },
+    { name: "Bronze", hexes: ["#847D48"], m: [], disc: true },
+    { name: "Beige", hexes: ["#F7E6DE"], m: [["white", 9.4]], disc: true }
+  ]},
+  { id: "pla-matte", name: "PLA Matte", material: "PLA", colors: [
+    { name: "Ivory White", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Charcoal", hexes: ["#000000"], m: [["plabk", 0.0], ["petgbk", 0.0], ["absbk", 0.0]] },
+    { name: "Marine Blue", hexes: ["#0078BF"], m: [["marine", 0.0]] },
+    { name: "Ash Gray", hexes: ["#9B9EA0"], m: [] },
+    { name: "Sakura Pink", hexes: ["#E8AFCF"], m: [] },
+    { name: "Desert Tan", hexes: ["#E8DBB7"], m: [["brown", 9.2]] },
+    { name: "Dark Red", hexes: ["#BB3D43"], m: [["asared", 8.1]] },
+    { name: "Lemon Yellow", hexes: ["#F7D959"], m: [] }
+  ]},
+  { id: "pla-silk-dual", name: "PLA Silk Dual Color", material: "PLA", colors: [
+    { name: "Gold-Silver", hexes: ["#F4A925", "#C0C0C0"], m: [] },
+    { name: "Blue-Red", hexes: ["#1E4FC2", "#D0322E"], m: [] },
+    { name: "Aurora Purple", hexes: ["#5E43B7", "#E04E8A", "#2A9DF4"], m: [] },
+    { name: "Copper-Teal", hexes: ["#B87333", "#008080"], m: [], disc: true }
+  ]},
+  { id: "petg-hf", name: "PETG HF", material: "PETG", colors: [
+    { name: "Black", hexes: ["#000000"], m: [["petgbk", 0.0], ["plabk", 0.0], ["absbk", 0.0]] },
+    { name: "Blue", hexes: ["#002E96"], m: [["plablue", 3.1], ["marine", 8.7]] },
+    { name: "White", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Red", hexes: ["#EB3A3A"], m: [["asared", 4.2]] },
+    { name: "Gray", hexes: ["#ADB1B2"], m: [] },
+    { name: "Green", hexes: ["#00AE42"], m: [] },
+    { name: "Yellow", hexes: ["#FFD00B"], m: [] },
+    { name: "Orange", hexes: ["#F75403"], m: [] },
+    { name: "Cream", hexes: ["#F9DFB9"], m: [] },
+    { name: "Peanut Brown", hexes: ["#875718"], m: [], disc: true }
+  ]},
+  { id: "abs", name: "ABS", material: "ABS", colors: [
+    { name: "Black", hexes: ["#000000"], m: [["absbk", 0.0], ["plabk", 0.0], ["petgbk", 0.0]] },
+    { name: "White", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Red", hexes: ["#D32941"], m: [["asared", 5.8]] },
+    { name: "Azure", hexes: ["#489FDF"], m: [["marine", 9.4]] },
+    { name: "Silver", hexes: ["#87909A"], m: [] },
+    { name: "Bambu Green", hexes: ["#00AE42"], m: [] },
+    { name: "Olive", hexes: ["#748C45"], m: [], disc: true }
+  ]},
+  { id: "asa", name: "ASA", material: "ASA", colors: [
+    { name: "Red", hexes: ["#E02928"], m: [["asared", 0.0]] },
+    { name: "Black", hexes: ["#000000"], m: [["absbk", 0.0], ["petgbk", 0.0], ["plabk", 0.0]] },
+    { name: "White", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Gray", hexes: ["#8A949E"], m: [] },
+    { name: "Blue", hexes: ["#2140B4"], m: [["plablue", 5.0]] }
+  ]}
+];
+
+var CUTOFF = 10;
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+function colorKey(line, color) { return line.id + "/" + color.name; }
+function isMulti(color) { return color.hexes.length > 1; }
+
+/** Matches within the cutoff, closest first; same material first on a tie. */
+function similar(line, color) {
+  if (isMulti(color)) return [];
+  return color.m
+    .filter(function (x) { return x[1] <= CUTOFF; })
+    .map(function (x) { var p = STOCK[x[0]]; return { id: x[0], p: p, de: x[1], other: p.material !== line.material }; })
+    .sort(function (a, b) { return a.de - b.de || (a.other - b.other); });
+}
+
+function materials() {
+  var seen = [];
+  LINES.forEach(function (l) { if (seen.indexOf(l.material) < 0) seen.push(l.material); });
+  return seen;
+}
+
+/** The color counts per material, for the filter sheet. */
+function materialCounts(showDisc) {
+  var out = {};
+  LINES.forEach(function (l) {
+    l.colors.forEach(function (c) { if (showDisc || !c.disc) out[l.material] = (out[l.material] || 0) + 1; });
+  });
+  return out;
+}
+
+function noFilter() { return { query: "", types: [], similarOnly: false, showDisc: false }; }
+
+function activeCount(f) { return (f.types.length ? 1 : 0) + (f.similarOnly ? 1 : 0) + (f.showDisc ? 1 : 0); }
+
+/** Lines with their listed colors under the filter; a line with none left is dropped. */
+function applyFilter(f) {
+  var q = f.query.trim().toLowerCase();
+  var out = [];
+  LINES.forEach(function (line) {
+    if (f.types.length && f.types.indexOf(line.material) < 0) return;
+    var pool = line.colors.filter(function (c) { return f.showDisc || !c.disc; });
+    var lineHit = q && line.name.toLowerCase().indexOf(q) >= 0;
+    var shown = pool.filter(function (c) {
+      if (f.similarOnly && !similar(line, c).length) return false;
+      if (q && !lineHit && c.name.toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+    if (shown.length) out.push({ line: line, colors: shown, total: pool.length });
+  });
+  return out;
+}
+
+function countColors(groups) { return groups.reduce(function (s, g) { return s + g.colors.length; }, 0); }
+
+function stockText(p) {
+  var parts = [];
+  if (p.sealed) parts.push(p.sealed + " sealed");
+  if (p.open) parts.push(p.open + " open");
+  return parts.join(" · ");
+}
+
+/** The type chip's text: one or two types by name, all but one, or a count. */
+function typeSummary(types) {
+  var all = materials();
+  if (!types.length || types.length === all.length) return "";
+  if (types.length <= 2) return types.join(", ");
+  var missing = all.filter(function (t) { return types.indexOf(t) < 0; });
+  if (missing.length === 1) return "All but " + missing[0];
+  return types.length + " types";
+}
+
+/** The swatch ring: one color as the border, or segments for a multi-color catalog color. */
+function ringHtml(hexes, size) {
+  if (hexes.length === 1) return '<span class="ring ' + size + '" aria-hidden="true" style="border-color:' + hexes[0] + '"></span>';
+  var step = 100 / hexes.length;
+  var stops = hexes.map(function (h, i) { return h + " " + (i * step).toFixed(2) + "% " + ((i + 1) * step).toFixed(2) + "%"; }).join(", ");
+  return '<span class="ring multi ' + size + '" aria-hidden="true" style="background:conic-gradient(from -90deg, ' + stops + ')"></span>';
+}
+
+function hexLabel(hexes) { return hexes.join(" / "); }
+
+function badgesHtml(line, color) {
+  var b = "";
+  if (color.disc) b += '<span class="badge-disc">Discontinued</span>';
+  if (isMulti(color)) b += '<span class="badge-multi">Multi-color</span>';
+  else {
+    var n = similar(line, color).length;
+    b += n ? '<span class="badge-sim">' + n + ' similar in stock</span>' : '<span class="nosim">None similar in stock</span>';
+  }
+  return b;
+}
+
+/** The expanded area under a color row. */
+function detailHtml(line, color) {
+  var h = '<div class="detail">';
+  if (isMulti(color)) {
+    h += '<p class="muted none">Multi-color: no comparison</p></div>';
+    return h;
+  }
+  var list = similar(line, color);
+  h += '<h4 class="label">Similar in-stock colors</h4>';
+  if (!list.length) h += '<p class="muted none">No similar color in stock</p>';
+  else {
+    h += '<ul class="matches">';
+    list.forEach(function (x) {
+      h += '<li class="match">' + ringHtml([x.p.hex], "sm") +
+        '<span class="mtext"><a class="mname" href="#" data-act="product">' + esc(x.p.name) + '</a>' +
+        (x.other ? '<span class="warn">⚠ Different material: ' + x.p.material + ', not ' + line.material + '</span>' : '') +
+        '</span><span class="de mono">ΔE ' + x.de.toFixed(1) + '</span><span class="stock">' + stockText(x.p) + '</span></li>';
+    });
+    h += '</ul>';
+  }
+  h += '<p class="foot muted">Showing in-stock products within ΔE ' + CUTOFF + '</p></div>';
+  return h;
+}
+
+
+var state = { f: noFilter(), collapsed: {}, expanded: null, role: "admin" };
+var CHEV = '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>';
+
+function renderChips() {
+  var f = state.f, h = "";
+  materials().forEach(function (t) {
+    h += '<button type="button" class="chip" data-type="' + t + '" aria-pressed="' + (f.types.indexOf(t) >= 0) + '">' + t + '</button>';
+  });
+  h += '<span class="sep" aria-hidden="true"></span>';
+  h += '<button type="button" class="chip" data-toggle="similarOnly" aria-pressed="' + f.similarOnly + '">Has similar in stock</button>';
+  h += '<button type="button" class="chip" data-toggle="showDisc" aria-pressed="' + f.showDisc + '">Show discontinued</button>';
+  if (activeCount(f) || f.query) h += '<button type="button" class="clear" data-act="clear">Clear</button>';
+  document.getElementById("chips").innerHTML = h;
+}
+
+function renderGroups() {
+  var groups = applyFilter(state.f), filtered = activeCount(state.f) > 0 || state.f.query.trim() !== "";
+  var total = countColors(applyFilter({ query: "", types: [], similarOnly: false, showDisc: state.f.showDisc }));
+  var shown = countColors(groups);
+  document.getElementById("summary").innerHTML = filtered
+    ? "<b>" + shown + "</b> of <b>" + total + "</b> catalog colors in <b>" + groups.length + "</b> " + (groups.length === 1 ? "filament line" : "filament lines")
+    : "<b>" + total + "</b> catalog colors in <b>" + groups.length + "</b> filament lines";
+  if (!groups.length) {
+    document.getElementById("groups").innerHTML = '<p class="muted">No catalog colors match. <button type="button" class="small" data-act="clear">Clear filters</button></p>';
+    return;
+  }
+  var h = "";
+  groups.forEach(function (g) {
+    var line = g.line, open = !state.collapsed[line.id];
+    var count = g.colors.length === g.total ? g.total + " colors" : g.colors.length + " of " + g.total + " colors";
+    h += '<section class="group" aria-labelledby="g-' + line.id + '">';
+    h += '<button type="button" class="ghead" id="g-' + line.id + '" aria-expanded="' + open + '" aria-controls="r-' + line.id + '" data-group="' + line.id + '">' +
+      '<svg class="gchev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>' +
+      '<span class="gname">' + esc(line.name) + '</span><span class="gmeta">· ' + line.material + ' · ' + count + '</span></button>';
+    if (open) {
+      h += '<ul class="rows" id="r-' + line.id + '">';
+      g.colors.forEach(function (c) {
+        var key = colorKey(line, c), isOpen = state.expanded === key, did = "d-" + key.replace(/[^a-z0-9]/gi, "-");
+        h += '<li class="' + (isOpen ? "open" : "") + '"><button type="button" class="crow" aria-expanded="' + isOpen + '" aria-controls="' + did + '" data-color="' + esc(key) + '">' +
+          ringHtml(c.hexes, "sm") + '<span class="cname">' + esc(c.name) + '</span><span class="chex">' + hexLabel(c.hexes) + '</span><span class="badges">' + badgesHtml(line, c) + '</span>' + CHEV + '</button>';
+        if (isOpen) h += '<div id="' + did + '">' + detailHtml(line, c) + '</div>';
+        h += '</li>';
+      });
+      h += '</ul>';
+    }
+    h += '</section>';
+  });
+  document.getElementById("groups").innerHTML = h;
+}
+
+function render() { renderChips(); renderGroups(); }
+
+document.getElementById("q").addEventListener("input", function (e) { state.f.query = e.target.value; render(); });
+
+document.addEventListener("click", function (e) {
+  var t = e.target.closest("button, a");
+  if (!t) return;
+  if (t.tagName === "A" && t.getAttribute("href") === "#") e.preventDefault();
+  var d = t.dataset;
+  if (d.type) {
+    var i = state.f.types.indexOf(d.type);
+    if (i >= 0) state.f.types.splice(i, 1); else state.f.types.push(d.type);
+    render();
+  } else if (d.toggle) {
+    state.f[d.toggle] = !state.f[d.toggle];
+    render();
+  } else if (d.act === "clear") {
+    state.f = noFilter();
+    document.getElementById("q").value = "";
+    render();
+  } else if (d.group) {
+    state.collapsed[d.group] = !state.collapsed[d.group];
+    renderGroups();
+    document.getElementById("g-" + d.group).focus();
+  } else if (d.color) {
+    state.expanded = state.expanded === d.color ? null : d.color;
+    renderGroups();
+    var again = document.querySelector('[data-color="' + CSS.escape(d.color) + '"]');
+    if (again) again.focus();
+  } else if (d.state) {
+    pick(t);
+    var empty = d.state === "empty";
+    document.getElementById("synced").hidden = empty;
+    document.getElementById("empty").hidden = !empty;
+    document.getElementById("refresh-msg").textContent = "";
+  } else if (d.role) {
+    pick(t);
+    state.role = d.role;
+    var admin = d.role === "admin";
+    document.querySelectorAll(".mainnav .admin").forEach(function (li) { li.hidden = !admin; });
+    document.getElementById("empty-actions").hidden = !admin;
+    document.getElementById("empty-note").textContent = admin
+      ? "Download it now, or set how often it syncs in Settings."
+      : "An admin can download it from Settings.";
+  } else if (d.theme) {
+    pick(t);
+    document.documentElement.setAttribute("data-theme", d.theme);
+  } else if (t.id === "refresh") {
+    t.disabled = true;
+    document.getElementById("refresh-msg").textContent = "Downloading…";
+    setTimeout(function () {
+      t.disabled = false;
+      document.getElementById("refresh-msg").textContent = "";
+      document.querySelector('[data-state="synced"]').click();
+    }, 1200);
+  }
+});
+
+function pick(btn) {
+  btn.parentNode.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); });
+}
+
+document.querySelector('[data-role="admin"]').click();
+render();
+</script>
+</body>
+</html>

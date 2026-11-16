@@ -111,6 +111,24 @@ _Avoid_: Low filament (Home Assistant's name for it)
 **Nearly out**:
 An Open spool whose remaining % is at or below its product's cutoff. It applies only to spools in an AMS.
 
+### Catalog
+
+**Catalog**:
+The local copy of the Open Filament Database's Bambu Lab colors.
+_Avoid_: OFDB (except when talking about the source itself)
+
+**Filament line**:
+One material line in the catalog, such as PLA Basic.
+_Avoid_: Filament on its own
+
+**Catalog color**:
+One color of a filament line, whether owned or not.
+_Avoid_: Variant (that word is for the tag's variant ID)
+
+**Similar in-stock color**:
+An in-stock product whose color is within the similarity cutoff of a catalog color, in any material.
+_Avoid_: Closest color
+
 ### Printer
 
 **AMS**:

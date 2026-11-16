@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalog · RollCall (phone mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Global styles from the approved mockups (docs/mockups/web/, direction A "Workshop").
+ * Tokens come from docs/mockups/web/tokens.css. The theme is set on <html data-theme>
+ * by the script in app.html and by lib/theme.svelte.ts. Components add scoped styles. */
+
+:root,
+:root[data-theme="light"] {
+  --bg: #f4f2ee; /* page background */
+  --surface: #ffffff; /* cards, header, tables */
+  --line: #ddd8cf; /* borders and dividers */
+  --text: #1c1b19;
+  --muted: #5e5a53; /* secondary text; 6.5:1 on --surface */
+  --accent: #b45309; /* primary buttons, active filter, Review badge */
+  --onaccent: #ffffff;
+  --chip: #ece8e1; /* neutral fills: hover, open-state chip, avatars */
+  --lowbg: #fdecd3; /* low stock, flagged, warnings */
+  --lowtext: #7c3500;
+  --okbg: #dcefe2;
+  --oktext: #1f5c33;
+  --okdot: #2f8a4e;
+  --track: #e9e5de; /* % left bar: track */
+  --fill: #3f3b35; /* % left bar: fill */
+  --fillLow: #c2410c; /* % left bar: nearly out */
+  --danger: #b3261e;
+
+  /* Spool ring swatch: same treatment for every color */
+  --ringShadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.16);
+  --holeShadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+  --ringShadowSmall: var(--ringShadow);
+
+  --font-head: "Space Grotesk", system-ui, sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* The phone layout's bottom bar, and what the pages leave free for it. */
+  --bottom-bar: calc(84px + env(safe-area-inset-bottom, 0px));
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1c1c1b;
+  --line: #34322e;
+  --text: #f2efe9;
+  --muted: #a9a49b;
+  --accent: #f59e0b;
+  --onaccent: #1a1205;
+  --chip: #262523;
+  --lowbg: #3a2608;
+  --lowtext: #fbbf5c;
+  --okbg: #173322;
+  --oktext: #86d9a3;
+  --okdot: #4ade80;
+  --track: #2c2b28;
+  --fill: #d9d4cb;
+  --fillLow: #fb923c;
+  --danger: #ff8a80;
+
+  /* A gap in the surface color, a thin light rim, then a soft glow, outside and inside the
+     ring, so white and black swatches both stay visible. */
+  --ringShadow:
+    0 0 0 1.5px var(--surface), 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    0 0 10px 2px rgba(255, 255, 255, 0.1);
+  --holeShadow:
+    inset 0 0 0 1.5px var(--surface), inset 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    inset 0 0 6px 1px rgba(255, 255, 255, 0.1);
+  --ringShadowSmall:
+    0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255, 255, 255, 0.28),
+    0 0 6px 1px rgba(255, 255, 255, 0.08), inset 0 0 0 1px var(--surface),
+    inset 0 0 0 1.75px rgba(255, 255, 255, 0.28);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(30px, 6vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Buttons: neutral by default, .primary for the main action. */
+button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* A link that looks like a button, for navigation actions such as "Open spool". */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+/* Filter chips: round, accent when pressed. */
+button.chip {
+  padding: 10px 16px;
+  border-radius: 999px;
+}
+
+button.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+  min-height: 44px;
+}
+
+textarea {
+  padding: 10px 12px;
+  min-height: 88px;
+  resize: vertical;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Tables sit in a box that scrolls sideways on phones. */
+/* Positioned so screen-reader-only text inside a table scrolls with it instead of widening
+   the page (on a phone that pushed the bottom bar off the screen). */
+.tablebox {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.notice {
+  color: var(--lowtext);
+  margin: 0;
+}
+
+.badge-low {
+  background: var(--lowbg);
+  color: var(--lowtext);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.badge-hand {
+  border: 1px dashed var(--muted);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Page heading: title, subtitle, and actions on the right. */
+.pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pagehead p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* ---- Ring swatch (lib/components/ui/Ring.svelte), plus a split ring for multi-color ---- */
+:root, :root[data-theme="light"] { --ringOuterSm: var(--ringShadow); --holeSm: none; }
+:root[data-theme="dark"] {
+  --ringOuterSm: 0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255,255,255,.28), 0 0 6px 1px rgba(255,255,255,.08);
+  --holeSm: inset 0 0 0 1px var(--surface), inset 0 0 0 1.75px rgba(255,255,255,.28);
+}
+.ring { display: inline-block; flex: none; border-radius: 50%; border-style: solid; background: var(--bg); box-shadow: var(--ringShadow), var(--holeShadow); }
+.ring.sm { width: 30px; height: 30px; border-width: 8px; box-shadow: var(--ringShadowSmall); }
+.ring.multi { border: 0; position: relative; box-shadow: var(--ringOuterSm); }
+.ring.multi::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bg); box-shadow: var(--holeSm); }
+li.open .ring.multi::after, .open .ring.multi::after { background: var(--bg); }
+[hidden] { display: none !important; }
+
+
+body{background:#d9d5ce}
+:root[data-theme="dark"] body{background:#050505}
+.stage{display:flex;justify-content:center;padding:28px 16px 48px}
+.phone{position:relative;width:390px;height:844px;border-radius:36px;overflow:hidden;background:var(--bg);color:var(--text);box-shadow:0 0 0 10px #1c1b19,0 20px 50px rgba(0,0,0,.35);display:flex;flex-direction:column}
+@media (max-width:460px){.stage{padding:0}.phone{width:100vw;height:100dvh;border-radius:0;box-shadow:none}}
+
+/* ---- Top bar (PhoneTopBar) ---- */
+.top{display:flex;align-items:center;gap:10px;padding:18px 20px 6px;flex:none}
+.top .title{margin:0;font-family:var(--font-head);font-size:28px;font-weight:700;letter-spacing:-.02em}
+.scroll{flex:1;min-height:0;overflow-y:auto;padding:4px 16px 108px;display:flex;flex-direction:column;gap:10px}
+
+/* ---- Controls (InventoryControls) ---- */
+.ctrl{display:flex;gap:8px}
+.search{position:relative;flex:1;display:block}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.search input{width:100%;padding-left:38px}
+.filter.on{background:var(--text);border-color:var(--text);color:var(--bg)}
+.fcount{min-width:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:var(--onaccent);font-size:12px;font-weight:700;text-align:center}
+.quick{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.typechip{display:inline-flex;align-items:center;border-radius:999px;background:var(--text);color:var(--bg)}
+.typechip button{min-height:40px;border:0;background:transparent;color:inherit;font-weight:600}
+.typechip .lb{padding:0 4px 0 14px}
+.typechip .x{padding:0 12px 0 6px}
+.clear{border:0;background:transparent;color:var(--muted);text-decoration:underline;padding:0 8px}
+.summary{margin:2px 2px 0;font-size:13px;color:var(--muted)}
+.summary b{color:var(--text);font-family:var(--font-mono)}
+
+/* ---- Groups ---- */
+.group{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.ghead{position:sticky;top:-4px;z-index:2;width:100%;justify-content:flex-start;gap:10px;min-height:56px;padding:0 14px;border:0;border-radius:14px;background:var(--surface);text-align:left;flex-wrap:wrap;row-gap:0}
+.group.isopen .ghead{border-radius:14px 14px 0 0;border-bottom:1px solid var(--line)}
+.gname{font-family:var(--font-head);font-size:17px;font-weight:600}
+.gmeta{color:var(--muted);font-weight:500;font-size:13px}
+.gchev{color:var(--muted);transition:transform .15s;flex:none}
+.ghead[aria-expanded=false] .gchev{transform:rotate(-90deg)}
+.rows{margin:0;padding:0;list-style:none}
+.rows > li + li{border-top:1px solid var(--line)}
+.rows > li.open{background:var(--bg)}
+.rows > li:last-child, .rows > li:last-child .crow{border-radius:0 0 14px 14px}
+.crow{width:100%;display:grid;grid-template-columns:30px minmax(0,1fr) 18px;align-items:center;gap:12px;min-height:64px;padding:10px 12px 10px 14px;border:0;border-radius:0;background:transparent;text-align:left;font-weight:400}
+.ctext{display:flex;flex-direction:column;gap:3px;min-width:0}
+.cname{font-family:var(--font-head);font-weight:600;font-size:15px;line-height:1.25}
+.chex{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.chev{color:var(--muted);transition:transform .15s}
+li.open .chev{transform:rotate(180deg)}
+.badge-disc{border:1px solid var(--muted);color:var(--muted);border-radius:6px;padding:0 7px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-multi{background:var(--chip);color:var(--text);border-radius:6px;padding:1px 7px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-sim{background:var(--okbg);color:var(--oktext);border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700;white-space:nowrap}
+.nosim{color:var(--muted);font-size:12px}
+.detail{display:flex;flex-direction:column;gap:10px;padding:0 14px 14px 56px}
+.detail h4{margin:2px 0 0}
+.matches{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.match{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:start;column-gap:10px}
+.match .ring{margin-top:2px}
+.mtext{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.mname{font-weight:600;font-size:14px;min-height:24px;display:inline-flex;align-items:center}
+.warn{background:var(--lowbg);color:var(--lowtext);border-radius:6px;padding:2px 7px;font-size:12px;font-weight:600}
+.mfacts{grid-column:2;display:flex;gap:10px;font-size:12px;color:var(--muted)}
+.mfacts .de{color:var(--text);font-weight:700}
+.none{margin:0;font-size:14px}
+.foot{margin:0;font-size:12px}
+.pagefoot{margin:6px 2px 0;font-size:12px;color:var(--muted);line-height:1.45}
+
+/* ---- Empty state ---- */
+.empty{align-items:flex-start;padding:20px}
+.empty h2{margin:0;font-size:20px}
+.empty p{margin:0;color:var(--muted)}
+.emptyicon{width:52px;height:52px;border-radius:14px;background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.btncol{display:flex;flex-direction:column;gap:8px;width:100%}
+
+/* ---- Bottom bar (PhoneNav) ---- */
+.bar{position:absolute;left:0;right:0;bottom:0;z-index:42;display:grid;grid-template-columns:1fr auto 1fr;align-items:end;padding:8px 14px 14px;border-top:1px solid var(--line);background:var(--surface)}
+.end{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:64px;min-height:48px;padding:0 6px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:600}
+.start{justify-self:start}
+.finish{justify-self:end}
+.end[aria-expanded=true]{color:var(--text)}
+.dot{position:absolute;top:4px;right:18px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.scan{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:-30px;color:var(--text);font-size:12px;font-weight:700}
+.fab{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent);color:var(--onaccent);box-shadow:0 0 0 5px var(--surface),0 4px 14px rgba(0,0,0,.25)}
+.binitial{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--chip);color:var(--text);font-size:13px;font-weight:700}
+
+/* ---- Sheets (MenuSheet, FilterSheet) ---- */
+.dim{position:absolute;inset:0;z-index:40;border:0;border-radius:0;padding:0;min-height:0;background:rgba(0,0,0,.45)}
+.dim.over{z-index:50}
+.sheet{position:absolute;left:0;right:0;bottom:84px;z-index:41;display:flex;flex-direction:column;gap:14px;max-height:calc(100% - 108px);overflow-y:auto;padding:10px 16px 18px;border-radius:24px 24px 0 0;background:var(--surface);outline:none}
+.sheet.fs{bottom:0;z-index:51;gap:18px;max-height:calc(100% - 48px);padding-bottom:18px}
+.grip{align-self:center;width:40px;height:5px;border-radius:999px;background:var(--line)}
+.pages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.adminpages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.item{display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--bg);font-size:16px;font-weight:600}
+.item.small{flex-direction:column;justify-content:center;gap:4px;min-height:68px;font-size:14px}
+.item[aria-current=page]{background:var(--text);border-color:var(--text);color:var(--bg)}
+.ibadge{margin-left:auto;background:var(--accent);color:var(--onaccent);border-radius:999px;font-size:12px;font-weight:700;padding:1px 8px}
+.shead{display:flex;align-items:center;justify-content:space-between}
+.shead h2{margin:0;font-size:20px}
+.sheet section{display:flex;flex-direction:column;gap:10px}
+.sheet h3{margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip .n{margin-left:4px;font-family:var(--font-mono);font-size:12px;opacity:.75}
+.check{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:600}
+.sfoot{display:grid;grid-template-columns:auto 1fr;gap:10px}
+
+/* ---- Mockup controls (not part of the design) ---- */
+.mock{background:#37352f;color:#f2efe9;padding:8px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;font-size:12px}
+.mock strong{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+.mock .mrow{display:flex;align-items:center;gap:8px}
+.mock .mrow > span{opacity:.8}
+.mock .mseg{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.12)}
+.mock button{min-height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:inherit;font-size:12px}
+.mock button[aria-pressed=true]{background:#f2efe9;color:#1c1b19}
+</style>
+</head>
+<body>
+<aside class="mock" aria-label="Mockup controls">
+<strong>Mockup controls</strong>
+<div class="mrow"><span>State</span><div class="mseg" role="group" aria-label="State"><button type="button" data-state="synced" aria-pressed="true">Synced</button><button type="button" data-state="empty" aria-pressed="false">Before first sync</button></div></div>
+<div class="mrow"><span>Role</span><div class="mseg" role="group" aria-label="Role"><button type="button" data-role="admin" aria-pressed="true">Admin</button><button type="button" data-role="viewer" aria-pressed="false">Viewer</button></div></div>
+<div class="mrow"><span>Theme</span><div class="mseg" role="group" aria-label="Theme"><button type="button" data-theme="light" aria-pressed="true">Light</button><button type="button" data-theme="dark" aria-pressed="false">Dark</button></div></div>
+</aside>
+
+<div class="stage">
+<div class="phone" id="phone">
+<header class="top">
+<a href="#" aria-label="RollCall, Inventory"><svg width="30" height="30" viewBox="0 0 140 140" aria-hidden="true"><circle cx="70" cy="70" r="62" fill="#C8324B"></circle><circle cx="70" cy="70" r="50" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="40" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="30" fill="#FFF7F5"></circle><polyline points="56,71 66,81 85,60" fill="none" stroke="#C8324B" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"></polyline></svg></a>
+<p class="title" aria-hidden="true">Catalog</p>
+</header>
+
+<div class="scroll" id="scroll">
+<h1 class="sr-only">Catalog</h1>
+<div id="synced" style="display:flex;flex-direction:column;gap:10px">
+<div class="ctrl">
+<label class="search">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input id="q" type="search" aria-label="Search line or color" placeholder="Search line or color" autocomplete="off">
+</label>
+<button type="button" class="filter" id="filterbtn" aria-haspopup="dialog" data-act="sheet">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"></path></svg>
+Filter<span class="fcount" id="fcount" aria-hidden="true" hidden></span>
+</button>
+</div>
+<div class="quick" id="quick" role="group" aria-label="Quick filters"></div>
+<p class="summary" id="summary" aria-live="polite"></p>
+<div id="groups" style="display:flex;flex-direction:column;gap:12px"></div>
+<p class="pagefoot">Catalog data from the Open Filament Database (MIT license) · Updated Nov 15, 2026, dataset v2026.11.15</p>
+</div>
+
+<div id="empty" hidden>
+<section class="card empty" aria-labelledby="empty-h">
+<span class="emptyicon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path></svg></span>
+<h2 id="empty-h">The catalog hasn't been downloaded yet.</h2>
+<p id="empty-note">Download it now, or set how often it syncs in Settings.</p>
+<div class="btncol" id="empty-actions">
+<button type="button" class="primary" id="refresh">Refresh now</button>
+<a class="button" href="#">Catalog settings</a>
+<span class="muted" id="refresh-msg" role="status"></span>
+</div>
+</section>
+</div>
+</div>
+
+<div id="overlay"></div>
+
+<nav aria-label="App" class="bar">
+<button type="button" class="end start" id="menubtn" aria-expanded="false" aria-controls="menu-sheet" data-act="menu"></button>
+<a class="scan" href="#"><span class="fab" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><rect x="14" y="6" width="20" height="36" rx="4"></rect><path d="M21 37h6"></path><path d="M38 18a9 9 0 0 1 0 12M42 14a15 15 0 0 1 0 20"></path></svg></span>Scan</a>
+<a class="end finish" href="#"><span class="binitial" aria-hidden="true">F</span>frank</a>
+</nav>
+</div>
+</div>
+
+<script>
+/* Sample data and filter logic shared by the Catalog mockups (pasted into each page at build). */
+var STOCK = {
+  plablue: { name: "PLA Basic Blue", material: "PLA", hex: "#0A2CA5", sealed: 2, open: 0 },
+  marine: { name: "PLA Matte Marine Blue", material: "PLA", hex: "#0078BF", sealed: 0, open: 1 },
+  plabk: { name: "PLA Basic Black", material: "PLA", hex: "#000000", sealed: 1, open: 1 },
+  white: { name: "PLA Basic White", material: "PLA", hex: "#FFFFFF", sealed: 3, open: 0 },
+  petgbk: { name: "PETG HF Black", material: "PETG", hex: "#000000", sealed: 1, open: 0 },
+  absbk: { name: "ABS Black", material: "ABS", hex: "#000000", sealed: 0, open: 1 },
+  asared: { name: "ASA Red", material: "ASA", hex: "#E02928", sealed: 1, open: 0 },
+  brown: { name: "PETG Translucent Brown", material: "PETG", hex: "#C9A381", sealed: 0, open: 1 }
+};
+
+/* m: [stock id, ΔE] */
+var LINES = [
+  { id: "pla-basic", name: "PLA Basic", material: "PLA", colors: [
+    { name: "Jade White", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Black", hexes: ["#000000"], m: [["plabk", 0.0], ["petgbk", 0.0], ["absbk", 0.0]] },
+    { name: "Blue", hexes: ["#0A2CA5"], m: [["plablue", 0.0]] },
+    { name: "Cyan", hexes: ["#0086D6"], m: [["marine", 4.6]] },
+    { name: "Red", hexes: ["#C12E1F"], m: [["asared", 6.9]] },
+    { name: "Hot Pink", hexes: ["#F5547D"], m: [] },
+    { name: "Bambu Green", hexes: ["#00AE42"], m: [] },
+    { name: "Orange", hexes: ["#FF6A13"], m: [] },
+    { name: "Sunflower Yellow", hexes: ["#FEC600"], m: [] },
+    { name: "Gray", hexes: ["#8E9089"], m: [] },
+    { name: "Cocoa Brown", hexes: ["#6F5034"], m: [] },
+    { name: "Purple", hexes: ["#5E43B7"], m: [] },
+    { name: "Bronze", hexes: ["#847D48"], m: [], disc: true },
+    { name: "Beige", hexes: ["#F7E6DE"], m: [["white", 9.4]], disc: true }
+  ]},
+  { id: "pla-matte", name: "PLA Matte", material: "PLA", colors: [
+    { name: "Ivory White", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Charcoal", hexes: ["#000000"], m: [["plabk", 0.0], ["petgbk", 0.0], ["absbk", 0.0]] },
+    { name: "Marine Blue", hexes: ["#0078BF"], m: [["marine", 0.0]] },
+    { name: "Ash Gray", hexes: ["#9B9EA0"], m: [] },
+    { name: "Sakura Pink", hexes: ["#E8AFCF"], m: [] },
+    { name: "Desert Tan", hexes: ["#E8DBB7"], m: [["brown", 9.2]] },
+    { name: "Dark Red", hexes: ["#BB3D43"], m: [["asared", 8.1]] },
+    { name: "Lemon Yellow", hexes: ["#F7D959"], m: [] }
+  ]},
+  { id: "pla-silk-dual", name: "PLA Silk Dual Color", material: "PLA", colors: [
+    { name: "Gold-Silver", hexes: ["#F4A925", "#C0C0C0"], m: [] },
+    { name: "Blue-Red", hexes: ["#1E4FC2", "#D0322E"], m: [] },
+    { name: "Aurora Purple", hexes: ["#5E43B7", "#E04E8A", "#2A9DF4"], m: [] },
+    { name: "Copper-Teal", hexes: ["#B87333", "#008080"], m: [], disc: true }
+  ]},
+  { id: "petg-hf", name: "PETG HF", material: "PETG", colors: [
+    { name: "Black", hexes: ["#000000"], m: [["petgbk", 0.0], ["plabk", 0.0], ["absbk", 0.0]] },
+    { name: "Blue", hexes: ["#002E96"], m: [["plablue", 3.1], ["marine", 8.7]] },
+    { name: "White", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Red", hexes: ["#EB3A3A"], m: [["asared", 4.2]] },
+    { name: "Gray", hexes: ["#ADB1B2"], m: [] },
+    { name: "Green", hexes: ["#00AE42"], m: [] },
+    { name: "Yellow", hexes: ["#FFD00B"], m: [] },
+    { name: "Orange", hexes: ["#F75403"], m: [] },
+    { name: "Cream", hexes: ["#F9DFB9"], m: [] },
+    { name: "Peanut Brown", hexes: ["#875718"], m: [], disc: true }
+  ]},
+  { id: "abs", name: "ABS", material: "ABS", colors: [
+    { name: "Black", hexes: ["#000000"], m: [["absbk", 0.0], ["plabk", 0.0], ["petgbk", 0.0]] },
+    { name: "White", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Red", hexes: ["#D32941"], m: [["asared", 5.8]] },
+    { name: "Azure", hexes: ["#489FDF"], m: [["marine", 9.4]] },
+    { name: "Silver", hexes: ["#87909A"], m: [] },
+    { name: "Bambu Green", hexes: ["#00AE42"], m: [] },
+    { name: "Olive", hexes: ["#748C45"], m: [], disc: true }
+  ]},
+  { id: "asa", name: "ASA", material: "ASA", colors: [
+    { name: "Red", hexes: ["#E02928"], m: [["asared", 0.0]] },
+    { name: "Black", hexes: ["#000000"], m: [["absbk", 0.0], ["petgbk", 0.0], ["plabk", 0.0]] },
+    { name: "White", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Gray", hexes: ["#8A949E"], m: [] },
+    { name: "Blue", hexes: ["#2140B4"], m: [["plablue", 5.0]] }
+  ]}
+];
+
+var CUTOFF = 10;
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+function colorKey(line, color) { return line.id + "/" + color.name; }
+function isMulti(color) { return color.hexes.length > 1; }
+
+/** Matches within the cutoff, closest first; same material first on a tie. */
+function similar(line, color) {
+  if (isMulti(color)) return [];
+  return color.m
+    .filter(function (x) { return x[1] <= CUTOFF; })
+    .map(function (x) { var p = STOCK[x[0]]; return { id: x[0], p: p, de: x[1], other: p.material !== line.material }; })
+    .sort(function (a, b) { return a.de - b.de || (a.other - b.other); });
+}
+
+function materials() {
+  var seen = [];
+  LINES.forEach(function (l) { if (seen.indexOf(l.material) < 0) seen.push(l.material); });
+  return seen;
+}
+
+/** The color counts per material, for the filter sheet. */
+function materialCounts(showDisc) {
+  var out = {};
+  LINES.forEach(function (l) {
+    l.colors.forEach(function (c) { if (showDisc || !c.disc) out[l.material] = (out[l.material] || 0) + 1; });
+  });
+  return out;
+}
+
+function noFilter() { return { query: "", types: [], similarOnly: false, showDisc: false }; }
+
+function activeCount(f) { return (f.types.length ? 1 : 0) + (f.similarOnly ? 1 : 0) + (f.showDisc ? 1 : 0); }
+
+/** Lines with their listed colors under the filter; a line with none left is dropped. */
+function applyFilter(f) {
+  var q = f.query.trim().toLowerCase();
+  var out = [];
+  LINES.forEach(function (line) {
+    if (f.types.length && f.types.indexOf(line.material) < 0) return;
+    var pool = line.colors.filter(function (c) { return f.showDisc || !c.disc; });
+    var lineHit = q && line.name.toLowerCase().indexOf(q) >= 0;
+    var shown = pool.filter(function (c) {
+      if (f.similarOnly && !similar(line, c).length) return false;
+      if (q && !lineHit && c.name.toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+    if (shown.length) out.push({ line: line, colors: shown, total: pool.length });
+  });
+  return out;
+}
+
+function countColors(groups) { return groups.reduce(function (s, g) { return s + g.colors.length; }, 0); }
+
+function stockText(p) {
+  var parts = [];
+  if (p.sealed) parts.push(p.sealed + " sealed");
+  if (p.open) parts.push(p.open + " open");
+  return parts.join(" · ");
+}
+
+/** The type chip's text: one or two types by name, all but one, or a count. */
+function typeSummary(types) {
+  var all = materials();
+  if (!types.length || types.length === all.length) return "";
+  if (types.length <= 2) return types.join(", ");
+  var missing = all.filter(function (t) { return types.indexOf(t) < 0; });
+  if (missing.length === 1) return "All but " + missing[0];
+  return types.length + " types";
+}
+
+/** The swatch ring: one color as the border, or segments for a multi-color catalog color. */
+function ringHtml(hexes, size) {
+  if (hexes.length === 1) return '<span class="ring ' + size + '" aria-hidden="true" style="border-color:' + hexes[0] + '"></span>';
+  var step = 100 / hexes.length;
+  var stops = hexes.map(function (h, i) { return h + " " + (i * step).toFixed(2) + "% " + ((i + 1) * step).toFixed(2) + "%"; }).join(", ");
+  return '<span class="ring multi ' + size + '" aria-hidden="true" style="background:conic-gradient(from -90deg, ' + stops + ')"></span>';
+}
+
+function hexLabel(hexes) { return hexes.join(" / "); }
+
+function badgesHtml(line, color) {
+  var b = "";
+  if (color.disc) b += '<span class="badge-disc">Discontinued</span>';
+  if (isMulti(color)) b += '<span class="badge-multi">Multi-color</span>';
+  else {
+    var n = similar(line, color).length;
+    b += n ? '<span class="badge-sim">' + n + ' similar in stock</span>' : '<span class="nosim">None similar in stock</span>';
+  }
+  return b;
+}
+
+/** The expanded area under a color row. */
+function detailHtml(line, color) {
+  var h = '<div class="detail">';
+  if (isMulti(color)) {
+    h += '<p class="muted none">Multi-color: no comparison</p></div>';
+    return h;
+  }
+  var list = similar(line, color);
+  h += '<h4 class="label">Similar in-stock colors</h4>';
+  if (!list.length) h += '<p class="muted none">No similar color in stock</p>';
+  else {
+    h += '<ul class="matches">';
+    list.forEach(function (x) {
+      h += '<li class="match">' + ringHtml([x.p.hex], "sm") +
+        '<span class="mtext"><a class="mname" href="#" data-act="product">' + esc(x.p.name) + '</a>' +
+        (x.other ? '<span class="warn">⚠ Different material: ' + x.p.material + ', not ' + line.material + '</span>' : '') +
+        '</span><span class="de mono">ΔE ' + x.de.toFixed(1) + '</span><span class="stock">' + stockText(x.p) + '</span></li>';
+    });
+    h += '</ul>';
+  }
+  h += '<p class="foot muted">Showing in-stock products within ΔE ' + CUTOFF + '</p></div>';
+  return h;
+}
+
+
+var state = { f: noFilter(), collapsed: {}, expanded: null, role: "admin", menu: false, sheet: null };
+var CHEV = '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>';
+var ICONS = {
+  inventory: '<circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle>',
+  spools: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path>',
+  products: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"></path><path d="M7.5 7.5h.01"></path>',
+  catalog: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0 0 21 9.8C21 6 17 3 12 3z"></path><circle cx="7.5" cy="11.5" r="1"></circle><circle cx="10.5" cy="7.5" r="1"></circle><circle cx="15" cy="7.5" r="1"></circle>',
+  review: '<path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>',
+  devices: '<rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M12 18h.01"></path>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"></path>',
+  settings: '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"></path>'
+};
+function icon(k) { return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' + ICONS[k] + '</svg>'; }
+
+/* ---------- list ---------- */
+function renderControls() {
+  var f = state.f, n = activeCount(f), h = "";
+  var fb = document.getElementById("filterbtn"), fc = document.getElementById("fcount");
+  fb.classList.toggle("on", n > 0);
+  fb.setAttribute("aria-label", n ? "Filter, " + n + " on" : "Filter");
+  fc.hidden = !n; fc.textContent = n;
+  h += '<button type="button" class="chip" data-toggle="similarOnly" aria-pressed="' + f.similarOnly + '">Has similar in stock</button>';
+  var t = typeSummary(f.types);
+  if (t) h += '<span class="typechip"><button type="button" class="lb" data-act="sheet">' + t + '</button><button type="button" class="x" aria-label="Clear the types" data-act="cleartypes">✕</button></span>';
+  if (f.showDisc) h += '<span class="typechip"><button type="button" class="lb" data-act="sheet">Discontinued shown</button><button type="button" class="x" aria-label="Hide discontinued colors" data-act="hidedisc">✕</button></span>';
+  if (n || f.query) h += '<button type="button" class="clear" data-act="clear">Clear</button>';
+  document.getElementById("quick").innerHTML = h;
+}
+
+function phoneDetail(line, c) {
+  // The shared detail, with ΔE and stock moved under the name for the narrow screen.
+  return detailHtml(line, c).replace(/<\/span><span class="de mono">(ΔE [^<]+)<\/span><span class="stock">([^<]*)<\/span><\/li>/g,
+    '</span><span class="mfacts"><span class="de mono">$1</span><span>$2</span></span></li>');
+}
+
+function renderGroups() {
+  var groups = applyFilter(state.f), filtered = activeCount(state.f) > 0 || state.f.query.trim() !== "";
+  var total = countColors(applyFilter({ query: "", types: [], similarOnly: false, showDisc: state.f.showDisc }));
+  var shown = countColors(groups);
+  document.getElementById("summary").innerHTML = filtered
+    ? "<b>" + shown + "</b> of <b>" + total + "</b> catalog colors"
+    : "<b>" + total + "</b> catalog colors in <b>" + groups.length + "</b> filament lines";
+  if (!groups.length) {
+    document.getElementById("groups").innerHTML = '<p class="muted">No catalog colors match. <button type="button" class="small" data-act="clear">Clear filters</button></p>';
+    return;
+  }
+  var h = "";
+  groups.forEach(function (g) {
+    var line = g.line, open = !state.collapsed[line.id];
+    var count = g.colors.length === g.total ? g.total + " colors" : g.colors.length + " of " + g.total + " colors";
+    h += '<section class="group' + (open ? " isopen" : "") + '" aria-labelledby="g-' + line.id + '">';
+    h += '<button type="button" class="ghead" id="g-' + line.id + '" aria-expanded="' + open + '" aria-controls="r-' + line.id + '" data-group="' + line.id + '">' +
+      '<svg class="gchev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>' +
+      '<span class="gname">' + esc(line.name) + '</span><span class="gmeta">· ' + line.material + ' · ' + count + '</span></button>';
+    if (open) {
+      h += '<ul class="rows" id="r-' + line.id + '">';
+      g.colors.forEach(function (c) {
+        var key = colorKey(line, c), isOpen = state.expanded === key, did = "d-" + key.replace(/[^a-z0-9]/gi, "-");
+        h += '<li class="' + (isOpen ? "open" : "") + '"><button type="button" class="crow" aria-expanded="' + isOpen + '" aria-controls="' + did + '" data-color="' + esc(key) + '">' +
+          ringHtml(c.hexes, "sm") + '<span class="ctext"><span class="cname">' + esc(c.name) + '</span><span class="chex">' + hexLabel(c.hexes) + '</span><span class="badges">' + badgesHtml(line, c) + '</span></span>' + CHEV + '</button>';
+        if (isOpen) h += '<div id="' + did + '">' + phoneDetail(line, c) + '</div>';
+        h += '</li>';
+      });
+      h += '</ul>';
+    }
+    h += '</section>';
+  });
+  document.getElementById("groups").innerHTML = h;
+}
+
+/* ---------- menu and filter sheet ---------- */
+function renderMenu() {
+  var mb = document.getElementById("menubtn");
+  mb.setAttribute("aria-expanded", String(state.menu));
+  mb.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">' +
+    (state.menu ? '<path d="M6 6l12 12M18 6 6 18"></path>' : '<path d="M4 7h16M4 12h16M4 17h16"></path>') + '</svg>' +
+    (state.menu ? "Close" : "Menu") + (state.menu ? "" : '<span class="dot" aria-hidden="true"></span>');
+}
+
+function menuHtml() {
+  var main = [["inventory", "Inventory"], ["spools", "Spools"], ["products", "Products"], ["catalog", "Catalog"], ["review", "Review"], ["activity", "Activity"]];
+  var admin = [["devices", "Devices"], ["users", "Users"], ["settings", "Settings"]];
+  var h = '<button type="button" class="dim" aria-label="Close the menu" tabindex="-1" data-act="closemenu"></button>' +
+    '<div class="sheet" id="menu-sheet" role="dialog" aria-modal="true" aria-label="Menu"><span class="grip" aria-hidden="true"></span><nav aria-label="Pages" class="pages">';
+  main.forEach(function (m) {
+    h += '<a class="item" href="#"' + (m[0] === "catalog" ? ' aria-current="page"' : "") + (m[0] === "review" ? ' aria-label="Review, 3 waiting"' : "") + '>' + icon(m[0]) + m[1] + (m[0] === "review" ? '<span class="ibadge" aria-hidden="true">3</span>' : "") + '</a>';
+  });
+  h += '</nav>';
+  if (state.role === "admin") {
+    h += '<div class="label">Admin</div><nav aria-label="Admin pages" class="adminpages">';
+    admin.forEach(function (m) { h += '<a class="item small" href="#">' + icon(m[0]) + m[1] + '</a>'; });
+    h += '</nav>';
+  }
+  return h + '</div>';
+}
+
+function sheetHtml() {
+  var d = state.sheet, counts = materialCounts(d.showDisc), n = countColors(applyFilter(d));
+  var h = '<button type="button" class="dim over" aria-label="Close the filters" tabindex="-1" data-act="closesheet"></button>' +
+    '<div class="sheet fs" role="dialog" aria-modal="true" aria-labelledby="filter-h"><span class="grip" aria-hidden="true"></span>' +
+    '<div class="shead"><h2 id="filter-h">Filter</h2><button type="button" class="small" data-act="closesheet">Close</button></div>' +
+    '<section aria-labelledby="type-h"><h3 id="type-h" class="label">Type</h3><div class="chips" role="group" aria-labelledby="type-h">';
+  materials().forEach(function (t) {
+    h += '<button type="button" class="chip" data-dtype="' + t + '" aria-pressed="' + (d.types.indexOf(t) >= 0) + '">' + t + ' <span class="n">' + (counts[t] || 0) + '</span></button>';
+  });
+  h += '</div></section><section aria-labelledby="show-h"><h3 id="show-h" class="label">Show</h3>' +
+    '<label class="check"><input type="checkbox" data-dcheck="similarOnly"' + (d.similarOnly ? " checked" : "") + '> Has similar in stock</label>' +
+    '<label class="check"><input type="checkbox" data-dcheck="showDisc"' + (d.showDisc ? " checked" : "") + '> Show discontinued</label></section>' +
+    '<div class="sfoot"><button type="button" data-act="sheetclear">Clear</button><button type="button" class="primary" data-act="apply">Show ' + n + (n === 1 ? " color" : " colors") + '</button></div></div>';
+  return h;
+}
+
+function renderOverlay() {
+  var o = document.getElementById("overlay");
+  o.innerHTML = state.sheet ? sheetHtml() : state.menu ? menuHtml() : "";
+}
+
+function render() { renderControls(); renderGroups(); renderMenu(); renderOverlay(); }
+
+/* ---------- events ---------- */
+document.getElementById("q").addEventListener("input", function (e) { state.f.query = e.target.value; renderControls(); renderGroups(); });
+
+document.addEventListener("change", function (e) {
+  var k = e.target.dataset && e.target.dataset.dcheck;
+  if (k && state.sheet) { state.sheet[k] = e.target.checked; renderOverlay(); }
+});
+
+document.addEventListener("click", function (e) {
+  var t = e.target.closest("button, a");
+  if (!t) return;
+  if (t.tagName === "A" && t.getAttribute("href") === "#") e.preventDefault();
+  var d = t.dataset;
+  if (d.toggle) { state.f[d.toggle] = !state.f[d.toggle]; renderControls(); renderGroups(); }
+  else if (d.act === "clear") { state.f = noFilter(); document.getElementById("q").value = ""; renderControls(); renderGroups(); }
+  else if (d.act === "cleartypes") { state.f.types = []; renderControls(); renderGroups(); }
+  else if (d.act === "hidedisc") { state.f.showDisc = false; renderControls(); renderGroups(); }
+  else if (d.act === "sheet") { state.menu = false; state.sheet = JSON.parse(JSON.stringify(state.f)); renderMenu(); renderOverlay(); var first = document.querySelector(".sheet.fs button"); if (first) first.focus(); }
+  else if (d.act === "closesheet") { state.sheet = null; renderOverlay(); document.getElementById("filterbtn").focus(); }
+  else if (d.dtype) { var ty = state.sheet.types, i = ty.indexOf(d.dtype); if (i >= 0) ty.splice(i, 1); else ty.push(d.dtype); renderOverlay(); }
+  else if (d.act === "sheetclear") { var q = state.sheet.query; state.sheet = noFilter(); state.sheet.query = q; renderOverlay(); }
+  else if (d.act === "apply") { state.f = state.sheet; state.sheet = null; render(); document.getElementById("filterbtn").focus(); }
+  else if (d.act === "menu") { state.menu = !state.menu; renderMenu(); renderOverlay(); }
+  else if (d.act === "closemenu") { state.menu = false; renderMenu(); renderOverlay(); document.getElementById("menubtn").focus(); }
+  else if (d.group) { state.collapsed[d.group] = !state.collapsed[d.group]; renderGroups(); document.getElementById("g-" + d.group).focus(); }
+  else if (d.color) {
+    state.expanded = state.expanded === d.color ? null : d.color;
+    renderGroups();
+    var again = document.querySelector('[data-color="' + CSS.escape(d.color) + '"]');
+    if (again) again.focus();
+  } else if (d.state) {
+    pick(t);
+    var empty = d.state === "empty";
+    document.getElementById("synced").hidden = empty;
+    document.getElementById("empty").hidden = !empty;
+  } else if (d.role) {
+    pick(t);
+    state.role = d.role;
+    var admin = d.role === "admin";
+    document.getElementById("empty-actions").hidden = !admin;
+    document.getElementById("empty-note").textContent = admin ? "Download it now, or set how often it syncs in Settings." : "An admin can download it from Settings.";
+    renderOverlay();
+  } else if (d.theme) { pick(t); document.documentElement.setAttribute("data-theme", d.theme); }
+  else if (t.id === "refresh") {
+    t.disabled = true;
+    document.getElementById("refresh-msg").textContent = "Downloading…";
+    setTimeout(function () { t.disabled = false; document.getElementById("refresh-msg").textContent = ""; document.querySelector('[data-state="synced"]').click(); }, 1200);
+  }
+});
+
+document.addEventListener("keydown", function (e) {
+  if (e.key !== "Escape") return;
+  if (state.sheet) { state.sheet = null; renderOverlay(); document.getElementById("filterbtn").focus(); }
+  else if (state.menu) { state.menu = false; renderMenu(); renderOverlay(); document.getElementById("menubtn").focus(); }
+});
+
+function pick(btn) { btn.parentNode.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); }); }
+
+render();
+</script>
+</body>
+</html>

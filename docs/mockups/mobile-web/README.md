@@ -13,6 +13,7 @@ Mockups for the web app on a phone-sized screen, as the phone app shows it: the 
 | [PhoneMenu.dc.html](PhoneMenu.dc.html) | The menu, opened from the bottom bar |
 | [PhoneAccount.dc.html](PhoneAccount.dc.html) | Account, with the Appearance (theme) choice |
 | [index.html](index.html) | All four in one page, interactive |
+| [PhoneCatalog.html](PhoneCatalog.html) | The Catalog page (#73) on a phone: search and Filter, the filter sheet, filament lines that collapse and color rows that expand, Catalog in the menu after Products, and the state before the first sync. Plain HTML: open it straight in a browser. It is not part of `index.html` |
 
 ## When this layout applies
 
