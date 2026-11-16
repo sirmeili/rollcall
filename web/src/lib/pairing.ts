@@ -40,7 +40,7 @@ export function isLoopbackHost(hostname: string): boolean {
 
 const LAN_SUFFIXES = [".local", ".lan", ".home.arpa"];
 
-/** Whether a host is on the home network, where the app allows plain HTTP (docs/SPEC.md). */
+/** Whether a host is on the home network, where the app allows plain HTTP (see ADR-0011). */
 export function isLanHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/\.$/, "");
   if (host.startsWith("[")) {

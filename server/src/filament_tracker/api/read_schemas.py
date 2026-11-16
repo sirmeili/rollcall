@@ -1,4 +1,4 @@
-"""Response bodies for the pages of the web app (Server: web UI in docs/SPEC.md)."""
+"""Response bodies for the pages of the web app."""
 
 from datetime import datetime
 from typing import Any

@@ -2,8 +2,8 @@
 
 A spool's state is never stored on its own: it is rebuilt by replaying the spool's events
 in the order they happened (`occurred_at`, then `recorded_at`), skipping undone events.
-The transition rules follow "Spool states and transitions" and "Rules" in docs/SPEC.md.
-Out-of-order actions are accepted, never refused; they are flagged for review.
+Out-of-order actions are accepted, never refused; they are flagged for review (see ADR-0001
+and ADR-0003).
 """
 
 from collections.abc import Iterable

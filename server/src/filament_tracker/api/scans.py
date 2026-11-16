@@ -11,7 +11,7 @@ from filament_tracker.services.scans import EventIdConflict, handle_scan, may_re
 
 router = APIRouter(tags=["scans"])
 
-# A Viewer's phone looks spools up but records nothing (Users and roles in docs/SPEC.md).
+# A Viewer's phone looks spools up but records nothing: its scans follow the user's role.
 VIEW_ONLY = "this phone's account can look spools up but not record them"
 
 

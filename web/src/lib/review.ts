@@ -8,7 +8,7 @@ export interface ItemText {
   body: string;
 }
 
-/** Why each kind of event gets flagged (Spool states and transitions in docs/SPEC.md). */
+/** Why each kind of event gets flagged (see ADR-0003). */
 const FLAG_REASONS: Record<string, string> = {
   received:
     "Received on a spool already open or used up, or the first scan of a tag that was linked " +

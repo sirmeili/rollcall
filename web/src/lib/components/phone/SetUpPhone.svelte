@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Setting up by signing in (Pairing in docs/SPEC.md): with a server chosen, sign in, then
-  // the phone sets itself up as the user's own phone. Away from home it waits for home.
+  // Setting up by signing in: with a server chosen, sign in, then the phone sets itself up
+  // as the user's phone. Away from home it waits for home.
   import type { Me } from "#lib/api/types.ts";
   import { setUpError } from "#lib/phone/own-phone.ts";
 

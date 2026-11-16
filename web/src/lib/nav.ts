@@ -10,8 +10,8 @@ export interface NavItem {
  * user may open it. */
 export const ACCOUNT_PATH = "/account";
 
-/** The pages in the Server: web UI table of docs/SPEC.md, with the lowest role that may
- * open each. The API enforces the same rules. */
+/** The pages of the web app, with the lowest role that may open each. The API enforces the
+ * same rules. */
 export const NAV: readonly NavItem[] = [
   { href: "/", label: "Inventory", role: "viewer" },
   { href: "/spools", label: "Spools", role: "viewer" },

@@ -1,4 +1,4 @@
-/** Password rules shared by the Account and Users pages (Users and roles in docs/SPEC.md). */
+/** Password rules shared by the Account and Users pages. */
 
 export const MIN_PASSWORD = 12;
 export const MAX_PASSWORD = 256;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Where this phone opens (Phone scanner in docs/SPEC.md): Inventory or Scan.
+  // Where this phone opens: Inventory or Scan.
   import type { OpenOn } from "#lib/phone/pairing-store.ts";
 
   interface Props {

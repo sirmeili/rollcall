@@ -1,4 +1,4 @@
-"""Send a renewed session's cookie with the response (Users and roles in docs/SPEC.md).
+"""Send a renewed session's cookie with the response.
 
 `auth.get_principal` renews a session in use when less than half its time is left and
 leaves the new Set-Cookie header in the request's state; this adds it to the response,

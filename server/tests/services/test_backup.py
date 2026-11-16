@@ -1,5 +1,5 @@
 """Nightly backups: the online backup, pruning to 14, and 03:00 in the time zone, with a
-fake clock (Deployment in docs/SPEC.md)."""
+fake clock."""
 
 import logging
 import sqlite3

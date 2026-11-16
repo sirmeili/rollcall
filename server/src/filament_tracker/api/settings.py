@@ -1,4 +1,4 @@
-"""App settings, by group (Admin only). See Settings and first start in docs/SPEC.md.
+"""App settings, by group (Admin only). The settings are listed in docs/configuration.md.
 
 Secrets are write-only: they read back only as set or not set. Saving a group applies it
 at once (the Home Assistant links restart). Errors name the setting, never its value.

@@ -1,4 +1,4 @@
-"""Request body size cap ("block arrays capped in size" in the spec).
+"""Request body size cap, so a scan's tag block arrays stay small.
 
 Pydantic limits the number of blocks; this stops oversized bodies before they are read
 into memory or parsed. A scan is under 3 KB, so 16 KiB leaves plenty of room.
