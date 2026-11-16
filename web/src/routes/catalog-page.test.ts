@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Catalog, CatalogColor, FilamentLine } from "#lib/api/catalog.ts";
+import type { Catalog, CatalogColor, FilamentLine, SimilarColor } from "#lib/api/catalog.ts";
 import { session } from "#lib/auth/session.svelte.ts";
 import { setTimeZone } from "#lib/format.ts";
 import type { Role } from "#lib/roles.ts";
@@ -17,6 +17,21 @@ function color(name: string, hexes: string[], fields: Partial<CatalogColor> = {}
     hexes,
     discontinued: false,
     multi_color: hexes.length > 1,
+    similar: [],
+    ...fields,
+  };
+}
+
+function match(name: string, fields: Partial<SimilarColor> = {}): SimilarColor {
+  return {
+    product_id: 1,
+    name,
+    hex: "0A2CA5",
+    material: "PLA",
+    delta_e: 0,
+    sealed: 1,
+    open: 0,
+    different_material: false,
     ...fields,
   };
 }
@@ -28,11 +43,29 @@ function line(name: string, material: string, colors: CatalogColor[]): FilamentL
 const LINES: FilamentLine[] = [
   line("PLA Basic", "PLA", [
     color("Jade White", ["FFFFFF"]),
-    color("Blue", ["0A2CA5"]),
+    color("Blue", ["0A2CA5"], {
+      similar: [
+        match("Blue PLA Basic", { product_id: 7, delta_e: 0, sealed: 2, open: 1 }),
+        match("Cobalt Blue PETG HF", {
+          product_id: 9,
+          hex: "0C30A0",
+          material: "PETG",
+          delta_e: 3.14,
+          sealed: 0,
+          open: 1,
+          different_material: true,
+        }),
+      ],
+    }),
     color("Bronze", ["847D48"], { discontinued: true }),
   ]),
   line("PLA Silk Dual Color", "PLA", [color("Gold-Silver", ["F4A925", "C0C0C0"])]),
-  line("PETG HF", "PETG", [color("Blue", ["002E96"]), color("Black", ["000000"])]),
+  line("PETG HF", "PETG", [
+    color("Blue", ["002E96"], {
+      similar: [match("Blue PLA Basic", { product_id: 7, delta_e: 6.5, different_material: true })],
+    }),
+    color("Black", ["000000"]),
+  ]),
   line("ABS", "ABS", [color("Azure", ["489FDF"])]),
 ];
 
@@ -41,9 +74,18 @@ const SYNCED: Catalog = {
   synced: true,
   dataset_version: "2026.11.15",
   last_success_at: "2026-11-15T04:00:00Z",
+  cutoff: 10,
+  out_of_date: false,
 };
 
-const NEVER: Catalog = { lines: [], synced: false, dataset_version: null, last_success_at: null };
+const NEVER: Catalog = {
+  lines: [],
+  synced: false,
+  dataset_version: null,
+  last_success_at: null,
+  cutoff: 10,
+  out_of_date: false,
+};
 
 function serve(routes: Parameters<typeof fakeFetch>[0]) {
   const fetch = fakeFetch(routes);
@@ -66,12 +108,23 @@ function group(name: string) {
   return within(screen.getByRole("region", { name: new RegExp(`^${name} ·`) }));
 }
 
+/** The filament line headings shown, sorted. */
 function headings(): string[] {
   return screen
-    .queryAllByRole("button", { expanded: true })
-    .concat(screen.queryAllByRole("button", { expanded: false }))
-    .map((button) => button.textContent?.replace(/\s+/g, " ").trim() ?? "")
+    .queryAllByRole("region")
+    .map((region) => region.querySelector("button")?.textContent?.replace(/\s+/g, " ").trim())
+    .map((text) => text ?? "")
     .sort();
+}
+
+/** A catalog color's row, by its name and hex. */
+function row(name: string, hex: string) {
+  return screen.getByRole("button", { name: new RegExp(`^${name} #${hex}`) });
+}
+
+/** What an expanded row shows under it. */
+function detailOf(button: HTMLElement) {
+  return within(document.getElementById(button.getAttribute("aria-controls") ?? "")!);
 }
 
 function summary(): string {
@@ -204,6 +257,105 @@ describe("Catalog page", () => {
     ).toBeInTheDocument();
   });
 
+  it("badges each color with how many similar colors are in stock", async () => {
+    await open();
+
+    await screen.findByText("Jade White");
+    expect(row("Blue", "0A2CA5")).toHaveTextContent("2 similar in stock");
+    expect(row("Blue", "002E96")).toHaveTextContent("1 similar in stock");
+    expect(row("Jade White", "FFFFFF")).toHaveTextContent("None similar in stock");
+    const dual = row("Gold-Silver", "F4A925");
+    expect(dual).toHaveTextContent("Multi-color");
+    expect(dual).not.toHaveTextContent("similar in stock");
+  });
+
+  it("expands a color to list its similar in-stock colors, closest first", async () => {
+    await open();
+
+    await screen.findByText("Jade White");
+    const blue = row("Blue", "0A2CA5");
+    await userEvent.click(blue);
+
+    expect(blue).toHaveAttribute("aria-expanded", "true");
+    const detail = detailOf(blue);
+    expect(detail.getByText("Similar in-stock colors")).toBeInTheDocument();
+    const items = detail.getAllByRole("listitem");
+    expect(items.map((item) => item.textContent?.replace(/\s+/g, " ").trim())).toEqual([
+      "Blue PLA Basic ΔE 0.0 2 sealed · 1 open",
+      "Cobalt Blue PETG HF ⚠ Different material: PETG, not PLA ΔE 3.1 1 open",
+    ]);
+    expect(detail.getByRole("link", { name: "Cobalt Blue PETG HF" })).toHaveAttribute(
+      "href",
+      "/spools?q=Cobalt%20Blue%20PETG%20HF",
+    );
+    expect(detail.getByText("Showing in-stock products within ΔE 10")).toBeInTheDocument();
+  });
+
+  it("expands one color at a time", async () => {
+    await open();
+
+    await screen.findByText("Jade White");
+    await userEvent.click(row("Blue", "0A2CA5"));
+    await userEvent.click(row("Blue", "002E96"));
+
+    expect(row("Blue", "0A2CA5")).toHaveAttribute("aria-expanded", "false");
+    expect(row("Blue", "002E96")).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByText("Similar in-stock colors")).toHaveLength(1);
+    await userEvent.click(row("Blue", "002E96"));
+    expect(screen.queryByText("Similar in-stock colors")).toBeNull();
+  });
+
+  it("says when no similar color is in stock, and that multi-color has no comparison", async () => {
+    await open();
+
+    await screen.findByText("Jade White");
+    await userEvent.click(row("Jade White", "FFFFFF"));
+    expect(screen.getByText("No similar color in stock")).toBeInTheDocument();
+    expect(screen.getByText("Showing in-stock products within ΔE 10")).toBeInTheDocument();
+
+    await userEvent.click(row("Gold-Silver", "F4A925"));
+    expect(screen.getByText("Multi-color: no comparison")).toBeInTheDocument();
+    expect(screen.queryByText("Similar in-stock colors")).toBeNull();
+    expect(screen.queryByText(/Showing in-stock products/)).toBeNull();
+  });
+
+  it("shows the cutoff the matches were found with", async () => {
+    await open({ ...SYNCED, cutoff: 2.5 });
+
+    await screen.findByText("Jade White");
+    await userEvent.click(row("Blue", "0A2CA5"));
+
+    expect(screen.getByText("Showing in-stock products within ΔE 2.5")).toBeInTheDocument();
+  });
+
+  it("shows only colors with a similar color in stock", async () => {
+    await open();
+
+    await screen.findByText("Jade White");
+    const chip = screen.getByRole("button", { name: "Has similar in stock" });
+    await userEvent.click(chip);
+
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    expect(headings()).toEqual([
+      "PETG HF · PETG · 1 of 2 colors",
+      "PLA Basic · PLA · 1 of 2 colors",
+    ]);
+    expect(summary()).toBe("2 of 6 catalog colors in 2 filament lines");
+  });
+
+  it("warns in the footer when the catalog may be out of date", async () => {
+    await open({ ...SYNCED, out_of_date: true });
+
+    expect(await screen.findByText("Catalog may be out of date")).toBeInTheDocument();
+  });
+
+  it("has no out-of-date warning while syncs work", async () => {
+    await open();
+
+    await screen.findByText("Jade White");
+    expect(screen.queryByText("Catalog may be out of date")).toBeNull();
+  });
+
   it("tells a Viewer before the first sync that an admin can download it", async () => {
     await open(NEVER, "viewer");
 
@@ -290,6 +442,24 @@ describe("Catalog page on a phone", () => {
     expect(quick.getByRole("button", { name: "PETG" })).toBeInTheDocument();
     await userEvent.click(quick.getByRole("button", { name: "Hide discontinued colors" }));
     await userEvent.click(quick.getByRole("button", { name: "Clear the types" }));
+    expect(summary()).toBe("6 catalog colors in 4 filament lines");
+  });
+
+  it("offers Has similar in stock as a quick filter and in the sheet", async () => {
+    await open();
+
+    await screen.findByText("Jade White");
+    const quick = within(screen.getByRole("group", { name: "Quick filters" }));
+    await userEvent.click(quick.getByRole("button", { name: "Has similar in stock" }));
+    expect(summary()).toBe("2 of 6 catalog colors in 2 filament lines");
+
+    await userEvent.click(screen.getByRole("button", { name: "Filter, 1 on" }));
+    const sheet = within(screen.getByRole("dialog", { name: "Filter" }));
+    const similar = sheet.getByRole("checkbox", { name: "Has similar in stock" });
+    expect(similar).toBeChecked();
+    await userEvent.click(similar);
+    await userEvent.click(sheet.getByRole("button", { name: "Show 6 colors" }));
+
     expect(summary()).toBe("6 catalog colors in 4 filament lines");
   });
 

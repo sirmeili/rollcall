@@ -26,6 +26,15 @@
   }
 </script>
 
+{#snippet similarChip()}
+  <button
+    type="button"
+    class="chip"
+    aria-pressed={filter.similarOnly}
+    onclick={() => (filter.similarOnly = !filter.similarOnly)}>Has similar in stock</button
+  >
+{/snippet}
+
 <div class="controls">
   <div class="top">
     <label class="search">
@@ -78,6 +87,7 @@
 
   <div class="chiprow" role="group" aria-label={phone ? "Quick filters" : "Filters"}>
     {#if phone}
+      {@render similarChip()}
       {#if typeText}
         <span class="onchip">
           <button type="button" class="lb" onclick={onopen}>{typeText}</button>
@@ -110,6 +120,7 @@
         >
       {/each}
       <span class="sep" aria-hidden="true"></span>
+      {@render similarChip()}
       <button
         type="button"
         class="chip"

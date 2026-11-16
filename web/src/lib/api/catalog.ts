@@ -16,6 +16,19 @@ export interface SyncStatus {
   colors: number;
 }
 
+/** An in-stock product whose color is close to a catalog color. */
+export interface SimilarColor {
+  product_id: number;
+  name: string;
+  /** RRGGBB */
+  hex: string;
+  material: string;
+  delta_e: number;
+  sealed: number;
+  open: number;
+  different_material: boolean;
+}
+
 export interface CatalogColor {
   uuid: string;
   name: string;
@@ -23,6 +36,8 @@ export interface CatalogColor {
   hexes: string[];
   discontinued: boolean;
   multi_color: boolean;
+  /** In-stock products within the cutoff, closest first; empty for a multi-color one. */
+  similar: SimilarColor[];
 }
 
 export interface FilamentLine {
@@ -38,6 +53,10 @@ export interface Catalog {
   synced: boolean;
   dataset_version: string | null;
   last_success_at: string | null;
+  /** The ΔE the similar in-stock colors were found with. */
+  cutoff: number;
+  /** Syncs have failed for 14 days since the last success. */
+  out_of_date: boolean;
 }
 
 /** Every filament line with its catalog colors (Viewer and above). */

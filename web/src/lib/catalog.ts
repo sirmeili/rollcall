@@ -8,6 +8,8 @@ export interface CatalogFilter {
   query: string;
   /** Materials to show; none picked shows them all. */
   types: string[];
+  /** Only catalog colors with a similar in-stock color. */
+  similarOnly: boolean;
   /** Discontinued catalog colors are hidden unless this is on. */
   showDiscontinued: boolean;
 }
@@ -21,7 +23,7 @@ export interface LineGroup {
 }
 
 export function noFilter(): CatalogFilter {
-  return { query: "", types: [], showDiscontinued: false };
+  return { query: "", types: [], similarOnly: false, showDiscontinued: false };
 }
 
 /** The materials in the catalog, in the order their first filament line comes. */
@@ -43,13 +45,20 @@ export function materialCounts(
 /** How many filters are on, for the Filter button. */
 export function activeFilters(filter: CatalogFilter, available: string[]): number {
   return (
-    (chosenTypes(filter.types, available).length > 0 ? 1 : 0) + (filter.showDiscontinued ? 1 : 0)
+    (chosenTypes(filter.types, available).length > 0 ? 1 : 0) +
+    (filter.similarOnly ? 1 : 0) +
+    (filter.showDiscontinued ? 1 : 0)
   );
 }
 
 /** Whether the search or any filter is narrowing the list. */
 export function isFiltered(filter: CatalogFilter): boolean {
-  return filter.query.trim() !== "" || filter.types.length > 0 || filter.showDiscontinued;
+  return (
+    filter.query.trim() !== "" ||
+    filter.types.length > 0 ||
+    filter.similarOnly ||
+    filter.showDiscontinued
+  );
 }
 
 /** The filament lines with the catalog colors the filter leaves; a line with none left is
@@ -62,7 +71,9 @@ export function applyFilter(lines: FilamentLine[], filter: CatalogFilter): LineG
     const pool = line.colors.filter((color) => filter.showDiscontinued || !color.discontinued);
     const lineMatches = query !== "" && line.name.toLowerCase().includes(query);
     const colors = pool.filter(
-      (color) => !query || lineMatches || color.name.toLowerCase().includes(query),
+      (color) =>
+        (!filter.similarOnly || color.similar.length > 0) &&
+        (!query || lineMatches || color.name.toLowerCase().includes(query)),
     );
     if (colors.length) groups.push({ line, colors, total: pool.length });
   }
@@ -95,6 +106,21 @@ export function lineCountText(group: LineGroup): string {
   return n === group.total
     ? `${n} ${n === 1 ? "color" : "colors"}`
     : `${n} of ${group.total} colors`;
+}
+
+/** "2 sealed · 1 open" */
+export function stockText(sealed: number, open: number): string {
+  return [sealed ? `${sealed} sealed` : "", open ? `${open} open` : ""].filter(Boolean).join(" · ");
+}
+
+/** "ΔE 3.1" */
+export function deltaText(deltaE: number): string {
+  return `ΔE ${deltaE.toFixed(1)}`;
+}
+
+/** "ΔE 10", "ΔE 2.5": the cutoff as it was set. */
+export function cutoffText(cutoff: number): string {
+  return `ΔE ${cutoff}`;
 }
 
 /** "#9CDBD9 / #FFFFFF" */

@@ -7,9 +7,14 @@
     group: LineGroup;
     open: boolean;
     ontoggle: () => void;
+    /** The ΔE the similar in-stock colors were found with. */
+    cutoff: number;
+    /** The one catalog color showing its similar colors, if any. */
+    expanded: string | null;
+    onexpand: (uuid: string) => void;
   }
 
-  let { group, open, ontoggle }: Props = $props();
+  let { group, open, ontoggle, cutoff, expanded, onexpand }: Props = $props();
 
   const headId = $derived(`line-${group.line.uuid}`);
   const rowsId = $derived(`rows-${group.line.uuid}`);
@@ -40,7 +45,15 @@
   {#if open}
     <ul class="rows" id={rowsId}>
       {#each group.colors as color (color.uuid)}
-        <li><CatalogColorRow {color} /></li>
+        <li>
+          <CatalogColorRow
+            {color}
+            material={group.line.material}
+            {cutoff}
+            open={expanded === color.uuid}
+            ontoggle={() => onexpand(color.uuid)}
+          />
+        </li>
       {/each}
     </ul>
   {/if}

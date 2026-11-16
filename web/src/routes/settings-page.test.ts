@@ -64,6 +64,7 @@ function serve(routes: Parameters<typeof fakeFetch>[0]) {
     "GET /settings/scanners": SCANNERS,
     "GET /settings/home-assistant": group(),
     "GET /tokens": [],
+    "GET /settings/catalog": { group: "catalog", settings: [] },
     "GET /catalog/sync": {
       last_success_at: null,
       last_attempt_at: null,
@@ -214,13 +215,15 @@ describe("Settings page", () => {
         "GET /settings/general": refused,
         "GET /settings/scanners": refused,
         "GET /settings/home-assistant": refused,
+        "GET /settings/catalog": refused,
         "GET /tokens": refused,
+        "GET /catalog/sync": refused,
       }),
     );
     render(SettingsPage);
     const alerts = await screen.findAllByRole("alert");
-    // One for each settings group, and one for the machine tokens.
-    expect(alerts).toHaveLength(4);
+    // One for each settings group, the catalog sync status and the machine tokens.
+    expect(alerts).toHaveLength(6);
     expect(alerts[0]).toHaveTextContent("Your role cannot do that.");
   });
 

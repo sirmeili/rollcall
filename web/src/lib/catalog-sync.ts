@@ -54,3 +54,31 @@ export function refreshText(
       return `Sync failed: ${reason(after)}.`;
   }
 }
+
+export type CatalogSchedule = "off" | "daily" | "weekly";
+
+export const SCHEDULES: readonly { value: CatalogSchedule; label: string }[] = [
+  { value: "off", label: "Off" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+];
+
+/** What the chosen schedule does. */
+export function scheduleHelp(schedule: string): string {
+  if (schedule === "off") return "The catalog stays as it is until you press Refresh now.";
+  return `From api.openfilamentdatabase.org, ${schedule === "weekly" ? "once a week" : "once a day"}.`;
+}
+
+/** "10.0" from the server shows as "10". */
+export function cutoffValue(value: string | null): string {
+  const n = Number(value);
+  return value === null || value.trim() === "" || Number.isNaN(n) ? (value ?? "") : String(n);
+}
+
+/** The problem with a typed cutoff, or null when it can be saved. */
+export function cutoffProblem(text: string): string | null {
+  const n = Number(text);
+  return text.trim() === "" || !(n >= 0.5 && n <= 50)
+    ? "Similarity cutoff: enter a number from 0.5 to 50."
+    : null;
+}

@@ -24,6 +24,8 @@
   let filter = $state<CatalogFilter>(noFilter());
   let collapsed = $state<Set<string>>(new Set());
   let sheetOpen = $state(false);
+  // One catalog color at a time shows its similar in-stock colors.
+  let expanded = $state<string | null>(null);
 
   const screen = viewport();
   const lines = $derived(catalog?.lines ?? []);
@@ -91,6 +93,9 @@
             {group}
             open={!collapsed.has(group.line.uuid)}
             ontoggle={() => toggle(group.line.uuid)}
+            cutoff={catalog.cutoff}
+            {expanded}
+            onexpand={(uuid) => (expanded = expanded === uuid ? null : uuid)}
           />
         {/each}
       </div>
@@ -99,6 +104,9 @@
       Catalog data from the Open Filament Database (MIT license) · Updated {shortDate(
         catalog.last_success_at,
       )}, dataset {versionText(catalog.dataset_version)}
+      {#if catalog.out_of_date}
+        · <span class="stale">Catalog may be out of date</span>
+      {/if}
     </p>
   {/if}
 </div>
@@ -128,5 +136,10 @@
     margin: 8px 0 0;
     font-size: 13px;
     color: var(--muted);
+  }
+
+  .stale {
+    color: var(--lowtext);
+    font-weight: 600;
   }
 </style>
