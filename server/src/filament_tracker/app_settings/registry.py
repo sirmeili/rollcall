@@ -72,12 +72,13 @@ def catalog_sync(value: str) -> str:
 
 def similarity_cutoff(value: str) -> str:
     """A ΔE from 0.5 to 50, written without trailing zeros ("10", "2.5")."""
+    problem = f"use a number from {MIN_CUTOFF:g} to {MAX_CUTOFF:g}"
     try:
         cutoff = float(value)
     except ValueError:
-        raise ValueError("use a number from 0.5 to 50") from None
+        raise ValueError(problem) from None
     if not MIN_CUTOFF <= cutoff <= MAX_CUTOFF:
-        raise ValueError("use a number from 0.5 to 50")
+        raise ValueError(problem)
     return f"{cutoff:g}"
 
 

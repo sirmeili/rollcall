@@ -2,7 +2,7 @@
   /** One catalog color: its swatch ring, name, hex(es) and badges. Pressing it shows its
    * similar in-stock colors underneath. */
   import type { CatalogColor } from "#lib/api/catalog.ts";
-  import { hexText } from "#lib/catalog.ts";
+  import { hexesText } from "#lib/catalog.ts";
   import HexRing from "#lib/components/catalog/HexRing.svelte";
   import SimilarColors from "#lib/components/catalog/SimilarColors.svelte";
 
@@ -31,7 +31,7 @@
   >
     <HexRing hexes={color.hexes} />
     <span class="cname">{color.name}</span>
-    <span class="chex">{hexText(color.hexes)}</span>
+    <span class="chex">{hexesText(color.hexes)}</span>
     <span class="badges">
       {#if color.discontinued}<span class="badge-disc">Discontinued</span>{/if}
       {#if color.multi_color}

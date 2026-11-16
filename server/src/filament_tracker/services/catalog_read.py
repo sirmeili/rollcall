@@ -14,7 +14,12 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from filament_tracker.db.catalog_models import CatalogFilament, CatalogVariant, SyncResult
+from filament_tracker.db.catalog_models import (
+    CatalogFilament,
+    CatalogSync,
+    CatalogVariant,
+    SyncResult,
+)
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.color import Lab, ciede2000, hex_to_lab
 from filament_tracker.domain.enums import SpoolState
@@ -135,8 +140,7 @@ def _similar(
     return sorted(found, key=lambda m: (m.delta_e, m.different_material, m.name))
 
 
-def _out_of_date(session: Session, now: datetime) -> bool:
-    success = last_success(session)
+def _out_of_date(session: Session, success: CatalogSync | None, now: datetime) -> bool:
     attempt = last_attempt(session)
     if success is None or attempt is None or attempt.result != SyncResult.FAILED:
         return False
@@ -178,5 +182,5 @@ def read_catalog(session: Session, cutoff: float, now: datetime | None = None) -
         dataset_version=success.dataset_version if success else None,
         last_success_at=success.finished_at if success else None,
         cutoff=cutoff,
-        out_of_date=_out_of_date(session, now or utcnow()),
+        out_of_date=_out_of_date(session, success, now or utcnow()),
     )

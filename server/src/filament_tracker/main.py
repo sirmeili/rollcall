@@ -81,17 +81,17 @@ def create_app(
         app.state.setup_gate.start(app.state.session_factory)
         catalog = CatalogSyncer(app.state.session_factory, transport=ofdb_transport)
         app.state.catalog = catalog
-        catalog_syncs = CatalogScheduler(
+        catalog_scheduler = CatalogScheduler(
             catalog, schedule=store.catalog_sync, time_zone=store.time_zone
         )
-        catalog_syncs.start()
+        catalog_scheduler.start()
         backups = _backups(settings, store)
         try:
             yield
         finally:
             if backups is not None:
                 backups.stop()
-            catalog_syncs.stop()
+            catalog_scheduler.stop()
             home_assistant.stop()
             printer_links.stop()
             engine.dispose()

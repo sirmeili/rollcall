@@ -84,7 +84,7 @@ export function countColors(groups: LineGroup[]): number {
   return groups.reduce((sum, group) => sum + group.colors.length, 0);
 }
 
-function lines(n: number): string {
+function lineWord(n: number): string {
   return n === 1 ? "filament line" : "filament lines";
 }
 
@@ -97,7 +97,7 @@ export function summaryText(all: FilamentLine[], filter: CatalogFilter): string 
     applyFilter(all, { ...noFilter(), showDiscontinued: filter.showDiscontinued }),
   );
   const count = isFiltered(filter) ? `${shown} of ${total}` : `${total}`;
-  return `${count} catalog colors in ${groups.length} ${lines(groups.length)}`;
+  return `${count} catalog colors in ${groups.length} ${lineWord(groups.length)}`;
 }
 
 /** The heading's count: "30 colors", or "4 of 30 colors" when some are filtered out. */
@@ -124,6 +124,6 @@ export function cutoffText(cutoff: number): string {
 }
 
 /** "#9CDBD9 / #FFFFFF" */
-export function hexText(hexes: string[]): string {
+export function hexesText(hexes: string[]): string {
   return hexes.map((hex) => `#${hex}`).join(" / ");
 }

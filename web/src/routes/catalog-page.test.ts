@@ -380,7 +380,7 @@ describe("Catalog page", () => {
 
     expect(await screen.findByRole("link", { name: "Catalog settings" })).toHaveAttribute(
       "href",
-      "/settings",
+      "/settings#catalog",
     );
     await userEvent.click(screen.getByRole("button", { name: "Refresh now" }));
 

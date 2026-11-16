@@ -52,7 +52,7 @@
     <p>Download it now, or set how often it syncs in Settings.</p>
     <div class="btnrow">
       <button type="button" class="primary" disabled={busy} onclick={refresh}>Refresh now</button>
-      <a class="button" href="/settings">Catalog settings</a>
+      <a class="button" href="/settings#catalog">Catalog settings</a>
       {#if message}<span class="muted" role="status">{message}</span>{/if}
     </div>
   {:else}
