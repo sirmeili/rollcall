@@ -1,4 +1,4 @@
-"""Fire Home Assistant events for automations (docs/SPEC.md, Home Assistant).
+"""Fire Home Assistant events for automations (see ADR-0009).
 
 - `filament_tracker_spool_received`, `_spool_opened` and `_spool_emptied`, for each such
   event recorded while the server runs, from any source (scanner, phone, web app, printer);

@@ -1,4 +1,4 @@
-"""MQTT discovery messages for Home Assistant (docs/SPEC.md, Home Assistant).
+"""MQTT discovery messages for Home Assistant (see ADR-0009).
 
 Everything is published retained, so Home Assistant finds the entities and their latest
 state whenever it (re)connects. One device, "RollCall", holds five entities:

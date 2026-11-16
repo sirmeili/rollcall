@@ -1,7 +1,8 @@
 """Database engine and sessions.
 
 SQLite connections get write-ahead logging (so readers do not block the writer), foreign
-key enforcement and a busy timeout, as the spec's stack calls for.
+key enforcement (off by default in SQLite) and a busy timeout (so a writer waits for the
+lock instead of failing at once).
 """
 
 from pathlib import Path

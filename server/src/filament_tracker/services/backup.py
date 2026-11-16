@@ -1,4 +1,4 @@
-"""Nightly database backups (Deployment in docs/SPEC.md).
+"""Nightly database backups.
 
 At 03:00 in the server's time zone (the app's saved TZ, else `.env`), the database is
 copied to BACKUP_DIR with SQLite's online backup API, so the server keeps running and the

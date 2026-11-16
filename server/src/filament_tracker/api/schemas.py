@@ -1,4 +1,4 @@
-"""Request and response bodies (Scan event payload and Server: API in docs/SPEC.md)."""
+"""Request and response bodies of the API, including the scan a scanner sends."""
 
 from datetime import datetime
 from enum import StrEnum
