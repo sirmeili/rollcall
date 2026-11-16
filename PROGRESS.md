@@ -62,6 +62,8 @@
 
 ## In progress
 
+- Retiring `docs/SPEC.md` and this file (issue #56, branch `docs/retire-central-spec`, decided 2026-11-16): `GLOSSARY.md` and ADR-0001 to ADR-0015 committed (#57); the Roadmap, open-question issues, new docs and the `AGENTS.md` rewrite follow in #58–#66.
+
 - App releases on `feature/app-releases` (plan approved 2026-11-11, for the owner's brother's phone on 2026-11-14):
   - Done: the app ID is now `io.github.sirmeili.rollcall`; debug builds are RollCall (dev) with a `.debug` ID, so they install next to the release app. `-PappVersion=X.Y.Z` sets the version name and code (`X·10000 + Y·100 + Z`), and the release build is signed from `ANDROID_KEYSTORE_FILE` and `ANDROID_KEYSTORE_PASSWORD`. `scripts/verify-release.sh` checks the app ID, version, v2 signature and certificate. CI builds and checks a test release with a key made for the run; the App release workflow publishes `rollcall-<version>.apk` to a GitHub Release on an `app-v*` tag in `main`. Run by hand, it is a dry run that signs and checks with the release key and publishes nothing (owner's request, 2026-11-11, to check the secrets). Account shows the app's version. Docs: `android/README.md` (releases, the release key, installing with Obtainium), Spec: Phone scanner, Releases and updates. Tests: `phone-pages.test.ts`, the verify script against a good build and a wrong version and certificate.
   - Merged (PR #53). The owner made the release key and set the secrets, and the dry run passed; `app-v1.0.0` is published (2026-11-11).

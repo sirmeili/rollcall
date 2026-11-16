@@ -1,0 +1,176 @@
+# RollCall
+
+RollCall tracks Bambu Lab filament spools from delivery to empty, by reading their RFID tags, and (planned) handles print requests against that stock.
+
+## Language
+
+**RollCall**:
+The app's name.
+_Avoid_: Filament Tracker, Spoolhouse (the code keeps `filament_tracker`, `ft-` and `ftd_` until the code rename)
+
+**Inventory**:
+The count of each product's spools in each state. Also the module that Print Requests depends on.
+
+**Delivery**:
+Unpacking new spools with a phone: each is scanned as Received and listed together until the app closes.
+
+### Tags
+
+**Tag**:
+One of the two RFID tags on a Bambu spool.
+
+**Tag UID**:
+A tag's own 4-byte ID, different on each tag. It never identifies a spool.
+_Avoid_: UID on its own
+
+**Tray UID**:
+The ID that both tags of a spool share, and the spool's identity. The AMS reports it as `tray_uuid`.
+_Avoid_: Tray UUID, tray ID
+
+**Unidentified tag**:
+A tag that was read but could not be decoded or matched to a spool. It is kept for Review.
+
+**Key-derivation constant**:
+The published value that tag keys are derived from, set as `BAMBU_KDF_SALT`.
+_Avoid_: Salt, tag key constant
+
+### Scanning
+
+**Scanner**:
+Anything that reads a spool's tags and sends scans to the server: a handheld scanner or a phone.
+_Avoid_: Device, reader, unit
+
+**Handheld scanner**:
+The dedicated scanner hardware: a CYD board with a PN532 in a printed case.
+_Avoid_: Scanner device, CYD (except when talking about the board itself)
+
+**Phone**:
+The Android app acting as a scanner. It also holds the full web app.
+_Avoid_: Phone scanner device, mobile device
+
+**Reader**:
+The NFC chip that reads tags, the PN532 in a handheld scanner. Not the whole scanner.
+
+**Scan**:
+One read of a spool's tags sent by a scanner, carrying either a lookup or an action.
+_Avoid_: Scan event
+
+**Lookup**:
+A scan that only identifies the spool and records nothing.
+
+**Pairing**:
+Giving a scanner its device token for one server.
+
+**User's phone**:
+A phone set up by signing in. Its scans are recorded as that user's, and it can do only what their role allows.
+
+**Shared phone**:
+A phone paired with a code or QR code, belonging to no user.
+
+**Unlink**:
+A phone forgets its server.
+
+### People and access
+
+**Role**:
+What a user may do: Viewer, Editor or Admin.
+
+**Device token**:
+The token a scanner sends its scans with.
+
+**Machine token**:
+A token with a role, for Home Assistant and scripts, made on the Settings page.
+_Avoid_: Admin token, API key
+
+**Revoke**:
+Stop accepting a device token or machine token. The record is kept.
+
+### Stock
+
+**Spool**:
+One physical roll of filament.
+_Avoid_: Roll, reel
+
+**Product**:
+One kind of filament you can buy, such as Black PLA Basic. Every spool of a product shares its product key.
+_Avoid_: Filament, filament product, SKU
+
+**Product key**:
+What makes two spools the same product: the material ID, variant ID and color read from their tags.
+
+**Provisional product**:
+A product not yet identified from a tag, added by hand or first seen by the AMS. The first scan of its tag, if any, fills it in.
+
+**Placeholder**:
+A spool with no tray UID, added by hand. The first scan of its product, if any, links it.
+
+**Low stock**:
+A product whose count of Sealed spools is at or below its threshold. A threshold of 0 turns it off.
+_Avoid_: Low filament (Home Assistant's name for it)
+
+**Nearly out**:
+An Open spool whose remaining % is at or below its product's cutoff. It applies only to spools in an AMS.
+
+### Printer
+
+**AMS**:
+The printer's filament unit, which holds spools and reports what is loaded. An AMS HT is the single-slot kind.
+
+**Slot**:
+One spool position in an AMS.
+_Avoid_: Tray (except in Bambu's field names and "tray UID")
+
+**Remaining %**:
+The AMS's estimate of how much filament is left on a loaded spool. It is known only for a spool in an AMS.
+
+### Spool history
+
+**Spool state**:
+Where a spool is in its life: Sealed, Open, Empty or Unknown.
+_Avoid_: Closed (for Sealed)
+
+**Unknown**:
+The state of a spool that has no events in effect (none recorded, or all undone), so no state can be derived.
+_Avoid_: Unidentified (that word is for tags)
+
+**Action**:
+A change to a spool's state: Received, Opened or Empty. It comes from a scan, the web app or the AMS.
+_Avoid_: New (except as the scanner's button label for Received), used up, emptied
+
+**Event**:
+One recorded action, or an undo, in a spool's event log. A spool's state is derived from its events.
+_Avoid_: using "event" alone for a Home Assistant event
+
+**Source**:
+Where an event came from: a scanner, the web app (a person, by hand, with the user recorded) or the AMS. It belongs to the event, not the spool.
+_Avoid_: Printer, ui, manual
+
+**Undo**:
+Cancel the effect of an earlier event by recording a new event that points at it.
+_Avoid_: Revert
+
+### Review
+
+**Review**:
+The queue of things a person has to settle: flagged events, unidentified tags and likely-empty suggestions. Used for this queue only.
+
+**Flagged event**:
+An event that was recorded but needs a person to check it, such as Received on a spool that is already open.
+
+**Accept**:
+Confirm that a flagged event is right.
+_Avoid_: Reviewed
+
+**Dismiss**:
+Set aside an unidentified tag or a likely-empty suggestion.
+
+**Bring back**:
+Return an accepted or dismissed item to Review.
+
+**Likely empty**:
+The AMS's suggestion that a spool is empty. It never changes the spool's state on its own.
+
+### Home Assistant
+
+**Home Assistant event**:
+A message RollCall fires to Home Assistant for automations, such as a spool emptied or low stock. Always named in full.
