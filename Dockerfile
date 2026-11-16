@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# The RollCall image (docs/SPEC.md, Deployment): the web app built with Node, served by the
-# Python server, which runs as a non-root user. x86-64 only. Base images are pinned by
+# The RollCall image: the web app built with Node, served by the Python server (one process,
+# see ADR-0005), which runs as a non-root user. x86-64 only. Base images are pinned by
 # digest; see docs/deploy.md for how they are checked and updated.
 
 # --- The web app ------------------------------------------------------------------------------
