@@ -1,5 +1,5 @@
 """Machine tokens: made on the Settings page, shown once, stored hashed, limited to their
-role, refused once revoked and accepted only from the LAN (Security in docs/SPEC.md)."""
+role, refused once revoked and accepted only from the LAN (see ADR-0006)."""
 
 import logging
 from datetime import timedelta

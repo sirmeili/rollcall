@@ -1,5 +1,5 @@
-"""A signed-in user's own phone (Phone scanner, Pairing and Users and roles in docs/SPEC.md):
-set up after signing in at home, its scans are the user's and follow the user's role."""
+"""A user's phone: set up after signing in at home, its scans are the user's and follow
+the user's role."""
 
 from datetime import timedelta
 from typing import Any

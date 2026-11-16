@@ -1,4 +1,4 @@
-"""Security suite (Testing table in docs/SPEC.md): unauthenticated access refused, revoked
+"""Security suite (see docs/testing.md): unauthenticated access refused, revoked
 tokens refused, scopes enforced, oversized payloads rejected, no UIDs in normal logs."""
 
 import json

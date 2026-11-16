@@ -1,4 +1,4 @@
-"""The image end to end, in the Compose test stack (Testing in docs/SPEC.md): first-start
+"""The image end to end, in the Compose test stack (see docs/testing.md): first-start
 setup, the scan simulator driving Received, Opened and Empty, Home Assistant entities
 updating on the broker, a backup, and a restart that keeps the data.
 

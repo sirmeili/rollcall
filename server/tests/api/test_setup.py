@@ -1,5 +1,5 @@
 """First-start setup: LAN only, with the setup code from the log, throttled, and closed for
-good once an Admin exists (Settings and first start, Security in docs/SPEC.md)."""
+good once an Admin exists (see ADR-0008)."""
 
 import logging
 import re
