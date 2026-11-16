@@ -1,12 +1,12 @@
-# RollCall (working name; formerly Filament Tracker)
+# RollCall (formerly Filament Tracker)
 
 A self-hosted system that tracks every Bambu Lab filament spool from delivery to empty, using the RFID tags already on the spools. Tap a spool on a small touchscreen scanner (or an Android phone running the companion app), confirm whether it is new, just opened or empty, and a central server keeps the inventory, feeds Home Assistant and serves a web app for a few users.
 
 It runs in Docker with no Bambu cloud dependency. Scanners and integrations stay on your LAN; the web app, with personal accounts and Viewer, Editor and Admin roles, can be reached from the internet through your own HTTPS reverse proxy.
 
-Planned after deployment: print requests. A co-owner of the printer submits models, picks filament from what is in stock or from the full Bambu catalog (from the Open Filament Database), and follows each print to pick-up, with filament held for accepted requests and a shopping list. The name RollCall is a working name (it replaced Spoolhouse); the repo is `sirmeili/rollcall`, and the code still uses RollCall until the rename. See Future enhancements: print requests in [docs/SPEC.md](docs/SPEC.md).
+Planned next: print requests. A co-owner of the printer submits models, picks filament from what is in stock or from the full Bambu catalog (from the Open Filament Database), and follows each print to pick-up, with filament held for accepted requests and a shopping list. The repo is `sirmeili/rollcall`; the code keeps its old `filament_tracker` names until the code rename.
 
-> **Status: early development.** This repo currently holds the spec, the enclosure design and the server core (M1): the tag decoder, the database, the event log, the scanner API (`/scans`, device registration and undo) and a scan simulator. M2 is complete: user accounts with Viewer, Editor and Admin roles, sign-in sessions, LAN-only tokens and the API behind the pages are built, and the web app has sign-in, a Light/Dark/System theme and every M2 page: Inventory, Spools, Spool detail, Products, Review, Activity, adding a spool by hand, Devices, Users and Account. The server also accepts the scanner heartbeat. M5 (the printer link) has started: the server connects to printers over MQTT (directly or through an MQTT proxy, with the certificate pinned on first use) and reads AMS reports into spools, slots and likely-empty suggestions, which the Devices, Review, Spools and Spool detail pages show. It has been checked against a real P1S with an AMS and an AMS HT, so M5 is complete. M6 (Home Assistant) is complete: the server publishes inventory and low-stock entities to Home Assistant through MQTT discovery, and fires Home Assistant events for spool actions and low stock, with an example low-stock automation. Admins can set the Home Assistant connection on a Settings page, with passwords and tokens stored encrypted, and changes apply without a restart. `ft-ha check` compares what the server publishes with what Home Assistant shows, and it has been checked against a real Home Assistant with the Mosquitto add-on. M8 is complete: an Android phone app that works as a scanner; the server now hands the tag key constant to paired devices, and Devices shows a pairing QR code. The phone app's Scan and Pairing screens, offline queue and on-phone decoding are built into the web app, and the Android app around them (Capacitor, with a Kotlin plugin for NFC tag reading, QR scanning and Keystore storage) has passed its manual checklist on a Pixel 9 Pro XL, which completes M8. M9 (Deployment) has started: the Settings page also sets the time zone every time in the web app is shown in, how long a sign-in lasts and the tag key constant, and admins add, edit, test and remove printers on the Devices page, with access codes stored encrypted. Admins also make machine tokens for Home Assistant and scripts on the Settings page, each with a role, shown once and revocable. A new server opens a first-start Setup page (from the LAN, with a one-time code from the server's log) that creates the first Admin. RollCall now runs as one Docker image (`ghcr.io/sirmeili/rollcall`, private, built and tested end to end by GitHub Actions) with Docker Compose, and backs its database up every night; see [docs/deploy.md](docs/deploy.md). The Scan screen has since been redesigned from the mockups in `docs/mockups/mobile-scanner/` for one-handed use, with countdown bars, a Scan button in the full app, and a Delivery mode that lists every spool scanned while unpacking a box. The phone can be unlinked from Scan even when its server is gone, and away from home the app's pages work through Cloudflare Access with a service token the server hands to paired phones, while scans are queued until the phone is home. The phone app is named RollCall, opens on the RollCall logo animation, and uses the RollCall mark as its icon, as do the web app's header and favicon. A phone can now be set up by entering the server's address and signing in, with no code: it becomes that user's phone, its scans are recorded as theirs, a Viewer's phone only looks spools up, and each phone opens on Inventory or Scan as chosen. Sign-ins in use no longer expire after 30 days. On a phone-sized screen the web app has a bottom bar (Menu, Scan in the app, the user) with the menu in a sheet, and the theme is chosen on the Account page. Inventory lists the products on hand with search, Low stock and Nearly out quick filters and a filter sheet (types, low stock, sort) at every size, and on a phone shows compact rows that expand. Phone app releases are built, signed and published to GitHub Releases from a version tag, and phones install and update them with Obtainium. The other features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
+> **Status: the server, web app and phone app are built; the scanner hardware is still to come.** Built (milestones M0a, M1, M2, M5, M6, M8 and M9): the server, with the tag decoder, the event log, the scanner API and a scan simulator; the web app, with personal accounts and Viewer, Editor and Admin roles, the Inventory, Spools, Spool detail, Products, Review, Activity, Devices, Users, Account and Settings pages, and a phone layout; the printer link, which reads AMS and AMS HT slots over MQTT and has been checked against a real P1S; the Home Assistant link, with MQTT discovery entities, events and an example low-stock automation, checked against a real Home Assistant; the Android phone app, a scanner with an offline queue and a Delivery mode, released through GitHub Releases for Obtainium and checked on a Pixel 9 Pro XL; and deployment, with printers, machine tokens and first-start setup in the app, one Docker image (`ghcr.io/sirmeili/rollcall`) run with Docker Compose, and nightly backups (see [docs/deploy.md](docs/deploy.md)). Not built yet: the scanner firmware and hardware, and print requests. What comes next, in order, is in the [Roadmap](https://github.com/sirmeili/rollcall/issues/69) issue.
 
 [![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/rollcall/main/hardware/enclosure/manifest.json)
 
@@ -54,32 +54,42 @@ Select the image above to open the interactive 3D mockup. The source is in [hard
 
 ## Roadmap
 
-| Milestone | Scope |
-| --- | --- |
-| M0a Prove reading, phone | Dump two rolls of the same product with an Android app; confirm matching product fields and distinct tray UIDs; try reading through the shipping box |
-| M1 Server core | Decoder, data model, event log, `/scans` API, scan simulator, tests |
-| M2 Web UI | User accounts and roles, inventory, spools, spool detail, products, review, activity, devices, users, manual entry |
-| M5 Printer link | P1S MQTT ingest, automatic Opened, remaining %, likely-empty suggestions |
-| M8 Phone scanner | Android app (Capacitor around the web app, Kotlin NFC plugin), QR pairing, offline queue |
-| M6 Home Assistant | MQTT discovery entities, events, low-stock automation, the Settings page with the Home Assistant settings |
-| M9 Deployment | Printers and the remaining settings in the app, machine tokens, first-start setup, Docker image and Compose file, nightly backups |
-| M10 Print requests, Phase 2 | Filament catalog and Bambu color codes, the Requester role, print requests and their status pipeline, holding filament, shopping list |
-| M11 Print requests, Phase 3 | Reading 3MF files, print jobs from the printer, push notifications, picking colors on the model, MCP server |
-| M3a Firmware without hardware | Scan flow, offline queue and dedupe logic with PC tests, screen simulator |
-| M0b Prove reading, PN532 | Repeat the read tests on the bench rig; measure reading through the lid and shipping box |
-| M3b Firmware on hardware | Breadboard build, real drivers, provisioning, OTA |
-| M4 Enclosure | Printed case, button labels, antenna placement, final wiring |
-| M7 Later | Future enhancements listed in the spec |
+The [Roadmap](https://github.com/sirmeili/rollcall/issues/69) issue lists the planned work in order, one sub-issue per piece. In outline:
+
+| Milestone | Scope | Status |
+| --- | --- | --- |
+| M0a Prove reading, phone | Dump two rolls of the same product with an Android app; confirm matching product fields and distinct tray UIDs; try reading through the shipping box | Built |
+| M1 Server core | Decoder, data model, event log, `/scans` API, scan simulator, tests | Built |
+| M2 Web UI | User accounts and roles, inventory, spools, spool detail, products, review, activity, devices, users, manual entry | Built |
+| M5 Printer link | P1S MQTT ingest, automatic Opened, remaining %, likely-empty suggestions | Built |
+| M8 Phone scanner | Android app (Capacitor around the web app, Kotlin NFC plugin), QR pairing, offline queue | Built |
+| M6 Home Assistant | MQTT discovery entities, events, low-stock automation, the Settings page with the Home Assistant settings | Built |
+| M9 Deployment | Printers and the remaining settings in the app, machine tokens, first-start setup, Docker image and Compose file, nightly backups | Built |
+| M10 Print requests, Phase 2 | Filament catalog and Bambu color codes, the Requester role, print requests and their status pipeline, holding filament, shopping list | Planned |
+| M11 Print requests, Phase 3 | Reading 3MF files, print jobs from the printer, push notifications, picking colors on the model, MCP server | Planned |
+| M3a Firmware without hardware | Scan flow, offline queue and dedupe logic with PC tests, screen simulator | Planned |
+| M0b Prove reading, PN532 | Repeat the read tests on the bench rig; measure reading through the lid and shipping box | Planned |
+| M3b Firmware on hardware | Breadboard build, real drivers, provisioning, OTA | Planned |
+| M4 Enclosure | Printed case, button labels, antenna placement, final wiring | Planned |
+| M7 Later | Asking RollCall questions, spool lifecycle stats, a custom PCB scanner, a load-cell scale, Spoolman sync, untagged filament, a second scanner by the printer | Planned |
 
 ## Repository layout
 
 ```text
-docs/SPEC.md                  Full specification: the source of truth
+AGENTS.md                     Rules for AI agents working in this repo
+CODING_STANDARDS.md           The rules every change follows: modularity, tests and coverage, dependencies, secrets
+GLOSSARY.md                   The domain language: spools, tags, states, events and the rest
+docs/adr/                     Architecture decision records: why the hard-to-reverse choices were made
+docs/configuration.md         Every setting, its default and where it is set
+docs/testing.md               Test layers, coverage exclusions and the manual checklists
 docs/deploy.md                Running RollCall with Docker Compose or Portainer: setup, proxy, Cloudflare Tunnel, backups, updates
+docs/home-assistant/          Example Home Assistant automation
 docs/mockups/web/             Web app page mockups and design tokens
 docs/mockups/mobile-scanner/  Phone app Scan screen mockups
 docs/mockups/mobile-web/      Phone layout mockups: bottom bar, menu, Account, Inventory
+docs/mockups/logo/            The RollCall logo and its animations
 docs/agents/                  Issue tracker, triage labels and domain docs settings for the agent skills
+docs/archive/                 The retired v1 specification, kept as background reading
 hardware/BOM.md               Bill of materials for one scanner
 hardware/enclosure/           3D model of the scanner case
 server/                       FastAPI server: decoder, database, event log, API, scan simulator
@@ -87,18 +97,18 @@ web/                          SvelteKit web app (TypeScript), built to static fi
 android/                      Android phone app: Capacitor around the web app, Kotlin NFC plugin
 Dockerfile                    The image: the web app built with Node, served by the Python server
 deploy/                       Compose file and example settings for the home server; deploy/test/ is the end-to-end test stack
-.github/workflows/            CI: lint, tests, 90% coverage gates, dependency audits, end-to-end tests; the image build, test and publish
-AGENTS.md                     Rules for AI agents working in this repo
-PROGRESS.md                   Current status, next steps and decisions
+.github/workflows/            CI: lint, tests, 90% coverage gates, dependency audits, end-to-end tests, a check for links to retired docs; the image build, test and publish; phone app releases
 ```
 
 ## Documentation
 
-[docs/SPEC.md](docs/SPEC.md) covers workflows, hardware, firmware, the data model, the API, security, testing and open questions.
+Planned work is described in GitHub issues, starting from the [Roadmap](https://github.com/sirmeili/rollcall/issues/69). For what is built, the code and its tests are the record, with the domain language in [GLOSSARY.md](GLOSSARY.md), the reasons behind the main choices in [docs/adr/](docs/adr/), the rules for changes in [CODING_STANDARDS.md](CODING_STANDARDS.md), the settings in [docs/configuration.md](docs/configuration.md), and the test layers and checklists in [docs/testing.md](docs/testing.md). The v1 specification, retired in November 2026, is kept as background in [docs/archive/SPEC-v1.md](docs/archive/SPEC-v1.md).
 
 Secrets such as the tag key-derivation constant, tokens and the printer access code are supplied as configuration and are never committed.
 
 ## Development
+
+Each area's README lists all its commands, including the checks CI runs: [server/README.md](server/README.md) (with the Docker image), [web/README.md](web/README.md) and [android/README.md](android/README.md). The basics:
 
 The server needs Python 3.12 and [uv](https://docs.astral.sh/uv/). From `server/`:
 
