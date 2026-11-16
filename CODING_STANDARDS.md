@@ -1,6 +1,6 @@
 # Coding Standards
 
-The rules every change in this repo follows. `/code-review` checks a branch against this file. The commands that run the checks are in `AGENTS.md`.
+The rules every change in this repo follows. `/code-review` checks a branch against this file. The commands that run the checks are in each area's README: `server/README.md`, `web/README.md` and `android/README.md`.
 
 ## Modularity
 
@@ -29,7 +29,7 @@ These apply to npm, Python, Android (Gradle) packages and base images alike.
 
 ## Secrets and tag data
 
-Never commit secrets, `.env` files, tag dumps or printer captures (`ft-printer check --save`). Settings are listed in the Configuration table in `docs/SPEC.md`.
+Never commit secrets, `.env` files, tag dumps or printer captures (`ft-printer check --save`). Settings are listed in `docs/configuration.md`.
 
 ## Architecture decision records
 
