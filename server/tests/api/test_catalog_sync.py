@@ -285,6 +285,14 @@ def test_an_export_repeating_a_uuid_fails(client: TestClient, ofdb: FakeOfdb) ->
     assert refresh(client)["last_reason"] == "export repeats a UUID in variants"
 
 
+def test_an_export_repeating_an_id_fails(client: TestClient, ofdb: FakeOfdb) -> None:
+    data = export()
+    data["variants"][1]["id"] = data["variants"][0]["id"]
+    ofdb.serve(ok(gz(data)))
+
+    assert refresh(client)["last_reason"] == "export repeats an id in variants"
+
+
 def test_a_304_to_a_request_that_did_not_ask_fails(client: TestClient, ofdb: FakeOfdb) -> None:
     ofdb.serve(status(304))
 

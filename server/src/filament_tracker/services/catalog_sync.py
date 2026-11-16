@@ -22,6 +22,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from filament_tracker.db.catalog_models import (
+    ETAG_LENGTH,
+    LAST_MODIFIED_LENGTH,
     CatalogBrand,
     CatalogFilament,
     CatalogSize,
@@ -119,8 +121,9 @@ class CatalogSyncer:
                     started,
                     SyncResult.NOT_MODIFIED,
                     version=previous.dataset_version,
-                    etag=_fits(download.etag, 200) or previous.etag,
-                    last_modified=_fits(download.last_modified, 64) or previous.last_modified,
+                    etag=_fits(download.etag, ETAG_LENGTH) or previous.etag,
+                    last_modified=_fits(download.last_modified, LAST_MODIFIED_LENGTH)
+                    or previous.last_modified,
                 )
                 return
             export = parse_export(download.body)
@@ -178,8 +181,8 @@ class CatalogSyncer:
                         started,
                         SyncResult.UPDATED,
                         version=export.version,
-                        etag=_fits(download.etag, 200),
-                        last_modified=_fits(download.last_modified, 64),
+                        etag=_fits(download.etag, ETAG_LENGTH),
+                        last_modified=_fits(download.last_modified, LAST_MODIFIED_LENGTH),
                     )
                 )
         except SQLAlchemyError as error:

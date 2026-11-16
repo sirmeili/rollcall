@@ -10,7 +10,7 @@
   let message = $state<string | null>(null);
   let busy = $state(false);
 
-  const failed = $derived(status ? failureText(status) : null);
+  const warning = $derived(status ? failureText(status) : null);
 
   async function load(): Promise<void> {
     try {
@@ -55,7 +55,7 @@
     {:else if !status}
       <p class="muted">Loading…</p>
     {:else}
-      {#if failed}
+      {#if warning}
         <div class="fail" role="alert">
           <svg
             width="18"
@@ -69,7 +69,7 @@
               d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"
             ></path></svg
           >
-          <span>{failed}</span>
+          <span>{warning}</span>
         </div>
       {/if}
       <dl>

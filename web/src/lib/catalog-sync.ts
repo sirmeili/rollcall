@@ -8,6 +8,11 @@ export function versionText(version: string | null): string {
   return version ? `v${version}` : "—";
 }
 
+/** Why the last attempt failed. */
+function reason(status: SyncStatus): string {
+  return status.last_reason ?? "unknown error";
+}
+
 /** The note under the last attempt's time: "Not modified", "Updated", "Failed: …". */
 export function attemptNote(status: SyncStatus): string {
   switch (status.last_result) {
@@ -16,7 +21,7 @@ export function attemptNote(status: SyncStatus): string {
     case "not_modified":
       return "Not modified";
     case "failed":
-      return `Failed: ${status.last_reason ?? "unknown error"}`;
+      return `Failed: ${reason(status)}`;
     default:
       return "";
   }
@@ -26,11 +31,10 @@ export function attemptNote(status: SyncStatus): string {
  * last attempt worked. */
 export function failureText(status: SyncStatus, now: Date = new Date()): string | null {
   if (status.last_result !== "failed") return null;
-  const reason = status.last_reason ?? "unknown error";
   const kept = status.last_success_at
     ? `Keeping the copy from ${shortDate(status.last_success_at, now)}.`
     : "There is no copy yet.";
-  return `Last attempt failed: ${reason}. ${kept}`;
+  return `Last attempt failed: ${reason(status)}. ${kept}`;
 }
 
 /** What Refresh now found, given the status before and after it. */
@@ -47,6 +51,6 @@ export function refreshText(
       return since ? `Up to date. Nothing new since ${shortDate(since, now)}.` : "Up to date.";
     }
     default:
-      return `Sync failed: ${after.last_reason ?? "unknown error"}.`;
+      return `Sync failed: ${reason(after)}.`;
   }
 }

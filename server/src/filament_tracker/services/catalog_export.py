@@ -140,6 +140,9 @@ def parse_export(raw: bytes) -> CatalogExport:
     for name, records in (("filaments", filaments), ("variants", variants), ("sizes", sizes)):
         if len({r.uuid for r in records}) != len(records):
             raise ExportInvalid(f"export repeats a UUID in {name}")
+        # Records point at each other by id, so a repeated id would attach to the wrong one.
+        if len({r.id for r in records}) != len(records):
+            raise ExportInvalid(f"export repeats an id in {name}")
     by_id = {
         "filament": {f.id: f.uuid for f in filaments},
         "variant": {v.id: v.uuid for v in variants},

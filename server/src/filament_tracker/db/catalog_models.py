@@ -17,6 +17,9 @@ from filament_tracker.db.models import Base
 from filament_tracker.db.types import str_enum
 
 UUID_LENGTH = 36
+# The longest ETag and Last-Modified headers kept for asking whether the export changed.
+ETAG_LENGTH = 200
+LAST_MODIFIED_LENGTH = 64
 
 
 class CatalogBrand(Base):
@@ -97,5 +100,5 @@ class CatalogSync(Base):
     # Why it failed, in a few words; never OFDB's answer itself.
     reason: Mapped[str | None] = mapped_column(String(200))
     dataset_version: Mapped[str | None] = mapped_column(String(64))
-    etag: Mapped[str | None] = mapped_column(String(200))
-    last_modified: Mapped[str | None] = mapped_column(String(64))
+    etag: Mapped[str | None] = mapped_column(String(ETAG_LENGTH))
+    last_modified: Mapped[str | None] = mapped_column(String(LAST_MODIFIED_LENGTH))
