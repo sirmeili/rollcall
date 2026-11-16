@@ -7,7 +7,10 @@ from collections.abc import Callable
 from typing import Any
 
 import httpx
+from api_helpers import admin
+from fastapi.testclient import TestClient
 
+SYNC = "/api/v1/catalog/sync"
 BAMBU = "bambu-uuid-0000-0000-000000000001"
 OTHER = "other-uuid-0000-0000-000000000002"
 ETAG = '"v1-etag"'
@@ -183,3 +186,10 @@ class FakeOfdb:
         if isinstance(answer, Exception):
             raise answer
         return answer(request)
+
+
+def refresh(client: TestClient) -> dict[str, Any]:
+    """Refresh now, as an Admin; the new sync status."""
+    response = client.post(SYNC, headers=admin())
+    assert response.status_code == 200, response.text
+    return response.json()

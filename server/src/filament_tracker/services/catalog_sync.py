@@ -99,7 +99,7 @@ class CatalogSyncer:
     def status(self) -> SyncStatus:
         with self._sessions() as session:
             last = session.scalars(select(CatalogSync).order_by(CatalogSync.id.desc())).first()
-            success = _last_success(session)
+            success = last_success(session)
             colors = session.scalar(select(func.count()).select_from(CatalogVariant)) or 0
         return SyncStatus(
             last_success_at=success.finished_at if success else None,
@@ -113,7 +113,7 @@ class CatalogSyncer:
     def _sync(self) -> None:
         started = self._clock()
         with self._sessions() as session:
-            previous = _last_success(session)
+            previous = last_success(session)
         try:
             download = self._download(previous)
             if previous is not None and download.not_modified:
@@ -216,7 +216,8 @@ class CatalogSyncer:
         )
 
 
-def _last_success(session: Session) -> CatalogSync | None:
+def last_success(session: Session) -> CatalogSync | None:
+    """The latest sync that worked (a new copy, or Not modified)."""
     return session.scalars(
         select(CatalogSync)
         .where(CatalogSync.result != SyncResult.FAILED)

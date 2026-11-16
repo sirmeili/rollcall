@@ -2,20 +2,15 @@
 faked by an injected httpx transport."""
 
 import gzip
-from collections.abc import Iterator
 from types import ModuleType
-from typing import Any
 
 import httpx
 import pytest
 from api_helpers import (
-    ADMIN_TOKEN,
     BASE_URL,
     CSRF,
     INTERNET_CLIENT,
-    LAN_CLIENT,
     admin,
-    register,
     scan,
     signed_in,
 )
@@ -25,18 +20,19 @@ from ofdb_fake import (
     BAMBU,
     ETAG,
     LAST_MODIFIED,
+    SYNC,
     Answer,
     FakeOfdb,
     changed_export,
     export,
     gz,
     ok,
+    refresh,
     status,
 )
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from filament_tracker.config import Settings
 from filament_tracker.db.catalog_models import (
     CatalogBrand,
     CatalogFilament,
@@ -45,45 +41,9 @@ from filament_tracker.db.catalog_models import (
 )
 from filament_tracker.decoder.synthetic import SyntheticTag
 from filament_tracker.domain.enums import Role
-from filament_tracker.main import create_app
 from filament_tracker.services import catalog_export, catalog_sync
 
-SYNC = "/api/v1/catalog/sync"
 INVENTORY = ("/api/v1/products", "/api/v1/spools", "/api/v1/events", "/api/v1/inventory")
-
-
-@pytest.fixture
-def ofdb() -> FakeOfdb:
-    return FakeOfdb()
-
-
-@pytest.fixture
-def app(db_url: str, ofdb: FakeOfdb) -> FastAPI:
-    settings = Settings(database_url=db_url, admin_token=ADMIN_TOKEN, _env_file=None)
-    return create_app(settings, ofdb_transport=ofdb.transport)
-
-
-@pytest.fixture
-def client(app: FastAPI) -> Iterator[TestClient]:
-    with TestClient(app, base_url=BASE_URL, client=LAN_CLIENT) as client:
-        yield client
-
-
-@pytest.fixture
-def token(client: TestClient) -> str:
-    return register(client)
-
-
-@pytest.fixture
-def db(app: FastAPI, client: TestClient) -> Iterator[Session]:
-    with app.state.session_factory() as session:
-        yield session
-
-
-def refresh(client: TestClient) -> dict[str, Any]:
-    response = client.post(SYNC, headers=admin())
-    assert response.status_code == 200, response.text
-    return response.json()
 
 
 # --- A sync ------------------------------------------------------------------------------

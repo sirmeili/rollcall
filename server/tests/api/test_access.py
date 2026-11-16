@@ -36,6 +36,7 @@ ROUTES = [
     ("get", "/api/v1/spools/99", Role.VIEWER),
     ("get", "/api/v1/events", Role.VIEWER),
     ("get", "/api/v1/review", Role.VIEWER),
+    ("get", "/api/v1/catalog", Role.VIEWER),
     ("patch", "/api/v1/spools/99", Role.EDITOR),
     ("patch", "/api/v1/spools", Role.EDITOR),
     ("post", "/api/v1/spools", Role.EDITOR),
