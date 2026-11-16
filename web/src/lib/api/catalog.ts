@@ -1,5 +1,5 @@
 /** Calls for the catalog: a local copy of the Open Filament Database's Bambu Lab colors.
- * The sync status and Refresh now are Admin only. */
+ * Anyone signed in reads it; the sync status and Refresh now are Admin only. */
 
 import { api } from "#lib/api/client.ts";
 
@@ -14,6 +14,35 @@ export interface SyncStatus {
   dataset_version: string | null;
   /** Catalog colors in the copy in use. */
   colors: number;
+}
+
+export interface CatalogColor {
+  uuid: string;
+  name: string;
+  /** RRGGBB, the main color first; more than one for a multi-color catalog color. */
+  hexes: string[];
+  discontinued: boolean;
+  multi_color: boolean;
+}
+
+export interface FilamentLine {
+  uuid: string;
+  name: string;
+  material: string;
+  colors: CatalogColor[];
+}
+
+export interface Catalog {
+  lines: FilamentLine[];
+  /** Whether the catalog has ever been downloaded. */
+  synced: boolean;
+  dataset_version: string | null;
+  last_success_at: string | null;
+}
+
+/** Every filament line with its catalog colors (Viewer and above). */
+export function getCatalog(): Promise<Catalog> {
+  return api<Catalog>("/catalog");
 }
 
 export function getSyncStatus(): Promise<SyncStatus> {

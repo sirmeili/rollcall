@@ -19,6 +19,12 @@
   {:else if href === "/products"}
     <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"></path>
     <path d="M7.5 7.5h.01"></path>
+  {:else if href === "/catalog"}
+    <path
+      d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0 0 21 9.8C21 6 17 3 12 3z"
+    ></path>
+    <circle cx="7.5" cy="11.5" r="1"></circle><circle cx="10.5" cy="7.5" r="1"></circle>
+    <circle cx="15" cy="7.5" r="1"></circle>
   {:else if href === "/review"}
     <path d="M9 11l3 3L22 4"></path>
     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>

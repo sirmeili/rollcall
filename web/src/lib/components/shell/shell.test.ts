@@ -28,6 +28,7 @@ describe("page titles and menu groups", () => {
       "Inventory",
       "Spools",
       "Products",
+      "Catalog",
       "Review",
       "Activity",
     ]);
@@ -105,7 +106,7 @@ describe("the bottom bar", () => {
 
     const menu = screen.getByRole("dialog", { name: "Menu" });
     const pages = within(menu).getByRole("navigation", { name: "Pages" });
-    expect(within(pages).getAllByRole("link")).toHaveLength(5);
+    expect(within(pages).getAllByRole("link")).toHaveLength(6);
     expect(within(pages).getByRole("link", { name: "Review, 4 waiting" })).toHaveAttribute(
       "href",
       "/review",
