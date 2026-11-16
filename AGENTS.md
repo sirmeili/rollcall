@@ -1,157 +1,51 @@
-# AI Agent Instructions & Best Practices
+# AGENTS.md
 
-You are an autonomous AI software engineer tasked with building the application described in `spec.md`. You must adhere strictly to the following rules and workflows. Failure to follow these directives is considered a critical error.
+Instructions for every AI agent working in this repo. This is the only instruction file: agent instructions go here, not in an agent-specific file such as `CLAUDE.md`.
 
-## 1. Core Directives & Planning
+## What to read first
 
-* **Plan First:** Before modifying or creating any files, you must formulate a step-by-step implementation plan and present it to the user. Do not write implementation code until the user approves the plan.
+1. This file.
+2. The issue being worked. The [Roadmap](https://github.com/sirmeili/rollcall/issues/69) issue lists the planned work.
+3. `GLOSSARY.md`, and the ADRs in `docs/adr/` for that area.
+4. `CODING_STANDARDS.md`, before writing code.
+5. `docs/configuration.md` when a setting is added or changed, and `docs/testing.md` when a test layer, coverage exclusion or manual checklist is.
+6. The mockups in `docs/mockups/`, for screens.
 
-* **Strict Spec Adherence:** You must never deviate from `docs/SPEC.md`. If you believe a deviation is necessary or highly recommended (e.g., for technical feasibility or UX improvements), you must first pause, ask the user for permission, and clearly explain *why* the change is needed.
+The archived spec, `docs/archive/SPEC-v1.md`, is background only.
 
-* **Context Management:** Read the `docs/SPEC.md` at the start of every session to ensure your context window remains aligned with the project's goals.
+## The issue is the contract
 
-## 2. Git Workflow & Version Control
+- Make the changes the issue describes, and only those. For behaviour already built, the code and its tests are the record.
+- When something is ambiguous, stop and ask.
+- Every acceptance criterion ships with its test.
+- Build `ready-for-agent` issues. A `needs-info` or blocked issue waits.
+- A hard-to-reverse, surprising trade-off gets an ADR in `docs/adr/`, in the same PR.
 
-* **Sync at Session Start:** At the beginning of every single session, you must check the remote repository to ensure your local code is fully synchronized and in the correct state.
+## Roadmap stubs
 
-* **No Direct Main Branch Commits:** You must **never** commit or push directly to the `main` or `master` branch.
+`/to-spec` on a Roadmap stub replaces the stub's body in place, keeping its number, and swaps the `roadmap` label for `ready-for-agent`.
 
-* **Feature Branches:** Always branch off `main` and create a uniquely named feature branch for any new work (e.g., `feature/campaign-roster-ui`).
+## Branches
 
-* **Merge Verification:** When moving from one feature to the next, you must verify that the previous Pull Request was successfully merged into the `main` branch before branching off for the new feature. 
-  * *Exception Handling:* If there is a compelling reason to skip this verification (e.g., working on a parallel, completely isolated feature), you must **stop and ask the user for permission** to skip it, clearly stating your reason why.
+- `main` changes only through pull requests: commit on a branch.
+- `/implement` syncs `main` and checks that the previous PR merged (ask before skipping that check, and say why), then uses one `<type>/<issue#>-<slug>` branch and PR per ticket.
+- `/implement-spec` uses one integration branch and PR per spec.
+- Make small, logical commits.
 
-* **Atomic Commits:** Make small, logical commits as you work to ensure changes are easily trackable and reversible.
+## Pull requests
 
-## 3. Pull Request Requirements
+- The body is the `/pr` template only.
+- The last commit on the branch ends with `Closes #N` for each issue it resolves.
 
-Upon user acceptance of a completed feature or step, you must commit your code, push the branch, and open a Pull Request (PR). Every PR description must strictly include the following sections:
+## README
 
-* **What changed?** (A bulleted list of technical changes).
+Keep `README.md` accurate. A change to what it describes (status, components, setup, the repository layout, the enclosure or the roadmap) updates it in the same branch.
 
-* **Why was the work completed?** (The underlying rationale for the approach taken).
+## Commands
 
-* **What part of the spec was implemented?** (Direct reference to section numbers or features in `docs/SPEC.md`).
-
-* **How was it tested?** (Details on unit tests, mock data used, and edge cases handled).
-
-## 4. Quality & Testing Standards
-
-* **Test-Driven Execution:** You must write tests for your code.
-
-* **Code Coverage:** You must maintain **90% or higher** code coverage in your unit tests for every feature branch. If coverage falls below 90%, you must write additional tests before requesting a review. For firmware, this applies to logic that runs in PC tests; a named list of hardware drivers is excluded and covered by the manual checklist in `docs/SPEC.md`.
-
-* **Self-Correction:** Run tests autonomously. If tests fail, diagnose the failure, correct the code, and re-run the tests before presenting the work to the user.
-
-* **Modularity:** Keep files small and focused. Do not create monolithic files. Export helper functions and UI components into logical, separate directories.
-
-## 5. Security & Dependencies
-
-* **Vulnerability Checks:** Before introducing any new third-party dependency (e.g., via `npm install`), you must research and ensure it is free of known security vulnerabilities.
-
-* **Strict Exceptions:** If a dependency has a known vulnerability but you still strongly recommend its use, you must **stop and ask the user for permission**. Your request must include:
-
-  * A clear explanation of why this specific package is necessary.
-
-  * A description of the vulnerability.
-
-  * A direct link to the CVE or vulnerability description (e.g., GitHub Advisory or Snyk).
-
-  * Your rationale for why the risk is acceptable in this specific context.
-
-## 6. Progress Tracking & Documentation
-
-* **Maintain PROGRESS.md:** You must create and maintain a `PROGRESS.md` file in the root of the repository.
-
-* **Continuous Updates:** With every single commit, you must update `PROGRESS.md` to log current and past progress. This file must accurately reflect completed features, the current active task, and any immediate next steps or blockers.
-
-* **Maintain README.md:** You must keep `README.md` in the root of the repository accurate. Whenever a change affects what it describes (project status, components, setup, repository layout, the enclosure or the roadmap), update it in the same branch as that change.
-
-## 7. Communication Style
-
-* Be concise.
-
-* Acknowledge user approvals clearly before proceeding.
-
-* When encountering a blocker or ambiguity in the spec, halt execution and ask the user a clarifying question.
-
-## 8. Build Guardrails & Commands
-
-* **Single Instruction File:** This file holds the instructions for all AI agents in this repo, so do not create a separate agent-specific file such as `CLAUDE.md`.
-
-* **Work From the Spec:** Work only from `docs/SPEC.md`. Commit spec changes with the work they cover.
-
-* **Test Every Change:** Include tests and, where a change touches authentication, input handling or secrets, security tests.
-
-* **Protect Secrets and Tag Data:** Never commit secrets, `.env` files or tag dumps. Settings are listed in the Configuration table in `docs/SPEC.md`.
-
-* **Server Commands:** Run these from `server/` before requesting a review. CI runs the same checks on every PR.
-
-  * Install dependencies: `uv sync`
-
-  * Lint: `uv run ruff check .`
-
-  * Check formatting: `uv run ruff format --check .`
-
-  * Run tests with the 90% coverage gate: `uv run pytest`
-
-  * Run the server: `uv run uvicorn filament_tracker.main:create_app --factory --reload`. It upgrades the database on startup.
-
-  * Apply migrations by hand: `uv run alembic upgrade head`
-
-  * Create a migration after changing `db/models.py`: `uv run alembic revision --autogenerate -m "describe the change"`, then review the generated file. Never edit a migration that has been merged.
-
-  * Check that the models and migrations match: `uv run alembic check`
-
-  * Create a web app account: `uv run ft-admin create-user <username> --role viewer|editor|admin` (the password is prompted). Reset one with `uv run ft-admin reset-password <username>`. On a new database, first-start setup also creates the first Admin from the web app, with the setup code the server logs at start.
-
-  * Scan simulator: `uv run ft-sim scan <dump.bin|export.zip> --action lookup|received|opened|empty` and `uv run ft-sim generate <out.bin>`. `uv run ft-sim check-salt <dumps>` checks the salt in use (saved on the Settings page, else `BAMBU_KDF_SALT`) against saved dumps without printing keys. It needs `FT_TOKEN` (a registered device token); see `server/README.md`. Tag dumps never go in the repo.
-
-  * Real printer check: `uv run ft-printer check [--dump <dump.zip>] [--save captures/<name>.jsonl]`, using the printers saved in the app (or `PRINTERS` from `server/.env`); see `server/README.md`. Captures stay out of the repo.
-
-  * Home Assistant check: `uv run ft-ha check [--event]`, using the Home Assistant settings the server uses; see `server/README.md`. It prints counts and states only.
-
-  * Fake printer: `./fakeprinter/make-cert.sh`, then `docker compose -f fakeprinter/compose.yaml up -d --wait`, then `uv run ft-fakeprinter --serial FAKE01 --report tests/printer/reports/pushall.json` with `FT_ACCESS_CODE=fake-access-code`. Set `FT_FAKE_BROKER=127.0.0.1:8883` and `FT_HA_BROKER=127.0.0.1:11883` to include the printer and Home Assistant broker tests in `uv run pytest`; see `server/README.md`.
-
-  * Audit dependencies: `uv export --quiet --no-hashes --no-emit-project -o requirements-audit.txt`, then `uv run pip-audit --disable-pip --no-deps -r requirements-audit.txt`. The exported file is ignored by git.
-
-* **Web Commands:** Run these from `web/` (Node.js 24) before requesting a review. CI runs the same checks on every PR.
-
-  * Install dependencies: `npm ci`. Add new packages with `npm install --save-dev --before=<a date at least 7 days ago> <package>@<version>`, so nothing brand new is pulled in, then run the audit.
-
-  * Type-check: `npm run check`
-
-  * Check formatting: `npm run lint` (fix with `npm run format`)
-
-  * Run tests with the 90% coverage gate: `npm run test:coverage`
-
-  * Audit dependencies: `npm run audit`. It fails on any advisory not approved in `scripts/audit-policy.js`.
-
-  * Build: `npm run build`, which writes `web/build`. The server serves it at `/`.
-
-  * Develop with live reload: start the server on port 8000, then `npm run dev` (Vite proxies `/api` to it).
-
-  * End-to-end tests: `npx playwright install chromium` once, then `npm run build` and `npm run test:e2e`. They start the real server on a scratch database.
-
-* **Docker Commands:** Run these from the repository root (Docker with Compose v2). CI runs the same checks on every PR, and publishes the image on merges to `main`.
-
-  * Build the image: `docker build -t rollcall:test .`
-
-  * Run the end-to-end test stack against it: from `server/`, `FT_COMPOSE_STACK=1 uv run pytest tests/deploy --no-cov` (it starts `deploy/test/compose.yaml` and removes it with its volumes).
-
-  * Scan the image before changing a base image digest: `docker scout cves --only-severity critical,high rollcall:test`. New base images follow the same rules as other dependencies: checked for advisories first.
-
-  * Make a backup now: `uv run ft-admin backup` (needs `BACKUP_DIR`), or `docker compose exec rollcall ft-admin backup` on the server.
-
-* **Android Commands:** The phone app in `android/` needs JDK 21 (newer JDKs fail with Gradle 8.14) with `JAVA_HOME` pointing at it, and the Android SDK in `ANDROID_HOME`. CI runs the same checks on every PR.
-
-  * Copy the web app in: from `web/`, `npm run build`, then `npx cap sync android`. Run it again after any web change before building the app.
-
-  * Run Kotlin tests with the 90% coverage gate: from `android/`, `./gradlew coverageCheck`. The Android glue that needs a phone is excluded and listed in `app/build.gradle` and the Testing table in `docs/SPEC.md`.
-
-  * Build the debug APK: `./gradlew assembleDebug`, which writes `app/build/outputs/apk/debug/app-debug.apk`.
-
-  * New Android dependencies follow the same rules as npm ones: a release at least 7 days old, checked for advisories (OSV, GitHub Advisories) first.
+- Working in `server/` or on the Docker image: its commands, including the checks CI runs, are in `server/README.md`.
+- Working in `web/`: its commands, including the checks CI runs, are in `web/README.md`.
+- Working in `android/`: its commands, including the checks CI runs, are in `android/README.md`.
 
 ## Agent skills
 
@@ -165,4 +59,4 @@ Uses the five default triage labels: `needs-triage`, `needs-info`, `ready-for-ag
 
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root, both created when first needed. See `docs/agents/domain.md`.
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.

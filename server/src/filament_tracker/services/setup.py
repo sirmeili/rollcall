@@ -1,4 +1,4 @@
-"""First-start setup (Settings and first start in docs/SPEC.md).
+"""First-start setup (see ADR-0008).
 
 Setup is open while no Admin account exists. While it is open, each start of the server
 makes a new random setup code and writes it to the log, so only someone who can read the

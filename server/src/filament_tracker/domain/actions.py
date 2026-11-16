@@ -1,4 +1,4 @@
-"""Actions the scanner offers after a scan ("Actions offered after a scan" in the spec).
+"""Actions the scanner offers after a scan.
 
 Each state maps to three soft-key slots (left, middle, right) and a suggested action.
 """

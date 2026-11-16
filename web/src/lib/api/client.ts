@@ -39,7 +39,8 @@ export function setApiBase(url: string): void {
 }
 
 /** A Cloudflare Access service token, which the phone app sends to pass Access in front of
- * the server when away from home (docs/SPEC.md, Phone scanner). */
+ * the server when away from home. That lets the phone browse the web app from anywhere, while
+ * its scans stay on the home network and queue until it is back (ADR-0006). */
 export interface AccessToken {
   clientId: string;
   clientSecret: string;

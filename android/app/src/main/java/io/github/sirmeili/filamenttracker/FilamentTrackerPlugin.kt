@@ -189,6 +189,8 @@ class FilamentTrackerPlugin : Plugin() {
         super.handleOnDestroy()
     }
 
+    // Google's code scanner (Play services) needs no camera permission and keeps camera code
+    // out of the app.
     @PluginMethod
     fun scanQr(call: PluginCall) {
         val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()

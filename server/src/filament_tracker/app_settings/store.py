@@ -1,5 +1,5 @@
 """Read and save settings: a value saved in the app wins over `.env`, which wins over the
-default (see Settings and first start in docs/SPEC.md).
+default (see ADR-0007).
 
 A saved row with an empty value means the setting was turned off in the app, even if
 `.env` sets it. Deleting the row ("Use the .env value") goes back to `.env`. Secrets are

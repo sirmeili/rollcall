@@ -1,5 +1,4 @@
-"""Security headers on every response, and the API docs kept on the LAN (Security in
-docs/SPEC.md).
+"""Security headers on every response, and the API docs kept on the LAN (see ADR-0006).
 
 The docs pages load Swagger UI and ReDoc from a CDN, so they get a looser policy; they
 are only served to clients on `TRUSTED_NETWORKS`, and everyone else gets 404.

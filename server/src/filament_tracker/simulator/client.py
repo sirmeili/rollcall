@@ -1,4 +1,8 @@
-"""Send scan events to the server, as a scanner would."""
+"""Send scans to the server, as a scanner would.
+
+HTTP uses only the standard library, so the simulator adds no runtime dependency to the
+server.
+"""
 
 import json
 import urllib.error

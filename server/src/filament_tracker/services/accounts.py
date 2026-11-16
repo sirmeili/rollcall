@@ -1,4 +1,4 @@
-"""User accounts and browser sessions (Users and roles in docs/SPEC.md)."""
+"""User accounts and browser sessions."""
 
 import hashlib
 import re

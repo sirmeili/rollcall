@@ -1,4 +1,4 @@
-"""Printers saved in the app (docs/SPEC.md, Settings and first start).
+"""Printers saved in the app (see ADR-0007).
 
 Each printer's access code is sealed with the settings key, bound to the printer's id, and
 opened only to connect to it. PRINTERS in `.env` seeds each of its printers once, the first

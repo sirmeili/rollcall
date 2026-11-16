@@ -1,4 +1,4 @@
-"""Serve the built web app (`web/build`) at `/` (Server: web UI in docs/SPEC.md).
+"""Serve the built web app (`web/build`) at `/` (see ADR-0005).
 
 The web app is a single-page app: any path that is not an API route or a file in the
 build is answered with `index.html`, and the app shows the right page in the browser.

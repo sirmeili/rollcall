@@ -1,10 +1,10 @@
 # RollCall Android app
 
-The phone scanner from `docs/SPEC.md` (Phone scanner): a Capacitor wrapper around the web app in `web/`, with a Kotlin plugin for NFC tag reading, QR scanning and Keystore storage. It works only on phones whose NFC chip reads MIFARE Classic, such as Google Pixel phones.
+The phone app: a Capacitor wrapper around the web app in `web/`, with a Kotlin plugin for NFC tag reading, QR scanning and Keystore storage. It works only on phones whose NFC chip reads MIFARE Classic, such as Google Pixel phones. See ADR-0010 (`docs/adr/0010-phone-app-capacitor-and-kotlin-nfc.md`) for why it is built this way.
 
 ## Build
 
-The build needs JDK 21 (newer JDKs fail with Gradle 8.14) and the Android SDK. Android Studio installs the SDK.
+The build needs JDK 21 (newer JDKs fail with Gradle 8.14) with `JAVA_HOME` pointing at it, and the Android SDK in `ANDROID_HOME`. Android Studio installs the SDK. Run the checks before requesting a review. CI runs the same checks on every PR.
 
 ```sh
 # From web/
@@ -16,7 +16,9 @@ npx cap sync android
 ./gradlew assembleDebug    # Writes app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Run `npm run build` and `npx cap sync android` again after any web change.
+Run `npm run build` and `npx cap sync android` again after any web change, before building the app.
+
+The coverage gate leaves out the Android glue that needs a phone; the list is `coverageExcludes` in `app/build.gradle`, and [docs/testing.md](../docs/testing.md#coverage-exclusions) says why each is excluded and which checklist covers it. New Android dependencies follow the same rules as npm ones: see [CODING_STANDARDS.md](../CODING_STANDARDS.md#dependencies).
 
 Debug builds are **RollCall (dev)** (`io.github.sirmeili.rollcall.debug`, version `dev`). They install next to the release app instead of replacing it, each with its own pairing.
 
@@ -106,7 +108,7 @@ uv run uvicorn filament_tracker.main:create_app --factory --host 0.0.0.0 --port 
 
 ## Checklist
 
-Run this before a release that changes the app, and record the results in `PROGRESS.md`.
+Run this before a release that changes the app, and record the results in the release's pull request.
 
 **Setup and pairing**
 

@@ -52,7 +52,7 @@ The type chip on the page summarises the choice so it never grows: one or two ty
 
 ## Spec changes these need
 
-The spec already lists **Phone bottom bar** and **Theme choice in Account** under Future enhancements. These mockups show how they look. The rest is new and needs the owner's approval and a spec update before it is built:
+The spec already lists **Phone bottom bar** and **Theme choice in Account** under Future enhancements. These mockups show how they look. The rest is new and needs the owner's approval and an issue describing the change before it is built:
 
 1. **Inventory on a phone:** the compact rows with expanding detail instead of cards, and no Cards / List switch.
 2. **Filtering:** search, the filter sheet (several types at once, Low stock only, the three sorts) and the Low stock / Nearly out quick filters, instead of the type chips and the sort button.

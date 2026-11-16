@@ -1,5 +1,4 @@
-/** Web app roles (Users and roles in docs/SPEC.md). Each role can do everything the
- * roles before it can. */
+/** Web app roles. Each role can do everything the roles before it can. */
 export type Role = "viewer" | "editor" | "admin";
 
 const RANK: Record<Role, number> = { viewer: 0, editor: 1, admin: 2 };

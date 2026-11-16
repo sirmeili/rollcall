@@ -1,6 +1,6 @@
 # Filament Scanner — Bill of Materials
 
-Per scanner unit, matching the RollCall spec (CYD prototype) and `filament-scanner-case.scad`.
+Per handheld scanner, for the CYD prototype and `filament-scanner-case.scad`.
 Prices are approximate USD as of 2026-10-31. "Sourced" prices come from the linked page; "Est." prices are typical marketplace prices, so check before ordering.
 
 ## Required parts
@@ -11,7 +11,7 @@ Prices are approximate USD as of 2026-10-31. "Sourced" prices come from the link
 | 2 | Electronics | PN532 NFC module V3 | 42.7 × 40.4 mm, I2C mode (DIP switch), must support MIFARE Classic auth | 1 | $7.00 | $7.00 | Est. |
 | 3 | Electronics | Tactile switches | 12 × 12 × 7.3 mm, through-hole | 3 | $0.20 | $0.60 | Est. (pack of 25 ≈ $5) |
 | 4 | Electronics | Perfboard strip | Cut 70 × 18 mm from a 50 × 70 mm board, 1.6 mm thick | 1 | $0.50 | $0.50 | Est. |
-| 5 | Electronics | Speaker | 20 mm round, 8 Ω, ≤ 4 mm deep, JST 1.25 mm 2-pin lead for the CYD speaker connector. **To change:** a 15 × 10 × 3.5 mm cavity speaker was ordered instead; the case model needs adjusting (see PROGRESS.md) | 1 | $2.00 | $2.00 | Est. |
+| 5 | Electronics | Speaker | 20 mm round, 8 Ω, ≤ 4 mm deep, JST 1.25 mm 2-pin lead for the CYD speaker connector. **To change:** a 15 × 10 × 3.5 mm cavity speaker was ordered instead; the case model needs adjusting (see #98) | 1 | $2.00 | $2.00 | Est. |
 | 6 | Electronics | USB-C breakout (power in) | Needs 5.1 kΩ CC pull-downs for C-to-C chargers to supply power. Candidate: SparkFun BOB-15100 (22.1 × 14 mm), but its product page doesn't state this, so check the schematic or use a USB-A to C cable | 1 | $4.95 | $4.95 | Sourced ([SparkFun](https://www.sparkfun.com/sparkfun-usb-c-breakout.html)) |
 | 7 | Electronics | JST 1.25 mm 4-pin cables | One for PN532 (I2C on CN1), one for 5 V power into P1, one for the buttons (GPIO35 and GND on P3). The CYD often ships with one. Confirm the connector size on your board | 3 | $1.00 | $3.00 | Est. |
 | 8 | Electronics | Resistors for button ladder | 1 × 10 kΩ pull-up, 1 × 3.3 kΩ, 1 × 10 kΩ (1/4 W) | 3 | $0.03 | $0.10 | Est. |
@@ -34,7 +34,7 @@ Prices are approximate USD as of 2026-10-31. "Sourced" prices come from the link
 
 **Total per unit: about $34 required, $36.55 with every mounting option.**
 
-The spec's target is under $30 per unit, excluding the printed case. Without the case and mounting options, a unit costs $31.65 with a $12 CYD (over target by $1.65) or $27.65 with an $8 CYD (under target).
+The target is under $30 per unit, excluding the printed case (set in `docs/archive/SPEC-v1.md`, Scanner device: hardware). Without the case and mounting options, a unit costs $31.65 with a $12 CYD (over target by $1.65) or $27.65 with an $8 CYD (under target).
 
 Per-unit prices understate a first order, because switches, resistors, magnets and similar parts are sold in packs.
 

@@ -1,6 +1,6 @@
 // The npm audit policy: every advisory fails CI except the exceptions the owner approved
-// (AGENTS.md section 5). Each exception names the advisory and the highest severity
-// accepted, so CI fails again if the advisory is raised.
+// (CODING_STANDARDS.md, Approved exceptions). Each exception names the advisory and the
+// highest severity accepted, so CI fails again if the advisory is raised.
 
 /** @type {Record<string, { severity: string, reason: string }>} */
 export const APPROVED = {

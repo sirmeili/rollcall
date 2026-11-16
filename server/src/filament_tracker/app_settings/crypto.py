@@ -1,4 +1,4 @@
-"""Encryption for secrets saved in the app (see Settings and first start in docs/SPEC.md).
+"""Encryption for secrets saved in the app (see ADR-0007).
 
 Each value is sealed with AES-256-GCM under its own random nonce, with the setting's name
 as associated data, so a sealed value cannot be moved to another setting. The key comes

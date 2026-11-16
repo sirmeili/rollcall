@@ -1,3 +1,31 @@
+> **Retired 2026-11-16.** This file is frozen and is not the contract. Work is specified per feature in GitHub issues (see AGENTS.md). Keep it as background: `/to-spec` may read its sections when a stub is turned into a spec.
+
+Where each top-level section now lives. Numbers are GitHub issues in `sirmeili/rollcall`; the Roadmap is #69. Paths are from the repository root.
+
+| Section | Now lives in |
+| --- | --- |
+| Overview | `README.md` (goals, how it works); `GLOSSARY.md`; the non-goals that may come later are Roadmap stubs #91 (load-cell scale) and #93 (untagged filament) |
+| Background: Bambu RFID tags | `GLOSSARY.md`; ADR-0002 (a spool is its tray UID); ADR-0013 (the key-derivation constant is published); the decoder: the code and its tests |
+| User workflows | The code and its tests; `GLOSSARY.md`; ADR-0001 (spool state from an event log), ADR-0003 (flag, don't refuse), ADR-0004 (lookups write no events) |
+| System architecture | `README.md` (how it works, components); ADR-0005 (one Python process) |
+| Scanner device: hardware | Roadmap stubs #85 (M0b), #86 (M3b), #87 (M4) and #90 (custom PCB scanner); ADR-0015 (CYD buttons on a resistor ladder); `hardware/BOM.md`; `README.md` (enclosure); open questions #96, #98, #99 |
+| Scanner firmware | Roadmap stubs #84 (M3a) and #86 (M3b); the scan payload and the scan simulator: the code and its tests |
+| Phone scanner (Android app) | The code and its tests; `android/README.md`; ADR-0010 (Capacitor and a Kotlin NFC plugin), ADR-0011 (plain HTTP on the LAN, checked at pairing); Roadmap stub #70 (Back button) |
+| Server: data model | The code and its tests; `GLOSSARY.md`; ADR-0001, ADR-0002 |
+| Server: API | The code and its tests (OpenAPI docs at `/api/v1`); ADR-0004 |
+| Users and roles | The code and its tests; `GLOSSARY.md`; `server/README.md` (accounts); the Requester role is Roadmap stub #75 |
+| Settings and first start | `docs/configuration.md`; ADR-0007 (app settings win over env), ADR-0008 (first-start setup page); the code and its tests |
+| Server: web UI | The code and its tests; Roadmap stub #71 (hide revoked devices); #101 (say Empty) |
+| Integrations | The code and its tests; `server/README.md` (printers, Home Assistant, fake printer); ADR-0009 (Home Assistant polls the database), ADR-0012 (direct read-only printer link); Roadmap stub #92 (Spoolman sync); open question #97 |
+| Security and deployment | The code and its tests; ADR-0006 (public web app, LAN-only machines), ADR-0011, ADR-0013; `docs/deploy.md`; `server/README.md` (reverse proxy, machine tokens, backups); `docs/configuration.md`; `CODING_STANDARDS.md` (secrets and tag data) |
+| Testing | `docs/testing.md`; `CODING_STANDARDS.md` (tests); `AGENTS.md` (the guardrails); Roadmap stub #95 (audit this file against the tests) |
+| Milestones | Roadmap #69: M10 is #73–#78, M11 is #79–#83, M3a #84, M0b #85, M3b #86, M4 #87, M7 Later #88–#94. M0a, M1, M2, M5, M8, M6 and M9 are built: the code and its tests |
+| Future enhancements | Roadmap stubs #90 (custom PCB scanner), #91 (load-cell scale), #92 (Spoolman sync), #93 (untagged filament), #94 (second scanner by the printer), #71 (hide revoked devices) |
+| Future enhancements: print requests | Roadmap stubs #73–#78 (Phase 2, 2.1–2.6), #79–#83 (Phase 3, 3.1–3.5), #88 (L.1) and #89 (L.2); name and rename: #72; one app, two modules: ADR-0014; access from outside the home: ADR-0006 and #75. Each verification finding is copied into the stub it informs: #73, #74, #78, #79, #80, #81, #82 and #83 |
+| Open questions | #96 (PN532 through the box), #97 (AMS and non-Bambu spools). The answered ones: ADR-0002 (tray UUID and refills), ADR-0015 (buttons), ADR-0012 (printer data source); the project name (answered: RollCall is the official name; the code rename is #72) |
+
+---
+
 # RollCall — Spec
 
 *RollCall is a working name (2026-11-09, replacing Spoolhouse) and may change. The GitHub repo is `sirmeili/rollcall`, and the Docker image, container and volumes use `rollcall`. The project was called Filament Tracker. Every name people see (the web app, the phone app, the Home Assistant device, the docs) says RollCall (2026-11-10); the code's identifiers keep the old name until the rename; see Future enhancements: print requests, Name and rename.*

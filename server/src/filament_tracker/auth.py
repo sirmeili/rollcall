@@ -1,4 +1,4 @@
-"""Who is calling, and what they may do (Users and roles, Security in docs/SPEC.md).
+"""Who is calling, and what they may do. Machine access stays on the LAN (see ADR-0006).
 
 Three kinds of caller:
 

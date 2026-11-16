@@ -1,5 +1,5 @@
-/** Unpacking a delivery (docs/SPEC.md, Phone scanner): while Delivery is on, every spool
- * recorded on Scan joins a list for the session, so a whole box can be checked off.
+/** Unpacking a delivery: while Delivery is on, every spool recorded on Scan joins a list for
+ * the session, so a whole box can be checked off.
  *
  * The list lives in memory: leaving Scan keeps it, closing the app ends it, and Clear
  * empties it. Clearing only empties the list; the recorded events stay.

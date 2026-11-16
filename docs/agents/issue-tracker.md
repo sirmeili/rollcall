@@ -28,7 +28,11 @@ GitHub shares one number space across issues and PRs, so a bare `#42` may be eit
 
 ## When a skill says "publish to the issue tracker"
 
-Create a GitHub issue.
+Create a GitHub issue, except for a spec of planned work. A spec for an item on the **Roadmap** issue goes into that item's stub (labelled `roadmap`): replace the stub's body with the spec, keeping its number and its place on the Roadmap, then swap the `roadmap` label for `ready-for-agent`. Its tickets become sub-issues of the stub.
+
+## How work is closed
+
+Work closes through a pull request into `main`. The last commit on the branch ends with `Closes #N`, one line per issue it resolves (for a spec built in one run, every ticket and the spec itself), so GitHub closes them when the PR merges. `/implement-spec` opens a draft PR for its integration branch.
 
 ## When a skill says "fetch the relevant ticket"
 

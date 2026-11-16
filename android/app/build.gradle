@@ -99,7 +99,8 @@ kotlin {
 
 // Unit-test coverage, gated at 90% of lines. The Android glue (the Capacitor plugin, the
 // MifareClassic adapter, Keystore and SharedPreferences storage, the activity) needs a real
-// phone and is covered by the manual checklist in docs/SPEC.md instead.
+// phone and is covered by the phone checklist instead. docs/testing.md lists these exclusions;
+// change it with this list.
 def coverageExcludes = [
     '**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*',
     '**/MainActivity*', '**/FilamentTrackerPlugin*', '**/AndroidMifare*',

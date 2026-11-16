@@ -1,7 +1,7 @@
-"""Database tables, following the Tables section of docs/SPEC.md.
+"""Database tables.
 
-The event table is the source of truth. A spool's state and dates are a projection of
-its events, rebuilt by the event log after every write.
+The event table is the source of truth (see ADR-0001). A spool's state and dates are a
+projection of its events, rebuilt by the event log after every write.
 """
 
 import uuid
@@ -71,8 +71,8 @@ class Product(Base):
 class Spool(Base):
     """One physical spool. A manual placeholder has no tray UID until it is scanned.
 
-    `state` is None ("Unknown" in the spec's action table) when every event that would
-    give the spool a state has been undone.
+    `state` is None (Unknown) when every event that would give the spool a state has been
+    undone.
     """
 
     __tablename__ = "spool"
@@ -260,6 +260,7 @@ class PrinterSlot(Base):
     printer_id: Mapped[int] = mapped_column(ForeignKey("printer.id"), index=True)
     ams_index: Mapped[int]
     tray_index: Mapped[int]
+    # The loaded spool's tray UID, as the AMS reports it (Bambu calls the field `tray_uuid`).
     tray_uuid: Mapped[str | None] = mapped_column(String(32))
     spool_id: Mapped[int | None] = mapped_column(ForeignKey("spool.id"), index=True)
     filament_type: Mapped[str | None] = mapped_column(String(32))
@@ -272,9 +273,9 @@ class PrinterSlot(Base):
 
 
 class Setting(Base):
-    """A setting saved in the app, which wins over the `.env` value (see Settings and first
-    start in docs/SPEC.md). Secrets hold AES-GCM ciphertext, never the plain value. No row
-    means the `.env` value or the default is used."""
+    """A setting saved in the app, which wins over the `.env` value (see ADR-0007).
+    Secrets hold AES-GCM ciphertext, never the plain value. No row means the `.env` value or
+    the default is used."""
 
     __tablename__ = "setting"
 

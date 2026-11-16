@@ -1,7 +1,7 @@
 """Server settings, read from environment variables or a `.env` file.
 
-The full list is in the Configuration table of docs/SPEC.md. Settings are added here in
-the milestone that first uses them.
+Every setting is listed in docs/configuration.md; a change to a setting here updates that
+table in the same branch (tests/test_configuration_doc.py checks they agree).
 """
 
 import re
