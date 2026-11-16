@@ -66,7 +66,7 @@ The [Roadmap](https://github.com/sirmeili/rollcall/issues/69) issue lists the pl
 | M6 Home Assistant | MQTT discovery entities, events, low-stock automation, the Settings page with the Home Assistant settings | Built |
 | M9 Deployment | Printers and the remaining settings in the app, machine tokens, first-start setup, Docker image and Compose file, nightly backups | Built |
 | Small changes | The Android Back button (#70), hiding revoked devices (#71), the code rename (#72) | Planned |
-| M10 Print requests, Phase 2 | Filament catalog and Bambu color codes, the Requester role, print requests and their status pipeline, holding filament, shopping list | Planned |
+| M10 Print requests, Phase 2 | Filament catalog and Bambu color codes, the Requester role, print requests and their status pipeline, holding filament, shopping list | In progress |
 | M11 Print requests, Phase 3 | Reading 3MF files, print jobs from the printer, push notifications, picking colors on the model, MCP server | Planned |
 | M3a Firmware without hardware | Scan flow, offline queue and dedupe logic with PC tests, screen simulator | Planned |
 | M0b Prove reading, PN532 | Repeat the read tests on the bench rig; measure reading through the lid and shipping box | Planned |
