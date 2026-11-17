@@ -1,18 +1,24 @@
 <script lang="ts">
-  /** A catalog color's swatch ring: one color as the ring, or equal segments for a
-   * multi-color catalog color. Decorative; the name says what it is. */
+  /** A catalog color's swatch ring: one color as the ring, or for a multi-color catalog
+   * color, its colors around the ring. A gradient blends them, wrapping back to the first;
+   * a coextruded one shows them in equal, hard-edged segments, as it prints. Decorative;
+   * the name says what it is. */
   interface Props {
     /** RRGGBB, without the #. */
     hexes: string[];
+    /** The colors blend along the filament. */
+    gradient?: boolean;
   }
 
-  let { hexes }: Props = $props();
+  let { hexes, gradient = false }: Props = $props();
 
-  const segments = $derived.by(() => {
+  const stops = $derived.by(() => {
     const step = 100 / hexes.length;
-    return hexes
-      .map((hex, i) => `#${hex} ${(i * step).toFixed(2)}% ${((i + 1) * step).toFixed(2)}%`)
-      .join(", ");
+    const at = (i: number) => (i * step).toFixed(2);
+    if (gradient) {
+      return [...hexes, hexes[0]].map((hex, i) => `#${hex} ${at(i)}%`).join(", ");
+    }
+    return hexes.map((hex, i) => `#${hex} ${at(i)}% ${at(i + 1)}%`).join(", ");
   });
 </script>
 
@@ -20,7 +26,7 @@
   <span
     class="ring multi"
     aria-hidden="true"
-    style:background="conic-gradient(from -90deg, {segments})"
+    style="background: conic-gradient(from -90deg, {stops})"
   ></span>
 {:else}
   <span class="ring" aria-hidden="true" style:border-color="#{hexes[0]}"></span>

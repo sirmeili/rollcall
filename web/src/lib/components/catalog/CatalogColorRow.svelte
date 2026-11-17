@@ -29,7 +29,7 @@
     aria-controls={detailId}
     onclick={ontoggle}
   >
-    <HexRing hexes={color.hexes} />
+    <HexRing hexes={color.hexes} gradient={color.gradient} />
     <span class="cname">{color.name}</span>
     <span class="chex">{hexesText(color.hexes)}</span>
     <span class="badges">

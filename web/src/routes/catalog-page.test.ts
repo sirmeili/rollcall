@@ -17,6 +17,7 @@ function color(name: string, hexes: string[], fields: Partial<CatalogColor> = {}
     hexes,
     discontinued: false,
     multi_color: hexes.length > 1,
+    gradient: false,
     similar: [],
     ...fields,
   };
@@ -255,6 +256,37 @@ describe("Catalog page", () => {
         "Catalog data from the Open Filament Database (MIT license) · Updated Nov 15, dataset v2026.11.15",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("blends a gradient's colors and keeps a coextruded one's colors apart", async () => {
+    await open({
+      ...SYNCED,
+      lines: [
+        line("PLA Basic Gradient", "PLA", [
+          color("Dusk Glare", ["ED9558", "CE4406"], { gradient: true }),
+        ]),
+        line("PLA Silk Dual Color", "PLA", [
+          color("Dawn Radiance", ["EC984C", "6CD4BC", "A66EB9", "D89694"]),
+        ]),
+      ],
+    });
+
+    const ring = async (name: string, hex: string) =>
+      (await screen.findByRole("button", { name: new RegExp(`^${name} #${hex}`) }))
+        .querySelector("span[aria-hidden='true']")
+        ?.getAttribute("style");
+    // The browser writes #ED9558 as rgb(237, 149, 88), and so on.
+    // Around the ring and back to the first color, so there is no seam.
+    expect(await ring("Dusk Glare", "ED9558")).toBe(
+      "background: conic-gradient(from -90deg, rgb(237, 149, 88) 0.00%, " +
+        "rgb(206, 68, 6) 50.00%, rgb(237, 149, 88) 100.00%);",
+    );
+    // A coextruded one: equal segments with hard edges.
+    expect(await ring("Dawn Radiance", "EC984C")).toBe(
+      "background: conic-gradient(from -90deg, rgb(236, 152, 76) 0.00% 25.00%, " +
+        "rgb(108, 212, 188) 25.00% 50.00%, rgb(166, 110, 185) 50.00% 75.00%, " +
+        "rgb(216, 150, 148) 75.00% 100.00%);",
+    );
   });
 
   it("badges each color with how many similar colors are in stock", async () => {

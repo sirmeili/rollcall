@@ -61,6 +61,9 @@ class CatalogVariant(Base):
     color_hex: Mapped[str] = mapped_column(String(6))
     # The other colors of a multi-color catalog color, in OFDB's order.
     extra_hexes: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # A multi-color catalog color whose colors blend along the filament (OFDB's
+    # gradual_color_change), not side by side in one strand (coextruded).
+    gradient: Mapped[bool] = mapped_column(Boolean, default=False)
     discontinued: Mapped[bool] = mapped_column(Boolean, default=False)
     moved_from: Mapped[list[str]] = mapped_column(JSON, default=list)
 

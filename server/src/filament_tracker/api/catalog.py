@@ -35,6 +35,8 @@ class CatalogColorOut(BaseModel):
     hexes: list[str]
     discontinued: bool
     multi_color: bool
+    # A multi-color one whose colors blend along the filament, not side by side.
+    gradient: bool
     # In-stock products within the cutoff, closest first; empty for a multi-color one.
     similar: list[SimilarColorOut]
 

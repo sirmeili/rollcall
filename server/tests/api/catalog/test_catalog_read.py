@@ -3,7 +3,7 @@
 from api_helpers import CSRF, admin, browser, signed_in
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from ofdb_fake import FakeOfdb, refresh, status
+from ofdb_fake import FakeOfdb, export, gz, ok, refresh, status, variant
 
 from filament_tracker.domain.enums import Role
 
@@ -52,6 +52,39 @@ def test_lists_filament_lines_with_their_catalog_colors_in_catalog_order(
     assert gradient["multi_color"] is True
     (cream,) = petg["colors"]
     assert cream["discontinued"] is True
+
+
+def test_says_which_multi_color_catalog_colors_are_gradients(
+    client: TestClient, ofdb: FakeOfdb
+) -> None:
+    data = export()
+    for v in data["variants"]:
+        if v["uuid"] == "var-gradient":
+            v["traits"] = {"gradual_color_change": True}
+        if v["uuid"] == "var-black":
+            v["traits"] = {"glow": False}
+    data["variants"].append(
+        variant(
+            "var-dual",
+            "Aurora Purple",
+            "#7F3696",
+            "id-fil-pla-basic",
+            color_hexes=["#7F3696", "#006EC9"],
+            traits={"coextruded": True},
+        )
+    )
+    ofdb.serve(ok(gz(data)))
+    refresh(client)
+
+    (pla, _) = read(client)["lines"]
+
+    gradient = {c["name"]: c["gradient"] for c in pla["colors"]}
+    assert gradient == {
+        "Black": False,
+        "Jade White": False,
+        "Arctic Whisper": True,
+        "Aurora Purple": False,
+    }
 
 
 def test_a_failed_sync_still_reads_the_last_good_copy(client: TestClient, ofdb: FakeOfdb) -> None:

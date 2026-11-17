@@ -36,6 +36,8 @@ export interface CatalogColor {
   hexes: string[];
   discontinued: boolean;
   multi_color: boolean;
+  /** A multi-color one whose colors blend along the filament, not side by side. */
+  gradient: boolean;
   /** In-stock products within the cutoff, closest first; empty for a multi-color one. */
   similar: SimilarColor[];
 }

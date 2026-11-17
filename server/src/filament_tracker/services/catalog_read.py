@@ -50,6 +50,8 @@ class CatalogColor:
     # RRGGBB, the main color first; more than one for a multi-color catalog color.
     hexes: list[str]
     discontinued: bool
+    # Its colors blend along the filament rather than sit side by side.
+    gradient: bool = False
     similar: list[SimilarColor] = field(default_factory=list)
 
     @property
@@ -168,6 +170,7 @@ def read_catalog(session: Session, cutoff: float, now: datetime | None = None) -
                 name=variant.name,
                 hexes=hexes,
                 discontinued=variant.discontinued,
+                gradient=variant.gradient,
                 similar=similar,
             )
         )

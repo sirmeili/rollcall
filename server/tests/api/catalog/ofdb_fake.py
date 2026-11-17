@@ -66,16 +66,16 @@ def export(version: str = "2026.11.14") -> dict[str, Any]:
             },
         ],
         "variants": [
-            _variant("var-black", "Black", "#000000", "id-fil-pla-basic"),
-            _variant("var-jade", "Jade White", "#ffffff", "id-fil-pla-basic"),
-            _variant(
+            variant("var-black", "Black", "#000000", "id-fil-pla-basic"),
+            variant("var-jade", "Jade White", "#ffffff", "id-fil-pla-basic"),
+            variant(
                 "var-gradient",
                 "Arctic Whisper",
                 "#9CDBD9",
                 "id-fil-pla-basic",
                 color_hexes=["#9CDBD9", "#FFFFFF"],
             ),
-            _variant(
+            variant(
                 "var-cream",
                 "Cream",
                 "#F3E0B8",
@@ -83,7 +83,7 @@ def export(version: str = "2026.11.14") -> dict[str, Any]:
                 discontinued=True,
                 moved_from=["x"],
             ),
-            _variant("var-other", "Other Red", "#FF0000", "id-fil-other-pla"),
+            variant("var-other", "Other Red", "#FF0000", "id-fil-other-pla"),
         ],
         "sizes": [
             {
@@ -130,7 +130,7 @@ def export(version: str = "2026.11.14") -> dict[str, Any]:
     }
 
 
-def _variant(uuid: str, name: str, hex_: str, filament_id: str, **extra: Any) -> dict[str, Any]:
+def variant(uuid: str, name: str, hex_: str, filament_id: str, **extra: Any) -> dict[str, Any]:
     return {
         "uuid": uuid,
         "id": f"id-{uuid}",
@@ -146,7 +146,7 @@ def changed_export() -> dict[str, Any]:
     """The next day's export: Jade White is gone and PLA Basic gains Red."""
     data = export("2026.11.15")
     data["variants"] = [v for v in data["variants"] if v["uuid"] != "var-jade"]
-    data["variants"].append(_variant("var-red", "Red", "#C12E1F", "id-fil-pla-basic"))
+    data["variants"].append(variant("var-red", "Red", "#C12E1F", "id-fil-pla-basic"))
     return data
 
 

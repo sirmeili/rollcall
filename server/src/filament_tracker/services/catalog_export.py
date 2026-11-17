@@ -60,6 +60,8 @@ class _Variant(_Record):
     color_hexes: list[Hex] | None = None
     discontinued: bool
     filament_id: str
+    # Flags such as gradual_color_change and coextruded; only the first is read.
+    traits: dict[str, Any] | None = None
 
 
 class _Size(_Record):
@@ -223,6 +225,7 @@ def _variant_row(v: _Variant, position: int, filaments: dict[str, str]) -> dict[
         "name": v.name,
         "color_hex": main,
         "extra_hexes": hexes,
+        "gradient": (v.traits or {}).get("gradual_color_change") is True,
         "discontinued": v.discontinued,
         "moved_from": v.moved_from or [],
     }
