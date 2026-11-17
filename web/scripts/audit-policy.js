@@ -9,6 +9,11 @@ export const APPROVED = {
     severity: "low",
     reason: "build-time only, merges our own config; never shipped to browsers",
   },
+  // picomatch, via vite, vitest and svelte-check (fdir, tinyglobby). Approved 2026-11-17.
+  "GHSA-fc5q-39xc-vjpf": {
+    severity: "high",
+    reason: "build and test time only, matches our own globs; never shipped to browsers",
+  },
 };
 
 /** @type {Record<string, number>} */
