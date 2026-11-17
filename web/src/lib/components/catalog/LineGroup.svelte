@@ -9,12 +9,14 @@
     ontoggle: () => void;
     /** The ΔE the similar in-stock colors were found with. */
     cutoff: number;
-    /** The one catalog color showing its similar colors, if any. */
+    /** The store Find in store searches. */
+    storeAddress: string;
+    /** The one catalog color expanded, if any. */
     expanded: string | null;
     onexpand: (uuid: string) => void;
   }
 
-  let { group, open, ontoggle, cutoff, expanded, onexpand }: Props = $props();
+  let { group, open, ontoggle, cutoff, storeAddress, expanded, onexpand }: Props = $props();
 
   const headId = $derived(`line-${group.line.uuid}`);
   const rowsId = $derived(`rows-${group.line.uuid}`);
@@ -48,8 +50,10 @@
         <li>
           <CatalogColorRow
             {color}
+            lineName={group.line.name}
             material={group.line.material}
             {cutoff}
+            {storeAddress}
             open={expanded === color.uuid}
             ontoggle={() => onexpand(color.uuid)}
           />

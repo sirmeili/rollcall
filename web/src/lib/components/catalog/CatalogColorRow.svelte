@@ -1,23 +1,25 @@
 <script lang="ts">
-  /** One catalog color: its swatch ring, name, hex(es) and badges. Pressing it shows its
-   * similar in-stock colors underneath. */
+  /** One catalog color: its swatch ring, name, hex(es), Bambu code and badges. Pressing it
+   * shows its owned products, similar in-stock colors and Find in store underneath. */
   import type { CatalogColor } from "#lib/api/catalog.ts";
-  import { hexesText } from "#lib/catalog.ts";
+  import { hexesText, ownedText } from "#lib/catalog.ts";
+  import ColorDetail from "#lib/components/catalog/ColorDetail.svelte";
   import HexRing from "#lib/components/catalog/HexRing.svelte";
-  import SimilarColors from "#lib/components/catalog/SimilarColors.svelte";
 
   interface Props {
     color: CatalogColor;
-    /** The filament line's material. */
+    /** The filament line's name and material. */
+    lineName: string;
     material: string;
     cutoff: number;
+    storeAddress: string;
     open: boolean;
     ontoggle: () => void;
   }
 
-  let { color, material, cutoff, open, ontoggle }: Props = $props();
+  let { color, lineName, material, cutoff, storeAddress, open, ontoggle }: Props = $props();
 
-  const detailId = $derived(`similar-${color.uuid}`);
+  const detailId = $derived(`detail-${color.uuid}`);
   const similar = $derived(color.similar.length);
 </script>
 
@@ -31,8 +33,14 @@
   >
     <HexRing hexes={color.hexes} gradient={color.gradient} />
     <span class="cname">{color.name}</span>
-    <span class="chex">{hexesText(color.hexes)}</span>
+    <span class="chex"
+      ><span>{hexesText(color.hexes)}</span>
+      {#if color.bambu_code}<span class="code"
+          ><span class="sr-only">Bambu code{" "}</span>{color.bambu_code}</span
+        >{/if}</span
+    >
     <span class="badges">
+      {#if color.owned}<span class="badge-own">{ownedText(color)}</span>{/if}
       {#if color.discontinued}<span class="badge-disc">Discontinued</span>{/if}
       {#if color.multi_color}
         <span class="badge-multi">Multi-color</span>
@@ -54,7 +62,9 @@
     >
   </button>
   {#if open}
-    <div id={detailId}><SimilarColors {color} {material} {cutoff} /></div>
+    <div id={detailId}>
+      <ColorDetail {color} {lineName} {material} {cutoff} {storeAddress} />
+    </div>
   {/if}
 </div>
 
@@ -66,7 +76,7 @@
   .crow {
     width: 100%;
     display: grid;
-    grid-template-columns: 30px minmax(150px, 1fr) 190px minmax(0, 1.6fr) 18px;
+    grid-template-columns: 30px minmax(150px, 1fr) 220px minmax(0, 1.6fr) 18px;
     align-items: center;
     gap: 14px;
     min-height: 56px;
@@ -114,6 +124,14 @@
     font-size: 13px;
     color: var(--muted);
     line-height: 1.35;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+  }
+
+  .code {
+    color: var(--text);
+    font-weight: 500;
   }
 
   .badges {
@@ -132,6 +150,7 @@
     transform: rotate(180deg);
   }
 
+  .badge-own,
   .badge-disc,
   .badge-multi,
   .badge-sim {
@@ -146,6 +165,12 @@
     border: 1px solid var(--muted);
     color: var(--muted);
     padding: 1px 8px;
+  }
+
+  .badge-own {
+    background: var(--text);
+    color: var(--bg);
+    font-weight: 700;
   }
 
   .badge-multi {

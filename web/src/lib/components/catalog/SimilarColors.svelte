@@ -1,6 +1,7 @@
 <script lang="ts">
-  /** Under an expanded catalog color: its similar in-stock colors, closest first, each
-   * with how close it is and how much is on hand. A product of another material says so. */
+  /** Under an expanded catalog color: its similar in-stock colors (substitutes, never the
+   * products linked to it), closest first, each with how close it is and how much is on
+   * hand. A product of another material says so. */
   import type { CatalogColor } from "#lib/api/catalog.ts";
   import { cutoffText, deltaText, stockText } from "#lib/catalog.ts";
   import HexRing from "#lib/components/catalog/HexRing.svelte";
@@ -15,48 +16,33 @@
   let { color, material, cutoff }: Props = $props();
 </script>
 
-<div class="detail">
-  {#if color.multi_color}
-    <p class="muted none">Multi-color: no comparison</p>
+{#if color.multi_color}
+  <p class="muted none">Multi-color: no comparison</p>
+{:else}
+  <h4 class="label">Similar in-stock colors</h4>
+  {#if color.similar.length === 0}
+    <p class="muted none">No similar color in stock</p>
   {:else}
-    <h4 class="label">Similar in-stock colors</h4>
-    {#if color.similar.length === 0}
-      <p class="muted none">No similar color in stock</p>
-    {:else}
-      <ul class="matches">
-        {#each color.similar as match (match.product_id)}
-          <li class="match">
-            <HexRing hexes={[match.hex]} />
-            <span class="mtext">
-              <a class="mname" href="/spools?q={encodeURIComponent(match.name)}">{match.name}</a>
-              {#if match.different_material}
-                <span class="warn">⚠ Different material: {match.material}, not {material}</span>
-              {/if}
-            </span>
-            <span class="de">{deltaText(match.delta_e)}</span>
-            <span class="stock">{stockText(match.sealed, match.open)}</span>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-    <p class="foot muted">Showing in-stock products within {cutoffText(cutoff)}</p>
+    <ul class="matches">
+      {#each color.similar as match (match.product_id)}
+        <li class="match">
+          <HexRing hexes={[match.hex]} />
+          <span class="mtext">
+            <a class="mname" href="/spools?q={encodeURIComponent(match.name)}">{match.name}</a>
+            {#if match.different_material}
+              <span class="warn">⚠ Different material: {match.material}, not {material}</span>
+            {/if}
+          </span>
+          <span class="de">{deltaText(match.delta_e)}</span>
+          <span class="stock">{stockText(match.sealed, match.open)}</span>
+        </li>
+      {/each}
+    </ul>
   {/if}
-</div>
+  <p class="foot muted">Showing in-stock products within {cutoffText(cutoff)}</p>
+{/if}
 
 <style>
-  .detail {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 2px 18px 16px 62px;
-  }
-
-  @media (max-width: 600px) {
-    .detail {
-      padding: 2px 16px 16px;
-    }
-  }
-
   h4 {
     margin: 4px 0 0;
   }

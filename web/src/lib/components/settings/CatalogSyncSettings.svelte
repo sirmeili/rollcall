@@ -1,5 +1,6 @@
 <script lang="ts">
-  /** The Catalog card's settings: how often the catalog syncs and the similarity cutoff. */
+  /** The Catalog card's settings: how often the catalog syncs, the similarity cutoff and
+   * the Store address. */
   import { describeError } from "#lib/api/errors.ts";
   import {
     getSettings,
@@ -7,13 +8,24 @@
     settingProblems,
     type SettingOut,
   } from "#lib/api/settings.ts";
-  import { cutoffProblem, cutoffValue, SCHEDULES, scheduleHelp } from "#lib/catalog-sync.ts";
+  import {
+    cutoffProblem,
+    cutoffValue,
+    SCHEDULES,
+    scheduleHelp,
+    STORE_ADDRESS_PROBLEM,
+    storeAddressProblem,
+    storeAddressValue,
+  } from "#lib/catalog-sync.ts";
+  import StoreAddressField from "#lib/components/settings/StoreAddressField.svelte";
   import { sourceText } from "#lib/settings-fields.ts";
 
   let settings = $state<SettingOut[] | null>(null);
   let settingsFailure = $state<string | null>(null);
   let schedule = $state("");
   let cutoff = $state("");
+  let store = $state("");
+  let storeServerProblem = $state<string | null>(null);
   let saving = $state(false);
   let saveMessage = $state<string | null>(null);
   let serverProblem = $state<string | null>(null);
@@ -22,10 +34,14 @@
   const cutoffSetting = $derived(settings?.find((s) => s.key === "similarity_cutoff"));
   const savedSchedule = $derived(scheduleSetting?.value ?? "");
   const savedCutoff = $derived(cutoffValue(cutoffSetting?.value ?? null));
+  const storeSetting = $derived(settings?.find((s) => s.key === "store_address"));
+  const savedStore = $derived(storeSetting?.value ?? "");
   const problem = $derived(cutoffProblem(cutoff) ?? serverProblem);
+  const storeProblem = $derived(storeAddressProblem(store) ?? storeServerProblem);
   const changed = $derived({
     ...(schedule !== savedSchedule ? { catalog_sync: schedule } : {}),
     ...(cutoff !== savedCutoff ? { similarity_cutoff: cutoff } : {}),
+    ...(storeAddressValue(store) !== savedStore ? { store_address: storeAddressValue(store) } : {}),
   });
   const dirty = $derived(Object.keys(changed).length > 0);
 
@@ -33,6 +49,7 @@
     settings = next;
     schedule = next.find((s) => s.key === "catalog_sync")?.value ?? "";
     cutoff = cutoffValue(next.find((s) => s.key === "similarity_cutoff")?.value ?? null);
+    store = next.find((s) => s.key === "store_address")?.value ?? "";
   }
 
   async function load(): Promise<void> {
@@ -59,9 +76,15 @@
     saveMessage = null;
   }
 
+  function typedStore(text: string): void {
+    store = text;
+    storeServerProblem = null;
+    saveMessage = null;
+  }
+
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!dirty || problem) return;
+    if (!dirty || problem || storeProblem) return;
     saving = true;
     saveMessage = null;
     try {
@@ -71,6 +94,8 @@
       const byField = settingProblems(error);
       if (byField?.similarity_cutoff) {
         serverProblem = `Similarity cutoff: ${byField.similarity_cutoff}.`;
+      } else if (byField?.store_address) {
+        storeServerProblem = STORE_ADDRESS_PROBLEM;
       } else if (byField?.catalog_sync) {
         saveMessage = `Automatic sync: ${byField.catalog_sync}.`;
       } else {
@@ -145,9 +170,22 @@
           {#if problem}<p class="error" role="alert">{problem}</p>{/if}
         </div>
       {/if}
+      {#if storeSetting}
+        <StoreAddressField
+          setting={storeSetting}
+          value={store}
+          problem={storeProblem}
+          disabled={saving}
+          oninput={typedStore}
+        />
+      {/if}
     </div>
     <div class="buttons">
-      <button type="submit" class="primary" disabled={saving || !dirty || !!problem}>Save</button>
+      <button
+        type="submit"
+        class="primary"
+        disabled={saving || !dirty || !!problem || !!storeProblem}>Save</button
+      >
       {#if saveMessage}<span class="muted" role="status">{saveMessage}</span>{/if}
     </div>
   </form>

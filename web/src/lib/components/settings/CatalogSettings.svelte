@@ -1,6 +1,6 @@
 <script lang="ts">
-  /** The Catalog card: the sync schedule and similarity cutoff, the sync status and
-   * Refresh now (docs/mockups/web/SettingsCatalog.html). */
+  /** The Catalog card: the sync schedule, similarity cutoff and Store address, each
+   * source's sync status and Refresh now (docs/mockups/web/SettingsCatalog.html). */
   import CatalogSyncSettings from "#lib/components/settings/CatalogSyncSettings.svelte";
   import CatalogSyncStatus from "#lib/components/settings/CatalogSyncStatus.svelte";
 </script>
@@ -9,7 +9,8 @@
   <div>
     <h2 id="catalog-h" class="label">Catalog</h2>
     <p class="muted intro">
-      A local copy of the Open Filament Database's Bambu Lab colors, for the Catalog page.
+      Local copies of the Open Filament Database's Bambu Lab colors and BambuStudio's Bambu codes,
+      for the Catalog page.
     </p>
   </div>
 
@@ -20,7 +21,8 @@
   <CatalogSyncStatus />
 
   <p class="attrib muted">
-    Catalog data from the Open Filament Database, used under the MIT license.
+    <span>Catalog data from the Open Filament Database, used under the MIT license.</span>
+    <span>Bambu codes from BambuStudio's color code list, used under the AGPL-3.0 license.</span>
   </p>
 </section>
 
@@ -38,6 +40,9 @@
   }
 
   .attrib {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     margin: 0;
     font-size: 13px;
   }
