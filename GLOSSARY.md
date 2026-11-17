@@ -125,6 +125,17 @@ _Avoid_: Filament on its own
 One color of a filament line, whether owned or not.
 _Avoid_: Variant (that word is for the tag's variant ID)
 
+**Catalog link**:
+A product's tie to its catalog color. It is automatic when made from the product's tag IDs, or manual when set by a person, and a manual one is never replaced automatically. It stays in place whatever the product's stock.
+_Avoid_: Owned, match (that word is for similar in-stock colors)
+
+**Owned**:
+A catalog color with at least one Sealed or Open spool of its linked product. A linked product with no spools in stock does not make its color owned.
+
+**Bambu code**:
+The 5-digit number Bambu Lab sells a catalog color under, such as 10204 for PLA Basic Hot Pink.
+_Avoid_: Color code, article number, SKU
+
 **Similar in-stock color**:
 An in-stock product whose color is within the similarity cutoff of a catalog color, in any material.
 _Avoid_: Closest color

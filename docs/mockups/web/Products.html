@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Products · RollCall (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Global styles from the approved mockups (docs/mockups/web/, direction A "Workshop").
+ * Tokens come from docs/mockups/web/tokens.css. The theme is set on <html data-theme>
+ * by the script in app.html and by lib/theme.svelte.ts. Components add scoped styles. */
+
+:root,
+:root[data-theme="light"] {
+  --bg: #f4f2ee; /* page background */
+  --surface: #ffffff; /* cards, header, tables */
+  --line: #ddd8cf; /* borders and dividers */
+  --text: #1c1b19;
+  --muted: #5e5a53; /* secondary text; 6.5:1 on --surface */
+  --accent: #b45309; /* primary buttons, active filter, Review badge */
+  --onaccent: #ffffff;
+  --chip: #ece8e1; /* neutral fills: hover, open-state chip, avatars */
+  --lowbg: #fdecd3; /* low stock, flagged, warnings */
+  --lowtext: #7c3500;
+  --okbg: #dcefe2;
+  --oktext: #1f5c33;
+  --okdot: #2f8a4e;
+  --track: #e9e5de; /* % left bar: track */
+  --fill: #3f3b35; /* % left bar: fill */
+  --fillLow: #c2410c; /* % left bar: nearly out */
+  --danger: #b3261e;
+
+  /* Spool ring swatch: same treatment for every color */
+  --ringShadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.16);
+  --holeShadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+  --ringShadowSmall: var(--ringShadow);
+
+  --font-head: "Space Grotesk", system-ui, sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* The phone layout's bottom bar, and what the pages leave free for it. */
+  --bottom-bar: calc(84px + env(safe-area-inset-bottom, 0px));
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1c1c1b;
+  --line: #34322e;
+  --text: #f2efe9;
+  --muted: #a9a49b;
+  --accent: #f59e0b;
+  --onaccent: #1a1205;
+  --chip: #262523;
+  --lowbg: #3a2608;
+  --lowtext: #fbbf5c;
+  --okbg: #173322;
+  --oktext: #86d9a3;
+  --okdot: #4ade80;
+  --track: #2c2b28;
+  --fill: #d9d4cb;
+  --fillLow: #fb923c;
+  --danger: #ff8a80;
+
+  /* A gap in the surface color, a thin light rim, then a soft glow, outside and inside the
+     ring, so white and black swatches both stay visible. */
+  --ringShadow:
+    0 0 0 1.5px var(--surface), 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    0 0 10px 2px rgba(255, 255, 255, 0.1);
+  --holeShadow:
+    inset 0 0 0 1.5px var(--surface), inset 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    inset 0 0 6px 1px rgba(255, 255, 255, 0.1);
+  --ringShadowSmall:
+    0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255, 255, 255, 0.28),
+    0 0 6px 1px rgba(255, 255, 255, 0.08), inset 0 0 0 1px var(--surface),
+    inset 0 0 0 1.75px rgba(255, 255, 255, 0.28);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(30px, 6vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Buttons: neutral by default, .primary for the main action. */
+button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* A link that looks like a button, for navigation actions such as "Open spool". */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+/* Filter chips: round, accent when pressed. */
+button.chip {
+  padding: 10px 16px;
+  border-radius: 999px;
+}
+
+button.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+  min-height: 44px;
+}
+
+textarea {
+  padding: 10px 12px;
+  min-height: 88px;
+  resize: vertical;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Tables sit in a box that scrolls sideways on phones. */
+/* Positioned so screen-reader-only text inside a table scrolls with it instead of widening
+   the page (on a phone that pushed the bottom bar off the screen). */
+.tablebox {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.notice {
+  color: var(--lowtext);
+  margin: 0;
+}
+
+.badge-low {
+  background: var(--lowbg);
+  color: var(--lowtext);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.badge-hand {
+  border: 1px dashed var(--muted);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Page heading: title, subtitle, and actions on the right. */
+.pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pagehead p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* ---- Ring swatch (lib/components/ui/Ring.svelte), plus a split ring for multi-color ---- */
+:root, :root[data-theme="light"] { --ringOuterSm: var(--ringShadow); --holeSm: none; }
+:root[data-theme="dark"] {
+  --ringOuterSm: 0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255,255,255,.28), 0 0 6px 1px rgba(255,255,255,.08);
+  --holeSm: inset 0 0 0 1px var(--surface), inset 0 0 0 1.75px rgba(255,255,255,.28);
+}
+.ring { display: inline-block; flex: none; border-radius: 50%; border-style: solid; background: var(--bg); box-shadow: var(--ringShadow), var(--holeShadow); }
+.ring.sm { width: 30px; height: 30px; border-width: 8px; box-shadow: var(--ringShadowSmall); }
+.ring.multi { border: 0; position: relative; box-shadow: var(--ringOuterSm); }
+.ring.multi::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bg); box-shadow: var(--holeSm); }
+li.open .ring.multi::after, .open .ring.multi::after { background: var(--bg); }
+[hidden] { display: none !important; }
+
+
+/* ---- Header (lib/components/Header.svelte, Nav.svelte) ---- */
+.hdr{border-bottom:1px solid var(--line);background:var(--surface)}
+.hdr .inner{max-width:1240px;margin:0 auto;padding:14px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-head);font-weight:700;font-size:20px;letter-spacing:-.01em}
+.mainnav{flex:1 1 auto}
+.mainnav ul{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0;list-style:none}
+.mainnav a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:8px;color:var(--muted);font-weight:500;font-size:15px}
+.mainnav a:hover{background:var(--chip);color:var(--text)}
+.mainnav a[aria-current=page]{background:var(--text);color:var(--bg)}
+.navbadge{background:var(--accent);color:var(--onaccent);border-radius:999px;font-size:12px;font-weight:700;padding:1px 7px}
+.account{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:10px;border:1px solid var(--line);font-size:14px;font-weight:500}
+.initial{width:26px;height:26px;border-radius:50%;background:var(--chip);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+main{max-width:1240px;margin:0 auto;padding:32px 24px 56px}
+
+
+
+/* ---- Products page (routes/products, ProductTable.svelte) ---- */
+.headrow{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.headrow .pagehead{flex:1 1 480px;margin:0}
+.headrow .pagehead p{max-width:680px}
+.saverow{flex:none}
+.saverow{display:flex;align-items:center;gap:12px}
+.saverow .muted{font-size:14px}
+table.products{min-width:1080px}
+.products th, .products td{padding-left:12px;padding-right:12px}
+.products td{padding-top:10px;padding-bottom:10px}
+.namecell{display:flex;align-items:center;gap:12px}
+.namecell input{width:210px;font-family:var(--font-head);font-weight:600}
+.namecell .vname{font-family:var(--font-head);font-weight:600;font-size:15px}
+.num{display:flex;align-items:center;gap:8px}
+.num input{width:64px;font-family:var(--font-mono)}
+.num .unit{font-family:var(--font-mono);color:var(--muted)}
+.num .off{font-size:12px;color:var(--muted)}
+.hexcell{font-family:var(--font-mono);color:var(--muted)}
+.spools{font-family:var(--font-mono);font-weight:700}
+.from-tag{background:var(--chip);color:var(--text);font-size:12px;font-weight:600;padding:3px 9px;border-radius:6px;white-space:nowrap}
+.badge-hand{border:1px dashed var(--muted);color:var(--muted);font-size:12px;font-weight:600;padding:3px 9px;border-radius:6px;white-space:nowrap}
+.footnote{margin:0;font-size:13px;max-width:900px;line-height:1.5}
+
+/* Catalog color cell */
+.cc{display:flex;align-items:center;gap:10px;min-height:44px;text-align:left;width:100%}
+button.cc{justify-content:flex-start;font-weight:400;background:transparent;border-color:transparent;padding:4px 8px;margin:0 -8px;width:calc(100% + 16px)}
+button.cc:hover{border-color:var(--line);background:var(--bg)}
+.cc .ring.xs{width:22px;height:22px;border-width:6px}
+.cc .t{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.cc .n{font-weight:600;white-space:nowrap}
+.cc .h{font-size:12px;color:var(--muted)}
+.cc .pen{color:var(--muted);flex:none}
+.notlinked{color:var(--muted)}
+.gone{display:inline-flex;align-items:center;gap:6px;background:var(--lowbg);color:var(--lowtext);border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;white-space:nowrap}
+
+/* Catalog color dialog */
+dialog.ccdlg{padding:0;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--text);width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 64px);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog.ccdlg::backdrop{background:rgba(28,27,25,.45)}
+:root[data-theme="dark"] dialog.ccdlg::backdrop{background:rgba(0,0,0,.6)}
+.ccdlg .top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 22px 14px;border-bottom:1px solid var(--line)}
+.ccdlg h2{margin:0;font-family:var(--font-head);font-size:22px;letter-spacing:-.01em}
+.ccdlg .sub{margin:4px 0 0;font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.ccdlg .sub .ring{width:18px;height:18px;border-width:5px}
+.ccdlg .x{width:44px;padding:0}
+.ccdlg .body{padding:16px 22px;display:flex;flex-direction:column;gap:16px}
+.ccdlg .sect{display:flex;flex-direction:column;gap:8px}
+.cur{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.cur .t{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.cur .n{font-weight:600}
+.cur .n .mono{font-weight:500;color:var(--muted)}
+.cur .h{font-size:13px;color:var(--muted)}
+.pending{font-size:12px;font-weight:700;background:var(--chip);border-radius:6px;padding:2px 8px;white-space:nowrap}
+.curactions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.curactions .hint{font-size:13px;color:var(--muted);flex:1 1 200px}
+#cc-q{width:100%;box-sizing:border-box}
+.count{font-size:13px;color:var(--muted);margin:0}
+.results{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.results li + li{border-top:1px solid var(--line)}
+.res{border:0;border-radius:0;width:100%;min-height:52px;padding:8px 14px;display:grid;grid-template-columns:22px 1fr auto;gap:12px;align-items:center;justify-items:start;text-align:left;font-weight:400;background:transparent}
+.res:hover{background:var(--bg)}
+.res[aria-pressed=true]{background:var(--chip);box-shadow:inset 3px 0 0 var(--accent)}
+.res .ring{width:22px;height:22px;border-width:6px}
+.res .n{font-weight:600;display:block}
+.res .l{font-size:13px;color:var(--muted)}
+.res .c{font-family:var(--font-mono);font-size:13px;justify-self:end}
+.res .c.none{color:var(--muted);font-family:var(--font-body);font-size:12px}
+.ccdlg .foot{display:flex;justify-content:flex-end;gap:10px;padding:14px 22px 18px;border-top:1px solid var(--line)}
+
+/* ---- Mockup controls (not part of the design) ---- */
+.mock{background:#37352f;color:#f2efe9;padding:8px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;font-size:12px}
+.mock strong{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+.mock .mrow{display:flex;align-items:center;gap:8px}
+.mock .mrow > span{opacity:.8}
+.mock .mseg{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.12)}
+.mock button{min-height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:inherit;font-size:12px}
+.mock button[aria-pressed=true]{background:#f2efe9;color:#1c1b19}
+
+</style>
+</head>
+<body>
+<aside class="mock" aria-label="Mockup controls">
+<strong>Mockup controls</strong>
+<div class="mrow"><span>State</span><div class="mseg" role="group" aria-label="State"><button type="button" data-show="none" aria-pressed="true">Table</button><button type="button" data-show="plabk" aria-pressed="false">Dialog: from its tag</button><button type="button" data-show="teal" aria-pressed="false">Dialog: hand-entered, not linked</button></div></div>
+<div class="mrow"><span>Role</span><div class="mseg" role="group" aria-label="Role"><button type="button" data-role="admin" aria-pressed="true">Admin</button><button type="button" data-role="viewer" aria-pressed="false">Viewer</button></div></div>
+<div class="mrow"><span>Theme</span><div class="mseg" role="group" aria-label="Theme"><button type="button" data-theme="light" aria-pressed="true">Light</button><button type="button" data-theme="dark" aria-pressed="false">Dark</button></div></div>
+</aside>
+
+<header class="hdr">
+<div class="inner">
+<a class="brand" href="#"><svg width="30" height="30" viewBox="0 0 140 140" aria-hidden="true"><circle cx="70" cy="70" r="62" fill="#C8324B"></circle><circle cx="70" cy="70" r="50" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="40" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="30" fill="#FFF7F5"></circle><polyline points="56,71 66,81 85,60" fill="none" stroke="#C8324B" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>RollCall</a>
+<nav class="mainnav" aria-label="Main"><ul>
+<li><a href="#">Inventory</a></li>
+<li><a href="#">Spools</a></li>
+<li><a href="#" aria-current="page">Products</a></li>
+<li><a href="#">Catalog</a></li>
+<li><a href="#" aria-label="Review, 3 waiting">Review<span class="navbadge" aria-hidden="true">3</span></a></li>
+<li><a href="#">Activity</a></li>
+<li class="admin"><a href="#">Devices</a></li>
+<li class="admin"><a href="#">Users</a></li>
+<li class="admin"><a href="#">Settings</a></li>
+</ul></nav>
+<a class="account" href="#" title="Account"><span class="initial" aria-hidden="true" id="uinit">F</span><span id="uname">frank</span></a>
+</div>
+</header>
+
+<main>
+<div class="page">
+<div class="headrow">
+<div class="pagehead"><div>
+<h1>Products</h1>
+<p>Created automatically from the first tag of each product. Rename them, set when each counts as low on stock or nearly out, and check which catalog color each one is.</p>
+</div></div>
+<div class="saverow" id="saverow">
+<span class="muted" id="save-msg" role="status"></span>
+<button type="button" class="primary" id="save" disabled>Save changes</button>
+</div>
+</div>
+
+<div class="tablebox">
+<table class="products">
+<thead><tr>
+<th scope="col">Display name</th><th scope="col">Type</th><th scope="col">Color</th><th scope="col">Catalog color</th><th scope="col">Spools</th><th scope="col">Low at ≤ (sealed)</th><th scope="col">Nearly out at ≤</th><th scope="col">Source</th>
+</tr></thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+<p class="footnote muted">Low at: 0 turns the low-stock alert off. Nearly out: an open spool at or below this AMS % is marked nearly out. Catalog color: products get one from their tag's Bambu code; link the others by hand. A product added by hand is merged into the real one when one of its tags is scanned.</p>
+</div>
+</main>
+
+<dialog class="ccdlg" id="dlg" aria-labelledby="cc-title" aria-describedby="cc-sub">
+<div class="top">
+<div>
+<h2 id="cc-title">Catalog color</h2>
+<p class="sub" id="cc-sub"></p>
+</div>
+<button type="button" class="x" data-act="cancel" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+<div class="body">
+<div class="sect">
+<p class="label" id="cur-l">Current link</p>
+<div class="cur" id="cur" role="group" aria-labelledby="cur-l"></div>
+<div class="curactions">
+<button type="button" id="clear" data-act="clear" aria-describedby="clear-hint">Clear</button>
+<span class="hint" id="clear-hint"></span>
+<a class="button" id="store" target="_blank" rel="noopener noreferrer">Find in store <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg><span class="sr-only"> (opens in a new tab)</span></a>
+</div>
+</div>
+<div class="sect">
+<label class="label" for="cc-q">Link to a catalog color</label>
+<input id="cc-q" type="search" placeholder="Search color, line or Bambu code" autocomplete="off">
+<p class="count" id="count" role="status"></p>
+<ul class="results" id="results" aria-label="Catalog colors"></ul>
+</div>
+</div>
+<div class="foot">
+<button type="button" data-act="cancel">Cancel</button>
+<button type="button" class="primary" id="dlg-save" data-act="savelink">Save</button>
+</div>
+</dialog>
+
+<script>
+/* Sample data and logic shared by the Catalog mockups (pasted into each page at build). */
+
+/* In-stock and linked products. link: the catalog color it is tied to; how: "tag" (From its tag)
+   or "hand" (Linked by hand). A product with no Sealed or Open spool owns nothing. */
+var STOCK = {
+  plablue: { name: "PLA Basic Blue", material: "PLA", hex: "#0A2CA5", sealed: 2, open: 0, link: "pla-basic/Blue", how: "tag" },
+  marine: { name: "PLA Matte Marine Blue", material: "PLA", hex: "#0078BF", sealed: 0, open: 1, link: "pla-matte/Marine Blue", how: "tag" },
+  plabk: { name: "PLA Basic Black", material: "PLA", hex: "#000000", sealed: 1, open: 1, link: "pla-basic/Black", how: "tag" },
+  blackpla: { name: "Black PLA", material: "PLA", hex: "#000000", sealed: 1, open: 0, link: "pla-basic/Black", how: "hand" },
+  white: { name: "PLA Basic White", material: "PLA", hex: "#FFFFFF", sealed: 3, open: 0, link: "pla-basic/Jade White", how: "tag" },
+  petgbk: { name: "PETG HF Black", material: "PETG", hex: "#000000", sealed: 1, open: 0, link: "petg-hf/Black", how: "tag" },
+  absbk: { name: "ABS Black", material: "ABS", hex: "#000000", sealed: 0, open: 1, link: "abs/Black", how: "tag" },
+  asared: { name: "ASA Red", material: "ASA", hex: "#E02928", sealed: 1, open: 0, link: "asa/Red", how: "tag" },
+  brown: { name: "PETG Translucent Brown", material: "PETG", hex: "#C9A381", sealed: 0, open: 1, link: "petg-translucent/Brown", how: "tag" },
+  silkgold: { name: "Silk Gold PLA", material: "PLA", hex: "#E4BD68", sealed: 0, open: 0, link: "pla-silk/Gold", how: "tag" }
+};
+
+var BLACKS = [["plabk", 0.0], ["blackpla", 0.0], ["petgbk", 0.0], ["absbk", 0.0]];
+
+/* code: the Bambu code (none for some colors). m: [stock id, ΔE] candidates; a product linked
+   to the color itself is dropped from its own similar list. */
+var LINES = [
+  { id: "pla-basic", name: "PLA Basic", material: "PLA", colors: [
+    { name: "Jade White", code: "10100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Black", code: "10101", hexes: ["#000000"], m: BLACKS },
+    { name: "Blue", code: "10601", hexes: ["#0A2CA5"], m: [["plablue", 0.0]] },
+    { name: "Cyan", code: "10603", hexes: ["#0086D6"], m: [["marine", 4.6]] },
+    { name: "Red", code: "10200", hexes: ["#C12E1F"], m: [["asared", 6.9]] },
+    { name: "Hot Pink", code: "10204", hexes: ["#F5547D"], m: [] },
+    { name: "Bambu Green", code: "", hexes: ["#00AE42"], m: [] },
+    { name: "Orange", code: "10300", hexes: ["#FF6A13"], m: [] },
+    { name: "Sunflower Yellow", code: "10400", hexes: ["#FEC600"], m: [] },
+    { name: "Gray", code: "10103", hexes: ["#8E9089"], m: [] },
+    { name: "Cocoa Brown", code: "10802", hexes: ["#6F5034"], m: [] },
+    { name: "Purple", code: "10700", hexes: ["#5E43B7"], m: [] },
+    { name: "Bronze", code: "10801", hexes: ["#847D48"], m: [], disc: true },
+    { name: "Beige", code: "10201", hexes: ["#F7E6DE"], m: [["white", 9.4]], disc: true }
+  ]},
+  { id: "pla-matte", name: "PLA Matte", material: "PLA", colors: [
+    { name: "Ivory White", code: "11100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Charcoal", code: "11101", hexes: ["#000000"], m: BLACKS },
+    { name: "Marine Blue", code: "11600", hexes: ["#0078BF"], m: [["marine", 0.0]] },
+    { name: "Ash Gray", code: "11102", hexes: ["#9B9EA0"], m: [] },
+    { name: "Sakura Pink", code: "11201", hexes: ["#E8AFCF"], m: [] },
+    { name: "Desert Tan", code: "11401", hexes: ["#E8DBB7"], m: [["brown", 9.2]] },
+    { name: "Dark Red", code: "11202", hexes: ["#BB3D43"], m: [["asared", 8.1]] },
+    { name: "Lemon Yellow", code: "11400", hexes: ["#F7D959"], m: [] }
+  ]},
+  { id: "pla-silk", name: "PLA Silk+", material: "PLA", colors: [
+    { name: "Gold", code: "13405", hexes: ["#E4BD68"], m: [] },
+    { name: "Silver", code: "13109", hexes: ["#C8C8C8"], m: [] },
+    { name: "Copper", code: "13801", hexes: ["#B87333"], m: [] }
+  ]},
+  { id: "pla-silk-dual", name: "PLA Silk Dual Color", material: "PLA", colors: [
+    { name: "Gold-Silver", code: "13901", hexes: ["#F4A925", "#C0C0C0"], m: [] },
+    { name: "Blue-Red", code: "13902", hexes: ["#1E4FC2", "#D0322E"], m: [] },
+    { name: "Aurora Purple", code: "13903", hexes: ["#5E43B7", "#E04E8A", "#2A9DF4"], m: [] },
+    { name: "Copper-Teal", code: "", hexes: ["#B87333", "#008080"], m: [], disc: true }
+  ]},
+  { id: "petg-hf", name: "PETG HF", material: "PETG", colors: [
+    { name: "Black", code: "33102", hexes: ["#000000"], m: BLACKS },
+    { name: "Blue", code: "33600", hexes: ["#002E96"], m: [["plablue", 3.1], ["marine", 8.7]] },
+    { name: "White", code: "33100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Red", code: "33200", hexes: ["#EB3A3A"], m: [["asared", 4.2]] },
+    { name: "Gray", code: "33101", hexes: ["#ADB1B2"], m: [] },
+    { name: "Green", code: "33500", hexes: ["#00AE42"], m: [] },
+    { name: "Yellow", code: "33400", hexes: ["#FFD00B"], m: [] },
+    { name: "Orange", code: "33300", hexes: ["#F75403"], m: [] },
+    { name: "Cream", code: "33401", hexes: ["#F9DFB9"], m: [] },
+    { name: "Peanut Brown", code: "33801", hexes: ["#875718"], m: [], disc: true }
+  ]},
+  { id: "petg-translucent", name: "PETG Translucent", material: "PETG", colors: [
+    { name: "Brown", code: "32800", hexes: ["#C9A381"], m: [["brown", 0.0]] },
+    { name: "Clear", code: "32100", hexes: ["#F0F2F2"], m: [["white", 7.8]] },
+    { name: "Teal", code: "32500", hexes: ["#3E8E93"], m: [] }
+  ]},
+  { id: "abs", name: "ABS", material: "ABS", colors: [
+    { name: "Black", code: "40101", hexes: ["#000000"], m: BLACKS },
+    { name: "White", code: "40100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Red", code: "40200", hexes: ["#D32941"], m: [["asared", 5.8]] },
+    { name: "Azure", code: "40601", hexes: ["#489FDF"], m: [["marine", 9.4]] },
+    { name: "Silver", code: "40102", hexes: ["#87909A"], m: [] },
+    { name: "Bambu Green", code: "40500", hexes: ["#00AE42"], m: [] },
+    { name: "Olive", code: "40502", hexes: ["#748C45"], m: [], disc: true }
+  ]},
+  { id: "asa", name: "ASA", material: "ASA", colors: [
+    { name: "Red", code: "45200", hexes: ["#E02928"], m: [["asared", 0.0]] },
+    { name: "Black", code: "45101", hexes: ["#000000"], m: BLACKS },
+    { name: "White", code: "45100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Gray", code: "45102", hexes: ["#8A949E"], m: [] },
+    { name: "Blue", code: "45600", hexes: ["#2140B4"], m: [["plablue", 5.0]] }
+  ]}
+];
+
+var CUTOFF = 10;
+var STORE = "https://us.store.bambulab.com";
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+function colorKey(line, color) { return line.id + "/" + color.name; }
+function isMulti(color) { return color.hexes.length > 1; }
+function inStock(p) { return p.sealed + p.open > 0; }
+
+/** Products linked to this catalog color, split into in stock and none in stock. */
+function linked(line, color) {
+  var key = colorKey(line, color), have = [], none = [];
+  Object.keys(STOCK).forEach(function (id) {
+    var p = STOCK[id];
+    if (p.link !== key) return;
+    (inStock(p) ? have : none).push({ id: id, p: p });
+  });
+  return { have: have, none: none };
+}
+
+function isOwned(line, color) { return linked(line, color).have.length > 0; }
+
+function ownedCounts(line, color) {
+  return linked(line, color).have.reduce(function (s, x) { s.sealed += x.p.sealed; s.open += x.p.open; return s; }, { sealed: 0, open: 0 });
+}
+
+/** Substitutes within the cutoff, closest first; same material first on a tie. A product
+ * linked to this color is never its own substitute, and only in-stock products count. */
+function similar(line, color) {
+  if (isMulti(color)) return [];
+  var key = colorKey(line, color);
+  return color.m
+    .filter(function (x) { var p = STOCK[x[0]]; return x[1] <= CUTOFF && inStock(p) && p.link !== key; })
+    .map(function (x) { var p = STOCK[x[0]]; return { id: x[0], p: p, de: x[1], other: p.material !== line.material }; })
+    .sort(function (a, b) { return a.de - b.de || (a.other - b.other); });
+}
+
+/** Find in store: the store's search, by Bambu code, or by line and color name. */
+function storeUrl(line, color) {
+  var q = color.code ? color.code : line.name + " " + color.name;
+  return STORE + "/search?q=" + encodeURIComponent(q);
+}
+
+function materials() {
+  var seen = [];
+  LINES.forEach(function (l) { if (seen.indexOf(l.material) < 0) seen.push(l.material); });
+  return seen;
+}
+
+/** The color counts per material, for the filter sheet. */
+function materialCounts(showDisc) {
+  var out = {};
+  LINES.forEach(function (l) {
+    l.colors.forEach(function (c) { if (showDisc || !c.disc) out[l.material] = (out[l.material] || 0) + 1; });
+  });
+  return out;
+}
+
+function noFilter() { return { query: "", types: [], owned: false, similarOnly: false, showDisc: false }; }
+
+function activeCount(f) { return (f.types.length ? 1 : 0) + (f.owned ? 1 : 0) + (f.similarOnly ? 1 : 0) + (f.showDisc ? 1 : 0); }
+
+/** Lines with their listed colors under the filter; a line with none left is dropped. */
+function applyFilter(f) {
+  var q = f.query.trim().toLowerCase();
+  var out = [];
+  LINES.forEach(function (line) {
+    if (f.types.length && f.types.indexOf(line.material) < 0) return;
+    var pool = line.colors.filter(function (c) { return f.showDisc || !c.disc; });
+    var lineHit = q && line.name.toLowerCase().indexOf(q) >= 0;
+    var shown = pool.filter(function (c) {
+      if (f.owned && !isOwned(line, c)) return false;
+      if (f.similarOnly && !similar(line, c).length) return false;
+      if (q && !lineHit && c.name.toLowerCase().indexOf(q) < 0 && (c.code || "").indexOf(q) < 0) return false;
+      return true;
+    });
+    if (shown.length) out.push({ line: line, colors: shown, total: pool.length });
+  });
+  return out;
+}
+
+function countColors(groups) { return groups.reduce(function (s, g) { return s + g.colors.length; }, 0); }
+
+function stockText(p) {
+  var parts = [];
+  if (p.sealed) parts.push(p.sealed + " sealed");
+  if (p.open) parts.push(p.open + " open");
+  return parts.join(" · ");
+}
+
+/** The type chip's text: one or two types by name, all but one, or a count. */
+function typeSummary(types) {
+  var all = materials();
+  if (!types.length || types.length === all.length) return "";
+  if (types.length <= 2) return types.join(", ");
+  var missing = all.filter(function (t) { return types.indexOf(t) < 0; });
+  if (missing.length === 1) return "All but " + missing[0];
+  return types.length + " types";
+}
+
+/** The swatch ring: one color as the border, or segments for a multi-color catalog color. */
+function ringHtml(hexes, size) {
+  if (hexes.length === 1) return '<span class="ring ' + size + '" aria-hidden="true" style="border-color:' + hexes[0] + '"></span>';
+  var step = 100 / hexes.length;
+  var stops = hexes.map(function (h, i) { return h + " " + (i * step).toFixed(2) + "% " + ((i + 1) * step).toFixed(2) + "%"; }).join(", ");
+  return '<span class="ring multi ' + size + '" aria-hidden="true" style="background:conic-gradient(from -90deg, ' + stops + ')"></span>';
+}
+
+function hexLabel(hexes) { return hexes.join(" / "); }
+
+/** The hex, then the Bambu code when the color has one (nothing when it has none). */
+function hexCodeHtml(color) {
+  var h = '<span class="hexes">' + hexLabel(color.hexes) + '</span>';
+  if (color.code) h += '<span class="code"><span class="sr-only">Bambu code </span>' + color.code + '</span>';
+  return h;
+}
+
+function badgesHtml(line, color) {
+  var b = "";
+  if (isOwned(line, color)) b += '<span class="badge-own">Owned · ' + stockText(ownedCounts(line, color)) + '</span>';
+  if (color.disc) b += '<span class="badge-disc">Discontinued</span>';
+  if (isMulti(color)) b += '<span class="badge-multi">Multi-color</span>';
+  else {
+    var n = similar(line, color).length;
+    b += n ? '<span class="badge-sim">' + n + ' similar in stock</span>' : '<span class="nosim">None similar in stock</span>';
+  }
+  return b;
+}
+
+var EXT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"></path><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg>';
+
+function storeButtonHtml(line, color) {
+  return '<a class="button store" href="' + esc(storeUrl(line, color)) + '" target="_blank" rel="noopener noreferrer">Find in store' + EXT +
+    '<span class="sr-only"> (opens in a new tab)</span></a>';
+}
+
+/** One product row in the Owned or Similar lists. */
+function productRowHtml(p, note, right) {
+  return '<li class="match">' + ringHtml([p.hex], "sm") +
+    '<span class="mtext"><a class="mname" href="#" data-act="product">' + esc(p.name) + '</a>' + note + '</span>' + right + '</li>';
+}
+
+/** The expanded area under a color row: Owned, linked with none in stock, Similar, Find in store. */
+function detailHtml(line, color) {
+  var h = '<div class="detail">', link = linked(line, color);
+  if (link.have.length) {
+    h += '<h4 class="label">Owned</h4><ul class="matches">';
+    link.have.forEach(function (x) {
+      h += productRowHtml(x.p, '<span class="how muted">' + (x.p.how === "hand" ? "Linked by hand" : "From its tag") + '</span>',
+        '<span class="de"></span><span class="stock">' + stockText(x.p) + '</span>');
+    });
+    h += '</ul>';
+  }
+  link.none.forEach(function (x) {
+    h += '<p class="muted linked-none">Linked: <a href="#" data-act="product">' + esc(x.p.name) + '</a>, none in stock</p>';
+  });
+  if (isMulti(color)) {
+    h += '<p class="muted none">Multi-color: no comparison</p>';
+  } else {
+    var list = similar(line, color);
+    h += '<h4 class="label">Similar in-stock colors</h4>';
+    if (!list.length) h += '<p class="muted none">No similar color in stock</p>';
+    else {
+      h += '<ul class="matches">';
+      list.forEach(function (x) {
+        h += productRowHtml(x.p, x.other ? '<span class="warn">⚠ Different material: ' + x.p.material + ', not ' + line.material + '</span>' : '',
+          '<span class="de mono">ΔE ' + x.de.toFixed(1) + '</span><span class="stock">' + stockText(x.p) + '</span>');
+      });
+      h += '</ul>';
+    }
+    h += '<p class="foot muted">Showing in-stock products within ΔE ' + CUTOFF + '</p>';
+  }
+  h += '<div class="storerow">' + storeButtonHtml(line, color) + '</div>';
+  return h + '</div>';
+}
+
+
+/* Catalog colors from the shared sample data: [line, material, color, hex, Bambu code] */
+var CAT = [];
+LINES.forEach(function (l) { l.colors.forEach(function (c) { CAT.push([l.name, l.material, c.name, c.hexes[0], c.code]); }); });
+var BYKEY = {};
+CAT.forEach(function (c) { BYKEY[c[0] + "/" + c[2]] = c; });
+function ccStore(c) { return STORE + "/search?q=" + encodeURIComponent(c[4] || (c[0] + " " + c[2])); }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (ch) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]; }); }
+
+var PRODUCTS = [
+  { id: "plabk", name: "Black PLA Basic", type: "PLA", hex: "000000", spools: 2, threshold: 1, nearly: 15, src: "tag", tagLink: "PLA Basic/Black", link: "PLA Basic/Black", how: "tag" },
+  { id: "blackpla", name: "Black PLA", type: "PLA", hex: "111111", spools: 1, threshold: 0, nearly: 15, src: "hand", tagLink: null, link: "PLA Basic/Black", how: "hand", by: "Frank", on: "14 Nov 2026" },
+  { id: "pink", name: "Hot Pink PLA Basic", type: "PLA", hex: "F5547D", spools: 3, threshold: 1, nearly: 15, src: "tag", tagLink: "PLA Basic/Hot Pink", link: "PLA Basic/Hot Pink", how: "tag" },
+  { id: "blue", name: "Blue PLA Basic", type: "PLA", hex: "0A2CA5", spools: 2, threshold: 1, nearly: 15, src: "tag", tagLink: "PLA Basic/Blue", link: "PLA Basic/Blue", how: "tag" },
+  { id: "marine", name: "Marine Blue PLA Matte", type: "PLA", hex: "0078BF", spools: 1, threshold: 0, nearly: 15, src: "tag", tagLink: "PLA Matte/Marine Blue", link: "PLA Matte/Marine Blue", how: "tag" },
+  { id: "silk", name: "Silk Gold PLA", type: "PLA", hex: "E4BD68", spools: 0, threshold: 0, nearly: 15, src: "tag", tagLink: "PLA Silk+/Gold", link: "PLA Silk+/Gold", how: "tag" },
+  { id: "petgbk", name: "Black PETG HF", type: "PETG", hex: "000000", spools: 1, threshold: 1, nearly: 20, src: "tag", tagLink: "PETG HF/Black", link: "PETG HF/Black", how: "tag" },
+  { id: "brown", name: "Brown PETG Translucent", type: "PETG", hex: "C9A381", spools: 1, threshold: 0, nearly: 20, src: "tag", tagLink: "PETG Translucent/Brown", link: "PETG Translucent/Brown", how: "tag" },
+  { id: "teal", name: "Teal PETG", type: "PETG", hex: "3B8F94", spools: 1, threshold: 0, nearly: 20, src: "hand", tagLink: null, link: null, how: null },
+  { id: "absbk", name: "Black ABS", type: "ABS", hex: "000000", spools: 1, threshold: 0, nearly: 15, src: "tag", tagLink: "ABS/Black", link: "ABS/Black", how: "tag" },
+  { id: "asared", name: "Red ASA", type: "ASA", hex: "E02928", spools: 1, threshold: 0, nearly: 15, src: "tag", tagLink: "ASA/Red", link: "ASA/Red", how: "tag" },
+  { id: "glow", name: "Glow Green PLA", type: "PLA", hex: "9BE564", spools: 1, threshold: 0, nearly: 15, src: "hand", tagLink: null, link: "PLA Glow/Green", how: "hand", by: "Frank", on: "2 Mar 2026" }
+];
+function prod(id) { return PRODUCTS.filter(function (p) { return p.id === id; })[0]; }
+
+var state = { admin: true, edits: 0, open: null, pick: undefined, q: "", opener: null };
+
+var WARN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>';
+var PEN = '<svg class="pen" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>';
+
+function howText(p, long) {
+  if (p.how === "tag") return "From its tag";
+  return long ? "Linked by hand by " + p.by + ", " + p.on : "Linked by hand";
+}
+
+function ccInner(p) {
+  var c = p.link ? BYKEY[p.link] : null;
+  if (c) return '<span class="ring xs" aria-hidden="true" style="border-color:' + c[3] + '"></span><span class="t"><span class="n">' + esc(c[2] + " · " + c[0]) + '</span><span class="h">' + howText(p) + "</span></span>";
+  if (p.link) return '<span class="t"><span><span class="gone">' + WARN + "No longer in the catalog</span></span></span>";
+  return '<span class="t"><span class="notlinked">Not linked</span></span>';
+}
+function ccLabel(p) {
+  var c = p.link ? BYKEY[p.link] : null;
+  var s = c ? c[2] + " · " + c[0] + ", " + howText(p).toLowerCase() : p.link ? "no longer in the catalog" : "not linked";
+  return "Catalog color for " + p.name + ": " + s + ". Change";
+}
+
+function renderRows() {
+  var a = state.admin;
+  document.getElementById("rows").innerHTML = PRODUCTS.map(function (p) {
+    var name = a
+      ? '<label style="flex:1;display:flex"><span class="sr-only">Display name for #' + p.hex + '</span><input type="text" value="' + esc(p.name) + '" data-edit></label>'
+      : '<span class="vname">' + esc(p.name) + "</span>";
+    var cc = a
+      ? '<button type="button" class="cc" data-open="' + p.id + '" aria-haspopup="dialog" aria-label="' + esc(ccLabel(p)) + '">' + ccInner(p) + PEN + "</button>"
+      : '<div class="cc">' + ccInner(p) + "</div>";
+    var low = a
+      ? '<label class="num"><span class="sr-only">Low at, sealed spools, for ' + esc(p.name) + '</span><input type="number" min="0" value="' + p.threshold + '" data-edit>' + (p.threshold === 0 ? '<span class="off">off</span>' : "") + "</label>"
+      : '<span class="mono">' + (p.threshold === 0 ? "Off" : p.threshold) + "</span>";
+    var nearly = a
+      ? '<label class="num"><span class="sr-only">Nearly out at, AMS percent, for ' + esc(p.name) + '</span><input type="number" min="0" max="100" value="' + p.nearly + '" data-edit><span class="unit">%</span></label>'
+      : '<span class="mono">' + p.nearly + "%</span>";
+    return "<tr>" +
+      '<td><div class="namecell"><span class="ring sm" aria-hidden="true" style="border-color:#' + p.hex + '"></span>' + name + "</div></td>" +
+      '<td class="hexcell">' + p.type + "</td>" +
+      '<td class="hexcell">#' + p.hex + "</td>" +
+      "<td>" + cc + "</td>" +
+      '<td class="spools">' + p.spools + "</td>" +
+      "<td>" + low + "</td><td>" + nearly + "</td>" +
+      "<td>" + (p.src === "hand" ? '<span class="badge-hand">Added by hand</span>' : '<span class="from-tag">From tag</span>') + "</td></tr>";
+  }).join("");
+}
+
+/* ---------- Catalog color dialog ---------- */
+var dlg = document.getElementById("dlg");
+
+function openDialog(id, opener) {
+  state.open = id; state.pick = undefined; state.opener = opener || null;
+  var p = prod(id);
+  state.q = id === "teal" && !p.link ? "teal" : "";
+  document.getElementById("cc-q").value = state.q;
+  var c = "#" + p.hex;
+  document.getElementById("cc-sub").innerHTML = '<span class="ring" aria-hidden="true" style="border-color:' + c + '"></span>' + esc(p.name) + " · " + p.type + ' · <span class="mono">' + c + "</span>";
+  renderDialog();
+  if (!dlg.open) dlg.showModal();
+  document.getElementById("cc-q").focus();
+  syncShow();
+}
+function closeDialog() {
+  if (dlg.open) dlg.close();
+}
+dlg.addEventListener("close", function () {
+  state.open = null; state.pick = undefined;
+  syncShow();
+  if (state.opener && document.body.contains(state.opener)) state.opener.focus();
+});
+dlg.addEventListener("click", function (e) { if (e.target === dlg) closeDialog(); });
+
+function renderDialog() {
+  var p = prod(state.open);
+  var pending = state.pick !== undefined;
+  var link = pending ? state.pick : p.link;
+  var how = pending ? (link && link === p.tagLink ? "tag" : link ? "hand" : null) : p.how;
+  var c = link ? BYKEY[link] : null;
+  var show = { how: how, by: pending ? "Frank" : p.by, on: pending ? "17 Nov 2026" : p.on };
+
+  document.getElementById("cur-l").textContent = pending ? "New link" : "Current link";
+  var cur;
+  if (c) {
+    var h = pending && how === "hand" ? "Linked by hand by Frank when you save" : howText(show, true);
+    cur = '<span class="ring sm" aria-hidden="true" style="border-color:' + c[3] + '"></span><span class="t"><span class="n">' + esc(c[2] + " · " + c[0]) + (c[4] ? ' <span class="mono">' + c[4] + "</span>" : "") + '</span><span class="h">' + h + "</span></span>";
+  } else if (link) {
+    cur = '<span class="t"><span><span class="gone">' + WARN + 'No longer in the catalog</span></span><span class="h">Was ' + esc(link.replace("/", " · ")) + ", linked by hand by " + show.by + ", " + show.on + ". Pick a new color or clear it.</span></span>";
+  } else {
+    cur = '<span class="t"><span class="n" style="color:var(--muted);font-weight:500">Not linked</span>' + (p.tagLink ? "" : '<span class="h">Added by hand, so it has no tag to take a color from.</span>') + "</span>";
+  }
+  if (pending) cur += '<span class="pending">Not saved yet</span>';
+  document.getElementById("cur").innerHTML = cur;
+
+  document.getElementById("clear").disabled = how !== "hand";
+  document.getElementById("clear-hint").textContent = p.tagLink
+    ? "Clearing goes back to the color from its tag."
+    : "This product has no tag, so clearing leaves it not linked.";
+  var store = document.getElementById("store");
+  store.hidden = !c;
+  if (c) store.href = ccStore(c);
+  document.getElementById("dlg-save").disabled = !pending || state.pick === p.link;
+
+  var words = state.q.toLowerCase().split(/\s+/).filter(Boolean);
+  var hits = CAT.filter(function (x) {
+    var hay = (x[0] + " " + x[2] + " " + x[4] + " " + x[1]).toLowerCase();
+    return words.every(function (w) { return hay.indexOf(w) >= 0; });
+  });
+  if (!words.length) hits = hits.filter(function (x) { return x[1] === p.type; });
+  var MAX = 6;
+  document.getElementById("results").innerHTML = hits.slice(0, MAX).map(function (x) {
+    var key = x[0] + "/" + x[2];
+    var label = x[2] + ", " + x[0] + (x[4] ? ", Bambu code " + x[4] : ", no Bambu code");
+    return '<li><button type="button" class="res" data-pick="' + esc(key) + '" aria-pressed="' + (key === link) + '" aria-label="' + esc(label) + '">' +
+      '<span class="ring" aria-hidden="true" style="border-color:' + x[3] + '"></span>' +
+      '<span><span class="n">' + esc(x[2]) + '</span><span class="l">' + esc(x[0]) + "</span></span>" +
+      (x[4] ? '<span class="c">' + x[4] + "</span>" : '<span class="c none">No Bambu code</span>') + "</button></li>";
+  }).join("");
+  document.getElementById("results").hidden = hits.length === 0;
+  document.getElementById("count").textContent = !words.length
+    ? p.type + " colors" + (hits.length > MAX ? ", first " + MAX + " of " + hits.length + ". Type to search all " + CAT.length + "." : "")
+    : hits.length === 0 ? 'No catalog colors match "' + state.q + '".'
+    : hits.length + (hits.length === 1 ? " match" : " matches") + (hits.length > MAX ? ", showing the first " + MAX : "");
+}
+
+document.getElementById("cc-q").addEventListener("input", function (e) { state.q = e.target.value; renderDialog(); });
+
+function saveLink() {
+  var p = prod(state.open), key = state.pick;
+  p.link = key;
+  p.how = key && key === p.tagLink ? "tag" : key ? "hand" : null;
+  p.by = "Frank"; p.on = "17 Nov 2026";
+  closeDialog();
+  renderRows();
+  var b = document.querySelector('[data-open="' + p.id + '"]');
+  if (b) { state.opener = b; b.focus(); }
+}
+
+/* ---------- Page ---------- */
+function renderSave() {
+  document.getElementById("save").disabled = state.edits === 0;
+}
+document.getElementById("rows").addEventListener("input", function (e) {
+  if (!e.target.matches("[data-edit]")) return;
+  state.edits++;
+  document.getElementById("save-msg").textContent = "Unsaved changes";
+  renderSave();
+});
+document.getElementById("save").addEventListener("click", function () {
+  state.edits = 0;
+  document.getElementById("save-msg").textContent = "Saved";
+  renderSave();
+});
+
+function syncShow() {
+  var v = state.open === "plabk" || state.open === "teal" ? state.open : "none";
+  pick(document.querySelector('[data-show="' + v + '"]'));
+}
+function setRole(r) {
+  state.admin = r === "admin";
+  closeDialog();
+  pick(document.querySelector('[data-role="' + r + '"]'));
+  document.querySelectorAll(".mainnav .admin").forEach(function (li) { li.hidden = !state.admin; });
+  document.getElementById("saverow").hidden = !state.admin;
+  document.getElementById("uname").textContent = state.admin ? "frank" : "sam";
+  document.getElementById("uinit").textContent = state.admin ? "F" : "S";
+  document.querySelectorAll("[data-show]").forEach(function (b) { if (b.dataset.show !== "none") b.disabled = !state.admin; });
+  renderRows();
+}
+
+document.addEventListener("click", function (e) {
+  var t = e.target.closest("button, a");
+  if (!t) return;
+  if (t.tagName === "A" && t.getAttribute("href") === "#") e.preventDefault();
+  var d = t.dataset;
+  if (d.open) openDialog(d.open, t);
+  else if (d.pick) { state.pick = d.pick; renderDialog(); var nb = document.querySelector('[data-pick="' + CSS.escape(d.pick) + '"]'); if (nb) nb.focus(); }
+  else if (d.act === "clear") { state.pick = prod(state.open).tagLink || null; renderDialog(); document.getElementById("cc-q").focus(); }
+  else if (d.act === "cancel") closeDialog();
+  else if (d.act === "savelink") saveLink();
+  else if (d.show) { if (d.show === "none") closeDialog(); else openDialog(d.show, null); }
+  else if (d.role) setRole(d.role);
+  else if (d.theme) { pick(t); document.documentElement.setAttribute("data-theme", d.theme); }
+});
+
+function pick(btn) { if (btn) btn.parentNode.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); }); }
+
+setRole("admin");
+renderSave();
+</script>
+</body>
+</html>
