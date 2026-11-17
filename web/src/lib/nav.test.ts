@@ -6,7 +6,14 @@ const labels = (role: Parameters<typeof visibleNav>[0]) => visibleNav(role).map(
 describe("visibleNav", () => {
   it("hides admin pages from viewers and editors", () => {
     for (const role of ["viewer", "editor"] as const) {
-      expect(labels(role)).toEqual(["Inventory", "Spools", "Products", "Review", "Activity"]);
+      expect(labels(role)).toEqual([
+        "Inventory",
+        "Spools",
+        "Products",
+        "Catalog",
+        "Review",
+        "Activity",
+      ]);
     }
   });
 

@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SESSION_DAYS = 30
 DEFAULT_TIME_ZONE = "UTC"
+DEFAULT_CATALOG_SYNC = "daily"
+DEFAULT_SIMILARITY_CUTOFF = 10.0
 
 
 class Source(StrEnum):
@@ -117,6 +119,14 @@ class SettingsStore:
     def time_zone(self) -> str:
         """The time zone for every time the web app shows."""
         return self.text("tz") or DEFAULT_TIME_ZONE
+
+    def catalog_sync(self) -> str:
+        """How often the catalog syncs: off, daily or weekly."""
+        return self.text("catalog_sync") or DEFAULT_CATALOG_SYNC
+
+    def similarity_cutoff(self) -> float:
+        """The largest ΔE at which an in-stock product counts as similar."""
+        return float(self.text("similarity_cutoff") or DEFAULT_SIMILARITY_CUTOFF)
 
     def check(self, values: dict[str, str], keys: Iterable[str] | None = None) -> dict[str, str]:
         """Cleaned values, or SettingsInvalid naming each refused key. `keys` limits which

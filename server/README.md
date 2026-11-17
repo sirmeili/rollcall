@@ -4,7 +4,7 @@ The FastAPI server for RollCall, and the Docker image it ships in. See the [repo
 
 ## Development
 
-The server needs Python 3.12 and [uv](https://docs.astral.sh/uv/). Run these from `server/` before requesting a review. CI runs the same checks on every PR.
+The server needs Python 3.12 and [uv](https://docs.astral.sh/uv/). Run these from `server/` before requesting a review. CI runs the same checks on every PR. From the repo root, add `--directory server` after `uv run` (for example `uv run --directory server pytest`), or `uv sync --directory server`.
 
 ```sh
 uv sync                        # Install dependencies
@@ -89,6 +89,20 @@ The session cookie is marked Secure. Browsers accept it over plain HTTP on `loca
 ## Backups
 
 With `BACKUP_DIR` set, the server copies its database there every night at 03:00 in its time zone (the one saved on the Settings page, else `TZ`), using SQLite's online backup, and keeps the newest 14. Files are named by their UTC time, like `filament-20261110T090000Z.db`. The settings key is never copied into them. `uv run ft-admin backup` makes one at once. The Docker image sets `BACKUP_DIR=/backups`; see [docs/deploy.md](../docs/deploy.md) for restoring one.
+
+## Catalog
+
+The server keeps a local **catalog** of Bambu Lab's colors, copied from the Open Filament Database (OFDB, MIT license), for the Catalog page (`GET /api/v1/catalog`, any signed-in user). The Settings page's Catalog card (Admin) sets the schedule and the similarity cutoff, shows the last successful sync, the last attempt and its result, and the dataset version (`GET /api/v1/catalog/sync`), and has **Refresh now** (`POST /api/v1/catalog/sync`).
+
+- **Schedule**: `CATALOG_SYNC` is `daily` (the default) at 04:00 in the server's time zone, after the 03:00 backup; `weekly` at 04:00 on Mondays; or `off`. A new install syncs about a minute after it starts, unless syncing is off. A failure is retried at the next scheduled run. Changing it on the Settings page applies without a restart.
+- **Similar in-stock colors**: expanding a catalog color lists the products with a Sealed or Open spool whose color is within `SIMILARITY_CUTOFF` (ΔE, CIEDE2000; default 10), in any material, closest first. A product of a different material (compared exactly, so PLA-CF is not PLA) carries a warning; a multi-color catalog color gets no comparison.
+- **Out of date**: after 14 days of failed syncs since the last success, the Catalog page says the catalog may be out of date.
+
+- **What it contacts**: `https://api.openfilamentdatabase.org/json/all.json.gz`, and nothing else; with `CATALOG_SYNC=off`, only when an Admin presses Refresh now. It asks whether the export changed since the copy in use, so an unchanged export costs one small request ("Not modified").
+- **Bambu Lab only**: other brands in the export are dropped.
+- **Failures keep the last copy**: a network error, an incomplete download, bad JSON or a missing field is recorded with a short reason, and the catalog stays as it was. Failures show only on the Settings page's Catalog card and, after 14 days, the Catalog page; never in Review or Home Assistant.
+- **One at a time**: Refresh now while a sync is running is refused, and nothing new starts.
+- **Inventory untouched**: a sync never changes products, spools, tags or events.
 
 ## Behind a reverse proxy
 

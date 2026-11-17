@@ -22,6 +22,8 @@ ACCESS_ID_PATTERN = re.compile(r"[A-Za-z0-9]{16,64}\.access")
 # checksum since 2026-08-26, or the older form of letters and digits, which still works.
 ACCESS_SECRET_PATTERN = re.compile(r"cfast_[A-Za-z0-9]{48}|[A-Za-z0-9]{32,128}")
 MIN_SESSION_DAYS, MAX_SESSION_DAYS = 1, 365
+CATALOG_SYNCS = ("off", "daily", "weekly")
+MIN_CUTOFF, MAX_CUTOFF = 0.5, 50.0
 
 
 def _mqtt_url(value: str) -> str:
@@ -60,6 +62,24 @@ def session_days(value: str) -> str:
     if not MIN_SESSION_DAYS <= days <= MAX_SESSION_DAYS:
         raise ValueError(f"use {MIN_SESSION_DAYS} to {MAX_SESSION_DAYS} days")
     return str(days)
+
+
+def catalog_sync(value: str) -> str:
+    if value not in CATALOG_SYNCS:
+        raise ValueError("use off, daily or weekly")
+    return value
+
+
+def similarity_cutoff(value: str) -> str:
+    """A ΔE from 0.5 to 50, written without trailing zeros ("10", "2.5")."""
+    problem = f"use a number from {MIN_CUTOFF:g} to {MAX_CUTOFF:g}"
+    try:
+        cutoff = float(value)
+    except ValueError:
+        raise ValueError(problem) from None
+    if not MIN_CUTOFF <= cutoff <= MAX_CUTOFF:
+        raise ValueError(problem)
+    return f"{cutoff:g}"
 
 
 def kdf_salt(value: str) -> str:
@@ -113,6 +133,7 @@ class SettingDef:
 GENERAL = "general"
 HOME_ASSISTANT = "home-assistant"
 SCANNERS = "scanners"
+CATALOG = "catalog"
 
 DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("tz", GENERAL, "tz", optional=False, check=time_zone),
@@ -133,6 +154,10 @@ DEFINITIONS: tuple[SettingDef, ...] = (
         "cf_access_client_secret",
         secret=True,
         check=access_client_secret,
+    ),
+    SettingDef("catalog_sync", CATALOG, "catalog_sync", optional=False, check=catalog_sync),
+    SettingDef(
+        "similarity_cutoff", CATALOG, "similarity_cutoff", optional=False, check=similarity_cutoff
     ),
 )
 

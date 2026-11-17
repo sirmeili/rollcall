@@ -21,6 +21,8 @@ The pull request that adds, removes or changes a setting in `server/src/filament
 | `HA_DISCOVERY_PREFIX` | `homeassistant` | Home Assistant's MQTT discovery prefix; defaults to `homeassistant` | Yes |
 | `HA_URL`, `HA_TOKEN` | `http://homeassistant.local:8123`, long-lived token | Home Assistant's address and a long-lived access token, for firing events. Unset: no events are fired. The URL must not hold a user name or password | Yes |
 | `TZ` | `America/New_York` | The time zone for every time the web app shows, whatever the viewer's device uses, and for the nightly backup. An IANA name; defaults to `UTC` | Yes |
+| `CATALOG_SYNC` | `weekly` | How often the catalog syncs from the Open Filament Database (`api.openfilamentdatabase.org`): `off`, `daily` or `weekly`, at 04:00 in `TZ` (Mondays for `weekly`). `off` contacts it only when an Admin presses Refresh now; defaults to `daily` | Yes |
+| `SIMILARITY_CUTOFF` | `10` | The largest ΔE (CIEDE2000, 0.5 to 50) at which an in-stock product counts as a similar in-stock color on the Catalog page; defaults to 10. Below 2 is barely visible; 2–10 is close; above 25 is clearly different | Yes |
 | `TRUSTED_NETWORKS` | `192.168.0.0/16,10.0.0.0/8` | LAN ranges allowed to use bearer tokens, scanner routes, the API docs and first-start setup; defaults to the private ranges | No |
 | `FORWARDED_ALLOW_IPS` | `192.168.1.5` | Address of the reverse proxy whose `X-Forwarded-For` is trusted. Unset: none | No |
 | `SESSION_DAYS` | `30` | How long a web sign-in lasts, in days (1 to 365); defaults to 30 | Yes |

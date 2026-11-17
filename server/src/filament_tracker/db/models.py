@@ -294,3 +294,8 @@ class SeededPrinter(Base):
 
     serial: Mapped[str] = mapped_column(String(32), primary_key=True)
     seeded_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+# The catalog's tables are in their own module; importing it here puts them on Base, so
+# migrations and create_all see every table.
+from filament_tracker.db import catalog_models  # noqa: E402, F401

@@ -7,9 +7,14 @@ The rules every change in this repo follows. `/code-review` checks a branch agai
 - Keep files small and focused. No monolithic files.
 - Put helper functions and UI components in their own files, in logical, separate directories.
 
+## Naming
+
+- Names in code use the terms in [GLOSSARY.md](GLOSSARY.md). A word on a term's _Avoid_ list appears only with the meaning the glossary keeps it for: `variant` is the tag's variant ID.
+
 ## Tests
 
 - Every change comes with tests.
+- Each acceptance criterion in the issue has a test that fails when that behaviour breaks.
 - A change that touches authentication, input handling or secrets also comes with security tests.
 - Each branch keeps unit test coverage at 90% or higher. If it falls below, add tests before asking for a review.
 - Code is left out of coverage only as listed in [docs/testing.md, Coverage exclusions](docs/testing.md#coverage-exclusions): code that cannot run without real hardware, covered by a manual checklist instead. A change to an exclusion updates that page.

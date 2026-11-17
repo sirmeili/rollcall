@@ -25,6 +25,8 @@ services:
       ADMIN_TOKEN: compose-test-admin-token-0123456789
       # The test signs in over plain HTTP.
       COOKIE_SECURE: "false"
+      # The test stack never contacts the Open Filament Database.
+      CATALOG_SYNC: "off"
     ports:
       - "127.0.0.1:${TEST_PORT:-18000}:8000"
     volumes:

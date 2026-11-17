@@ -53,6 +53,8 @@ const uvicorn = spawn(
       MQTT_PASSWORD: "",
       HA_URL: "",
       HA_TOKEN: "",
+      // Nor the Open Filament Database: the catalog stays empty unless a test syncs it.
+      CATALOG_SYNC: "off",
       SETTINGS_KEY: "",
     },
   },
