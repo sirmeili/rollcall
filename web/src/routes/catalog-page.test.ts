@@ -236,6 +236,27 @@ describe("Catalog page", () => {
     expect(summary()).toBe("6 catalog colors in 4 filament lines");
   });
 
+  it("clears the search and every filter, and offers Clear only while one is on", async () => {
+    await open();
+
+    const search = await screen.findByLabelText("Search line or color");
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+    await userEvent.type(search, "blue");
+    await userEvent.click(screen.getByRole("button", { name: "PETG" }));
+    await userEvent.click(screen.getByRole("button", { name: "Has similar in stock" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show discontinued" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(search).toHaveValue("");
+    for (const name of ["PETG", "Has similar in stock", "Show discontinued"]) {
+      expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
+    }
+    expect(summary()).toBe("6 catalog colors in 4 filament lines");
+    expect(screen.queryByText("Bronze")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+  });
+
   it("says when nothing matches, with a way to clear", async () => {
     await open();
 

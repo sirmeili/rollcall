@@ -100,6 +100,20 @@ def test_a_provisional_product_counts_with_the_color_it_was_entered_with(
     assert different is False
 
 
+def test_the_material_is_compared_ignoring_spaces(client: TestClient, shelf: None) -> None:
+    product = client.post(
+        "/api/v1/products",
+        json={"display_name": "Spaced white", "filament_type": " P LA ", "color_rgba": "FEFEFEFF"},
+        headers=admin(),
+    ).json()
+    client.post("/api/v1/spools", json={"product_id": product["id"]}, headers=admin())
+
+    ((_, material, _, _, _, different),) = matches(client, "Jade White")
+
+    assert material == product["filament_type"]
+    assert different is False
+
+
 def test_multi_color_catalog_colors_get_no_matches(client: TestClient, shelf: None) -> None:
     gradient = colors(client)["Arctic Whisper"]
 
