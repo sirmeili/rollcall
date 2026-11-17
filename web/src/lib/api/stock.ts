@@ -69,7 +69,10 @@ export function undoEvent(eventId: string): Promise<unknown> {
 
 export type ProductChanges = Partial<
   Pick<Product, "display_name" | "low_stock_threshold" | "nearly_out_pct">
->;
+> & {
+  /** A catalog color's UUID links the product by hand; null clears the manual link. */
+  catalog_color?: string | null;
+};
 
 export function updateProduct(id: number, changes: ProductChanges): Promise<Product> {
   return api<Product>(`/products/${id}`, { method: "PATCH", body: changes });

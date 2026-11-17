@@ -137,7 +137,17 @@ export function howText(how: LinkHow): string {
 /** The store's search for a catalog color: by its Bambu code, or else by its filament
  * line and color name ("PLA Basic Green"). */
 export function storeUrl(storeAddress: string, lineName: string, color: CatalogColor): string {
-  const q = color.bambu_code ?? `${lineName} ${color.name}`;
+  return storeSearchUrl(storeAddress, lineName, color.name, color.bambu_code);
+}
+
+/** The store's search by Bambu code, or else by filament line and color name. */
+export function storeSearchUrl(
+  storeAddress: string,
+  lineName: string,
+  colorName: string,
+  bambuCode: string | null,
+): string {
+  const q = bambuCode ?? `${lineName} ${colorName}`;
   return `${storeAddress}/search?q=${encodeURIComponent(q)}`;
 }
 

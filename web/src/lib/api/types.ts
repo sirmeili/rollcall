@@ -21,6 +21,29 @@ export interface Page<T> {
   offset: number;
 }
 
+/** A product's tie to its catalog color. The color's fields are null when it is no longer
+ * in the catalog (a manual link to a color the catalog dropped). */
+export interface CatalogLink {
+  uuid: string | null;
+  name: string | null;
+  /** The filament line, such as PLA Basic. */
+  line: string | null;
+  /** RRGGBB, the main color first. */
+  hexes: string[] | null;
+  bambu_code: string | null;
+  /** tag: automatic, from its tag; hand: set by a person. */
+  how: "tag" | "hand";
+  in_catalog: boolean;
+  /** For a manual link: who set it, and when. */
+  linked_by: string | null;
+  linked_at: string | null;
+  /** No longer in the catalog: the line and color it was. */
+  was_line: string | null;
+  was_name: string | null;
+  /** The product's tag gives a catalog color, which clearing a manual link goes back to. */
+  tag_link_exists: boolean;
+}
+
 export interface Product {
   id: number;
   display_name: string;
@@ -34,6 +57,8 @@ export interface Product {
   provisional: boolean;
   /** Made from an AMS report rather than by hand. */
   from_ams: boolean;
+  /** Its catalog color; null when it has none. */
+  catalog_link: CatalogLink | null;
 }
 
 export interface Counts {

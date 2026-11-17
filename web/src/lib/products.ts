@@ -8,6 +8,9 @@ export interface Draft {
   display_name: string;
   low_stock_threshold: number | null;
   nearly_out_pct: number | null;
+  /** A staged manual catalog link from the Catalog color dialog: a catalog color's UUID,
+   * null to clear the manual link, or undefined for no change. */
+  catalog_color?: string | null;
 }
 
 export function draftOf(product: Product): Draft {
@@ -43,6 +46,7 @@ export function changesFor(product: Product, draft: Draft): ProductChanges | nul
   if (draft.nearly_out_pct !== product.nearly_out_pct) {
     changes.nearly_out_pct = draft.nearly_out_pct ?? undefined;
   }
+  if (draft.catalog_color !== undefined) changes.catalog_color = draft.catalog_color;
   return Object.keys(changes).length ? changes : null;
 }
 

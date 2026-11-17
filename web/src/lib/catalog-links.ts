@@ -1,0 +1,115 @@
+/** Catalog links on the Products page: the Catalog color column's words, and the Catalog
+ * color dialog's search and staged change. */
+
+import type { Catalog, CatalogColor } from "#lib/api/catalog.ts";
+import type { CatalogLink } from "#lib/api/types.ts";
+import { shortDate } from "#lib/format.ts";
+
+/** A catalog color with its filament line, as the dialog lists it. */
+export interface CatalogEntry {
+  color: CatalogColor;
+  line: string;
+  material: string;
+}
+
+/** The dialog's search shows at most this many results. */
+export const MAX_RESULTS = 6;
+
+/** "PLA Basic · Black" */
+export function linkName(line: string | null, name: string | null): string {
+  return `${line ?? ""} · ${name ?? ""}`;
+}
+
+/** "From its tag" or "Linked by hand" */
+export function howText(how: CatalogLink["how"]): string {
+  return how === "hand" ? "Linked by hand" : "From its tag";
+}
+
+/** "Linked by hand by frank, Nov 17" */
+export function handText(link: CatalogLink, now: Date = new Date()): string {
+  const by = link.linked_by ? ` by ${link.linked_by}` : "";
+  return `Linked by hand${by}, ${shortDate(link.linked_at, now)}`;
+}
+
+/** What a manual link to a dropped color was: "Was PLA Glow · Green, linked by hand by
+ * frank, Mar 2. Pick a new color or clear it." */
+export function droppedText(link: CatalogLink, now: Date = new Date()): string {
+  const was = linkName(link.was_line, link.was_name);
+  const how = handText(link, now).replace("Linked", "linked");
+  return `Was ${was}, ${how}. Pick a new color or clear it.`;
+}
+
+/** The Catalog color cell's accessible name. */
+export function cellLabel(productName: string, link: CatalogLink | null): string {
+  let what: string;
+  if (!link) what = "not linked";
+  else if (!link.in_catalog) what = "no longer in the catalog";
+  else what = `${linkName(link.line, link.name)}, ${howText(link.how).toLowerCase()}`;
+  return `Catalog color for ${productName}: ${what}. Change`;
+}
+
+/** What Clear will do. */
+export function clearHint(tagLinkExists: boolean): string {
+  return tagLinkExists
+    ? "Clearing goes back to the color from its tag."
+    : "This product has no tag, so clearing leaves it not linked.";
+}
+
+/** Every catalog color with its line, in catalog order. */
+export function catalogEntries(catalog: Catalog): CatalogEntry[] {
+  return catalog.lines.flatMap((line) =>
+    line.colors.map((color) => ({ color, line: line.name, material: line.material })),
+  );
+}
+
+/** A result's accessible name: "Green, PLA Basic, no Bambu code". */
+export function entryLabel(entry: CatalogEntry): string {
+  const code = entry.color.bambu_code;
+  return `${entry.color.name}, ${entry.line}, ${code ? `Bambu code ${code}` : "no Bambu code"}`;
+}
+
+export interface SearchResult {
+  /** At most MAX_RESULTS. */
+  shown: CatalogEntry[];
+  /** What the search found, for the count line. */
+  text: string;
+}
+
+/** Catalog colors whose name, line or Bambu code holds every word typed. With nothing
+ * typed, the colors of the product's material. */
+export function searchEntries(
+  entries: CatalogEntry[],
+  query: string,
+  material: string,
+): SearchResult {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) {
+    const hits = entries.filter((e) => e.material.toLowerCase() === material.toLowerCase());
+    const more =
+      hits.length > MAX_RESULTS
+        ? `, first ${MAX_RESULTS} of ${hits.length}. Type to search all ${entries.length}.`
+        : "";
+    return { shown: hits.slice(0, MAX_RESULTS), text: `${material} colors${more}` };
+  }
+  const hits = entries.filter((e) => {
+    const hay = `${e.color.name} ${e.line} ${e.color.bambu_code ?? ""}`.toLowerCase();
+    return words.every((word) => hay.includes(word));
+  });
+  if (!hits.length) return { shown: [], text: `No catalog colors match "${query.trim()}".` };
+  const count = `${hits.length} ${hits.length === 1 ? "match" : "matches"}`;
+  const more = hits.length > MAX_RESULTS ? `, showing the first ${MAX_RESULTS}` : "";
+  return { shown: hits.slice(0, MAX_RESULTS), text: `${count}${more}` };
+}
+
+/** A staged change to a product's manual link: a catalog color's UUID sets one, null
+ * clears it, undefined leaves it. */
+export type Pick = string | null | undefined;
+
+/** The change a pick makes to the saved link: undefined when it changes nothing (the same
+ * manual link again, or clearing when there is no manual link). */
+export function changeFor(link: CatalogLink | null, pick: Pick): Pick {
+  const manual = link?.how === "hand";
+  if (pick === undefined) return undefined;
+  if (pick === null) return manual ? null : undefined;
+  return manual && link?.uuid === pick ? undefined : pick;
+}
