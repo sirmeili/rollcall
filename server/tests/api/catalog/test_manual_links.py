@@ -168,3 +168,18 @@ def test_a_manual_link_to_a_dropped_color_is_kept(
     assert link["how"] == "hand"
     # It does not fall back to the tag's color: the person chose it.
     assert link["tag_link_exists"] is True
+
+
+def test_clearing_a_link_to_a_dropped_color_goes_back_to_the_color_from_its_tag(
+    client: TestClient, editor: TestClient, product_id: int, ofdb: FakeSource
+) -> None:
+    _link(editor, product_id, "var-jade")
+    ofdb.serve(ok(gz(changed_export()), etag='"v2"'))  # Jade White is gone
+    refresh(client)
+
+    cleared = _link(editor, product_id, None).json()["catalog_link"]
+
+    assert cleared["uuid"] == "var-black"
+    assert cleared["how"] == "tag"
+    assert cleared["in_catalog"] is True
+    assert cleared["linked_by"] is None
