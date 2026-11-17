@@ -3,6 +3,7 @@ faked by an injected httpx transport."""
 
 import gzip
 from types import ModuleType
+from typing import Any
 
 import httpx
 import pytest
@@ -262,18 +263,34 @@ def test_a_304_to_a_request_that_did_not_ask_fails(client: TestClient, ofdb: Fak
 # --- What a sync must not do -------------------------------------------------------------
 
 
-def test_a_sync_leaves_products_spools_tags_and_events_alone(
+def _without_links(data: Any) -> Any:
+    """The answer with every product's catalog link left out."""
+    if isinstance(data, dict):
+        return {k: _without_links(v) for k, v in data.items() if k != "catalog_link"}
+    if isinstance(data, list):
+        return [_without_links(v) for v in data]
+    return data
+
+
+def _reads(client: TestClient) -> dict[str, Any]:
+    return {path: client.get(path, headers=admin()).json() for path in INVENTORY}
+
+
+def test_a_sync_changes_only_catalog_links(
     client: TestClient, token: str, ofdb: FakeSource
 ) -> None:
-    scan(client, token, SyntheticTag(), "received")
+    scan(client, token, SyntheticTag(variant_id="A00-K0"), "received")
     scan(client, token, SyntheticTag(color_rgba="FFFFFFFF"), "received")
-    before = {path: client.get(path, headers=admin()).json() for path in INVENTORY}
+    before = _reads(client)
 
     refresh(client)
     ofdb.serve(ok(gz(changed_export()), etag='"v2"'))
     refresh(client)
 
-    assert {path: client.get(path, headers=admin()).json() for path in INVENTORY} == before
+    after = _reads(client)
+    assert _without_links(after) == _without_links(before)
+    # The scanned PLA Basic Black was linked: the one change a sync makes.
+    assert after != before
 
 
 def test_refresh_now_during_a_sync_never_starts_a_second_one(

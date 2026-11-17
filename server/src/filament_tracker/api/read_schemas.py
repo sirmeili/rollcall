@@ -14,6 +14,27 @@ class Page[T](BaseModel):
     offset: int
 
 
+class CatalogLinkOut(BaseModel):
+    """A product's catalog link. The color's fields are null when it is no longer in the
+    catalog (a manual link to a color OFDB dropped)."""
+
+    uuid: str | None
+    name: str | None
+    line: str | None = Field(description="The filament line, such as PLA Basic")
+    hexes: list[str] | None = Field(description="RRGGBB, the main color first")
+    bambu_code: str | None
+    how: str = Field(description="tag (automatic) or hand (manual)")
+    in_catalog: bool
+    linked_by: str | None = Field(description="For a manual link: who set it")
+    linked_at: datetime | None = Field(description="For a manual link: when")
+    was_line: str | None = Field(description="No longer in the catalog: the line it was in")
+    was_name: str | None = Field(description="No longer in the catalog: the color it was")
+    tag_link_exists: bool = Field(
+        description="The product's tag gives a catalog color, which clearing a manual link "
+        "goes back to"
+    )
+
+
 class ProductDetail(BaseModel):
     id: int
     display_name: str
@@ -25,6 +46,9 @@ class ProductDetail(BaseModel):
     nearly_out_pct: int = Field(description="An open spool at or below this AMS % is nearly out")
     provisional: bool
     from_ams: bool = Field(description="Made from an AMS report rather than by hand")
+    catalog_link: CatalogLinkOut | None = Field(
+        default=None, description="Its catalog color; null when it has none"
+    )
 
 
 class Counts(BaseModel):
