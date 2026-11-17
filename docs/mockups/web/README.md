@@ -17,19 +17,19 @@ The live, clickable version is the Claude design canvas "Filament Tracker — In
 | [Inventory.dc.html](Inventory.dc.html) | `/` | Inventory | Viewer |
 | [Spools.dc.html](Spools.dc.html) | `/spools` | Spools | Viewer (edits: Editor) |
 | [SpoolDetail.dc.html](SpoolDetail.dc.html) | `/spools/{id}` | Spool detail | Viewer (actions, undo, edits: Editor) |
-| [Products.dc.html](Products.dc.html) | `/products` | Products | Viewer (edits: Editor) |
+| [Products.html](Products.html) | `/products` | Products (catalog color: #74) | Viewer (edits and catalog links: Editor) |
 | [Review.dc.html](Review.dc.html) | `/review` | Review | Viewer (resolve: Editor) |
 | [Activity.dc.html](Activity.dc.html) | `/activity` | Activity | Viewer (undo: Editor) |
 | [Devices.dc.html](Devices.dc.html) | `/devices` | Devices | Admin |
 | [Users.dc.html](Users.dc.html) | `/users` | Users | Admin |
 | [Account.dc.html](Account.dc.html) | `/account` | Account | Viewer |
 | [SignIn.dc.html](SignIn.dc.html) | `/login` | Sign in | None |
-| [Catalog.html](Catalog.html) | `/catalog` | Catalog (#73) | Viewer (Refresh now in the empty state: Admin) |
-| [SettingsCatalog.html](SettingsCatalog.html) | `/settings` | Settings, Catalog card (#73) | Admin |
+| [Catalog.html](Catalog.html) | `/catalog` | Catalog (#73, #74) | Viewer (Refresh now in the empty state: Admin) |
+| [SettingsCatalog.html](SettingsCatalog.html) | `/settings` | Settings, Catalog card (#73, #74) | Admin |
 
 The routes are the ones already in `web/src/lib/nav.ts`, except `/catalog`, which #73 adds.
 
-The two Catalog mockups are plain HTML, unlike the `.dc.html` files: open them straight in a browser. Each has a Mockup controls panel to switch the theme, the role or the state (before the first sync, or a failed sync). The phone version of the Catalog page is in [../mobile-web/PhoneCatalog.html](../mobile-web/PhoneCatalog.html). Where they differ from #73, the issue wins: the sample sync times show 03:12, but scheduled syncs run at 04:00. The mockups are drawn for an Admin, so every control is visible. Hide the controls a role does not allow, as the spec says.
+The two Catalog mockups and the Products mockup are plain HTML, unlike the `.dc.html` files: open them straight in a browser. Each has a Mockup controls panel to switch the theme, the role or the state (before the first sync, or a failed sync). The phone version of the Catalog page is in [../mobile-web/PhoneCatalog.html](../mobile-web/PhoneCatalog.html). Where they differ from #73, the issue wins: the sample sync times show 03:12, but scheduled syncs run at 04:00. The mockups are drawn for an Admin, so every control is visible. Hide the controls a role does not allow, as the spec says.
 
 One layout difference from the current nav: the mockups take Account out of the nav links and reach it from the account button (initial and username) at the right of the header.
 
