@@ -8,7 +8,7 @@ import pytest
 from api_helpers import admin
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from ofdb_fake import FakeOfdb, refresh, status
+from ofdb_fake import FakeSource, refresh, status
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
@@ -40,7 +40,7 @@ def test_a_new_catalog_is_not_out_of_date(client: TestClient) -> None:
 
 @pytest.mark.parametrize(("days", "expected"), [(13.9, False), (14, True), (30, True)])
 def test_failures_for_14_days_since_the_last_success_make_it_out_of_date(
-    client: TestClient, ofdb: FakeOfdb, db: Session, days: float, expected: bool
+    client: TestClient, ofdb: FakeSource, db: Session, days: float, expected: bool
 ) -> None:
     refresh(client)
     ofdb.serve(status(503))
@@ -51,7 +51,7 @@ def test_failures_for_14_days_since_the_last_success_make_it_out_of_date(
     assert out_of_date(client) is expected
 
 
-def test_a_successful_sync_ends_it(client: TestClient, ofdb: FakeOfdb, db: Session) -> None:
+def test_a_successful_sync_ends_it(client: TestClient, ofdb: FakeSource, db: Session) -> None:
     refresh(client)
     ofdb.serve(status(503))
     refresh(client)
@@ -74,7 +74,7 @@ def test_an_old_success_is_not_out_of_date_until_a_sync_fails(
 
 
 def test_failed_syncs_stay_off_review_and_home_assistant(
-    client: TestClient, ofdb: FakeOfdb
+    client: TestClient, ofdb: FakeSource
 ) -> None:
     before = client.get("/api/v1/review", headers=admin()).json()
     ofdb.serve(status(503))

@@ -1,4 +1,5 @@
-"""The catalog: a local copy of the Open Filament Database's Bambu Lab colors.
+"""The catalog: local copies of the Open Filament Database's Bambu Lab colors and
+BambuStudio's color code list.
 
 The sync status and Refresh now are Admin only, since a sync is the server contacting the
 internet. Failures are reported here and on the Settings page only.
@@ -29,6 +30,22 @@ class SimilarColorOut(BaseModel):
     different_material: bool
 
 
+class OwnedProductOut(BaseModel):
+    product_id: int
+    name: str
+    hex: str
+    material: str
+    # tag (automatic) or hand (manual)
+    how: str
+    sealed: int
+    open: int
+
+
+class LinkedProductOut(BaseModel):
+    product_id: int
+    name: str
+
+
 class CatalogColorOut(BaseModel):
     uuid: str
     name: str
@@ -37,8 +54,17 @@ class CatalogColorOut(BaseModel):
     multi_color: bool
     # A multi-color one whose colors blend along the filament, not side by side.
     gradient: bool
-    # In-stock products within the cutoff, closest first; empty for a multi-color one.
+    # The 5-digit number Bambu Lab sells it under; null when OFDB has none.
+    bambu_code: str | None
+    # In-stock products within the cutoff and not linked to it, closest first; empty for a
+    # multi-color one.
     similar: list[SimilarColorOut]
+    # A product linked to it has a Sealed or Open spool.
+    owned: bool
+    # Its linked products with a Sealed or Open spool, by name.
+    owned_products: list[OwnedProductOut]
+    # Its linked products with none in stock, by name.
+    linked_none_in_stock: list[LinkedProductOut]
 
 
 class FilamentLineOut(BaseModel):
@@ -56,15 +82,24 @@ class CatalogOut(BaseModel):
     cutoff: float
     # Syncs have failed for 14 days since the last success.
     out_of_date: bool
+    # The store Find in store searches, without a trailing slash.
+    store_address: str
 
 
-class SyncStatusOut(BaseModel):
+class SourceStatusOut(BaseModel):
     last_success_at: datetime | None
     last_attempt_at: datetime | None
     last_result: SyncResult | None
     last_reason: str | None
+    # OFDB's only; always null for BambuStudio's list.
     dataset_version: str | None
+
+
+class SyncStatusOut(BaseModel):
+    # Catalog colors in the copy in use.
     colors: int
+    ofdb: SourceStatusOut
+    bambustudio: SourceStatusOut
 
 
 def _syncer(request: Request) -> CatalogSyncer:
@@ -76,7 +111,7 @@ def read(_: Viewer, session: DbSession, request: Request) -> CatalogOut:
     """Every filament line with its catalog colors. Search and filters run in the web app
     over this one answer, which is small (about 300 catalog colors)."""
     store: SettingsStore = request.app.state.settings_store
-    catalog = read_catalog(session, store.similarity_cutoff())
+    catalog = read_catalog(session, store.similarity_cutoff(), store.store_address())
     return CatalogOut.model_validate(catalog, from_attributes=True)
 
 

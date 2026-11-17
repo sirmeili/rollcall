@@ -1,12 +1,15 @@
-"""The server with OFDB faked, for every catalog test: nothing contacts the internet."""
+"""The server with OFDB and BambuStudio's list faked, for every catalog test: nothing
+contacts the internet."""
 
 from collections.abc import Iterator
 
+import httpx
 import pytest
 from api_helpers import ADMIN_TOKEN, BASE_URL, LAN_CLIENT, register
+from bambustudio_fake import BAMBUSTUDIO_ETAG, body, color_codes
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from ofdb_fake import FakeOfdb
+from ofdb_fake import FakeSource, ok
 from sqlalchemy.orm import Session
 
 from filament_tracker.config import Settings
@@ -14,14 +17,24 @@ from filament_tracker.main import create_app
 
 
 @pytest.fixture
-def ofdb() -> FakeOfdb:
-    return FakeOfdb()
+def ofdb() -> FakeSource:
+    return FakeSource()
 
 
 @pytest.fixture
-def app(db_url: str, ofdb: FakeOfdb) -> FastAPI:
+def bambustudio() -> FakeSource:
+    return FakeSource(ok(body(color_codes()), etag=BAMBUSTUDIO_ETAG))
+
+
+@pytest.fixture
+def app(db_url: str, ofdb: FakeSource, bambustudio: FakeSource) -> FastAPI:
     settings = Settings(database_url=db_url, admin_token=ADMIN_TOKEN, _env_file=None)
-    return create_app(settings, ofdb_transport=ofdb.transport)
+
+    def route(request: httpx.Request) -> httpx.Response:
+        source = bambustudio if request.url.host == "raw.githubusercontent.com" else ofdb
+        return source.handle(request)
+
+    return create_app(settings, catalog_transport=httpx.MockTransport(route))
 
 
 @pytest.fixture

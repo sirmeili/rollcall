@@ -27,6 +27,7 @@ DEFAULT_SESSION_DAYS = 30
 DEFAULT_TIME_ZONE = "UTC"
 DEFAULT_CATALOG_SYNC = "daily"
 DEFAULT_SIMILARITY_CUTOFF = 10.0
+DEFAULT_STORE_ADDRESS = "https://us.store.bambulab.com"
 
 
 class Source(StrEnum):
@@ -127,6 +128,10 @@ class SettingsStore:
     def similarity_cutoff(self) -> float:
         """The largest ΔE at which an in-stock product counts as similar."""
         return float(self.text("similarity_cutoff") or DEFAULT_SIMILARITY_CUTOFF)
+
+    def store_address(self) -> str:
+        """The Bambu Lab store Find in store searches, without a trailing slash."""
+        return self.text("store_address") or DEFAULT_STORE_ADDRESS
 
     def check(self, values: dict[str, str], keys: Iterable[str] | None = None) -> dict[str, str]:
         """Cleaned values, or SettingsInvalid naming each refused key. `keys` limits which

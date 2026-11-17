@@ -1,7 +1,13 @@
 import { render, screen, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Catalog, CatalogColor, FilamentLine, SimilarColor } from "#lib/api/catalog.ts";
+import type {
+  Catalog,
+  CatalogColor,
+  FilamentLine,
+  OwnedProduct,
+  SimilarColor,
+} from "#lib/api/catalog.ts";
 import { session } from "#lib/auth/session.svelte.ts";
 import { setTimeZone } from "#lib/format.ts";
 import type { Role } from "#lib/roles.ts";
@@ -18,7 +24,11 @@ function color(name: string, hexes: string[], fields: Partial<CatalogColor> = {}
     discontinued: false,
     multi_color: hexes.length > 1,
     gradient: false,
+    bambu_code: null,
     similar: [],
+    owned: false,
+    owned_products: [],
+    linked_none_in_stock: [],
     ...fields,
   };
 }
@@ -37,13 +47,34 @@ function match(name: string, fields: Partial<SimilarColor> = {}): SimilarColor {
   };
 }
 
+function owned(name: string, fields: Partial<OwnedProduct> = {}): OwnedProduct {
+  return {
+    product_id: 1,
+    name,
+    hex: "FFFFFF",
+    material: "PLA",
+    how: "tag",
+    sealed: 1,
+    open: 0,
+    ...fields,
+  };
+}
+
 function line(name: string, material: string, colors: CatalogColor[]): FilamentLine {
   return { uuid: name.toLowerCase().replace(/ /g, "-"), name, material, colors };
 }
 
 const LINES: FilamentLine[] = [
   line("PLA Basic", "PLA", [
-    color("Jade White", ["FFFFFF"]),
+    color("Jade White", ["FFFFFF"], {
+      bambu_code: "10100",
+      owned: true,
+      owned_products: [
+        owned("PLA Basic Jade White", { product_id: 20, sealed: 2, open: 1 }),
+        owned("White PLA", { product_id: 21, hex: "F5F5F5", how: "hand", sealed: 0, open: 1 }),
+      ],
+      linked_none_in_stock: [{ product_id: 22, name: "Silk White" }],
+    }),
     color("Blue", ["0A2CA5"], {
       similar: [
         match("Blue PLA Basic", { product_id: 7, delta_e: 0, sealed: 2, open: 1 }),
@@ -77,6 +108,7 @@ const SYNCED: Catalog = {
   last_success_at: "2026-11-15T04:00:00Z",
   cutoff: 10,
   out_of_date: false,
+  store_address: "https://us.store.bambulab.com",
 };
 
 const NEVER: Catalog = {
@@ -86,6 +118,7 @@ const NEVER: Catalog = {
   last_success_at: null,
   cutoff: 10,
   out_of_date: false,
+  store_address: "https://us.store.bambulab.com",
 };
 
 function serve(routes: Parameters<typeof fakeFetch>[0]) {
@@ -426,7 +459,11 @@ describe("Catalog page", () => {
       "GET /catalog": () => (synced ? SYNCED : NEVER),
       "POST /catalog/sync": () => {
         synced = true;
-        return { last_result: "updated", dataset_version: "2026.11.15", colors: 7 };
+        return {
+          colors: 7,
+          ofdb: { last_result: "updated", dataset_version: "2026.11.15" },
+          bambustudio: { last_result: "updated" },
+        };
       },
     });
     render(CatalogPage);
@@ -444,14 +481,18 @@ describe("Catalog page", () => {
     signIn("admin");
     serve({
       "GET /catalog": NEVER,
-      "POST /catalog/sync": { last_result: "failed", last_reason: "could not reach OFDB" },
+      "POST /catalog/sync": {
+        colors: 0,
+        ofdb: { last_result: "failed", last_reason: "could not reach OFDB" },
+        bambustudio: { last_result: "failed", last_reason: "could not reach GitHub" },
+      },
     });
     render(CatalogPage);
 
     await userEvent.click(await screen.findByRole("button", { name: "Refresh now" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Sync failed: could not reach OFDB.",
+      "OFDB sync failed: could not reach OFDB. BambuStudio sync failed: could not reach GitHub.",
     );
   });
 
@@ -468,6 +509,119 @@ describe("Catalog page", () => {
     fail = false;
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Jade White")).toBeInTheDocument();
+  });
+});
+
+describe("Catalog page: Bambu codes, owned colors and Find in store", () => {
+  it("shows a color's Bambu code after its hex, and nothing for a color without one", async () => {
+    await open();
+
+    const jade = await screen.findByRole("button", { name: /^Jade White #FFFFFF/ });
+    expect(jade).toHaveTextContent("#FFFFFF Bambu code 10100");
+    expect(within(jade).getByText("Bambu code", { exact: false })).toHaveClass("sr-only");
+    const azure = row("Azure", "489FDF");
+    expect(azure).not.toHaveTextContent("Bambu code");
+    expect(azure).not.toHaveTextContent("—");
+  });
+
+  it("searches Bambu codes", async () => {
+    await open();
+
+    await screen.findByText("Jade White");
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search line or color" }), "10100");
+
+    expect(headings()).toEqual(["PLA Basic · PLA · 1 of 2 colors"]);
+    expect(summary()).toBe("1 of 6 catalog colors in 1 filament line");
+  });
+
+  it("badges an owned color with its summed counts", async () => {
+    await open();
+
+    await screen.findByText("Jade White");
+    expect(
+      within(row("Jade White", "FFFFFF")).getByText("Owned · 2 sealed · 2 open"),
+    ).toBeVisible();
+    expect(within(row("Blue", "0A2CA5")).queryByText(/^Owned/)).toBeNull();
+  });
+
+  it("lists the owned products, then the linked ones with none in stock, then similar colors", async () => {
+    await open();
+
+    const jade = await screen.findByRole("button", { name: /^Jade White #FFFFFF/ });
+    await userEvent.click(jade);
+
+    const detail = document.getElementById(jade.getAttribute("aria-controls") ?? "")!;
+    const order = [...detail.querySelectorAll("h4, li, p.linked-none, a.store")].map((el) =>
+      el.textContent?.replace(/\s+/g, " ").trim(),
+    );
+    expect(order).toEqual([
+      "Owned",
+      "PLA Basic Jade White From its tag 2 sealed · 1 open",
+      "White PLA Linked by hand 1 open",
+      "Linked: Silk White, none in stock",
+      "Similar in-stock colors",
+      "Find in store (opens in a new tab)",
+    ]);
+    const inside = within(detail);
+    expect(inside.getByRole("link", { name: "PLA Basic Jade White" })).toHaveAttribute(
+      "href",
+      "/spools?q=PLA%20Basic%20Jade%20White",
+    );
+    expect(inside.getByRole("link", { name: "Silk White" })).toHaveAttribute(
+      "href",
+      "/spools?q=Silk%20White",
+    );
+  });
+
+  it("finds a color in the store by its Bambu code, in a new tab", async () => {
+    await open();
+
+    const jade = await screen.findByRole("button", { name: /^Jade White #FFFFFF/ });
+    await userEvent.click(jade);
+
+    const link = detailOf(jade).getByRole("link", { name: "Find in store (opens in a new tab)" });
+    expect(link).toHaveAttribute("href", "https://us.store.bambulab.com/search?q=10100");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+  });
+
+  it("finds a color without a Bambu code by its line and name, multi-color too", async () => {
+    await open({ ...SYNCED, store_address: "https://eu.store.bambulab.com" });
+
+    const dual = await screen.findByRole("button", { name: /^Gold-Silver/ });
+    await userEvent.click(dual);
+
+    expect(
+      detailOf(dual).getByRole("link", { name: "Find in store (opens in a new tab)" }),
+    ).toHaveAttribute(
+      "href",
+      "https://eu.store.bambulab.com/search?q=PLA%20Silk%20Dual%20Color%20Gold-Silver",
+    );
+  });
+
+  it("shows only owned colors, and says when nothing owned matches", async () => {
+    await open();
+
+    await screen.findByText("Jade White");
+    const chip = screen.getByRole("button", { name: "Owned" });
+    await userEvent.click(chip);
+
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    expect(headings()).toEqual(["PLA Basic · PLA · 1 of 2 colors"]);
+    expect(summary()).toBe("1 of 6 catalog colors in 1 filament line");
+    await userEvent.click(screen.getByRole("button", { name: "Has similar in stock" }));
+    expect(screen.getByText(/No catalog colors match/)).toBeInTheDocument();
+    expect(summary()).toBe("0 of 6 catalog colors in 0 filament lines");
+  });
+
+  it("credits BambuStudio's color code list and its license", async () => {
+    await open();
+
+    expect(
+      await screen.findByText(
+        "Bambu codes matched to tags using BambuStudio's color code list (AGPL-3.0)",
+      ),
+    ).toBeInTheDocument();
   });
 });
 
@@ -541,5 +695,23 @@ describe("Catalog page on a phone", () => {
     expect(sheet.getByRole("button", { name: "Show 6 colors" })).toBeInTheDocument();
     await userEvent.click(sheet.getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("offers Owned as a quick filter and in the sheet", async () => {
+    await open();
+
+    await screen.findByText("Jade White");
+    const quick = within(screen.getByRole("group", { name: "Quick filters" }));
+    await userEvent.click(quick.getByRole("button", { name: "Owned" }));
+    expect(summary()).toBe("1 of 6 catalog colors in 1 filament line");
+
+    await userEvent.click(screen.getByRole("button", { name: "Filter, 1 on" }));
+    const sheet = within(screen.getByRole("dialog", { name: "Filter" }));
+    const owned = sheet.getByRole("checkbox", { name: "Owned" });
+    expect(owned).toBeChecked();
+    await userEvent.click(owned);
+    await userEvent.click(sheet.getByRole("button", { name: "Show 6 colors" }));
+
+    expect(summary()).toBe("6 catalog colors in 4 filament lines");
   });
 });

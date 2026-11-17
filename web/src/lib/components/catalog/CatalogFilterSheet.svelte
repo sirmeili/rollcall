@@ -94,6 +94,10 @@
   <section aria-labelledby="catalog-show-h">
     <h3 id="catalog-show-h" class="label">Show</h3>
     <label class="check">
+      <input type="checkbox" bind:checked={draft.owned} />
+      Owned
+    </label>
+    <label class="check">
       <input type="checkbox" bind:checked={draft.similarOnly} />
       Has similar in stock
     </label>

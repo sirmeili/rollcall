@@ -26,6 +26,7 @@ from filament_tracker.decoder import DecodeError, TagRecord, decode
 from filament_tracker.domain.actions import ScreenAction, menu_for
 from filament_tracker.domain.enums import EventSource, EventType, Role
 from filament_tracker.domain.state import Outcome
+from filament_tracker.services.catalog_links import link_product
 from filament_tracker.services.events import AppendResult, append_event
 
 logger = logging.getLogger(__name__)
@@ -198,6 +199,10 @@ def _ensure_product(session: Session, product: Product | None, record: TagRecord
         product.variant_id = record.variant_id
         product.color_rgba = record.color_rgba
         product.provisional = False
+    else:
+        return product
+    # A new product, or a provisional one now known, is linked to its catalog color at once.
+    link_product(session, product)
     return product
 
 

@@ -155,3 +155,61 @@ def test_products_already_made_from_the_ams_are_marked(tmp_path: Path) -> None:
         marked = connection.execute(text("SELECT id, from_ams FROM product ORDER BY id")).all()
     engine.dispose()
     assert [tuple(row) for row in marked] == [(1, 1), (2, 0), (3, 0)]
+
+
+def test_catalog_links_upgrade_a_synced_catalog_with_products(tmp_path: Path) -> None:
+    # Products have spools pointing at them and the catalog has synced: a migration that
+    # copies and drops product fails on it.
+    url = f"sqlite:///{tmp_path / 'synced.db'}"
+    upgrade(url, "d02002b943bd")
+    engine = create_db_engine(url)
+    when = "2026-11-16 12:00:00.000000"
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO product (id, material_id, variant_id, filament_type, color_rgba,"
+                " display_name, low_stock_threshold, nearly_out_pct, provisional, from_ams,"
+                " created_at) VALUES (1, 'GFA00', 'A00-K0', 'PLA', '000000FF', 'PLA Basic Black',"
+                " 0, 15, 0, 0, :when)"
+            ),
+            {"when": when},
+        )
+        connection.execute(
+            text("INSERT INTO spool (id, product_id, tray_uid, created_at) VALUES (1, 1, :t, :w)"),
+            {"t": "A" * 32, "w": when},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO catalog_sync (started_at, finished_at, result, dataset_version)"
+                " VALUES (:w, :w, 'updated', '2026.11.15')"
+            ),
+            {"w": when},
+        )
+    engine.dispose()
+
+    upgrade(url)
+
+    engine = create_db_engine(url)
+    with engine.connect() as connection:
+        sync = connection.execute(text("SELECT source, dataset_version FROM catalog_sync")).all()
+        product = connection.execute(
+            text(
+                "SELECT display_name, catalog_auto_uuid, catalog_manual_uuid, catalog_manual_by"
+                " FROM product"
+            )
+        ).all()
+        spools = connection.execute(text("SELECT count(*) FROM spool")).scalar()
+    engine.dispose()
+    # The syncs so far were OFDB's; products are linked by the next sync.
+    assert [tuple(row) for row in sync] == [("ofdb", "2026.11.15")]
+    assert [tuple(row) for row in product] == [("PLA Basic Black", None, None, None)]
+    assert spools == 1
+
+    downgrade(url, "d02002b943bd")
+
+    engine = create_db_engine(url)
+    columns = [c["name"] for c in inspect(engine).get_columns("product")]
+    tables = inspect(engine).get_table_names()
+    engine.dispose()
+    assert not [c for c in columns if c.startswith("catalog_")]
+    assert "bambu_color_code" not in tables

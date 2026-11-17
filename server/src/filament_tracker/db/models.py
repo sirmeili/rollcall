@@ -64,6 +64,19 @@ class Product(Base):
     # Made from an AMS report rather than by hand ("From the AMS" while provisional).
     from_ams: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    # Catalog links (ADR-0016): catalog color UUIDs, not foreign keys, since a sync replaces
+    # the catalog. The effective link is the manual one if set, otherwise the automatic one.
+    # Only a catalog sync and a scan write the automatic one.
+    catalog_auto_uuid: Mapped[str | None] = mapped_column(String(36))
+    catalog_manual_uuid: Mapped[str | None] = mapped_column(String(36))
+    # Who set the manual link: a user ID, without a foreign key so the column can be added
+    # and dropped in place (users are disabled, never deleted).
+    catalog_manual_by: Mapped[int | None]
+    catalog_manual_at: Mapped[datetime | None]
+    # The manual link's filament line and color name when last seen in the catalog, so a
+    # link to a color the catalog has dropped can still say what it was.
+    catalog_manual_line: Mapped[str | None] = mapped_column(String(200))
+    catalog_manual_name: Mapped[str | None] = mapped_column(String(200))
 
     spools: Mapped[list["Spool"]] = relationship(back_populates="product")
 

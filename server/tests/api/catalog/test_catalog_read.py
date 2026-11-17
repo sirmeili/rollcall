@@ -3,7 +3,7 @@
 from api_helpers import CSRF, admin, browser, signed_in
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from ofdb_fake import FakeOfdb, export, gz, ok, refresh, status, variant
+from ofdb_fake import FakeSource, export, gz, ok, refresh, status, variant
 
 from filament_tracker.domain.enums import Role
 
@@ -34,7 +34,7 @@ def test_lists_filament_lines_with_their_catalog_colors_in_catalog_order(
 
     assert body["synced"] is True
     assert body["dataset_version"] == "2026.11.14"
-    assert body["last_success_at"] == synced["last_success_at"]
+    assert body["last_success_at"] == synced["ofdb"]["last_success_at"]
     assert [(line["name"], line["material"]) for line in body["lines"]] == [
         ("PLA Basic", "PLA"),
         ("PETG HF", "PETG"),
@@ -55,7 +55,7 @@ def test_lists_filament_lines_with_their_catalog_colors_in_catalog_order(
 
 
 def test_says_which_multi_color_catalog_colors_are_gradients(
-    client: TestClient, ofdb: FakeOfdb
+    client: TestClient, ofdb: FakeSource
 ) -> None:
     data = export()
     for v in data["variants"]:
@@ -87,7 +87,7 @@ def test_says_which_multi_color_catalog_colors_are_gradients(
     }
 
 
-def test_a_failed_sync_still_reads_the_last_good_copy(client: TestClient, ofdb: FakeOfdb) -> None:
+def test_a_failed_sync_still_reads_the_last_good_copy(client: TestClient, ofdb: FakeSource) -> None:
     refresh(client)
     ofdb.serve(status(500))
     refresh(client)

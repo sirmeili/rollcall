@@ -1,13 +1,15 @@
 /** The Catalog page's search and filters, run over the whole catalog in the browser. */
 
-import type { CatalogColor, FilamentLine } from "#lib/api/catalog.ts";
+import type { CatalogColor, FilamentLine, LinkHow } from "#lib/api/catalog.ts";
 import { chosenTypes } from "#lib/inventory.ts";
 
 export interface CatalogFilter {
-  /** Matches filament line or catalog color names. */
+  /** Matches filament line or catalog color names, or Bambu codes. */
   query: string;
   /** Materials to show; none picked shows them all. */
   types: string[];
+  /** Only owned catalog colors. */
+  owned: boolean;
   /** Only catalog colors with a similar in-stock color. */
   similarOnly: boolean;
   /** Discontinued catalog colors are hidden unless this is on. */
@@ -23,7 +25,7 @@ export interface LineGroup {
 }
 
 export function noFilter(): CatalogFilter {
-  return { query: "", types: [], similarOnly: false, showDiscontinued: false };
+  return { query: "", types: [], owned: false, similarOnly: false, showDiscontinued: false };
 }
 
 /** The materials in the catalog, in the order their first filament line comes. */
@@ -46,6 +48,7 @@ export function materialCounts(
 export function activeFilters(filter: CatalogFilter, available: string[]): number {
   return (
     (chosenTypes(filter.types, available).length > 0 ? 1 : 0) +
+    (filter.owned ? 1 : 0) +
     (filter.similarOnly ? 1 : 0) +
     (filter.showDiscontinued ? 1 : 0)
   );
@@ -56,6 +59,7 @@ export function isFiltered(filter: CatalogFilter): boolean {
   return (
     filter.query.trim() !== "" ||
     filter.types.length > 0 ||
+    filter.owned ||
     filter.similarOnly ||
     filter.showDiscontinued
   );
@@ -72,12 +76,17 @@ export function applyFilter(lines: FilamentLine[], filter: CatalogFilter): LineG
     const lineMatches = query !== "" && line.name.toLowerCase().includes(query);
     const colors = pool.filter(
       (color) =>
+        (!filter.owned || color.owned) &&
         (!filter.similarOnly || color.similar.length > 0) &&
-        (!query || lineMatches || color.name.toLowerCase().includes(query)),
+        (!query || lineMatches || colorMatches(color, query)),
     );
     if (colors.length) groups.push({ line, colors, total: pool.length });
   }
   return groups;
+}
+
+function colorMatches(color: CatalogColor, query: string): boolean {
+  return color.name.toLowerCase().includes(query) || (color.bambu_code ?? "").includes(query);
 }
 
 export function countColors(groups: LineGroup[]): number {
@@ -111,6 +120,35 @@ export function lineCountText(group: LineGroup): string {
 /** "2 sealed · 1 open" */
 export function stockText(sealed: number, open: number): string {
   return [sealed ? `${sealed} sealed` : "", open ? `${open} open` : ""].filter(Boolean).join(" · ");
+}
+
+/** "Owned · 2 sealed · 1 open": the counts summed over the color's owned products. */
+export function ownedText(color: CatalogColor): string {
+  const sealed = color.owned_products.reduce((sum, p) => sum + p.sealed, 0);
+  const open = color.owned_products.reduce((sum, p) => sum + p.open, 0);
+  return `Owned · ${stockText(sealed, open)}`;
+}
+
+/** "From its tag" or "Linked by hand" */
+export function howText(how: LinkHow): string {
+  return how === "hand" ? "Linked by hand" : "From its tag";
+}
+
+/** The store's search for a catalog color: by its Bambu code, or else by its filament
+ * line and color name ("PLA Basic Green"). */
+export function storeUrl(storeAddress: string, lineName: string, color: CatalogColor): string {
+  return storeSearchUrl(storeAddress, lineName, color.name, color.bambu_code);
+}
+
+/** The store's search by Bambu code, or else by filament line and color name. */
+export function storeSearchUrl(
+  storeAddress: string,
+  lineName: string,
+  colorName: string,
+  bambuCode: string | null,
+): string {
+  const q = bambuCode ?? `${lineName} ${colorName}`;
+  return `${storeAddress}/search?q=${encodeURIComponent(q)}`;
 }
 
 /** "ΔE 3.1" */

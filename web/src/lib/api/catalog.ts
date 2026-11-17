@@ -1,19 +1,27 @@
-/** Calls for the catalog: a local copy of the Open Filament Database's Bambu Lab colors.
- * Anyone signed in reads it; the sync status and Refresh now are Admin only. */
+/** Calls for the catalog: local copies of the Open Filament Database's Bambu Lab colors and
+ * BambuStudio's color code list. Anyone signed in reads it; the sync status and Refresh now
+ * are Admin only. */
 
 import { api } from "#lib/api/client.ts";
 
 export type SyncResult = "updated" | "not_modified" | "failed";
 
-export interface SyncStatus {
+/** One source's syncs: OFDB's export or BambuStudio's color code list. */
+export interface SourceStatus {
   last_success_at: string | null;
   last_attempt_at: string | null;
   last_result: SyncResult | null;
   /** Why the last attempt failed, when it did. */
   last_reason: string | null;
+  /** OFDB's only; always null for BambuStudio's list. */
   dataset_version: string | null;
+}
+
+export interface SyncStatus {
   /** Catalog colors in the copy in use. */
   colors: number;
+  ofdb: SourceStatus;
+  bambustudio: SourceStatus;
 }
 
 /** An in-stock product whose color is close to a catalog color. */
@@ -29,6 +37,27 @@ export interface SimilarColor {
   different_material: boolean;
 }
 
+/** How a product's catalog link was made: from its tag, or by hand. */
+export type LinkHow = "tag" | "hand";
+
+/** An in-stock product linked to a catalog color. */
+export interface OwnedProduct {
+  product_id: number;
+  name: string;
+  /** RRGGBB */
+  hex: string;
+  material: string;
+  how: LinkHow;
+  sealed: number;
+  open: number;
+}
+
+/** A product linked to a catalog color, with no Sealed or Open spool. */
+export interface LinkedProduct {
+  product_id: number;
+  name: string;
+}
+
 export interface CatalogColor {
   uuid: string;
   name: string;
@@ -38,8 +67,17 @@ export interface CatalogColor {
   multi_color: boolean;
   /** A multi-color one whose colors blend along the filament, not side by side. */
   gradient: boolean;
-  /** In-stock products within the cutoff, closest first; empty for a multi-color one. */
+  /** The 5-digit number Bambu Lab sells it under; null when it has none. */
+  bambu_code: string | null;
+  /** In-stock products within the cutoff and not linked to it, closest first; empty for a
+   * multi-color one. */
   similar: SimilarColor[];
+  /** A product linked to it has a Sealed or Open spool. */
+  owned: boolean;
+  /** Its linked products with a Sealed or Open spool, by name. */
+  owned_products: OwnedProduct[];
+  /** Its linked products with none in stock, by name. */
+  linked_none_in_stock: LinkedProduct[];
 }
 
 export interface FilamentLine {
@@ -59,6 +97,8 @@ export interface Catalog {
   cutoff: number;
   /** Syncs have failed for 14 days since the last success. */
   out_of_date: boolean;
+  /** The store Find in store searches, without a trailing slash. */
+  store_address: string;
 }
 
 /** Every filament line with its catalog colors (Viewer and above). */

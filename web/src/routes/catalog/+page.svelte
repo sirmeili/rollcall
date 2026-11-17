@@ -1,6 +1,7 @@
 <script lang="ts">
   /** The Catalog page: every Bambu Lab color, by filament line, from the local copy of the
-   * Open Filament Database. Search and filters run here over the one catalog read. */
+   * Open Filament Database, with what is owned and a way to buy it. Search and filters run
+   * here over the one catalog read. */
   import { type Catalog, getCatalog } from "#lib/api/catalog.ts";
   import { describeError } from "#lib/api/errors.ts";
   import { session } from "#lib/auth/session.svelte.ts";
@@ -24,7 +25,7 @@
   let filter = $state<CatalogFilter>(noFilter());
   let collapsed = $state<Set<string>>(new Set());
   let sheetOpen = $state(false);
-  // One catalog color at a time shows its similar in-stock colors.
+  // One catalog color at a time is expanded.
   let expanded = $state<string | null>(null);
 
   const screen = viewport();
@@ -94,6 +95,7 @@
             open={!collapsed.has(group.line.uuid)}
             ontoggle={() => toggle(group.line.uuid)}
             cutoff={catalog.cutoff}
+            storeAddress={catalog.store_address}
             {expanded}
             onexpand={(uuid) => (expanded = expanded === uuid ? null : uuid)}
           />
@@ -107,6 +109,9 @@
       {#if catalog.out_of_date}
         · <span class="stale">Catalog may be out of date</span>
       {/if}
+    </p>
+    <p class="pagefoot credit">
+      Bambu codes matched to tags using BambuStudio's color code list (AGPL-3.0)
     </p>
   {/if}
 </div>
@@ -136,6 +141,10 @@
     margin: 8px 0 0;
     font-size: 13px;
     color: var(--muted);
+  }
+
+  .credit {
+    margin-top: -12px;
   }
 
   .stale {

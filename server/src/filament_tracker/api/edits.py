@@ -20,6 +20,7 @@ from filament_tracker.db.models import Product, Spool
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import EventType
 from filament_tracker.services import edits, queries
+from filament_tracker.services.catalog_links import UnknownColor, set_manual
 
 router = APIRouter(tags=["edits"])
 
@@ -129,15 +130,22 @@ def add_product(body: ProductCreate, _: Editor, session: DbSession) -> ProductDe
 
 @router.patch("/products/{product_id}", response_model=ProductDetail)
 def update_product(
-    product_id: int, body: ProductUpdate, _: Editor, session: DbSession
+    product_id: int, body: ProductUpdate, caller: Editor, session: DbSession
 ) -> ProductDetail:
-    """Set the display name, low-stock threshold or nearly-out %. Fields left out are not
-    changed."""
+    """Set the display name, low-stock threshold or nearly-out %, or link the product to a
+    catalog color by hand (null clears that link). Fields left out are not changed."""
     product = _product(session, product_id)
-    for name in body.model_fields_set:
+    for name in body.model_fields_set - {"catalog_color"}:
         value = getattr(body, name)
         if value is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"{name} cannot be null")
         setattr(product, name, value)
+    if "catalog_color" in body.model_fields_set:
+        try:
+            set_manual(session, product, body.catalog_color, _user_id(caller), utcnow())
+        except UnknownColor:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "no such catalog color"
+            ) from None
     session.commit()
     return product_detail(product)

@@ -26,7 +26,13 @@
   }
 </script>
 
-{#snippet similarChip()}
+{#snippet stockChips()}
+  <button
+    type="button"
+    class="chip"
+    aria-pressed={filter.owned}
+    onclick={() => (filter.owned = !filter.owned)}>Owned</button
+  >
   <button
     type="button"
     class="chip"
@@ -87,7 +93,7 @@
 
   <div class="chiprow" role="group" aria-label={phone ? "Quick filters" : "Filters"}>
     {#if phone}
-      {@render similarChip()}
+      {@render stockChips()}
       {#if typeText}
         <span class="onchip">
           <button type="button" class="lb" onclick={onopen}>{typeText}</button>
@@ -120,7 +126,7 @@
         >
       {/each}
       <span class="sep" aria-hidden="true"></span>
-      {@render similarChip()}
+      {@render stockChips()}
       <button
         type="button"
         class="chip"

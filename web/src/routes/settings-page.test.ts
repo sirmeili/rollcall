@@ -58,6 +58,14 @@ function form(name: string) {
   return within(screen.getByRole("form", { name }));
 }
 
+const NEVER_SYNCED = {
+  last_success_at: null,
+  last_attempt_at: null,
+  last_result: null,
+  last_reason: null,
+  dataset_version: null,
+};
+
 function serve(routes: Parameters<typeof fakeFetch>[0]) {
   const fetch = fakeFetch({
     "GET /settings/general": GENERAL,
@@ -65,14 +73,7 @@ function serve(routes: Parameters<typeof fakeFetch>[0]) {
     "GET /settings/home-assistant": group(),
     "GET /tokens": [],
     "GET /settings/catalog": { group: "catalog", settings: [] },
-    "GET /catalog/sync": {
-      last_success_at: null,
-      last_attempt_at: null,
-      last_result: null,
-      last_reason: null,
-      dataset_version: null,
-      colors: 0,
-    },
+    "GET /catalog/sync": { colors: 0, ofdb: NEVER_SYNCED, bambustudio: NEVER_SYNCED },
     ...routes,
   });
   vi.stubGlobal("fetch", fetch);

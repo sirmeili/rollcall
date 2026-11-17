@@ -1,16 +1,15 @@
 <script lang="ts">
-  /** The Catalog card's sync status, and Refresh now. */
+  /** The Catalog card's sync status, for each of its two sources, and Refresh now, which
+   * syncs both. */
   import { getSyncStatus, refreshCatalog, type SyncStatus } from "#lib/api/catalog.ts";
   import { describeError } from "#lib/api/errors.ts";
-  import { attemptNote, failureText, refreshText, versionText } from "#lib/catalog-sync.ts";
-  import { dateTime } from "#lib/format.ts";
+  import { refreshText, SOURCES } from "#lib/catalog-sync.ts";
+  import SourceSyncStatus from "#lib/components/settings/SourceSyncStatus.svelte";
 
   let status = $state<SyncStatus | null>(null);
   let failure = $state<string | null>(null);
   let message = $state<string | null>(null);
   let busy = $state(false);
-
-  const warning = $derived(status ? failureText(status) : null);
 
   async function load(): Promise<void> {
     try {
@@ -27,11 +26,10 @@
 
   async function refresh(): Promise<void> {
     busy = true;
-    message = "Checking for a new version…";
-    const before = status;
+    message = "Checking both sources for a new version…";
     try {
       status = await refreshCatalog();
-      message = refreshText(before, status);
+      message = refreshText(status);
     } catch (error) {
       message = describeError(error);
     } finally {
@@ -47,44 +45,15 @@
   {:else if !status}
     <p class="muted">Loading…</p>
   {:else}
-    {#if warning}
-      <div class="fail" role="alert">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.4"
-          aria-hidden="true"
-          ><path
-            d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"
-          ></path></svg
-        >
-        <span>{warning}</span>
-      </div>
-    {/if}
-    <dl>
-      <div>
-        <dt>Last successful sync</dt>
-        <dd class="mono">
-          {status.last_success_at ? dateTime(status.last_success_at) : "Never"}
-        </dd>
-      </div>
-      <div>
-        <dt>Last attempt</dt>
-        <dd>
-          <span class="mono"
-            >{status.last_attempt_at ? dateTime(status.last_attempt_at) : "Never"}</span
-          >
-          {#if status.last_result}<span class="note">{attemptNote(status)}</span>{/if}
-        </dd>
-      </div>
-      <div>
-        <dt>Dataset version</dt>
-        <dd class="mono">{versionText(status.dataset_version)}</dd>
-      </div>
-    </dl>
+    {#each SOURCES as source (source.key)}
+      <SourceSyncStatus
+        id="catalog-{source.key}"
+        name={source.name}
+        host={source.host}
+        status={status[source.key]}
+        version={source.key === "ofdb"}
+      />
+    {/each}
   {/if}
   <div class="buttons">
     <button type="button" disabled={busy} onclick={refresh}>Refresh now</button>
@@ -96,59 +65,11 @@
   .status {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
   }
 
   h3 {
     margin: 0;
-  }
-
-  dl {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px 20px;
-    margin: 0;
-  }
-
-  dt {
-    font-size: 12px;
-    color: var(--muted);
-    font-weight: 600;
-  }
-
-  dd {
-    margin: 3px 0 0;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .mono {
-    font-family: var(--font-mono);
-  }
-
-  .note {
-    display: block;
-    font-weight: 500;
-    color: var(--muted);
-    font-size: 13px;
-  }
-
-  .fail {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    padding: 12px 14px;
-    border-radius: 12px;
-    background: var(--lowbg);
-    color: var(--lowtext);
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1.45;
-  }
-
-  .fail svg {
-    flex: none;
-    margin-top: 2px;
   }
 
   .buttons {

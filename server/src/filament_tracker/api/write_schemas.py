@@ -71,10 +71,18 @@ class ProductCreate(Strict):
     nearly_out_pct: NearlyOut = 15
 
 
+CatalogColor = Annotated[str, StringConstraints(min_length=1, max_length=36)]
+
+
 class ProductUpdate(Strict):
     display_name: Name | None = None
     low_stock_threshold: Threshold | None = None
     nearly_out_pct: NearlyOut | None = None
+    catalog_color: CatalogColor | None = Field(
+        default=None,
+        description="A catalog color's UUID links the product by hand; null clears the manual "
+        "link; left out, the link is unchanged",
+    )
 
 
 class ActionResult(BaseModel):

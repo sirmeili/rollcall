@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { ProductSummary } from "#lib/api/types.ts";
+  import type { CatalogEntry } from "#lib/catalog-links.ts";
+  import CatalogColorCell from "#lib/components/products/CatalogColorCell.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
   import { hexText } from "#lib/format.ts";
   import { type Draft, draftProblem, sourceText, spoolCount } from "#lib/products.ts";
@@ -8,9 +10,13 @@
     items: ProductSummary[];
     /** Editable values by product ID; null shows the saved values read-only (Viewers). */
     drafts: Record<number, Draft> | null;
+    /** Catalog colors by UUID, for a staged catalog color; empty until the catalog is read. */
+    entries?: Map<string, CatalogEntry>;
+    /** Opens the Catalog color dialog; absent for Viewers. */
+    onopen?: (productId: number, opener: HTMLElement) => void;
   }
 
-  let { items, drafts }: Props = $props();
+  let { items, drafts, entries = new Map(), onopen }: Props = $props();
 </script>
 
 <div class="tablebox">
@@ -20,6 +26,7 @@
         <th scope="col" class="name">Display name</th>
         <th scope="col">Type</th>
         <th scope="col">Color</th>
+        <th scope="col">Catalog color</th>
         <th scope="col">Spools</th>
         <th scope="col">Low at ≤ (sealed)</th>
         <th scope="col">Nearly out at ≤</th>
@@ -54,6 +61,15 @@
           </td>
           <td class="mono muted">{product.filament_type}</td>
           <td class="mono muted">#{hexText(product.color_rgba)}</td>
+          <td class="catalog">
+            <CatalogColorCell
+              productName={product.display_name}
+              link={product.catalog_link}
+              staged={draft?.catalog_color}
+              stagedEntry={draft?.catalog_color ? entries.get(draft.catalog_color) : undefined}
+              onopen={onopen ? (opener) => onopen(product.id, opener) : undefined}
+            />
+          </td>
           <td class="mono strong">{spoolCount(item)}</td>
           <td>
             {#if draft}
@@ -98,11 +114,15 @@
 
 <style>
   table {
-    min-width: 980px;
+    min-width: 1180px;
   }
 
   .name {
-    width: 36%;
+    width: 30%;
+  }
+
+  .catalog {
+    min-width: 200px;
   }
 
   .named {

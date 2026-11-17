@@ -7,6 +7,7 @@ import {
   eventBy,
   eventTitle,
   hexText,
+  longDate,
   shortDate,
   STATE_LABELS,
   swatchColor,
@@ -47,6 +48,9 @@ describe("format", () => {
 
   it("formats dates, with the year only when it differs", () => {
     expect(shortDate(null)).toBe("—");
+    expect(longDate(null)).toBe("—");
+    expect(longDate("2026-11-17T12:00:00Z")).toBe("17 Nov 2026");
+    expect(longDate("2025-09-02T12:00:00Z")).toBe("2 Sep 2025");
     expect(shortDate("2026-10-12T12:00:00Z", NOW)).toBe("Oct 12");
     expect(shortDate("2025-10-12T12:00:00Z", NOW)).toBe("Oct 12, 2025");
     expect(dateTime("2026-10-12T12:00:00Z", NOW)).toMatch(/^Oct 12, \d{1,2}:00 (AM|PM)$/);

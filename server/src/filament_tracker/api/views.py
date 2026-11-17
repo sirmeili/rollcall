@@ -4,6 +4,7 @@ from uuid import UUID
 
 from filament_tracker.api.read_schemas import (
     AmsSlotRef,
+    CatalogLinkOut,
     Counts,
     EventOut,
     OpenSpool,
@@ -16,11 +17,33 @@ from filament_tracker.api.read_schemas import (
 )
 from filament_tracker.db.models import Event, Product, Spool, Tag
 from filament_tracker.domain.enums import EventType
+from filament_tracker.services.catalog_links import CatalogLink, catalog_link
 from filament_tracker.services.queries import UNKNOWN, ProductCounts, is_nearly_out
 
 
+def catalog_link_out(link: CatalogLink) -> CatalogLinkOut:
+    color = link.color
+    return CatalogLinkOut(
+        uuid=color.uuid if color else None,
+        name=color.name if color else None,
+        line=color.line if color else None,
+        hexes=color.hexes if color else None,
+        bambu_code=color.bambu_code if color else None,
+        how=link.how,
+        in_catalog=color is not None,
+        linked_by=link.linked_by,
+        linked_at=link.linked_at,
+        was_line=link.was_line,
+        was_name=link.was_name,
+        tag_link_exists=link.tag_link_exists,
+    )
+
+
 def product_detail(product: Product) -> ProductDetail:
-    return ProductDetail.model_validate(product, from_attributes=True)
+    detail = ProductDetail.model_validate(product, from_attributes=True)
+    link = catalog_link(product)
+    detail.catalog_link = catalog_link_out(link) if link else None
+    return detail
 
 
 def product_summary(item: ProductCounts) -> ProductSummary:

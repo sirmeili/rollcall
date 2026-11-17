@@ -21,11 +21,11 @@
     message = "Downloading…";
     try {
       const status = await refreshCatalog();
-      if (status.last_result === "updated") {
+      if (status.ofdb.last_result === "updated") {
         message = null;
         onsynced();
       } else {
-        message = refreshText(null, status);
+        message = refreshText(status);
       }
     } catch (error) {
       message = describeError(error);
