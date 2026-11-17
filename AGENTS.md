@@ -17,7 +17,6 @@ The archived spec, `docs/archive/SPEC-v1.md`, is background only.
 
 - Make the changes the issue describes, and only those. For behaviour already built, the code and its tests are the record.
 - When something is ambiguous, stop and ask.
-- Every acceptance criterion ships with its test.
 - Build `ready-for-agent` issues. A `needs-info` or blocked issue waits.
 - A hard-to-reverse, surprising trade-off gets an ADR in `docs/adr/`, in the same PR.
 

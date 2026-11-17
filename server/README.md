@@ -4,7 +4,7 @@ The FastAPI server for RollCall, and the Docker image it ships in. See the [repo
 
 ## Development
 
-The server needs Python 3.12 and [uv](https://docs.astral.sh/uv/). Run these from `server/` before requesting a review. CI runs the same checks on every PR.
+The server needs Python 3.12 and [uv](https://docs.astral.sh/uv/). Run these from `server/` before requesting a review. CI runs the same checks on every PR. From the repo root, add `--directory server` after `uv run` (for example `uv run --directory server pytest`), or `uv sync --directory server`.
 
 ```sh
 uv sync                        # Install dependencies

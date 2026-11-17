@@ -4,7 +4,7 @@ The SvelteKit web app (TypeScript), built to static files that the server serves
 
 ## Development
 
-The web app needs Node.js 24. Run these from `web/` before requesting a review. CI runs the same checks on every PR.
+The web app needs Node.js 24. Run these from `web/` before requesting a review, or from the repo root in a subshell (for example `(cd web && npm run test:coverage)`); `npm --prefix web` breaks Vitest's coverage run. CI runs the same checks on every PR. Lint is Prettier only; the web app has no ESLint.
 
 ```sh
 npm ci                 # Install dependencies
