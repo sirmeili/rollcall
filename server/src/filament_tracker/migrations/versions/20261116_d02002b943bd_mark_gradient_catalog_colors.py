@@ -16,14 +16,19 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+# Both directions alter catalog_variant in place. Batch mode would copy the table and drop
+# the original, which foreign keys refuse while catalog_size rows point at it.
+
+
 def upgrade() -> None:
-    # A copy synced before this reads as not gradient until the next sync replaces it.
-    with op.batch_alter_table("catalog_variant", schema=None) as batch_op:
-        batch_op.add_column(
-            sa.Column("gradient", sa.Boolean(), server_default=sa.false(), nullable=False)
-        )
+    # A copy synced before this reads as not gradient until the next sync replaces it. A
+    # plain "0" default, not sa.false(), lets SQLite add the column without a copy.
+    op.add_column(
+        "catalog_variant",
+        sa.Column("gradient", sa.Boolean(), server_default="0", nullable=False),
+    )
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("catalog_variant", schema=None) as batch_op:
-        batch_op.drop_column("gradient")
+    # SQLite 3.35 and later drop a column in place.
+    op.execute("ALTER TABLE catalog_variant DROP COLUMN gradient")

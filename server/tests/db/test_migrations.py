@@ -47,6 +47,61 @@ def test_upgrade_from_an_empty_database(tmp_path: Path) -> None:
     engine.dispose()
 
 
+def _catalog_variant_columns(url: str) -> list[str]:
+    engine = create_db_engine(url)
+    columns = [c["name"] for c in inspect(engine).get_columns("catalog_variant")]
+    engine.dispose()
+    return columns
+
+
+def test_the_gradient_column_comes_and_goes_with_a_synced_catalog(tmp_path: Path) -> None:
+    # A synced catalog has sizes referencing its colors, and foreign keys are on: a migration
+    # that copies and drops catalog_variant fails on it.
+    url = f"sqlite:///{tmp_path / 'synced.db'}"
+    upgrade(url, "06a52b9751a5")
+    engine = create_db_engine(url)
+    with engine.begin() as connection:
+        connection.execute(
+            text("INSERT INTO catalog_brand VALUES ('b', 'Bambu Lab', '[]')"),
+        )
+        connection.execute(
+            text(
+                "INSERT INTO catalog_filament (uuid, brand_uuid, position, name, material,"
+                " moved_from) VALUES ('f', 'b', 0, 'PLA Basic Gradient', 'PLA', '[]')"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO catalog_variant (uuid, filament_uuid, position, name, color_hex,"
+                " extra_hexes, discontinued, moved_from)"
+                " VALUES ('v', 'f', 0, 'Dusk Glare', 'ED9558', '[\"CE4406\"]', 0, '[]')"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO catalog_size (uuid, variant_uuid, filament_weight, refill,"
+                " discontinued, purchase_links, moved_from) VALUES ('s', 'v', 1000, 0, 0, '[]',"
+                " '[]')"
+            )
+        )
+    engine.dispose()
+
+    upgrade(url)
+
+    engine = create_db_engine(url)
+    with engine.connect() as connection:
+        rows = connection.execute(text("SELECT uuid, gradient FROM catalog_variant")).all()
+        sizes = connection.execute(text("SELECT count(*) FROM catalog_size")).scalar()
+    engine.dispose()
+    # Not known until the next sync fills it in.
+    assert [tuple(row) for row in rows] == [("v", 0)]
+    assert sizes == 1
+
+    downgrade(url, "06a52b9751a5")
+
+    assert "gradient" not in _catalog_variant_columns(url)
+
+
 def test_products_already_made_from_the_ams_are_marked(tmp_path: Path) -> None:
     url = f"sqlite:///{tmp_path / 'old.db'}"
     upgrade(url, "92998d06ecab")
