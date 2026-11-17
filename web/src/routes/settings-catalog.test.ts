@@ -516,7 +516,7 @@ describe("Settings page, Catalog card form", () => {
       "PUT /settings/catalog": () =>
         new Response(
           JSON.stringify({
-            detail: { problems: { store_address: "use an https address with no path" } },
+            detail: { problems: { store_address: "Enter an https address with no path" } },
           }),
           { status: 422 },
         ),

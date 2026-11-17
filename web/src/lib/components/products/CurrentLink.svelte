@@ -7,7 +7,7 @@
     droppedText,
     handText,
     linkName,
-    type Pick,
+    type LinkPick,
   } from "#lib/catalog-links.ts";
   import Ring from "#lib/components/ui/Ring.svelte";
 
@@ -15,7 +15,7 @@
     /** The saved link. */
     link: CatalogLink | null;
     /** The change picked, if any, and the color it picks. */
-    change: Pick;
+    change: LinkPick;
     entry: CatalogEntry | undefined;
     /** Who is signed in, for "Linked by hand by … when you save". */
     me: string;

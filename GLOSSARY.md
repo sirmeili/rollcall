@@ -136,6 +136,10 @@ A catalog color with at least one Sealed or Open spool of its linked product. A 
 The 5-digit number Bambu Lab sells a catalog color under, such as 10204 for PLA Basic Hot Pink.
 _Avoid_: Color code, article number, SKU
 
+**BambuStudio color code**:
+The short code BambuStudio's color code list gives each color of a filament ID, such as K0. With the filament ID it makes a tag's variant ID (GFA00 and K0 make A00-K0), which is how a tag finds its Bambu code. It is never shown in the app.
+_Avoid_: Color code on its own (that is easily confused with the Bambu code)
+
 **Similar in-stock color**:
 An in-stock product whose color is within the similarity cutoff of a catalog color, in any material.
 _Avoid_: Closest color

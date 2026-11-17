@@ -83,7 +83,7 @@ def similarity_cutoff(value: str) -> str:
     return f"{cutoff:g}"
 
 
-STORE_ADDRESS_PROBLEM = "use an https address with no path, like https://us.store.bambulab.com"
+STORE_ADDRESS_PROBLEM = "Enter an https address with no path, like https://us.store.bambulab.com"
 
 
 def store_address(value: str) -> str:

@@ -170,3 +170,17 @@ def test_the_time_zone_defaults_to_utc_and_is_checked(monkeypatch: pytest.Monkey
     with pytest.raises(ValidationError) as error:
         Settings(_env_file=None)  # type: ignore[call-arg]
     assert "Mars/Olympus" not in str(error.value)
+
+
+def test_the_store_address_defaults_to_the_us_store_and_is_checked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("STORE_ADDRESS", raising=False)
+    assert Settings(_env_file=None).store_address == "https://us.store.bambulab.com"
+
+    monkeypatch.setenv("STORE_ADDRESS", " https://eu.store.bambulab.com/ ")
+    assert Settings(_env_file=None).store_address == "https://eu.store.bambulab.com"
+
+    monkeypatch.setenv("STORE_ADDRESS", "https://eu.store.bambulab.com/search")
+    with pytest.raises(ValidationError, match="Enter an https address with no path"):
+        Settings(_env_file=None)

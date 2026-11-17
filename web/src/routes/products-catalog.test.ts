@@ -211,7 +211,7 @@ describe("Products page, Catalog color dialog", () => {
     const current = within(dialog.getByRole("group", { name: "Current link" }));
     expect(current.getByText("PLA Basic · Jade White")).toBeInTheDocument();
     expect(current.getByText("10100")).toBeInTheDocument();
-    expect(current.getByText("Linked by hand by frank, Nov 17")).toBeInTheDocument();
+    expect(current.getByText("Linked by hand by frank, 17 Nov 2026")).toBeInTheDocument();
     expect(dialog.getByRole("button", { name: "Clear" })).toBeEnabled();
     expect(
       dialog.getByText("This product has no tag, so clearing leaves it not linked."),
@@ -239,7 +239,7 @@ describe("Products page, Catalog color dialog", () => {
     expect(dialog.getByText("No longer in the catalog")).toBeInTheDocument();
     expect(
       dialog.getByText(
-        "Was PLA Glow · Green, linked by hand by frank, Mar 2. Pick a new color or clear it.",
+        "Was PLA Glow · Green, linked by hand by frank, 2 Mar 2026. Pick a new color or clear it.",
       ),
     ).toBeInTheDocument();
     expect(dialog.queryByRole("link", { name: /Find in store/ })).toBeNull();

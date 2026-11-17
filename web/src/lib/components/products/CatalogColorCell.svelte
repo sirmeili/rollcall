@@ -3,20 +3,15 @@
    * or a warning for a color the catalog has dropped. A change staged in the Catalog color
    * dialog shows as "Not saved yet". Editors press it to open the dialog. */
   import type { CatalogLink } from "#lib/api/types.ts";
-  import {
-    type CatalogEntry,
-    cellLabel,
-    howText,
-    linkName,
-    type Pick,
-  } from "#lib/catalog-links.ts";
+  import { type CatalogEntry, cellLabel, linkName, type LinkPick } from "#lib/catalog-links.ts";
+  import { howText } from "#lib/catalog.ts";
   import Ring from "#lib/components/ui/Ring.svelte";
 
   interface Props {
     productName: string;
     link: CatalogLink | null;
     /** A change staged in the dialog, and the color it picks. */
-    staged: Pick;
+    staged: LinkPick;
     stagedEntry: CatalogEntry | undefined;
     /** Opens the dialog; absent for Viewers. */
     onopen?: (opener: HTMLElement) => void;

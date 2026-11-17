@@ -4,7 +4,7 @@
    * Save stages the change into the Products page's pending edits; Cancel, Escape or the
    * dimmed page drop it. */
   import type { Product } from "#lib/api/types.ts";
-  import { type CatalogEntry, changeFor, clearHint, type Pick } from "#lib/catalog-links.ts";
+  import { type CatalogEntry, changeFor, clearHint, type LinkPick } from "#lib/catalog-links.ts";
   import { storeSearchUrl } from "#lib/catalog.ts";
   import FindInStore from "#lib/components/catalog/FindInStore.svelte";
   import CatalogColorSearch from "#lib/components/products/CatalogColorSearch.svelte";
@@ -15,7 +15,7 @@
   interface Props {
     product: Product;
     /** A change already staged for it. */
-    staged: Pick;
+    staged: LinkPick;
     /** The catalog, once read. */
     entries: CatalogEntry[] | null;
     storeAddress: string | null;
@@ -23,14 +23,14 @@
     failure: string | null;
     /** Who is signed in. */
     me: string;
-    onsave: (change: Pick) => void;
+    onsave: (change: LinkPick) => void;
     onclose: () => void;
   }
 
   let { product, staged, entries, storeAddress, failure, me, onsave, onclose }: Props = $props();
 
   // svelte-ignore state_referenced_locally
-  let pick = $state<Pick>(staged);
+  let pick = $state<LinkPick>(staged);
   const link = $derived(product.catalog_link);
   const change = $derived(changeFor(link, pick));
   const entry = $derived(

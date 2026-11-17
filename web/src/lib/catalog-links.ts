@@ -3,7 +3,8 @@
 
 import type { Catalog, CatalogColor } from "#lib/api/catalog.ts";
 import type { CatalogLink } from "#lib/api/types.ts";
-import { shortDate } from "#lib/format.ts";
+import { howText } from "#lib/catalog.ts";
+import { longDate } from "#lib/format.ts";
 
 /** A catalog color with its filament line, as the dialog lists it. */
 export interface CatalogEntry {
@@ -20,22 +21,17 @@ export function linkName(line: string | null, name: string | null): string {
   return `${line ?? ""} · ${name ?? ""}`;
 }
 
-/** "From its tag" or "Linked by hand" */
-export function howText(how: CatalogLink["how"]): string {
-  return how === "hand" ? "Linked by hand" : "From its tag";
-}
-
-/** "Linked by hand by frank, Nov 17" */
-export function handText(link: CatalogLink, now: Date = new Date()): string {
+/** "Linked by hand by frank, 17 Nov 2026" */
+export function handText(link: CatalogLink): string {
   const by = link.linked_by ? ` by ${link.linked_by}` : "";
-  return `Linked by hand${by}, ${shortDate(link.linked_at, now)}`;
+  return `Linked by hand${by}, ${longDate(link.linked_at)}`;
 }
 
 /** What a manual link to a dropped color was: "Was PLA Glow · Green, linked by hand by
- * frank, Mar 2. Pick a new color or clear it." */
-export function droppedText(link: CatalogLink, now: Date = new Date()): string {
+ * frank, 2 Mar 2026. Pick a new color or clear it." */
+export function droppedText(link: CatalogLink): string {
   const was = linkName(link.was_line, link.was_name);
-  const how = handText(link, now).replace("Linked", "linked");
+  const how = handText(link).replace("Linked", "linked");
   return `Was ${was}, ${how}. Pick a new color or clear it.`;
 }
 
@@ -103,11 +99,11 @@ export function searchEntries(
 
 /** A staged change to a product's manual link: a catalog color's UUID sets one, null
  * clears it, undefined leaves it. */
-export type Pick = string | null | undefined;
+export type LinkPick = string | null | undefined;
 
 /** The change a pick makes to the saved link: undefined when it changes nothing (the same
  * manual link again, or clearing when there is no manual link). */
-export function changeFor(link: CatalogLink | null, pick: Pick): Pick {
+export function changeFor(link: CatalogLink | null, pick: LinkPick): LinkPick {
   const manual = link?.how === "hand";
   if (pick === undefined) return undefined;
   if (pick === null) return manual ? null : undefined;

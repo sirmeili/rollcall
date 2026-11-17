@@ -73,6 +73,14 @@ export function shortDate(iso: string | null, now: Date = new Date()): string {
   return (sameYear ? formats.day : formats.dayYear).format(date);
 }
 
+/** "17 Nov 2026"; "—" for none. */
+export function longDate(iso: string | null): string {
+  if (!iso) return "—";
+  const parts = formats.dayYear.formatToParts(new Date(iso));
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${part("day")} ${part("month")} ${part("year")}`;
+}
+
 /** "4:05 PM" */
 export function clockTime(at: number | Date): string {
   return formats.time.format(at);

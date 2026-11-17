@@ -8,7 +8,7 @@ The automatic rule: a product with a material ID and a variant ID, not provision
 the one entry of BambuStudio's list whose filament ID is its material ID and whose filament
 ID without `GF`, a hyphen and its color code is its variant ID (GFA00 and K0 give A00-K0).
 That entry's Bambu code must belong to exactly one catalog color. Otherwise there is no
-automatic link, and there is never a match by name.
+automatic link; names are never compared.
 
 A manual link is never replaced automatically, except to follow an OFDB merge (`moved_from`).
 One whose color has left the catalog is kept, and reads as no longer in the catalog. Only
