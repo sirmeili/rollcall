@@ -27,6 +27,9 @@ def upgrade() -> None:
         "catalog_variant",
         sa.Column("gradient", sa.Boolean(), server_default="0", nullable=False),
     )
+    # Forget what was downloaded, so the next sync fetches the export in full and fills in
+    # the flag, rather than hearing "not modified" until OFDB publishes something new.
+    op.execute("UPDATE catalog_sync SET etag = NULL, last_modified = NULL")
 
 
 def downgrade() -> None:

@@ -84,6 +84,14 @@ def test_the_gradient_column_comes_and_goes_with_a_synced_catalog(tmp_path: Path
                 " '[]')"
             )
         )
+        connection.execute(
+            text(
+                "INSERT INTO catalog_sync (started_at, finished_at, result, dataset_version, etag,"
+                " last_modified) VALUES ('2026-11-16 04:00:00.000000',"
+                " '2026-11-16 04:00:05.000000', 'updated', '2026.11.15', '\"abc\"',"
+                " 'Sun, 15 Nov 2026 02:22:51 GMT')"
+            )
+        )
     engine.dispose()
 
     upgrade(url)
@@ -92,10 +100,15 @@ def test_the_gradient_column_comes_and_goes_with_a_synced_catalog(tmp_path: Path
     with engine.connect() as connection:
         rows = connection.execute(text("SELECT uuid, gradient FROM catalog_variant")).all()
         sizes = connection.execute(text("SELECT count(*) FROM catalog_size")).scalar()
+        sync = connection.execute(
+            text("SELECT dataset_version, etag, last_modified FROM catalog_sync")
+        ).all()
     engine.dispose()
     # Not known until the next sync fills it in.
     assert [tuple(row) for row in rows] == [("v", 0)]
     assert sizes == 1
+    # So that sync downloads the export in full, even when OFDB has nothing new.
+    assert [tuple(row) for row in sync] == [("2026.11.15", None, None)]
 
     downgrade(url, "06a52b9751a5")
 
