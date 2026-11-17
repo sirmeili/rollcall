@@ -9,6 +9,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cache
+from urllib.parse import urlsplit
 from zoneinfo import available_timezones
 
 from filament_tracker.ha.broker import parse_mqtt_url
@@ -80,6 +81,33 @@ def similarity_cutoff(value: str) -> str:
     if not MIN_CUTOFF <= cutoff <= MAX_CUTOFF:
         raise ValueError(problem)
     return f"{cutoff:g}"
+
+
+STORE_ADDRESS_PROBLEM = "use an https address with no path, like https://us.store.bambulab.com"
+
+
+def store_address(value: str) -> str:
+    """An https address with a host and no path, query, fragment or user info. One trailing
+    slash is dropped."""
+    value = value.removesuffix("/")
+    try:
+        parts = urlsplit(value)
+        port = parts.port  # a malformed port raises
+    except ValueError:
+        raise ValueError(STORE_ADDRESS_PROBLEM) from None
+    if (
+        parts.scheme != "https"
+        or not parts.hostname
+        or parts.path
+        or parts.query
+        or parts.fragment
+        or "@" in parts.netloc
+        or "?" in value
+        or "#" in value
+        or (port is not None and not 0 < port < 65536)
+    ):
+        raise ValueError(STORE_ADDRESS_PROBLEM)
+    return value
 
 
 def kdf_salt(value: str) -> str:
@@ -159,6 +187,7 @@ DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef(
         "similarity_cutoff", CATALOG, "similarity_cutoff", optional=False, check=similarity_cutoff
     ),
+    SettingDef("store_address", CATALOG, "store_address", optional=False, check=store_address),
 )
 
 BY_KEY = {d.key: d for d in DEFINITIONS}

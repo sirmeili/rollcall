@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     # The largest ΔE (CIEDE2000) at which an in-stock product counts as similar to a
     # catalog color.
     similarity_cutoff: float = Field(default=10.0, ge=0.5, le=50)
+    # The Bambu Lab store that Find in store searches: https, with no path.
+    store_address: str = "https://us.store.bambulab.com"
     # Only for local development over plain HTTP; production sits behind HTTPS.
     cookie_secure: bool = True
     # Where the nightly backups go (03:00 in TZ, 14 kept). Unset: no backups.
@@ -92,6 +94,13 @@ class Settings(BaseSettings):
         from filament_tracker.ha.rest import parse_ha_url
 
         return parse_ha_url(value.strip())
+
+    @field_validator("store_address")
+    @classmethod
+    def _store_address(cls, value: str) -> str:
+        from filament_tracker.app_settings.registry import store_address
+
+        return store_address(value.strip())
 
     @field_validator("ha_token")
     @classmethod
