@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.db.catalog_models import (
     CatalogFilament,
+    CatalogSource,
     CatalogSync,
     CatalogVariant,
     SyncResult,
@@ -143,7 +144,8 @@ def _similar(
 
 
 def _out_of_date(session: Session, success: CatalogSync | None, now: datetime) -> bool:
-    attempt = last_attempt(session)
+    """OFDB's freshness only: a stale BambuStudio list only delays new automatic links."""
+    attempt = last_attempt(session, CatalogSource.OFDB)
     if success is None or attempt is None or attempt.result != SyncResult.FAILED:
         return False
     return now - success.finished_at >= OUT_OF_DATE_AFTER
@@ -178,7 +180,7 @@ def read_catalog(session: Session, cutoff: float, now: datetime | None = None) -
         FilamentLine(line.uuid, line.name, line.material, colors.get(line.uuid, []))
         for line in lines_in_order
     ]
-    success = last_success(session)
+    success = last_success(session, CatalogSource.OFDB)
     return Catalog(
         lines=lines,
         synced=success is not None,

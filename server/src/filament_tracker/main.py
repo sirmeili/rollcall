@@ -56,9 +56,9 @@ def _backups(settings: Settings, store: SettingsStore) -> BackupScheduler | None
 
 
 def create_app(
-    settings: Settings | None = None, *, ofdb_transport: httpx.BaseTransport | None = None
+    settings: Settings | None = None, *, catalog_transport: httpx.BaseTransport | None = None
 ) -> FastAPI:
-    """The server. `ofdb_transport` replaces the network for catalog syncs, in tests."""
+    """The server. `catalog_transport` replaces the network for catalog syncs, in tests."""
     settings = settings or Settings()
 
     @asynccontextmanager
@@ -79,7 +79,7 @@ def create_app(
         app.state.home_assistant = home_assistant
         home_assistant.start()
         app.state.setup_gate.start(app.state.session_factory)
-        catalog = CatalogSyncer(app.state.session_factory, transport=ofdb_transport)
+        catalog = CatalogSyncer(app.state.session_factory, transport=catalog_transport)
         app.state.catalog = catalog
         catalog_scheduler = CatalogScheduler(
             catalog, schedule=store.catalog_sync, time_zone=store.time_zone

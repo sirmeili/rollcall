@@ -1,4 +1,5 @@
-"""The catalog: a local copy of the Open Filament Database's Bambu Lab colors.
+"""The catalog: local copies of the Open Filament Database's Bambu Lab colors and
+BambuStudio's color code list.
 
 The sync status and Refresh now are Admin only, since a sync is the server contacting the
 internet. Failures are reported here and on the Settings page only.
@@ -58,13 +59,20 @@ class CatalogOut(BaseModel):
     out_of_date: bool
 
 
-class SyncStatusOut(BaseModel):
+class SourceStatusOut(BaseModel):
     last_success_at: datetime | None
     last_attempt_at: datetime | None
     last_result: SyncResult | None
     last_reason: str | None
+    # OFDB's only; always null for BambuStudio's list.
     dataset_version: str | None
+
+
+class SyncStatusOut(BaseModel):
+    # Catalog colors in the copy in use.
     colors: int
+    ofdb: SourceStatusOut
+    bambustudio: SourceStatusOut
 
 
 def _syncer(request: Request) -> CatalogSyncer:

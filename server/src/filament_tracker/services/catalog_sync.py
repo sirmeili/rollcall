@@ -1,13 +1,15 @@
-"""Sync the catalog from the Open Filament Database (OFDB).
+"""Sync the catalog from its two sources: the Open Filament Database's (OFDB's) JSON export,
+and BambuStudio's color code list on GitHub.
 
-A sync downloads OFDB's JSON export, asking with If-None-Match and If-Modified-Since
-whether it changed since the copy in use. A 304 is a successful attempt, "Not modified".
-A new export replaces every catalog row in one transaction. Any failure (network, an
-incomplete download, bad JSON, missing fields) is recorded with a short reason and leaves
-the catalog as it was.
+One sync run covers both sources, OFDB first. Each source downloads its file, asking with
+If-None-Match and If-Modified-Since whether it changed since the copy in use; a 304 is a
+successful attempt, "Not modified". A new file replaces every row of that source in one
+transaction. Any failure (network, an incomplete download, bad JSON, missing fields) is
+recorded for that source with a short reason and leaves its copy as it was; neither
+source's failure stops the other.
 
-Only one sync runs at a time: a second one asked for meanwhile raises SyncBusy instead of
-starting. The catalog never writes to products, spools, tags or events.
+Only one run happens at a time: a second one asked for meanwhile raises SyncBusy instead of
+starting. A run writes nothing to spools, tags or events.
 """
 
 import logging
@@ -24,51 +26,116 @@ from sqlalchemy.orm import Session, sessionmaker
 from filament_tracker.db.catalog_models import (
     ETAG_LENGTH,
     LAST_MODIFIED_LENGTH,
+    BambuColorCode,
     CatalogBrand,
     CatalogFilament,
     CatalogSize,
+    CatalogSource,
     CatalogSync,
     CatalogVariant,
     SyncResult,
 )
 from filament_tracker.db.types import utcnow
-from filament_tracker.services.catalog_export import CatalogExport, ExportInvalid, parse_export
+from filament_tracker.services.bambustudio_codes import ListInvalid, parse_color_codes
+from filament_tracker.services.catalog_download import Copy, DownloadFailed, download
+from filament_tracker.services.catalog_export import ExportInvalid, parse_export
 
 logger = logging.getLogger(__name__)
 
 OFDB_EXPORT_URL = "https://api.openfilamentdatabase.org/json/all.json.gz"
+BAMBUSTUDIO_URL = (
+    "https://raw.githubusercontent.com/bambulab/BambuStudio/master/resources/profiles/BBL/"
+    "filament/filaments_color_codes.json"
+)
 # The gzipped export is about 3.5 MB today.
 MAX_DOWNLOAD_BYTES = 64 * 1024 * 1024
-TIMEOUT = httpx.Timeout(30.0, read=60.0)
-USER_AGENT = "RollCall catalog sync"
+# The list is about 250 KB today.
+MAX_BAMBUSTUDIO_BYTES = 16 * 1024 * 1024
 
 
 class SyncBusy(Exception):
     """A sync is already running."""
 
 
-class _Failed(Exception):
-    """The sync failed; the message is the short reason recorded."""
+class _StoreFailed(Exception):
+    """The new copy could not be stored."""
 
 
 @dataclass(frozen=True)
-class SyncStatus:
+class SourceStatus:
     last_success_at: datetime | None
     last_attempt_at: datetime | None
     last_result: SyncResult | None
     # Why the last attempt failed, when it did.
     last_reason: str | None
+    # OFDB's only.
     dataset_version: str | None
-    # Catalog colors in the copy in use.
-    colors: int
 
 
 @dataclass(frozen=True)
-class _Download:
-    body: bytes
-    etag: str | None
-    last_modified: str | None
-    not_modified: bool = False
+class SyncStatus:
+    # Catalog colors in the copy in use.
+    colors: int
+    ofdb: SourceStatus
+    bambustudio: SourceStatus
+
+
+@dataclass(frozen=True)
+class _Parsed:
+    """A source's new copy: its version, if any, and how to write its rows."""
+
+    version: str | None
+    write: Callable[[Session], None]
+    summary: str
+
+
+def _ofdb(body: bytes) -> _Parsed:
+    export = parse_export(body)
+
+    def write(session: Session) -> None:
+        for model in (CatalogSize, CatalogVariant, CatalogFilament, CatalogBrand):
+            session.execute(delete(model))
+        session.execute(insert(CatalogBrand), [export.brand])
+        session.execute(insert(CatalogFilament), export.filaments)
+        if export.variants:
+            session.execute(insert(CatalogVariant), export.variants)
+        if export.sizes:
+            session.execute(insert(CatalogSize), export.sizes)
+
+    return _Parsed(export.version, write, f"{len(export.variants)} catalog colors")
+
+
+def _bambustudio(body: bytes) -> _Parsed:
+    rows = parse_color_codes(body)
+
+    def write(session: Session) -> None:
+        session.execute(delete(BambuColorCode))
+        session.execute(insert(BambuColorCode), rows)
+
+    return _Parsed(None, write, f"{len(rows)} Bambu codes")
+
+
+@dataclass(frozen=True)
+class _Source:
+    source: CatalogSource
+    url: str
+    # Names the server in failure reasons.
+    server: str
+    max_bytes: Callable[[], int]
+    parse: Callable[[bytes], _Parsed]
+
+
+# Limits are read when used, so tests can lower them.
+_SOURCES = (
+    _Source(CatalogSource.OFDB, OFDB_EXPORT_URL, "OFDB", lambda: MAX_DOWNLOAD_BYTES, _ofdb),
+    _Source(
+        CatalogSource.BAMBUSTUDIO,
+        BAMBUSTUDIO_URL,
+        "GitHub",
+        lambda: MAX_BAMBUSTUDIO_BYTES,
+        _bambustudio,
+    ),
+)
 
 
 class CatalogSyncer:
@@ -87,122 +154,97 @@ class CatalogSyncer:
         self._running = threading.Lock()
 
     def sync(self) -> SyncStatus:
-        """Sync once and return the new status. Raises SyncBusy if a sync is running."""
+        """Sync both sources once and return the new status. Raises SyncBusy if a sync is
+        running."""
         if not self._running.acquire(blocking=False):
             raise SyncBusy
         try:
-            self._sync()
+            for source in _SOURCES:
+                self._sync(source)
         finally:
             self._running.release()
         return self.status()
 
     def never_synced(self) -> bool:
-        """Whether no sync has ever worked, so there is no catalog yet."""
+        """Whether either source has never synced, so its copy is missing."""
         with self._sessions() as session:
-            return last_success(session) is None
+            return any(last_success(session, s.source) is None for s in _SOURCES)
 
     def status(self) -> SyncStatus:
         with self._sessions() as session:
-            last = last_attempt(session)
-            success = last_success(session)
             colors = session.scalar(select(func.count()).select_from(CatalogVariant)) or 0
-        return SyncStatus(
-            last_success_at=success.finished_at if success else None,
-            last_attempt_at=last.finished_at if last else None,
-            last_result=last.result if last else None,
-            last_reason=last.reason if last else None,
-            dataset_version=success.dataset_version if success else None,
-            colors=colors,
-        )
+            return SyncStatus(
+                colors=colors,
+                ofdb=_status(session, CatalogSource.OFDB),
+                bambustudio=_status(session, CatalogSource.BAMBUSTUDIO),
+            )
 
-    def _sync(self) -> None:
+    def _sync(self, source: _Source) -> None:
         started = self._clock()
         with self._sessions() as session:
-            previous = last_success(session)
+            previous = last_success(session, source.source)
+        copy = Copy(previous.etag, previous.last_modified) if previous else None
         try:
-            download = self._download(previous)
-            if previous is not None and download.not_modified:
+            got = download(
+                source.url,
+                server=source.server,
+                copy=copy,
+                max_bytes=source.max_bytes(),
+                transport=self._transport,
+            )
+            if previous is not None and got.not_modified:
                 self._record(
                     started,
+                    source.source,
                     SyncResult.NOT_MODIFIED,
                     version=previous.dataset_version,
-                    etag=_fits(download.etag, ETAG_LENGTH) or previous.etag,
-                    last_modified=_fits(download.last_modified, LAST_MODIFIED_LENGTH)
+                    etag=_fits(got.etag, ETAG_LENGTH) or previous.etag,
+                    last_modified=_fits(got.last_modified, LAST_MODIFIED_LENGTH)
                     or previous.last_modified,
                 )
                 return
-            export = parse_export(download.body)
-            self._replace(started, export, download)
-        except (_Failed, ExportInvalid) as error:
-            logger.warning("catalog sync failed: %s", error)
-            self._record(started, SyncResult.FAILED, reason=str(error))
+            parsed = source.parse(got.body)
+            self._replace(started, source.source, parsed, got.etag, got.last_modified)
+        except (DownloadFailed, ExportInvalid, ListInvalid, _StoreFailed) as error:
+            logger.warning("catalog sync of %s failed: %s", source.source, error)
+            self._record(started, source.source, SyncResult.FAILED, reason=str(error))
 
-    def _download(self, previous: CatalogSync | None) -> _Download:
-        headers = {"User-Agent": USER_AGENT}
-        if previous is not None and previous.etag:
-            headers["If-None-Match"] = previous.etag
-        if previous is not None and previous.last_modified:
-            headers["If-Modified-Since"] = previous.last_modified
-        try:
-            with (
-                httpx.Client(
-                    transport=self._transport, timeout=TIMEOUT, follow_redirects=True
-                ) as client,
-                client.stream("GET", OFDB_EXPORT_URL, headers=headers) as response,
-            ):
-                etag = response.headers.get("ETag")
-                last_modified = response.headers.get("Last-Modified")
-                if response.status_code == 304 and previous is not None:
-                    return _Download(b"", etag, last_modified, not_modified=True)
-                if response.status_code != 200:
-                    raise _Failed(f"OFDB answered {response.status_code}")
-                body = bytearray()
-                for chunk in response.iter_bytes():
-                    body += chunk
-                    if len(body) > MAX_DOWNLOAD_BYTES:
-                        raise _Failed("download too large")
-        except httpx.TimeoutException:
-            raise _Failed("OFDB did not answer in time") from None
-        except (httpx.RemoteProtocolError, httpx.ReadError):
-            raise _Failed("download incomplete") from None
-        except httpx.HTTPError:
-            raise _Failed("could not reach OFDB") from None
-        return _Download(bytes(body), etag, last_modified)
-
-    def _replace(self, started: datetime, export: CatalogExport, download: _Download) -> None:
-        """Swap the whole catalog and record the sync, in one transaction."""
+    def _replace(
+        self,
+        started: datetime,
+        source: CatalogSource,
+        parsed: _Parsed,
+        etag: str | None,
+        last_modified: str | None,
+    ) -> None:
+        """Swap the source's rows and record the sync, in one transaction."""
         try:
             with self._sessions() as session, session.begin():
-                for model in (CatalogSize, CatalogVariant, CatalogFilament, CatalogBrand):
-                    session.execute(delete(model))
-                session.execute(insert(CatalogBrand), [export.brand])
-                session.execute(insert(CatalogFilament), export.filaments)
-                if export.variants:
-                    session.execute(insert(CatalogVariant), export.variants)
-                if export.sizes:
-                    session.execute(insert(CatalogSize), export.sizes)
+                parsed.write(session)
                 session.add(
                     self._attempt(
                         started,
+                        source,
                         SyncResult.UPDATED,
-                        version=export.version,
-                        etag=_fits(download.etag, ETAG_LENGTH),
-                        last_modified=_fits(download.last_modified, LAST_MODIFIED_LENGTH),
+                        version=parsed.version,
+                        etag=_fits(etag, ETAG_LENGTH),
+                        last_modified=_fits(last_modified, LAST_MODIFIED_LENGTH),
                     )
                 )
         except SQLAlchemyError as error:
-            raise _Failed("could not store the catalog") from error
-        logger.info(
-            "catalog updated to %s: %d catalog colors", export.version, len(export.variants)
-        )
+            raise _StoreFailed(f"could not store the {source} copy") from error
+        logger.info("catalog %s updated: %s", source, parsed.summary)
 
-    def _record(self, started: datetime, result: SyncResult, **fields: str | None) -> None:
+    def _record(
+        self, started: datetime, source: CatalogSource, result: SyncResult, **fields: str | None
+    ) -> None:
         with self._sessions() as session, session.begin():
-            session.add(self._attempt(started, result, **fields))
+            session.add(self._attempt(started, source, result, **fields))
 
     def _attempt(
         self,
         started: datetime,
+        source: CatalogSource,
         result: SyncResult,
         *,
         reason: str | None = None,
@@ -211,6 +253,7 @@ class CatalogSyncer:
         last_modified: str | None = None,
     ) -> CatalogSync:
         return CatalogSync(
+            source=source,
             started_at=started,
             finished_at=self._clock(),
             result=result,
@@ -221,16 +264,30 @@ class CatalogSyncer:
         )
 
 
-def last_attempt(session: Session) -> CatalogSync | None:
-    """The latest sync attempt, whatever its result."""
-    return session.scalars(select(CatalogSync).order_by(CatalogSync.id.desc())).first()
+def _status(session: Session, source: CatalogSource) -> SourceStatus:
+    last = last_attempt(session, source)
+    success = last_success(session, source)
+    return SourceStatus(
+        last_success_at=success.finished_at if success else None,
+        last_attempt_at=last.finished_at if last else None,
+        last_result=last.result if last else None,
+        last_reason=last.reason if last else None,
+        dataset_version=success.dataset_version if success else None,
+    )
 
 
-def last_success(session: Session) -> CatalogSync | None:
-    """The latest sync that worked (a new copy, or Not modified)."""
+def last_attempt(session: Session, source: CatalogSource) -> CatalogSync | None:
+    """The source's latest sync attempt, whatever its result."""
+    return session.scalars(
+        select(CatalogSync).where(CatalogSync.source == source).order_by(CatalogSync.id.desc())
+    ).first()
+
+
+def last_success(session: Session, source: CatalogSource) -> CatalogSync | None:
+    """The source's latest sync that worked (a new copy, or Not modified)."""
     return session.scalars(
         select(CatalogSync)
-        .where(CatalogSync.result != SyncResult.FAILED)
+        .where(CatalogSync.source == source, CatalogSync.result != SyncResult.FAILED)
         .order_by(CatalogSync.id.desc())
     ).first()
 

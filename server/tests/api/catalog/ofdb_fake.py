@@ -169,18 +169,18 @@ def status(code: int) -> Handler:
 Answer = Exception | Handler
 
 
-class FakeOfdb:
-    """Serves the queued answers in order (the last one repeats) and keeps every request."""
+class FakeSource:
+    """One faked source, OFDB or BambuStudio's list. Serves the queued answers in order (the
+    last one repeats) and keeps every request."""
 
     def __init__(self, *answers: Answer) -> None:
         self.answers: list[Answer] = list(answers) or [ok(gz(export()))]
         self.requests: list[httpx.Request] = []
-        self.transport = httpx.MockTransport(self._handle)
 
     def serve(self, *answers: Answer) -> None:
         self.answers = list(answers)
 
-    def _handle(self, request: httpx.Request) -> httpx.Response:
+    def handle(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
         answer = self.answers.pop(0) if len(self.answers) > 1 else self.answers[0]
         if isinstance(answer, Exception):
