@@ -14,6 +14,7 @@ from filament_tracker.api import (
     events,
     health,
     printers,
+    requests,
     review,
     scans,
     setup,
@@ -33,6 +34,7 @@ from filament_tracker.config import Settings
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
 from filament_tracker.ha.link import HomeAssistantLink
+from filament_tracker.print_requests.files import ModelFiles, files_dir
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.backup import BackupScheduler
 from filament_tracker.services.catalog_schedule import CatalogScheduler
@@ -102,6 +104,7 @@ def create_app(
     # Wrong setup codes are throttled like sign-ins, but apart from them.
     app.state.setup_throttle = LoginThrottle()
     app.state.setup_gate = SetupGate()
+    app.state.model_files = ModelFiles(files_dir(settings.database_url))
     app.add_exception_handler(RequestValidationError, validation_error)
     app.add_middleware(BodySizeLimitMiddleware)
     app.add_middleware(SessionRenewalMiddleware)
@@ -123,6 +126,7 @@ def create_app(
         setup,
         app_settings,
         catalog,
+        requests,
     ):
         app.include_router(module.router, prefix=API_PREFIX)
     mount_web_app(app, settings.web_dir or default_web_dir())
