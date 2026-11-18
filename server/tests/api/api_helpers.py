@@ -96,11 +96,16 @@ def browser(app: FastAPI, client: tuple[str, int] = LAN_CLIENT) -> TestClient:
 
 
 def signed_in(
-    app: FastAPI, role: Role, client: tuple[str, int] = LAN_CLIENT, username: str | None = None
+    app: FastAPI,
+    role: Role,
+    client: tuple[str, int] = LAN_CLIENT,
+    username: str | None = None,
+    *,
+    requester: bool = False,
 ) -> TestClient:
-    """A browser signed in as a new user with `role`."""
+    """A browser signed in as a new user with `role` (and Requester, if asked)."""
     name = username or f"{role.value}-user"
-    make_user(app, name, role)
+    make_user(app, name, role, requester=requester)
     session = browser(app, client)
     assert login(session, name).status_code == 200
     return session

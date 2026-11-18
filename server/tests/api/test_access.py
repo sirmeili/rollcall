@@ -98,6 +98,17 @@ def test_each_route_needs_its_role(
         assert status == 403
 
 
+@pytest.mark.parametrize(
+    ("method", "path", "needed"), [r for r in ROUTES if r[2] in (Role.EDITOR, Role.ADMIN)]
+)
+def test_requester_gains_no_editor_or_admin_route(
+    app: FastAPI, client: TestClient, method: str, path: str, needed: Role
+) -> None:
+    requester = signed_in(app, Role.VIEWER, requester=True)
+
+    assert _call(requester, method, path, CSRF).status_code == 403
+
+
 @pytest.mark.parametrize(("method", "path", "needed"), ROUTES)
 def test_cookie_writes_need_the_csrf_header(
     app: FastAPI, client: TestClient, method: str, path: str, needed: Role
