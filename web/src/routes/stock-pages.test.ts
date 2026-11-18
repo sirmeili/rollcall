@@ -30,7 +30,14 @@ const SpoolPage = (await import("./spools/[id]/+page.svelte")).default;
 const ProductsPage = (await import("./products/+page.svelte")).default;
 
 function signedInAs(role: Role): void {
-  session.user = { id: 1, username: "frank", role, time_zone: "UTC" };
+  session.user = {
+    id: 1,
+    username: "frank",
+    role,
+    time_zone: "UTC",
+    requester: false,
+    has_requests: false,
+  };
   session.loaded = true;
 }
 

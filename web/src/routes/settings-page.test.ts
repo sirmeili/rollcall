@@ -259,7 +259,14 @@ describe("Settings page", () => {
   it("saving a time zone applies it to this browser at once", async () => {
     const { session } = await import("#lib/auth/session.svelte.ts");
     const { currentTimeZone, setTimeZone } = await import("#lib/format.ts");
-    session.user = { id: 1, username: "frank", role: "admin", time_zone: "UTC" };
+    session.user = {
+      id: 1,
+      username: "frank",
+      role: "admin",
+      time_zone: "UTC",
+      requester: false,
+      has_requests: false,
+    };
     const fetch = serve({
       "PUT /settings/general": {
         ...GENERAL,

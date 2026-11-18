@@ -25,6 +25,7 @@ const USER: UserOut = {
   id: 2,
   username: "jordan",
   role: "editor",
+  requester: false,
   disabled: false,
   created_at: "2026-11-01T00:00:00Z",
   last_login_at: null,

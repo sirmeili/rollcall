@@ -23,7 +23,14 @@ const PairPage = (await import("./pair/+page.svelte")).default;
 const LoginPage = (await import("./login/+page.svelte")).default;
 
 const children = createRawSnippet(() => ({ render: () => "<p>page content</p>" }));
-const BOB = { id: 2, username: "bob", role: "viewer", time_zone: "UTC" } as Me;
+const BOB = {
+  id: 2,
+  username: "bob",
+  role: "viewer",
+  time_zone: "UTC",
+  requester: false,
+  has_requests: false,
+} as Me;
 
 let native: FakeBridge;
 let server: ReturnType<typeof fakeFetch>;

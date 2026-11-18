@@ -17,8 +17,12 @@ export const ROLES: readonly Role[] = ["viewer", "editor", "admin"];
 
 /** What each role can do, shown on the Users page. */
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
-  viewer: "sees every page.",
+  viewer: "sees every page except Requests.",
   editor:
-    "also records actions, undoes, edits spools and products, adds spools by hand, and resolves review items.",
+    "also records actions, undoes, edits spools and products, adds spools by hand, resolves review items, and sees every print request and can change its priority.",
   admin: "also manages users, scanners, printers, machine tokens and settings.",
 };
+
+/** What Requester adds to a role (ADR-0017), shown on the Users page. */
+export const REQUESTER_DESCRIPTION =
+  "goes with any role: submits print requests and can edit them while they're Submitted. A Viewer who is a Requester sees only their own requests, and keeps read-only access to them if Requester is turned off.";

@@ -5,11 +5,15 @@ export interface UserBase {
   id: number;
   username: string;
   role: Role;
+  /** May submit print requests, alongside the role (ADR-0017). */
+  requester: boolean;
 }
 
 export interface Me extends UserBase {
   /** The server's time zone: the web app shows every time in it. */
   time_zone: string;
+  /** Has made a print request, so keeps the Requests page after Requester is turned off. */
+  has_requests: boolean;
 }
 
 /** Response bodies from server/src/filament_tracker/api/read_schemas.py. */

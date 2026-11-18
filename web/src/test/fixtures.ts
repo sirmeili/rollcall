@@ -2,12 +2,26 @@
 
 import type {
   EventOut,
+  Me,
   Product,
   ProductSummary,
   SpoolDetail,
   SpoolRow,
   TagOut,
 } from "#lib/api/types.ts";
+
+/** A signed-in user. */
+export function me(role: Me["role"], overrides: Partial<Me> = {}): Me {
+  return {
+    id: 1,
+    username: "frank",
+    role,
+    requester: false,
+    has_requests: false,
+    time_zone: "UTC",
+    ...overrides,
+  };
+}
 
 export function product(overrides: Partial<Product> = {}): Product {
   return {

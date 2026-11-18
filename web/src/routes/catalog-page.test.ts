@@ -128,7 +128,14 @@ function serve(routes: Parameters<typeof fakeFetch>[0]) {
 }
 
 function signIn(role: Role): void {
-  session.user = { id: 1, username: "frank", role, time_zone: "UTC" };
+  session.user = {
+    id: 1,
+    username: "frank",
+    role,
+    time_zone: "UTC",
+    requester: false,
+    has_requests: false,
+  };
 }
 
 async function open(catalog: Catalog = SYNCED, role: Role = "viewer") {

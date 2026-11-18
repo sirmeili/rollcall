@@ -81,7 +81,7 @@ describe("admin API calls", () => {
       {
         method: "POST",
         path: "/users",
-        body: { username: "sam", role: "viewer", password: "a long password" },
+        body: { username: "sam", role: "viewer", password: "a long password", requester: false },
       },
       { method: "PATCH", path: "/users/4", body: { role: "editor" } },
       {

@@ -10,11 +10,13 @@
     user: Me;
     pathname: string;
     reviewCount: number;
+    /** Submitted print requests, for Editors and Admins. */
+    requestCount?: number;
     /** In the phone app: show the button back to Scan. */
     scan?: boolean;
   }
 
-  let { user, pathname, reviewCount, scan = false }: Props = $props();
+  let { user, pathname, reviewCount, requestCount = 0, scan = false }: Props = $props();
 </script>
 
 <header>
@@ -24,9 +26,9 @@
       RollCall
     </a>
     <Nav
-      items={visibleNav(user.role)}
+      items={visibleNav(user)}
       current={navItemFor(pathname)}
-      badges={{ "/review": reviewCount }}
+      badges={{ "/review": reviewCount, "/requests": requestCount }}
     />
     <div class="end">
       {#if scan}

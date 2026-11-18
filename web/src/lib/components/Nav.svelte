@@ -19,7 +19,7 @@
         <a
           href={item.href}
           aria-current={item === current ? "page" : undefined}
-          aria-label={count > 0 ? `${item.label}, ${count} waiting` : undefined}
+          aria-label={count > 0 ? `${item.label}, ${count} ${item.badgeWord}` : undefined}
           >{item.label}{#if count > 0}<span class="badge" aria-hidden="true">{count}</span>{/if}</a
         >
       </li>

@@ -142,14 +142,26 @@ export function listUsers(): Promise<UserOut[]> {
   return api<UserOut[]>("/users");
 }
 
-export function createUser(username: string, role: Role, password: string): Promise<UserOut> {
-  return api<UserOut>("/users", { method: "POST", body: { username, role, password } });
+export function createUser(
+  username: string,
+  role: Role,
+  password: string,
+  requester = false,
+): Promise<UserOut> {
+  return api<UserOut>("/users", {
+    method: "POST",
+    body: { username, role, password, requester },
+  });
 }
 
-export function updateUser(
-  id: number,
-  changes: { role?: Role; disabled?: boolean; password?: string },
-): Promise<UserOut> {
+export interface UserChanges {
+  role?: Role;
+  requester?: boolean;
+  disabled?: boolean;
+  password?: string;
+}
+
+export function updateUser(id: number, changes: UserChanges): Promise<UserOut> {
   return api<UserOut>(`/users/${id}`, { method: "PATCH", body: changes });
 }
 

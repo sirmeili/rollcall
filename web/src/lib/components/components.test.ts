@@ -7,10 +7,11 @@ import Forbidden from "#lib/components/Forbidden.svelte";
 import LoginForm from "#lib/components/LoginForm.svelte";
 import Nav from "#lib/components/Nav.svelte";
 import { NAV, visibleNav } from "#lib/nav.ts";
+import { me } from "../../test/fixtures.ts";
 
 describe("Nav", () => {
   it("links each item and marks the current page", () => {
-    render(Nav, { items: visibleNav("viewer"), current: NAV[1] });
+    render(Nav, { items: visibleNav(me("viewer")), current: NAV[1] });
 
     const links = screen.getAllByRole("link");
     expect(links.map((a) => a.textContent)).toContain("Spools");
@@ -45,6 +46,8 @@ describe("LoginForm", () => {
       username: "alice",
       role: "viewer",
       time_zone: "UTC",
+      requester: false,
+      has_requests: false,
     });
     render(LoginForm, { session });
 
@@ -82,7 +85,15 @@ describe("LoginForm", () => {
     let finish: () => void = () => {};
     vi.spyOn(session, "login").mockReturnValue(
       new Promise((resolve) => {
-        finish = () => resolve({ id: 1, username: "alice", role: "viewer", time_zone: "UTC" });
+        finish = () =>
+          resolve({
+            id: 1,
+            username: "alice",
+            role: "viewer",
+            time_zone: "UTC",
+            requester: false,
+            has_requests: false,
+          });
       }),
     );
     render(LoginForm, { session });

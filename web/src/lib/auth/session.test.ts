@@ -125,7 +125,14 @@ describe("Session", () => {
   });
 
   it("finishing setup signs the new admin in", async () => {
-    const admin = { id: 1, username: "frank", role: "admin", time_zone: "UTC" };
+    const admin = {
+      id: 1,
+      username: "frank",
+      role: "admin",
+      time_zone: "UTC",
+      requester: false,
+      has_requests: false,
+    };
     respond([401], [200, { open: true, time_zone_needed: false, kdf_salt_needed: false }]);
     await session.load();
     const fetchFn = respond([201, admin]);

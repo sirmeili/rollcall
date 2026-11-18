@@ -1,20 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { ACCOUNT_PATH, navItemFor, requiredRole, visibleNav } from "#lib/nav.ts";
+import type { Me } from "#lib/api/types.ts";
+import { ACCOUNT_PATH, mayOpen, navItemFor, requiredRole, visibleNav } from "#lib/nav.ts";
+import type { Role } from "#lib/roles.ts";
 
-const labels = (role: Parameters<typeof visibleNav>[0]) => visibleNav(role).map((i) => i.label);
+function person(role: Role, requester = false, hasRequests = false): Me {
+  return {
+    id: 1,
+    username: "sam",
+    role,
+    requester,
+    has_requests: hasRequests,
+    time_zone: "UTC",
+  };
+}
+
+const labels = (role: Role | null) => visibleNav(role ? person(role) : null).map((i) => i.label);
 
 describe("visibleNav", () => {
   it("hides admin pages from viewers and editors", () => {
-    for (const role of ["viewer", "editor"] as const) {
-      expect(labels(role)).toEqual([
-        "Inventory",
-        "Spools",
-        "Products",
-        "Catalog",
-        "Review",
-        "Activity",
-      ]);
-    }
+    expect(labels("viewer")).toEqual([
+      "Inventory",
+      "Spools",
+      "Products",
+      "Catalog",
+      "Review",
+      "Activity",
+    ]);
+    expect(labels("editor")).toEqual([
+      "Inventory",
+      "Spools",
+      "Products",
+      "Catalog",
+      "Requests",
+      "Review",
+      "Activity",
+    ]);
   });
 
   it("shows everything to admins", () => {
@@ -25,6 +45,43 @@ describe("visibleNav", () => {
 
   it("shows nothing when signed out", () => {
     expect(labels(null)).toEqual([]);
+  });
+
+  it("shows Requests to Editors and Admins, after Catalog", () => {
+    for (const role of ["editor", "admin"] as const) {
+      expect(labels(role).slice(3, 5)).toEqual(["Catalog", "Requests"]);
+    }
+  });
+
+  it("shows Requests to a Viewer who is or was a Requester, and to no other Viewer", () => {
+    const shown = (user: Me) => visibleNav(user).some((item) => item.href === "/requests");
+    expect(shown(person("viewer", true))).toBe(true);
+    expect(shown(person("viewer", false, true))).toBe(true);
+    expect(shown(person("viewer"))).toBe(false);
+  });
+
+  it("counts Requests as submitted and Review as waiting", () => {
+    const words = Object.fromEntries(
+      visibleNav(person("admin")).map((item) => [item.href, item.badgeWord]),
+    );
+    expect(words["/requests"]).toBe("submitted");
+    expect(words["/review"]).toBe("waiting");
+  });
+});
+
+describe("mayOpen", () => {
+  it("follows the same rule as the nav for the Requests pages", () => {
+    expect(mayOpen(person("viewer", true), "/requests/new")).toBe(true);
+    expect(mayOpen(person("viewer", false, true), "/requests/4")).toBe(true);
+    expect(mayOpen(person("viewer"), "/requests")).toBe(false);
+    expect(mayOpen(person("editor"), "/requests/4")).toBe(true);
+  });
+
+  it("is the page's role elsewhere", () => {
+    expect(mayOpen(person("editor"), "/users")).toBe(false);
+    expect(mayOpen(person("admin"), "/users")).toBe(true);
+    expect(mayOpen(person("viewer"), "/spools/3")).toBe(true);
+    expect(mayOpen(null, "/spools/3")).toBe(false);
   });
 });
 

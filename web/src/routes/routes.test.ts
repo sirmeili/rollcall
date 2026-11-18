@@ -106,7 +106,14 @@ describe("layout", () => {
   });
 
   it("shows the page and the role's navigation when signed in", () => {
-    signedIn({ id: 1, username: "alice", role: "editor", time_zone: "UTC" });
+    signedIn({
+      id: 1,
+      username: "alice",
+      role: "editor",
+      time_zone: "UTC",
+      requester: false,
+      has_requests: false,
+    });
     at("/spools");
 
     render(Layout, { children });
@@ -118,7 +125,14 @@ describe("layout", () => {
   });
 
   it("shows how many items wait in Review", async () => {
-    signedIn({ id: 1, username: "alice", role: "viewer", time_zone: "UTC" });
+    signedIn({
+      id: 1,
+      username: "alice",
+      role: "viewer",
+      time_zone: "UTC",
+      requester: false,
+      has_requests: false,
+    });
     const review = { flagged_events: [{}], unidentified_tags: [{}, {}], likely_empty: [] };
     vi.stubGlobal(
       "fetch",
@@ -133,7 +147,14 @@ describe("layout", () => {
   });
 
   it("refuses pages the role cannot open", () => {
-    signedIn({ id: 1, username: "alice", role: "viewer", time_zone: "UTC" });
+    signedIn({
+      id: 1,
+      username: "alice",
+      role: "viewer",
+      time_zone: "UTC",
+      requester: false,
+      has_requests: false,
+    });
     at("/users");
 
     render(Layout, { children });
@@ -143,7 +164,14 @@ describe("layout", () => {
   });
 
   it("lets admins open admin pages", () => {
-    signedIn({ id: 1, username: "root", role: "admin", time_zone: "UTC" });
+    signedIn({
+      id: 1,
+      username: "root",
+      role: "admin",
+      time_zone: "UTC",
+      requester: false,
+      has_requests: false,
+    });
     at("/users");
 
     render(Layout, { children });
@@ -168,7 +196,14 @@ describe("pages", () => {
   });
 
   it("the account page shows the user and signs out", async () => {
-    signedIn({ id: 1, username: "alice", role: "admin", time_zone: "UTC" });
+    signedIn({
+      id: 1,
+      username: "alice",
+      role: "admin",
+      time_zone: "UTC",
+      requester: false,
+      has_requests: false,
+    });
     const logout = vi.spyOn(session, "logout").mockResolvedValue();
     at("/account");
 

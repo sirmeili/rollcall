@@ -23,7 +23,14 @@ const children = createRawSnippet(() => ({
 }));
 
 beforeEach(() => {
-  session.user = { id: 1, username: "frank", role: "admin", time_zone: "UTC" } as Me;
+  session.user = {
+    id: 1,
+    username: "frank",
+    role: "admin",
+    time_zone: "UTC",
+    requester: false,
+    has_requests: false,
+  } as Me;
   session.loaded = true;
 });
 

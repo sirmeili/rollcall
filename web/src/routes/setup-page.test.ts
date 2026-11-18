@@ -7,7 +7,14 @@ import { fakeFetch } from "../test/fixtures.ts";
 const { session } = await import("#lib/auth/session.svelte.ts");
 const SetupPage = (await import("./setup/+page.svelte")).default;
 
-const ADMIN = { id: 1, username: "frank", role: "admin", time_zone: "America/Chicago" };
+const ADMIN = {
+  id: 1,
+  username: "frank",
+  role: "admin",
+  time_zone: "America/Chicago",
+  requester: false,
+  has_requests: false,
+};
 const OPEN: SetupStatus = { open: true, time_zone_needed: true, kdf_salt_needed: true };
 
 function answer(status: number, detail: unknown): Response {

@@ -21,7 +21,7 @@ import StateChip from "#lib/components/ui/StateChip.svelte";
 import { NAV, visibleNav } from "#lib/nav.ts";
 import { draftOf } from "#lib/products.ts";
 import { Theme } from "#lib/theme.svelte.ts";
-import { event, product, spoolDetail, spoolRow, summary, tag } from "../../test/fixtures.ts";
+import { event, me, product, spoolDetail, spoolRow, summary, tag } from "../../test/fixtures.ts";
 
 function freshStorage(): Storage {
   const data = new Map<string, string>();
@@ -63,7 +63,7 @@ describe("ui pieces", () => {
 
 describe("header", () => {
   it("links each page and marks the current one", () => {
-    render(Nav, { items: visibleNav("viewer"), current: NAV[1] });
+    render(Nav, { items: visibleNav(me("viewer")), current: NAV[1] });
 
     expect(screen.getByRole("link", { name: "Spools" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Inventory" })).not.toHaveAttribute("aria-current");
@@ -71,7 +71,7 @@ describe("header", () => {
 
   it("shows the Review count only when something is waiting", () => {
     const { rerender } = render(Nav, {
-      items: visibleNav("viewer"),
+      items: visibleNav(me("viewer")),
       current: undefined,
       badges: { "/review": 4 },
     });
@@ -83,7 +83,14 @@ describe("header", () => {
 
   it("has the account button, and no theme control", () => {
     render(Header, {
-      user: { id: 1, username: "frank", role: "admin", time_zone: "UTC" },
+      user: {
+        id: 1,
+        username: "frank",
+        role: "admin",
+        time_zone: "UTC",
+        requester: false,
+        has_requests: false,
+      },
       pathname: "/account",
       reviewCount: 2,
     });
@@ -99,7 +106,14 @@ describe("header", () => {
 
   it("has a Scan button only in the phone app", () => {
     const props = {
-      user: { id: 1, username: "frank", role: "viewer" as const, time_zone: "UTC" },
+      user: {
+        id: 1,
+        username: "frank",
+        role: "viewer" as const,
+        time_zone: "UTC",
+        requester: false,
+        has_requests: false,
+      },
       pathname: "/",
       reviewCount: 0,
     };
