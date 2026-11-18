@@ -1,7 +1,8 @@
 """Request body size cap, so a scan's tag block arrays stay small.
 
 Pydantic limits the number of blocks; this stops oversized bodies before they are read
-into memory or parsed. A scan is under 3 KB, so 16 KiB leaves plenty of room.
+into memory or parsed. A scan is under 3 KB, so 16 KiB leaves plenty of room. Only the
+routes given a larger limit (the model file upload) accept more.
 """
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -17,17 +18,25 @@ class BodySizeLimitMiddleware:
     away, and anything the app tries to send afterwards is dropped.
     """
 
-    def __init__(self, app: ASGIApp, max_bytes: int = MAX_BODY_BYTES) -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        max_bytes: int = MAX_BODY_BYTES,
+        larger: dict[tuple[str, str], int] | None = None,
+    ) -> None:
         self.app = app
         self.max_bytes = max_bytes
+        # (method, path) to its own limit.
+        self.larger = larger or {}
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
+        max_bytes = self.larger.get((scope["method"], scope["path"]), self.max_bytes)
         declared = dict(scope["headers"]).get(b"content-length")
-        if declared is not None and (not declared.isdigit() or int(declared) > self.max_bytes):
+        if declared is not None and (not declared.isdigit() or int(declared) > max_bytes):
             await _reject(send)
             return
 
@@ -39,7 +48,7 @@ class BodySizeLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request" and not rejected:
                 received += len(message.get("body", b""))
-                if received > self.max_bytes:
+                if received > max_bytes:
                     rejected = True
                     await _reject(send)
                     return {"type": "http.disconnect"}

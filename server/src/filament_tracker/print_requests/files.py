@@ -30,7 +30,7 @@ from filament_tracker.db.models import User
 from filament_tracker.db.request_models import FILE_NAME_MAX, RequestUpload
 from filament_tracker.domain.enums import ModelFileKind
 
-# Under Cloudflare's 100 MB request cap.
+# Under Cloudflare's 100 MB request cap. The upload route's body limit enforces it.
 MAX_MODEL_BYTES = 95 * 1024 * 1024
 DIRECTORY = "request-files"
 THREE_MF_MODEL = "3d/3dmodel.model"
@@ -41,16 +41,11 @@ UNCLAIMED_FOR = timedelta(days=1)
 PARTIAL = ".part"
 
 
-class FileTooLarge(ValueError):
-    pass
-
-
 class NotAModel(ValueError):
     pass
 
 
 NOT_A_MODEL = "That isn't a 3MF or STL file. Upload a .3mf or .stl model."
-TOO_LARGE = "That file is larger than 95 MB."
 
 
 def files_dir(database_url: str) -> Path:
@@ -126,8 +121,6 @@ class ModelFiles:
             with partial.open("wb") as out:
                 async for chunk in body:
                     size += len(chunk)
-                    if size > MAX_MODEL_BYTES:
-                        raise FileTooLarge(TOO_LARGE)
                     digest.update(chunk)
                     out.write(chunk)
             kind = kind_of(partial, size)

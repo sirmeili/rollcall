@@ -14,6 +14,7 @@ from filament_tracker.api import (
     events,
     health,
     printers,
+    request_files,
     requests,
     review,
     scans,
@@ -34,7 +35,7 @@ from filament_tracker.config import Settings
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
 from filament_tracker.ha.link import HomeAssistantLink
-from filament_tracker.print_requests.files import ModelFiles, files_dir
+from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.backup import BackupScheduler
 from filament_tracker.services.catalog_schedule import CatalogScheduler
@@ -106,7 +107,10 @@ def create_app(
     app.state.setup_gate = SetupGate()
     app.state.model_files = ModelFiles(files_dir(settings.database_url))
     app.add_exception_handler(RequestValidationError, validation_error)
-    app.add_middleware(BodySizeLimitMiddleware)
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        larger={("POST", API_PREFIX + request_files.UPLOAD_PATH): MAX_MODEL_BYTES},
+    )
     app.add_middleware(SessionRenewalMiddleware)
     # Added last, so it runs first: headers go on every response, including a 413.
     app.add_middleware(SecurityHeadersMiddleware, settings=settings)
@@ -126,6 +130,7 @@ def create_app(
         setup,
         app_settings,
         catalog,
+        request_files,
         requests,
     ):
         app.include_router(module.router, prefix=API_PREFIX)

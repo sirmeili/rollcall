@@ -46,11 +46,29 @@ def requests_user(principal: AnyPrincipal, session: DbSession) -> Principal:
 RequestsCaller = Annotated[Principal, Depends(requests_user)]
 
 
-def signed_in_user(principal: Principal) -> User:
+def _person(principal: Principal) -> User:
     """Only a person submits or edits; tokens act for no one."""
     if principal.user is None:
         raise forbidden(service.NOT_A_REQUESTER)
     return principal.user
+
+
+def requester(principal: AnyPrincipal) -> User:
+    """A signed-in Requester, checked before the body is read."""
+    user = _person(principal)
+    if not user.requester:
+        raise forbidden(service.NOT_A_REQUESTER)
+    return user
+
+
+def requests_person(principal: RequestsCaller) -> Principal:
+    """A signed-in user the Requests pages are for (an edit's own rules come after)."""
+    _person(principal)
+    return principal
+
+
+RequesterUser = Annotated[User, Depends(requester)]
+RequestsPerson = Annotated[Principal, Depends(requests_person)]
 
 
 def find_request(session: Session, principal: Principal, request_id: int) -> PrintRequest:
@@ -100,8 +118,9 @@ def submitted_count(_: Editor, session: DbSession) -> SubmittedCountOut:
 
 
 @router.post("", response_model=RequestOut, status_code=status.HTTP_201_CREATED)
-def submit(body: RequestIn, caller: AnyPrincipal, session: DbSession, http: Request) -> RequestOut:
-    user = signed_in_user(caller)
+def submit(
+    body: RequestIn, user: RequesterUser, caller: AnyPrincipal, session: DbSession, http: Request
+) -> RequestOut:
     try:
         created = service.submit(session, user, _fields(body), today=today(http), now=utcnow())
     except (Problems, service.NotAllowed) as error:
@@ -118,11 +137,11 @@ def read(request_id: int, caller: RequestsCaller, session: DbSession, http: Requ
 
 @router.patch("/{request_id}", response_model=RequestOut)
 def edit(
-    request_id: int, body: RequestEdit, caller: RequestsCaller, session: DbSession, http: Request
+    request_id: int, body: RequestEdit, caller: RequestsPerson, session: DbSession, http: Request
 ) -> RequestOut:
     """The requester edits every field again, while the request is Submitted."""
     found = find_request(session, caller, request_id)
-    user = signed_in_user(caller)
+    user = _person(caller)
     try:
         saved = service.edit(session, found, user, _fields(body), today=today(http), now=utcnow())
     except (Problems, service.NotAllowed) as error:
