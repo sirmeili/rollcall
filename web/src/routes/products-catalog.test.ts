@@ -5,7 +5,7 @@ import type { Catalog, CatalogColor } from "#lib/api/catalog.ts";
 import type { CatalogLink } from "#lib/api/types.ts";
 import { setTimeZone } from "#lib/format.ts";
 import type { Role } from "#lib/roles.ts";
-import { product, summary } from "../test/fixtures.ts";
+import { me, product, summary } from "../test/fixtures.ts";
 
 const stock = vi.hoisted(() => ({ getInventory: vi.fn(), updateProduct: vi.fn() }));
 vi.mock("#lib/api/stock.ts", () => stock);
@@ -129,14 +129,7 @@ const DROPPED = summary({
 });
 
 function signedInAs(role: Role): void {
-  session.user = {
-    id: 1,
-    username: "frank",
-    role,
-    time_zone: "UTC",
-    requester: false,
-    has_requests: false,
-  };
+  session.user = me(role);
   session.loaded = true;
 }
 

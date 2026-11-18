@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
 import type { Role } from "#lib/roles.ts";
 import { viewport } from "#lib/viewport.svelte.ts";
-import { event, product, spoolDetail, spoolRow, summary } from "../test/fixtures.ts";
+import { event, me, product, spoolDetail, spoolRow, summary } from "../test/fixtures.ts";
 
 const nav = vi.hoisted(() => ({
   page: { params: { id: "1" } as Record<string, string>, url: new URL("https://localhost/") },
@@ -30,14 +30,7 @@ const SpoolPage = (await import("./spools/[id]/+page.svelte")).default;
 const ProductsPage = (await import("./products/+page.svelte")).default;
 
 function signedInAs(role: Role): void {
-  session.user = {
-    id: 1,
-    username: "frank",
-    role,
-    time_zone: "UTC",
-    requester: false,
-    has_requests: false,
-  };
+  session.user = me(role);
   session.loaded = true;
 }
 

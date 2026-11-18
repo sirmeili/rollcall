@@ -12,7 +12,7 @@ import { session } from "#lib/auth/session.svelte.ts";
 import { setTimeZone } from "#lib/format.ts";
 import type { Role } from "#lib/roles.ts";
 import { viewport } from "#lib/viewport.svelte.ts";
-import { fakeFetch } from "../test/fixtures.ts";
+import { fakeFetch, me } from "../test/fixtures.ts";
 
 const CatalogPage = (await import("./catalog/+page.svelte")).default;
 
@@ -128,14 +128,7 @@ function serve(routes: Parameters<typeof fakeFetch>[0]) {
 }
 
 function signIn(role: Role): void {
-  session.user = {
-    id: 1,
-    username: "frank",
-    role,
-    time_zone: "UTC",
-    requester: false,
-    has_requests: false,
-  };
+  session.user = me(role);
 }
 
 async function open(catalog: Catalog = SYNCED, role: Role = "viewer") {

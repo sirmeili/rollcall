@@ -83,14 +83,7 @@ describe("header", () => {
 
   it("has the account button, and no theme control", () => {
     render(Header, {
-      user: {
-        id: 1,
-        username: "frank",
-        role: "admin",
-        time_zone: "UTC",
-        requester: false,
-        has_requests: false,
-      },
+      user: me("admin"),
       pathname: "/account",
       reviewCount: 2,
     });
@@ -106,14 +99,7 @@ describe("header", () => {
 
   it("has a Scan button only in the phone app", () => {
     const props = {
-      user: {
-        id: 1,
-        username: "frank",
-        role: "viewer" as const,
-        time_zone: "UTC",
-        requester: false,
-        has_requests: false,
-      },
+      user: me("viewer"),
       pathname: "/",
       reviewCount: 0,
     };

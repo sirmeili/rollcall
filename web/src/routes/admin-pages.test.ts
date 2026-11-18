@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
 import type { DeviceOut, PrinterOut, ReviewOut, UserOut } from "#lib/api/types.ts";
 import type { Role } from "#lib/roles.ts";
-import { event, product, spoolDetail, spoolRow } from "../test/fixtures.ts";
+import { event, me, product, spoolDetail, spoolRow } from "../test/fixtures.ts";
 
 const nav = vi.hoisted(() => ({ goto: vi.fn() }));
 vi.mock("$app/navigation", () => ({ goto: nav.goto }));
@@ -57,14 +57,7 @@ const UsersPage = (await import("./users/+page.svelte")).default;
 const AccountPage = (await import("./account/+page.svelte")).default;
 
 function signedInAs(role: Role): void {
-  session.user = {
-    id: 1,
-    username: "frank",
-    role,
-    time_zone: "UTC",
-    requester: false,
-    has_requests: false,
-  };
+  session.user = me(role);
   session.loaded = true;
 }
 

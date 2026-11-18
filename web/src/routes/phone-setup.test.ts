@@ -8,6 +8,7 @@ import type { Me } from "#lib/api/types.ts";
 import { browserBridge, setBridge } from "#lib/phone/bridge.ts";
 import { saveOpenOn, savePairing, saveServer } from "#lib/phone/pairing-store.ts";
 import { fakeBridge, fakeFetch, PAIRING, type FakeBridge } from "../test/fake-bridge.ts";
+import { me } from "../test/fixtures.ts";
 
 const nav = vi.hoisted(() => ({
   page: { url: new URL("https://localhost/") },
@@ -23,14 +24,7 @@ const PairPage = (await import("./pair/+page.svelte")).default;
 const LoginPage = (await import("./login/+page.svelte")).default;
 
 const children = createRawSnippet(() => ({ render: () => "<p>page content</p>" }));
-const BOB = {
-  id: 2,
-  username: "bob",
-  role: "viewer",
-  time_zone: "UTC",
-  requester: false,
-  has_requests: false,
-} as Me;
+const BOB = me("viewer", { id: 2, username: "bob" });
 
 let native: FakeBridge;
 let server: ReturnType<typeof fakeFetch>;

@@ -2,19 +2,12 @@ import { render, screen, waitFor } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SetupStatus } from "#lib/api/setup.ts";
-import { fakeFetch } from "../test/fixtures.ts";
+import { fakeFetch, me } from "../test/fixtures.ts";
 
 const { session } = await import("#lib/auth/session.svelte.ts");
 const SetupPage = (await import("./setup/+page.svelte")).default;
 
-const ADMIN = {
-  id: 1,
-  username: "frank",
-  role: "admin",
-  time_zone: "America/Chicago",
-  requester: false,
-  has_requests: false,
-};
+const ADMIN = me("admin", { time_zone: "America/Chicago" });
 const OPEN: SetupStatus = { open: true, time_zone_needed: true, kdf_salt_needed: true };
 
 function answer(status: number, detail: unknown): Response {

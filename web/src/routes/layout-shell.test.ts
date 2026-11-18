@@ -2,8 +2,8 @@
 import { cleanup, render, screen } from "@testing-library/svelte";
 import { createRawSnippet } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Me } from "#lib/api/types.ts";
 import { viewport } from "#lib/viewport.svelte.ts";
+import { me } from "../test/fixtures.ts";
 
 const nav = vi.hoisted(() => ({
   page: { url: new URL("https://localhost/spools") },
@@ -23,14 +23,7 @@ const children = createRawSnippet(() => ({
 }));
 
 beforeEach(() => {
-  session.user = {
-    id: 1,
-    username: "frank",
-    role: "admin",
-    time_zone: "UTC",
-    requester: false,
-    has_requests: false,
-  } as Me;
+  session.user = me("admin");
   session.loaded = true;
 });
 

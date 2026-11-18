@@ -41,14 +41,7 @@ describe("LoginForm", () => {
 
   it("signs in with the username and password", async () => {
     const session = new Session();
-    const login = vi.spyOn(session, "login").mockResolvedValue({
-      id: 1,
-      username: "alice",
-      role: "viewer",
-      time_zone: "UTC",
-      requester: false,
-      has_requests: false,
-    });
+    const login = vi.spyOn(session, "login").mockResolvedValue(me("viewer", { username: "alice" }));
     render(LoginForm, { session });
 
     await fillAndSubmit();
@@ -85,15 +78,7 @@ describe("LoginForm", () => {
     let finish: () => void = () => {};
     vi.spyOn(session, "login").mockReturnValue(
       new Promise((resolve) => {
-        finish = () =>
-          resolve({
-            id: 1,
-            username: "alice",
-            role: "viewer",
-            time_zone: "UTC",
-            requester: false,
-            has_requests: false,
-          });
+        finish = () => resolve(me("viewer", { username: "alice" }));
       }),
     );
     render(LoginForm, { session });

@@ -2,16 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { Me } from "#lib/api/types.ts";
 import { ACCOUNT_PATH, mayOpen, navItemFor, requiredRole, visibleNav } from "#lib/nav.ts";
 import type { Role } from "#lib/roles.ts";
+import { me } from "../test/fixtures.ts";
 
 function person(role: Role, requester = false, hasRequests = false): Me {
-  return {
-    id: 1,
-    username: "sam",
-    role,
-    requester,
-    has_requests: hasRequests,
-    time_zone: "UTC",
-  };
+  return me(role, { username: "sam", requester, has_requests: hasRequests });
 }
 
 const labels = (role: Role | null) => visibleNav(role ? person(role) : null).map((i) => i.label);

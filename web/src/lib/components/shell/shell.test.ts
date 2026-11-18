@@ -9,22 +9,8 @@ import { menuGroups, pageTitle } from "#lib/nav.ts";
 import { PHONE_QUERY, Viewport } from "#lib/viewport.svelte.ts";
 import { me } from "../../../test/fixtures.ts";
 
-const ADMIN: Me = {
-  id: 1,
-  username: "frank",
-  role: "admin",
-  time_zone: "UTC",
-  requester: false,
-  has_requests: false,
-};
-const VIEWER: Me = {
-  id: 2,
-  username: "bob",
-  role: "viewer",
-  time_zone: "UTC",
-  requester: false,
-  has_requests: false,
-};
+const ADMIN: Me = me("admin");
+const VIEWER: Me = me("viewer", { id: 2, username: "bob" });
 
 afterEach(cleanup);
 

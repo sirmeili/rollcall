@@ -1,15 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { guardRedirect, loginUrl, safeNext } from "#lib/auth/redirect.ts";
 import type { Me } from "#lib/api/types.ts";
+import { me } from "../../test/fixtures.ts";
 
-const ALICE: Me = {
-  id: 1,
-  username: "alice",
-  role: "viewer",
-  time_zone: "UTC",
-  requester: false,
-  has_requests: false,
-};
+const ALICE: Me = me("viewer", { username: "alice" });
 
 describe("safeNext", () => {
   it.each([
