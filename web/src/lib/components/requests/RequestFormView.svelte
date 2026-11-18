@@ -11,6 +11,8 @@
   import {
     LINK_MAX,
     NOTES_MAX,
+    QUANTITY_MAX,
+    QUANTITY_MIN,
     TITLE_MAX,
     formProblems,
     hasFile,
@@ -76,8 +78,8 @@
 
   function step(by: number): void {
     const now = Number(form.quantity);
-    const next = Number.isInteger(now) ? now + by : 1;
-    form.quantity = String(Math.min(100, Math.max(1, next)));
+    const next = Number.isInteger(now) ? now + by : QUANTITY_MIN;
+    form.quantity = String(Math.min(QUANTITY_MAX, Math.max(QUANTITY_MIN, next)));
   }
 
   async function send(event: SubmitEvent): Promise<void> {

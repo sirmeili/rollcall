@@ -9,6 +9,8 @@ export const TITLE_MAX = 120;
 export const NOTES_MAX = 2000;
 export const NOTE_MAX = 80;
 export const LINK_MAX = 2000;
+export const QUANTITY_MIN = 1;
+export const QUANTITY_MAX = 100;
 export const MAX_MODEL_BYTES = 95 * 1024 * 1024;
 
 /** The model file on the form. */
@@ -104,8 +106,8 @@ export function formProblems(form: RequestForm, today: string): FormProblem[] {
   const add = (field: FormField, message: string) => problems.push({ field, message });
   if (!form.title.trim()) add("title", "Enter a title.");
   const quantity = Number(form.quantity);
-  if (!/^\d+$/.test(form.quantity.trim()) || quantity < 1 || quantity > 100) {
-    add("quantity", "Enter a quantity from 1 to 100.");
+  if (!/^\d+$/.test(form.quantity.trim()) || quantity < QUANTITY_MIN || quantity > QUANTITY_MAX) {
+    add("quantity", `Enter a quantity from ${QUANTITY_MIN} to ${QUANTITY_MAX}.`);
   }
   if (form.neededBy && form.neededBy < today) {
     add("needed_by", "Needed by can't be in the past. Pick today or later, or leave it empty.");
