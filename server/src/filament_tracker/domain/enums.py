@@ -35,3 +35,36 @@ class Role(StrEnum):
 
     def allows(self, needed: "Role") -> bool:
         return self.rank >= needed.rank
+
+
+class Priority(StrEnum):
+    """How soon a print request is wanted, most pressing first."""
+
+    URGENT = "urgent"
+    NORMAL = "normal"
+    NO_RUSH = "no_rush"
+
+    @property
+    def rank(self) -> int:
+        return list(Priority).index(self)
+
+
+class RequestStatus(StrEnum):
+    """Where a print request is. #76 adds the rest of the pipeline."""
+
+    SUBMITTED = "submitted"
+
+
+class HistoryKind(StrEnum):
+    """What one request history entry records."""
+
+    SUBMITTED = "submitted"
+    EDITED = "edited"
+    PRIORITY_CHANGED = "priority_changed"
+
+
+class ModelFileKind(StrEnum):
+    """What a print request's model file is, judged from its contents."""
+
+    THREE_MF = "3mf"
+    STL = "stl"

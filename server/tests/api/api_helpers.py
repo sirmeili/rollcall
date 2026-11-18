@@ -75,9 +75,11 @@ PASSWORD = "correct horse battery"  # noqa: S105 - test value
 CSRF = {"X-Requested-With": "filament-tracker"}
 
 
-def make_user(app: FastAPI, username: str, role: Role, password: str = PASSWORD) -> int:
+def make_user(
+    app: FastAPI, username: str, role: Role, password: str = PASSWORD, *, requester: bool = False
+) -> int:
     with app.state.session_factory() as session:
-        user = create_user(session, username, password, role)
+        user = create_user(session, username, password, role, requester=requester)
         session.commit()
         return user.id
 

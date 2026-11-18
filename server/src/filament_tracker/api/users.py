@@ -28,6 +28,7 @@ def user_out(user: User) -> UserOut:
         id=user.id,
         username=user.username,
         role=user.role,
+        requester=user.requester,
         disabled=user.disabled_at is not None,
         created_at=user.created_at,
         last_login_at=user.last_login_at,
@@ -46,7 +47,9 @@ def list_users(_: Admin, session: DbSession) -> list[UserOut]:
 @router.post("/users", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def add_user(body: UserCreate, _: Admin, session: DbSession) -> UserOut:
     try:
-        user = create_user(session, body.username, body.password, body.role)
+        user = create_user(
+            session, body.username, body.password, body.role, requester=body.requester
+        )
     except UsernameTaken as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     except AccountError as exc:
@@ -57,7 +60,7 @@ def add_user(body: UserCreate, _: Admin, session: DbSession) -> UserOut:
 
 @router.patch("/users/{user_id}", response_model=UserOut)
 def update_user(user_id: int, body: UserUpdate, _: Admin, session: DbSession) -> UserOut:
-    """Change role, disable or enable, or reset the password. Disabling or a password
+    """Change role or Requester, disable or enable, or reset the password. Disabling or a password
     reset signs the user out everywhere."""
     user = session.get(User, user_id)
     if user is None:
@@ -73,6 +76,8 @@ def update_user(user_id: int, body: UserUpdate, _: Admin, session: DbSession) ->
         raise _invalid(exc) from exc
     if body.role is not None:
         user.role = body.role
+    if body.requester is not None:
+        user.requester = body.requester
     if body.disabled is True and user.disabled_at is None:
         user.disabled_at = utcnow()
         end_sessions(session, user)

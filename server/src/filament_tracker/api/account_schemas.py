@@ -29,11 +29,15 @@ class UserBase(BaseModel):
     id: int
     username: str
     role: Role
+    # May submit print requests, alongside the role (ADR-0017).
+    requester: bool
 
 
 class Me(UserBase):
     # The server's time zone, in which the web app shows every time.
     time_zone: str
+    # Has made a print request, so keeps the Requests page even when no longer a Requester.
+    has_requests: bool
 
 
 class UserOut(UserBase):
@@ -46,9 +50,11 @@ class UserCreate(Strict):
     username: Username
     password: Password
     role: Role
+    requester: bool = False
 
 
 class UserUpdate(Strict):
     role: Role | None = None
+    requester: bool | None = None
     disabled: bool | None = None
     password: Password | None = None

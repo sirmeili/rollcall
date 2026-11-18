@@ -59,6 +59,29 @@ def test_create_user_with_a_role(settings: Settings) -> None:
     assert _users(settings)[0].role == Role.EDITOR
 
 
+def test_create_user_as_a_requester(settings: Settings, capsys) -> None:
+    code = main(
+        ["create-user", "sam", "--role", "viewer", "--requester"],
+        prompt=answers(PASSWORD, PASSWORD),
+        settings=settings,
+    )
+
+    assert code == 0
+    assert "created sam (viewer, requester)" in capsys.readouterr().out
+    [user] = _users(settings)
+    assert (user.role, user.requester) == (Role.VIEWER, True)
+
+
+def test_create_user_is_not_a_requester_by_default(settings: Settings) -> None:
+    main(
+        ["create-user", "dana", "--role", "editor"],
+        prompt=answers(PASSWORD, PASSWORD),
+        settings=settings,
+    )
+
+    assert _users(settings)[0].requester is False
+
+
 @pytest.mark.parametrize(
     ("replies", "message"),
     [

@@ -157,6 +157,8 @@ def test_setup_creates_the_admin_signs_them_in_and_closes(start: Any) -> None:
         "id": 1,
         "username": "frank",
         "role": "admin",
+        "requester": False,
+        "has_requests": False,
         "time_zone": "America/Chicago",
     }
     assert started.client.get("/api/v1/auth/me").json()["username"] == "frank"
