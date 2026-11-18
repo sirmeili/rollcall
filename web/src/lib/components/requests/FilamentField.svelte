@@ -1,6 +1,7 @@
 <script lang="ts">
   /** The request's filament: the choices in order, each with a note, and a search to add
    * in-stock products or catalog colors no one has in stock. */
+  import FindInStore from "#lib/components/catalog/FindInStore.svelte";
   import HexRing from "#lib/components/catalog/HexRing.svelte";
   import { CHOICES_MAX, NOTE_MAX } from "#lib/requests/form.ts";
   import {
@@ -95,6 +96,9 @@
           >
           {chosenSub(choice)}</span
         >
+        {#if choice.kind === "catalog_color" && !choice.gone}
+          <FindInStore href={choice.storeHref} />
+        {/if}
       </span>
       <input
         type="text"

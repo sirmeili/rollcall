@@ -73,7 +73,7 @@ export function formFrom(request: PrintRequest): RequestForm {
           missing: request.file.missing,
         }
       : { status: "none" },
-    choices: request.choices.map(chosenFrom),
+    choices: request.choices.map((choice) => chosenFrom(choice, request.store_address)),
   };
 }
 

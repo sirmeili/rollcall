@@ -4,7 +4,7 @@
 import type { Catalog } from "#lib/api/catalog.ts";
 import type { Choice, ChoiceIn } from "#lib/api/requests.ts";
 import type { ProductSummary } from "#lib/api/types.ts";
-import { stockText } from "#lib/catalog.ts";
+import { stockText, storeSearchUrl, storeUrl } from "#lib/catalog.ts";
 import { similarText } from "#lib/requests/labels.ts";
 
 interface OptionBase {
@@ -24,7 +24,12 @@ interface OptionBase {
 
 export type FilamentOption =
   | (OptionBase & { kind: "product"; productId: number })
-  | (OptionBase & { kind: "catalog_color"; uuid: string });
+  | (OptionBase & {
+      kind: "catalog_color";
+      uuid: string;
+      /** Find in store's search for it. */
+      storeHref: string;
+    });
 
 /** A choice on the form, in order. */
 export type Chosen = FilamentOption & { note: string };
@@ -48,6 +53,7 @@ export function pickerOptions(inventory: ProductSummary[], catalog: Catalog | nu
       hay: `${product.display_name} ${product.filament_type}`,
     }));
   const colors: FilamentOption[] = [];
+  const storeAddress = catalog?.store_address ?? "";
   for (const line of catalog?.lines ?? []) {
     for (const color of line.colors) {
       if (color.discontinued || color.owned) continue;
@@ -56,6 +62,7 @@ export function pickerOptions(inventory: ProductSummary[], catalog: Catalog | nu
         key: `c:${color.uuid}`,
         kind: "catalog_color",
         uuid: color.uuid,
+        storeHref: storeUrl(storeAddress, line.name, color),
         name: `${color.name} ${line.name}`,
         hexes: color.hexes,
         sub: `${line.material}${code} · not in stock`,
@@ -67,8 +74,9 @@ export function pickerOptions(inventory: ProductSummary[], catalog: Catalog | nu
   return { products, colors };
 }
 
-/** A choice already on a request, as the form shows it. */
-export function chosenFrom(choice: Choice): Chosen {
+/** A choice already on a request, as the form shows it. storeAddress: the store Find in
+ * store searches. */
+export function chosenFrom(choice: Choice, storeAddress: string): Chosen {
   if (choice.kind === "product") {
     return {
       key: `p:${choice.product_id}`,
@@ -89,6 +97,12 @@ export function chosenFrom(choice: Choice): Chosen {
     key: `c:${choice.catalog_color}`,
     kind: "catalog_color",
     uuid: choice.catalog_color as string,
+    storeHref: storeSearchUrl(
+      storeAddress,
+      choice.line ?? "",
+      choice.color_name ?? choice.name,
+      choice.bambu_code,
+    ),
     name: choice.name,
     hexes: choice.hexes,
     sub: choice.in_catalog

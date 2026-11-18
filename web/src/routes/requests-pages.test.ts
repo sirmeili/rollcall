@@ -689,6 +689,22 @@ describe("New request", () => {
     expect(choices()).toEqual(["Choice 1: Hot Pink PLA Basic"]);
   });
 
+  it("offers Find in store on a chosen catalog color, not on a product", async () => {
+    render(NewPage);
+    await screen.findByLabelText("Add filament");
+    await userEvent.click(screen.getByRole("button", { name: "Add Blue PLA" }));
+    await addFilament("pink", "Hot Pink PLA Basic");
+
+    const [blue, pink] = within(
+      screen.getByRole("list", { name: "Filament choices, in order" }),
+    ).getAllByRole("listitem");
+    expect(within(blue).queryByRole("link", { name: /Find in store/ })).toBeNull();
+    expect(within(pink).getByRole("link", { name: /Find in store/ })).toHaveAttribute(
+      "href",
+      "https://store.example/search?q=PLA%20Basic%20Hot%20Pink",
+    );
+  });
+
   it("still offers products when the catalog can't load", async () => {
     catalogApi.getCatalog.mockRejectedValue(new ApiError(0, "down"));
     render(NewPage);
@@ -927,6 +943,32 @@ describe("Edit request", () => {
       }),
     );
     await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/requests/41"));
+  });
+
+  it("offers Find in store on a saved catalog color, unless it has left the catalog", async () => {
+    api.getRequest.mockResolvedValue(
+      request({
+        can_edit: true,
+        store_address: "https://eu.store.example",
+        choices: [
+          ...request().choices,
+          choice({ catalog_color: "old", name: "Old Gold PLA Basic", in_catalog: false }),
+        ],
+      }),
+    );
+    render(EditPage);
+    await screen.findByLabelText("Title");
+
+    const [blue, pink, gone] = within(
+      screen.getByRole("list", { name: "Filament choices, in order" }),
+    ).getAllByRole("listitem");
+    expect(within(blue).queryByRole("link", { name: /Find in store/ })).toBeNull();
+    expect(within(pink).getByRole("link", { name: /Find in store/ })).toHaveAttribute(
+      "href",
+      "https://eu.store.example/search?q=PLA%20Basic%20Hot%20Pink",
+    );
+    expect(gone).toHaveTextContent("No longer in the catalog");
+    expect(within(gone).queryByRole("link", { name: /Find in store/ })).toBeNull();
   });
 
   it("adds no more filament once it has 20", async () => {

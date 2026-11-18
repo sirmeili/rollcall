@@ -27,6 +27,7 @@ import { chosenFrom, chosenSub, pickerOptions, searchOptions } from "#lib/reques
 import { me, product, summary } from "../../test/fixtures.ts";
 
 const TODAY = "2026-11-18";
+const STORE = "https://store.example";
 
 function entry(fields: Partial<HistoryEntry>): HistoryEntry {
   return {
@@ -96,7 +97,7 @@ function filled(fields: Partial<RequestForm> = {}): RequestForm {
     ...blankForm(),
     title: "Wingspan insert",
     link: "https://makerworld.com/models/1",
-    choices: [chosenFrom(choice({}))],
+    choices: [chosenFrom(choice({}), STORE)],
     ...fields,
   };
 }
@@ -185,7 +186,11 @@ describe("the filament picker", () => {
     ]);
     expect(chosenSub(options.colors[1])).toBe("PLA · not in stock · Multi-color: no comparison");
     expect(options.products[0]).toMatchObject({ kind: "product", productId: 7 });
-    expect(options.colors[0]).toMatchObject({ kind: "catalog_color", uuid: "hot pink" });
+    expect(options.colors[0]).toMatchObject({
+      kind: "catalog_color",
+      uuid: "hot pink",
+      storeHref: "https://store.example/search?q=10203",
+    });
   });
 
   it("works before the catalog is downloaded", () => {
@@ -217,14 +222,18 @@ describe("the filament picker", () => {
   });
 
   it("shows a saved choice with what is known now", () => {
-    const gone = chosenFrom(choice({ in_catalog: false, material: null }));
+    const gone = chosenFrom(choice({ in_catalog: false, material: null }), STORE);
     expect(chosenSub(gone)).toBe("No longer in the catalog");
     const owned = chosenFrom(
       choice({ kind: "product", product_id: 7, name: "Blue PLA", sealed: 0, open: 0 }),
+      STORE,
     );
     expect([owned.key, owned.sub]).toEqual(["p:7", "PLA · none left"]);
     expect(owned).toMatchObject({ kind: "product", productId: 7 });
-    expect(chosenFrom(choice({}))).toMatchObject({ kind: "catalog_color", uuid: "hot-pink" });
+    expect(chosenFrom(choice({}), STORE)).toMatchObject({
+      kind: "catalog_color",
+      uuid: "hot-pink",
+    });
   });
 });
 
@@ -238,7 +247,7 @@ describe("the request form", () => {
 
   it("takes up to 20 filaments, as the server does", () => {
     const many = (n: number) =>
-      Array.from({ length: n }, (_, i) => chosenFrom(choice({ catalog_color: `c${i}` })));
+      Array.from({ length: n }, (_, i) => chosenFrom(choice({ catalog_color: `c${i}` }), STORE));
     expect(CHOICES_MAX).toBe(20);
     expect(formProblems(filled({ choices: many(20) }), TODAY)).toEqual([]);
     expect(formProblems(filled({ choices: many(21) }), TODAY)).toEqual([
@@ -308,8 +317,8 @@ describe("the request form", () => {
       notes: " 0.2 mm ",
       file: { status: "uploaded", upload: { id: "u1", name: "a.3mf", size: 1, kind: "3mf" } },
       choices: [
-        { ...chosenFrom(choice({ kind: "product", product_id: 7 })), note: " body " },
-        chosenFrom(choice({})),
+        { ...chosenFrom(choice({ kind: "product", product_id: 7 }), STORE), note: " body " },
+        chosenFrom(choice({}), STORE),
       ],
     });
     expect(requestBody(form)).toEqual({
