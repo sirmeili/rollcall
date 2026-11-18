@@ -183,6 +183,8 @@ describe("the filament picker", () => {
       ["c:rainbow", "Rainbow PLA Basic", "PLA · not in stock"],
     ]);
     expect(chosenSub(options.colors[1])).toBe("PLA · not in stock · Multi-color: no comparison");
+    expect(options.products[0]).toMatchObject({ kind: "product", productId: 7 });
+    expect(options.colors[0]).toMatchObject({ kind: "catalog_color", uuid: "hot pink" });
   });
 
   it("works before the catalog is downloaded", () => {
@@ -220,6 +222,8 @@ describe("the filament picker", () => {
       choice({ kind: "product", product_id: 7, name: "Blue PLA", sealed: 0, open: 0 }),
     );
     expect([owned.key, owned.sub]).toEqual(["p:7", "PLA · none left"]);
+    expect(owned).toMatchObject({ kind: "product", productId: 7 });
+    expect(chosenFrom(choice({}))).toMatchObject({ kind: "catalog_color", uuid: "hot-pink" });
   });
 });
 

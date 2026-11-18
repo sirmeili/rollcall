@@ -7,10 +7,9 @@ import type { ProductSummary } from "#lib/api/types.ts";
 import { stockText } from "#lib/catalog.ts";
 import { similarText } from "#lib/requests/labels.ts";
 
-export interface FilamentOption {
-  /** "p:12" for a product, "c:<uuid>" for a catalog color. */
+interface OptionBase {
+  /** "p:12" for a product, "c:<uuid>" for a catalog color: the list and identity key. */
   key: string;
-  kind: "product" | "catalog_color";
   name: string;
   hexes: string[];
   /** "PLA · 2 sealed · 1 open", "PLA · 10101 · not in stock" */
@@ -23,10 +22,12 @@ export interface FilamentOption {
   gone?: boolean;
 }
 
+export type FilamentOption =
+  | (OptionBase & { kind: "product"; productId: number })
+  | (OptionBase & { kind: "catalog_color"; uuid: string });
+
 /** A choice on the form, in order. */
-export interface Chosen extends FilamentOption {
-  note: string;
-}
+export type Chosen = FilamentOption & { note: string };
 
 export interface PickerOptions {
   products: FilamentOption[];
@@ -39,6 +40,7 @@ export function pickerOptions(inventory: ProductSummary[], catalog: Catalog | nu
     .map(({ product, counts }) => ({
       key: `p:${product.id}`,
       kind: "product" as const,
+      productId: product.id,
       name: product.display_name,
       hexes: [product.color_rgba.slice(0, 6).toUpperCase()],
       sub: `${product.filament_type} · ${stockText(counts.sealed, counts.open)}`,
@@ -53,6 +55,7 @@ export function pickerOptions(inventory: ProductSummary[], catalog: Catalog | nu
       colors.push({
         key: `c:${color.uuid}`,
         kind: "catalog_color",
+        uuid: color.uuid,
         name: `${color.name} ${line.name}`,
         hexes: color.hexes,
         sub: `${line.material}${code} · not in stock`,
@@ -70,6 +73,7 @@ export function chosenFrom(choice: Choice): Chosen {
     return {
       key: `p:${choice.product_id}`,
       kind: "product",
+      productId: choice.product_id as number,
       name: choice.name,
       hexes: choice.hexes,
       sub: [choice.material, stockText(choice.sealed ?? 0, choice.open ?? 0) || "none left"]
@@ -84,6 +88,7 @@ export function chosenFrom(choice: Choice): Chosen {
   return {
     key: `c:${choice.catalog_color}`,
     kind: "catalog_color",
+    uuid: choice.catalog_color as string,
     name: choice.name,
     hexes: choice.hexes,
     sub: choice.in_catalog
@@ -104,9 +109,9 @@ export function chosenSub(option: FilamentOption, most?: number): string {
 
 export function choiceIn(chosen: Chosen): ChoiceIn {
   const note = chosen.note.trim();
-  return chosen.key.startsWith("p:")
-    ? { product_id: Number(chosen.key.slice(2)), note }
-    : { catalog_color: chosen.key.slice(2), note };
+  return chosen.kind === "product"
+    ? { product_id: chosen.productId, note }
+    : { catalog_color: chosen.uuid, note };
 }
 
 const FIRST_PRODUCTS = 5;
