@@ -8,7 +8,7 @@
   import { viewport } from "#lib/viewport.svelte.ts";
 
   const screen = viewport();
-  const staff = $derived(seesEveryRequest(session.user));
+  const seesAll = $derived(seesEveryRequest(session.user));
   const canNew = $derived(canSubmit(session.user));
 
   let requests = $state<RequestRow[] | null>(null);
@@ -22,21 +22,21 @@
   });
 
   const intro = $derived(
-    staff
+    seesAll
       ? "Print requests from everyone. Most urgent first."
       : canNew
         ? "Your print requests. You can edit a request while it's still Submitted."
         : "Your earlier print requests. You can no longer submit or edit requests, but you can still open them and download their files.",
   );
   const emptyHeading = $derived(
-    staff
+    seesAll
       ? "No print requests yet"
       : canNew
         ? "You haven't asked for any prints yet"
         : "You don't have any print requests",
   );
   const emptyText = $derived(
-    staff
+    seesAll
       ? canNew
         ? "Requests from everyone with the Requester permission show up here. Start one yourself with New request."
         : "Requests from everyone with the Requester permission show up here."
@@ -88,9 +88,9 @@
       oldest first
     </p>
     {#if screen.phone}
-      <RequestCards {requests} showRequester={staff} />
+      <RequestCards {requests} showRequester={seesAll} />
     {:else}
-      <RequestTable {requests} showRequester={staff} />
+      <RequestTable {requests} showRequester={seesAll} />
     {/if}
   {/if}
 </div>
