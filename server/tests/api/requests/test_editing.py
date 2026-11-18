@@ -8,7 +8,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from ofdb_fake import FakeSource, changed_export, gz, ok, refresh
 from request_helpers import BLACK, JADE_WHITE, REQUESTS, edit, person, submitted
+from sqlalchemy.orm import Session
 
+from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import Role
 
 
@@ -84,6 +86,21 @@ def test_a_past_needed_by_date_is_refused_when_it_is_changed(sam: TestClient) ->
     problems = edit(sam, created["id"], needed_by=past).json()["detail"]["problems"]
 
     assert "needed_by" in problems
+
+
+def test_a_needed_by_date_that_has_passed_must_be_changed_to_save_an_edit(
+    sam: TestClient, db: Session
+) -> None:
+    created = submitted(sam, needed_by=(date.today() + timedelta(days=1)).isoformat())
+    past = date.today() - timedelta(days=3)
+    db.get(PrintRequest, created["id"]).needed_by = past  # time has moved on
+    db.commit()
+
+    response = edit(sam, created["id"], needed_by=past.isoformat(), title="Lamp v2")
+
+    assert response.status_code == 422
+    assert set(response.json()["detail"]["problems"]) == {"needed_by"}
+    assert edit(sam, created["id"], needed_by=None, title="Lamp v2").status_code == 200
 
 
 def test_only_the_requester_edits(app: FastAPI, sam: TestClient) -> None:

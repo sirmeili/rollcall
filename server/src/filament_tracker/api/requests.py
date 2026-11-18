@@ -143,7 +143,15 @@ def edit(
     found = find_request(session, caller, request_id)
     user = _person(caller)
     try:
-        saved = service.edit(session, found, user, _fields(body), today=today(http), now=utcnow())
+        saved = service.edit(
+            session,
+            found,
+            user,
+            _fields(body),
+            today=today(http),
+            now=utcnow(),
+            file_on_disk=model_files(http).exists(found.file_stored_name),
+        )
     except (Problems, service.NotAllowed) as error:
         raise _refused(error) from None
     session.commit()

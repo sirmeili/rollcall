@@ -89,16 +89,17 @@ def _validate(
     upload: RequestUpload | None,
     *,
     today: date,
+    file_on_disk: bool = False,
 ) -> list[FilamentChoice]:
-    """The choices to save; Problems with every mistake if anything is wrong."""
-    keeps_file = request is not None and request.file_stored_name and not fields.remove_file
-    date_changed = request is None or fields.needed_by != request.needed_by
-    problems = check(
-        fields,
-        today=today,
-        check_date=date_changed,
-        has_file=upload is not None or bool(keeps_file),
+    """The choices to save; Problems with every mistake if anything is wrong. A kept file
+    counts as the model only while it is still on disk."""
+    keeps_file = (
+        request is not None
+        and request.file_stored_name is not None
+        and not fields.remove_file
+        and file_on_disk
     )
+    problems = check(fields, today=today, has_file=upload is not None or keeps_file)
     choices, choice_problem = make_choices(
         session, fields.choices, request.choices if request is not None else []
     )
@@ -169,9 +170,11 @@ def edit(
     *,
     today: date,
     now: datetime,
+    file_on_disk: bool,
 ) -> Saved:
-    """Save an edit by the request's requester. An edit that changes nothing writes no
-    history entry."""
+    """Save an edit by the request's requester, held to the rules of a new request. An edit
+    that changes nothing writes no history entry. file_on_disk: the request's file is still
+    on disk."""
     if request.requester_id != user.id:
         raise NotAllowed(NOT_YOURS)
     if not user.requester:
@@ -180,7 +183,7 @@ def edit(
         raise NotAllowed(NOT_SUBMITTED)
     fields = fields.cleaned()
     upload = _upload(session, fields, user)
-    choices = _validate(session, request, fields, upload, today=today)
+    choices = _validate(session, request, fields, upload, today=today, file_on_disk=file_on_disk)
     changed = _changed(request, fields, choices)
     if not changed:
         return Saved(request)

@@ -258,3 +258,16 @@ def test_a_file_missing_from_disk_is_shown_as_missing_and_can_be_uploaded_again(
 
     again = edit(sam, created["id"], upload_id=uploaded(sam, three_mf())["id"]).json()
     assert again["file"]["missing"] is False
+
+
+def test_a_file_missing_from_disk_does_not_count_as_the_model(
+    sam: TestClient, files_dir: Path
+) -> None:
+    created = submitted(sam, link=None, notes="", upload_id=uploaded(sam, three_mf())["id"])
+    for path in files_dir.iterdir():
+        path.unlink()
+
+    response = edit(sam, created["id"], link=None, notes="", title="Dragon v2")
+
+    assert response.status_code == 422
+    assert set(response.json()["detail"]["problems"]) == {"notes"}

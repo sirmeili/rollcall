@@ -76,16 +76,14 @@ def is_web_link(link: str) -> bool:
     return parts.scheme.lower() in ("http", "https") and bool(parts.hostname)
 
 
-def check(
-    fields: RequestFields, *, today: date, check_date: bool, has_file: bool
-) -> dict[str, str]:
+def check(fields: RequestFields, *, today: date, has_file: bool) -> dict[str, str]:
     """Each field's problem; empty when the request may be saved."""
     problems = {}
     if not fields.title:
         problems[TITLE] = "Enter a title."
     if not QUANTITY_MIN <= fields.quantity <= QUANTITY_MAX:
         problems[QUANTITY] = f"Enter a quantity from {QUANTITY_MIN} to {QUANTITY_MAX}."
-    if check_date and fields.needed_by is not None and fields.needed_by < today:
+    if fields.needed_by is not None and fields.needed_by < today:
         problems[NEEDED_BY] = (
             "Needed by can't be in the past. Pick today or later, or leave it empty."
         )
