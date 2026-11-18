@@ -62,6 +62,8 @@ export interface Choice {
   sealed: number | null;
   open: number | null;
   catalog_color: string | null;
+  /** A catalog color's own name ("Black") and its filament line's ("PLA Basic"). */
+  color_name: string | null;
   line: string | null;
   bambu_code: string | null;
   /** False: the catalog has dropped it since it was chosen. */
