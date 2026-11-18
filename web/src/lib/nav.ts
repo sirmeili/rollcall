@@ -16,10 +16,10 @@ export interface NavItem {
  * user may open it. */
 export const ACCOUNT_PATH = "/account";
 
-/** The pages of the web app, with the lowest role that may open each. The API enforces the
- * same rules. */
 const WAITING = "waiting";
 
+/** The pages of the web app, with the lowest role that may open each. The API enforces the
+ * same rules. */
 export const NAV: readonly NavItem[] = [
   { href: "/", label: "Inventory", role: "viewer", badgeWord: WAITING },
   { href: "/spools", label: "Spools", role: "viewer", badgeWord: WAITING },
