@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Requests · RollCall (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Global styles from the approved mockups (docs/mockups/web/, direction A "Workshop").
+ * Tokens come from docs/mockups/web/tokens.css. The theme is set on <html data-theme>
+ * by the script in app.html and by lib/theme.svelte.ts. Components add scoped styles. */
+
+:root,
+:root[data-theme="light"] {
+  --bg: #f4f2ee; /* page background */
+  --surface: #ffffff; /* cards, header, tables */
+  --line: #ddd8cf; /* borders and dividers */
+  --text: #1c1b19;
+  --muted: #5e5a53; /* secondary text; 6.5:1 on --surface */
+  --accent: #b45309; /* primary buttons, active filter, Review badge */
+  --onaccent: #ffffff;
+  --chip: #ece8e1; /* neutral fills: hover, open-state chip, avatars */
+  --lowbg: #fdecd3; /* low stock, flagged, warnings */
+  --lowtext: #7c3500;
+  --okbg: #dcefe2;
+  --oktext: #1f5c33;
+  --okdot: #2f8a4e;
+  --track: #e9e5de; /* % left bar: track */
+  --fill: #3f3b35; /* % left bar: fill */
+  --fillLow: #c2410c; /* % left bar: nearly out */
+  --danger: #b3261e;
+
+  /* Spool ring swatch: same treatment for every color */
+  --ringShadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.16);
+  --holeShadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+  --ringShadowSmall: var(--ringShadow);
+
+  --font-head: "Space Grotesk", system-ui, sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* The phone layout's bottom bar, and what the pages leave free for it. */
+  --bottom-bar: calc(84px + env(safe-area-inset-bottom, 0px));
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1c1c1b;
+  --line: #34322e;
+  --text: #f2efe9;
+  --muted: #a9a49b;
+  --accent: #f59e0b;
+  --onaccent: #1a1205;
+  --chip: #262523;
+  --lowbg: #3a2608;
+  --lowtext: #fbbf5c;
+  --okbg: #173322;
+  --oktext: #86d9a3;
+  --okdot: #4ade80;
+  --track: #2c2b28;
+  --fill: #d9d4cb;
+  --fillLow: #fb923c;
+  --danger: #ff8a80;
+
+  /* A gap in the surface color, a thin light rim, then a soft glow, outside and inside the
+     ring, so white and black swatches both stay visible. */
+  --ringShadow:
+    0 0 0 1.5px var(--surface), 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    0 0 10px 2px rgba(255, 255, 255, 0.1);
+  --holeShadow:
+    inset 0 0 0 1.5px var(--surface), inset 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    inset 0 0 6px 1px rgba(255, 255, 255, 0.1);
+  --ringShadowSmall:
+    0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255, 255, 255, 0.28),
+    0 0 6px 1px rgba(255, 255, 255, 0.08), inset 0 0 0 1px var(--surface),
+    inset 0 0 0 1.75px rgba(255, 255, 255, 0.28);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(30px, 6vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Buttons: neutral by default, .primary for the main action. */
+button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* A link that looks like a button, for navigation actions such as "Open spool". */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+/* Filter chips: round, accent when pressed. */
+button.chip {
+  padding: 10px 16px;
+  border-radius: 999px;
+}
+
+button.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+  min-height: 44px;
+}
+
+textarea {
+  padding: 10px 12px;
+  min-height: 88px;
+  resize: vertical;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Tables sit in a box that scrolls sideways on phones. */
+/* Positioned so screen-reader-only text inside a table scrolls with it instead of widening
+   the page (on a phone that pushed the bottom bar off the screen). */
+.tablebox {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.notice {
+  color: var(--lowtext);
+  margin: 0;
+}
+
+.badge-low {
+  background: var(--lowbg);
+  color: var(--lowtext);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.badge-hand {
+  border: 1px dashed var(--muted);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Page heading: title, subtitle, and actions on the right. */
+.pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pagehead p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* ---- Ring swatch (lib/components/ui/Ring.svelte), plus a split ring for multi-color ---- */
+:root, :root[data-theme="light"] { --ringOuterSm: var(--ringShadow); --holeSm: none; }
+:root[data-theme="dark"] {
+  --ringOuterSm: 0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255,255,255,.28), 0 0 6px 1px rgba(255,255,255,.08);
+  --holeSm: inset 0 0 0 1px var(--surface), inset 0 0 0 1.75px rgba(255,255,255,.28);
+}
+.ring { display: inline-block; flex: none; border-radius: 50%; border-style: solid; background: var(--bg); box-shadow: var(--ringShadow), var(--holeShadow); }
+.ring.sm { width: 30px; height: 30px; border-width: 8px; box-shadow: var(--ringShadowSmall); }
+.ring.multi { border: 0; position: relative; box-shadow: var(--ringOuterSm); }
+.ring.multi::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bg); box-shadow: var(--holeSm); }
+li.open .ring.multi::after, .open .ring.multi::after { background: var(--bg); }
+[hidden] { display: none !important; }
+
+
+/* ---- Header (lib/components/Header.svelte, Nav.svelte) ---- */
+.hdr{border-bottom:1px solid var(--line);background:var(--surface)}
+.hdr .inner{max-width:1240px;margin:0 auto;padding:14px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-head);font-weight:700;font-size:20px;letter-spacing:-.01em}
+.mainnav{flex:1 1 auto}
+.mainnav ul{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0;list-style:none}
+.mainnav a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:8px;color:var(--muted);font-weight:500;font-size:15px}
+.mainnav a:hover{background:var(--chip);color:var(--text)}
+.mainnav a[aria-current=page]{background:var(--text);color:var(--bg)}
+.navbadge{background:var(--accent);color:var(--onaccent);border-radius:999px;font-size:12px;font-weight:700;padding:1px 7px}
+.account{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:10px;border:1px solid var(--line);font-size:14px;font-weight:500}
+.initial{width:26px;height:26px;border-radius:50%;background:var(--chip);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+main{max-width:1240px;margin:0 auto;padding:32px 24px 56px}
+
+
+
+/* Header end: account */
+.hend{display:flex;align-items:center;gap:10px}
+.hdr .inner{gap:12px 20px}
+.mainnav{flex:1 1 0;min-width:0}
+.mainnav ul{gap:2px}
+.mainnav a{padding:0 10px}
+
+/* ---- Requests list ---- */
+.headrow{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.headrow .pagehead{flex:1 1 480px;margin:0}
+.headrow .pagehead p{max-width:680px}
+.newbtn{display:inline-flex;align-items:center;gap:8px}
+.listmeta{margin:0;font-size:14px;color:var(--muted)}
+.listmeta strong{color:var(--text)}
+table.requests{min-width:1100px}
+.requests td{padding-top:12px;padding-bottom:12px;vertical-align:middle}
+.requests th, .requests td{padding-left:14px;padding-right:14px}
+.rtitle{font-family:var(--font-head);font-weight:600;font-size:16px;line-height:1.3}
+.rtitle a{text-decoration:none}
+.rtitle a:hover{text-decoration:underline}
+.rsub{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:3px;font-size:13px;color:var(--muted)}
+.rsub .mono{font-size:12px}
+.who{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.who .initial{width:24px;height:24px;font-size:12px}
+.date{font-family:var(--font-mono);font-size:13px;white-space:nowrap}
+.date .rel{display:block;font-family:var(--font-body);font-size:12px;color:var(--muted);margin-top:2px}
+.nodate{color:var(--muted);font-size:13px}
+
+/* Status and priority chips: uppercase labels */
+.tagchip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 9px;border-radius:6px;white-space:nowrap}
+.pri-urgent{background:var(--lowbg);color:var(--lowtext)}
+.pri-normal{background:var(--chip);color:var(--text)}
+.pri-norush{border:1px dashed var(--muted);color:var(--muted);padding:3px 8px}
+.st-submitted{background:var(--surface);color:var(--text);border:1px solid var(--line);padding:3px 8px}
+.st-submitted::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted)}
+
+/* Filament choices as small rings, in order */
+.fils{display:flex;align-items:center;gap:6px}
+.fils .ring{width:22px;height:22px;border-width:6px}
+.fils .more{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+
+/* Empty state */
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:56px 24px}
+.empty h2{margin:0;font-family:var(--font-head);font-size:22px}
+.empty p{margin:0;max-width:440px;color:var(--muted)}
+.empty .actions{margin-top:6px}
+
+/* Viewer without Requester: a mockup-only note, not part of the design */
+.nopage{border:1px dashed var(--muted);border-radius:12px;padding:20px 22px;color:var(--muted);max-width:640px}
+.nopage strong{color:var(--text)}
+
+/* ---- Mockup controls (not part of the design) ---- */
+.mock{background:#37352f;color:#f2efe9;padding:8px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;font-size:12px}
+.mock strong{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+.mock .mrow{display:flex;align-items:center;gap:8px}
+.mock .mrow > span{opacity:.8}
+.mock .mseg{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.12)}
+.mock button{min-height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:inherit;font-size:12px}
+.mock button[aria-pressed=true]{background:#f2efe9;color:#1c1b19}
+
+.mock select{font:inherit;font-size:12px;min-height:32px;border-radius:7px;border:0;padding:0 8px;background:#f2efe9;color:#1c1b19}
+</style>
+</head>
+<body>
+<aside class="mock" aria-label="Mockup controls">
+<strong>Mockup controls</strong>
+<div class="mrow"><span>State</span><div class="mseg" role="group" aria-label="State"><button type="button" data-state="list" aria-pressed="true">Requests</button><button type="button" data-state="empty" aria-pressed="false">Empty</button></div></div>
+<div class="mrow"><span>Role</span><div class="mseg" role="group" aria-label="Role"><button type="button" data-role="viewer" aria-pressed="false">Viewer</button><button type="button" data-role="editor" aria-pressed="false">Editor</button><button type="button" data-role="admin" aria-pressed="true">Admin</button></div></div>
+<div class="mrow"><span>Requester</span><div class="mseg" role="group" aria-label="Requester"><button type="button" data-req="yes" aria-pressed="true">Yes</button><button type="button" data-req="former" aria-pressed="false">No, but was</button><button type="button" data-req="never" aria-pressed="false">Never</button></div></div>
+<div class="mrow"><span>Theme</span><div class="mseg" role="group" aria-label="Theme"><button type="button" data-theme="light" aria-pressed="true">Light</button><button type="button" data-theme="dark" aria-pressed="false">Dark</button></div></div>
+</aside>
+
+<header class="hdr">
+<div class="inner">
+<a class="brand" href="#"><svg width="30" height="30" viewBox="0 0 140 140" aria-hidden="true"><circle cx="70" cy="70" r="62" fill="#C8324B"></circle><circle cx="70" cy="70" r="50" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="40" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="30" fill="#FFF7F5"></circle><polyline points="56,71 66,81 85,60" fill="none" stroke="#C8324B" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>RollCall</a>
+<nav class="mainnav" aria-label="Main"><ul>
+<li><a href="#">Inventory</a></li>
+<li><a href="#">Spools</a></li>
+<li><a href="#">Products</a></li>
+<li><a href="#">Catalog</a></li>
+<li id="nav-req"><a href="#" aria-current="page" id="nav-req-a">Requests<span class="navbadge" aria-hidden="true" id="nav-req-n">8</span></a></li>
+<li class="ed"><a href="#" aria-label="Review, 3 waiting">Review<span class="navbadge" aria-hidden="true">3</span></a></li>
+<li><a href="#">Activity</a></li>
+<li class="admin"><a href="#">Devices</a></li>
+<li class="admin"><a href="#">Users</a></li>
+<li class="admin"><a href="#">Settings</a></li>
+</ul></nav>
+<div class="hend">
+<a class="account" href="#" title="Account"><span class="initial" aria-hidden="true" id="uinit">F</span><span id="uname">frank</span></a>
+</div>
+</div>
+</header>
+
+<main>
+<div class="page" id="page">
+<div class="headrow">
+<div class="pagehead"><div>
+<h1>Requests</h1>
+<p id="intro"></p>
+</div></div>
+<a class="button primary newbtn" href="#" id="newbtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New request</a>
+</div>
+
+<p class="listmeta" id="meta"></p>
+
+<div class="tablebox" id="tablebox">
+<table class="requests">
+<caption class="sr-only">Print requests, sorted by priority, then needed-by date, then oldest first</caption>
+<thead><tr id="headrow"></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+
+<div class="card empty" id="empty" hidden>
+<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="color:var(--muted)"><path d="M6 9V3h12v6"></path><rect x="3" y="9" width="18" height="8" rx="2"></rect><path d="M7 17v4h10v-4"></path></svg>
+<h2 id="empty-h"></h2>
+<p id="empty-p"></p>
+<div class="actions" id="empty-actions"><a class="button primary newbtn" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New request</a></div>
+</div>
+</div>
+
+<div class="page" id="nopage" hidden>
+<div class="nopage"><strong>Mockup note:</strong> a Viewer who has never been a Requester has no Requests page. The Requests link is gone from their nav, and /requests isn't theirs to open.</div>
+</div>
+</main>
+
+<script>
+var TODAY = new Date(2026, 10, 17);
+var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function fmt(d) { return d.getDate() + " " + MON[d.getMonth()] + " " + d.getFullYear(); }
+function days(d) { return Math.round((d - TODAY) / 864e5); }
+function rel(d) {
+  var n = days(d);
+  if (n === 0) return "today";
+  if (n === 1) return "tomorrow";
+  if (n > 0) return "in " + n + " days";
+  if (n === -1) return "yesterday";
+  return -n + " days ago";
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+var USERS = {
+  sam: { name: "Sam", initial: "S" },
+  maya: { name: "Maya", initial: "M" },
+  leo: { name: "Leo", initial: "L" }
+};
+
+/* Filament choices: an owned product or a catalog color, shown as rings */
+var F = {
+  petgbk: { name: "Black PETG HF", hex: "#000000" },
+  absbk: { name: "Black ABS", hex: "#000000" },
+  asared: { name: "Red ASA", hex: "#E02928" },
+  white: { name: "Jade White PLA Basic", hex: "#FFFFFF" },
+  blue: { name: "Blue PLA Basic", hex: "#0A2CA5" },
+  pink: { name: "Hot Pink PLA Basic", hex: "#F5547D" },
+  marine: { name: "Marine Blue PLA Matte", hex: "#0078BF" },
+  plabk: { name: "Black PLA Basic", hex: "#000000" },
+  brown: { name: "Brown PETG Translucent", hex: "#C9A381" },
+  gold: { name: "Gold PLA Silk+", hex: "#E4BD68" },
+  green: { name: "Bambu Green PLA Basic", hex: "#00AE42" },
+  orange: { name: "Orange PLA Basic", hex: "#FF6A13" }
+};
+
+var PRI = { urgent: { rank: 0, label: "Urgent", cls: "pri-urgent" }, normal: { rank: 1, label: "Normal", cls: "pri-normal" }, norush: { rank: 2, label: "No rush", cls: "pri-norush" } };
+
+/* source: what the request has for the model — file, link, both, or notes only */
+var REQUESTS = [
+  { id: 41, title: "Replacement dishwasher rack clips", by: "maya", pri: "urgent", need: new Date(2026, 10, 19), qty: 6, fil: ["petgbk"], src: "file", at: new Date(2026, 10, 16, 20, 41) },
+  { id: 44, title: "Cosplay helmet visor mount", by: "sam", pri: "urgent", need: null, qty: 1, fil: ["absbk", "asared"], src: "link", at: new Date(2026, 10, 17, 8, 2) },
+  { id: 39, title: "Lithophane lamp shade for the hallway", by: "sam", pri: "normal", need: new Date(2026, 10, 24), qty: 1, fil: ["white"], src: "both", at: new Date(2026, 10, 15, 19, 12) },
+  { id: 42, title: "Board game insert for Wingspan", by: "maya", pri: "normal", need: new Date(2026, 11, 5), qty: 1, fil: ["blue", "pink", "marine", "plabk", "green"], src: "link", at: new Date(2026, 10, 16, 21, 5) },
+  { id: 36, title: "Headphone hook for under the desk", by: "leo", pri: "normal", need: null, qty: 2, fil: ["marine"], src: "notes", at: new Date(2026, 10, 12, 17, 30) },
+  { id: 38, title: "Raspberry Pi 5 case with fan mount", by: "leo", pri: "normal", need: null, qty: 1, fil: ["brown", "plabk"], src: "file", at: new Date(2026, 10, 14, 11, 48) },
+  { id: 35, title: "Self-watering planter with drainage tray", by: "maya", pri: "norush", need: new Date(2027, 0, 15), qty: 3, fil: ["gold", "green"], src: "link", at: new Date(2026, 10, 10, 9, 15) },
+  { id: 33, title: "Spare filament clips", by: "sam", pri: "norush", need: null, qty: 20, fil: ["orange"], src: "notes", at: new Date(2026, 10, 9, 14, 3) }
+];
+
+/* Priority, then needed-by (earliest first, no date last), then oldest first */
+REQUESTS.sort(function (a, b) {
+  var p = PRI[a.pri].rank - PRI[b.pri].rank;
+  if (p) return p;
+  if (a.need && b.need && a.need - b.need) return a.need - b.need;
+  if (a.need && !b.need) return -1;
+  if (!a.need && b.need) return 1;
+  return a.at - b.at;
+});
+
+var SRC = {
+  file: { icon: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path>', text: "File" },
+  link: { icon: '<path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"></path><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"></path>', text: "Link" },
+  both: { icon: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path>', text: "File and link" },
+  notes: { icon: '<path d="M4 6h16M4 12h16M4 18h10"></path>', text: "Notes only" }
+};
+
+var state = { role: "admin", req: "yes", empty: false, theme: "light", me: "sam" };
+
+function filHtml(list) {
+  var MAX = 4, shown = list.slice(0, MAX);
+  var names = list.map(function (k) { return F[k].name; });
+  return '<div class="fils" role="img" aria-label="Filament choices, in order: ' + esc(names.join(", ")) + '">' +
+    shown.map(function (k) { return '<span class="ring sm" title="' + esc(F[k].name) + '" style="border-color:' + F[k].hex + '"></span>'; }).join("") +
+    (list.length > MAX ? '<span class="more">+' + (list.length - MAX) + "</span>" : "") + "</div>";
+}
+
+function render() {
+  var staff = state.role !== "viewer";
+  var hasPage = staff || state.req !== "never";
+  var canNew = state.req === "yes";
+
+  document.querySelectorAll(".mainnav .admin").forEach(function (li) { li.hidden = state.role !== "admin"; });
+  document.querySelectorAll(".mainnav .ed").forEach(function (li) { li.hidden = !staff; });
+  document.getElementById("nav-req").hidden = !hasPage;
+  document.getElementById("page").hidden = !hasPage;
+  document.getElementById("nopage").hidden = hasPage;
+  var me = staff ? (state.role === "admin" ? { u: "frank", i: "F" } : { u: "dana", i: "D" }) : { u: "sam", i: "S" };
+  document.getElementById("uname").textContent = me.u;
+  document.getElementById("uinit").textContent = me.i;
+  document.querySelector(".mainnav a[aria-current]").removeAttribute("aria-current");
+  (hasPage ? document.getElementById("nav-req-a") : document.querySelector(".mainnav a")).setAttribute("aria-current", "page");
+  if (!hasPage) return;
+
+  var rows = state.empty ? [] : REQUESTS.filter(function (r) { return staff || r.by === state.me; });
+  var open = rows.length; /* every request is Submitted for now */
+  var n = document.getElementById("nav-req-n");
+  n.textContent = open; n.hidden = open === 0;
+  document.getElementById("nav-req-a").setAttribute("aria-label", "Requests" + (open ? ", " + open + " submitted" : ""));
+
+  document.getElementById("intro").textContent = staff
+    ? "Print requests from everyone. Most urgent first."
+    : canNew ? "Your print requests. You can edit a request while it's still Submitted."
+    : "Your earlier print requests. You can no longer submit or edit requests, but you can still open them and download their files.";
+  document.getElementById("newbtn").hidden = !canNew || rows.length === 0;
+
+  document.getElementById("tablebox").hidden = rows.length === 0;
+  document.getElementById("meta").hidden = rows.length === 0;
+  document.getElementById("empty").hidden = rows.length > 0;
+  document.getElementById("empty-h").textContent = staff ? "No print requests yet" : canNew ? "You haven't asked for any prints yet" : "You don't have any print requests";
+  document.getElementById("empty-p").textContent = staff
+    ? (canNew ? "Requests from everyone with the Requester permission show up here. Start one yourself with New request." : "Requests from everyone with the Requester permission show up here.")
+    : canNew ? "Ask for something to be printed: add a model file or link, pick filament, and say when you need it." : "You can no longer submit print requests.";
+  document.getElementById("empty-actions").hidden = !canNew;
+
+  document.getElementById("meta").innerHTML = "<strong>" + rows.length + "</strong> " + (rows.length === 1 ? "request" : "requests") + " · Most urgent first, then by needed-by date, then oldest first";
+
+  document.getElementById("headrow").innerHTML =
+    '<th scope="col">Priority</th><th scope="col">Request</th>' + (staff ? '<th scope="col">Requester</th>' : "") +
+    '<th scope="col">Needed by</th><th scope="col">Filament</th><th scope="col">Status</th><th scope="col">Submitted</th>';
+
+  document.getElementById("rows").innerHTML = rows.map(function (r) {
+    var u = USERS[r.by], p = PRI[r.pri], s = SRC[r.src];
+    return "<tr>" +
+      '<td><span class="tagchip ' + p.cls + '">' + p.label + "</span></td>" +
+      '<td><div class="rtitle"><a href="#">' + esc(r.title) + '</a></div><div class="rsub"><span>Qty <span class="mono">' + r.qty + '</span></span><span style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">' + s.icon + "</svg>" + s.text + '</span><span class="mono">#' + r.id + "</span></div></td>" +
+      (staff ? '<td><span class="who"><span class="initial" aria-hidden="true">' + u.initial + "</span>" + u.name + "</span></td>" : "") +
+      "<td>" + (r.need ? '<span class="date">' + fmt(r.need) + '<span class="rel">' + rel(r.need) + "</span></span>" : '<span class="nodate">No date</span>') + "</td>" +
+      "<td>" + filHtml(r.fil) + "</td>" +
+      '<td><span class="tagchip st-submitted">Submitted</span></td>' +
+      '<td><span class="date">' + fmt(r.at) + '<span class="rel">' + rel(new Date(r.at.getFullYear(), r.at.getMonth(), r.at.getDate())) + "</span></span></td>" +
+      "</tr>";
+  }).join("");
+}
+
+function setTheme(t) {
+  state.theme = t;
+  document.documentElement.setAttribute("data-theme", t);
+  pick(document.querySelector('.mock [data-theme="' + t + '"]'));
+}
+
+document.addEventListener("click", function (e) {
+  var t = e.target.closest("button, a");
+  if (!t) return;
+  if (t.tagName === "A" && t.getAttribute("href") === "#") e.preventDefault();
+  var d = t.dataset;
+  if (d.theme) setTheme(d.theme);
+  else if (d.role) { pick(t); state.role = d.role; render(); }
+  else if (d.req) { pick(t); state.req = d.req; render(); }
+  else if (d.state) { pick(t); state.empty = d.state === "empty"; render(); }
+});
+function pick(btn) { btn.parentNode.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); }); }
+
+render();
+</script>
+</body>
+</html>

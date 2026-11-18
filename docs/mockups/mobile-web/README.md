@@ -14,6 +14,10 @@ Mockups for the web app on a phone-sized screen, as the phone app shows it: the 
 | [PhoneAccount.dc.html](PhoneAccount.dc.html) | Account, with the Appearance (theme) choice |
 | [index.html](index.html) | All four in one page, interactive |
 | [PhoneCatalog.html](PhoneCatalog.html) | The Catalog page (#73) on a phone: search and Filter, the filter sheet, filament lines that collapse and color rows that expand, Catalog in the menu after Products, and the state before the first sync. Plain HTML: open it straight in a browser. It is not part of `index.html` |
+| [PhoneRequestsList.html](PhoneRequestsList.html) | Requests (#75) on a phone. Plain HTML, not part of `index.html` |
+| [PhoneRequestForm.html](PhoneRequestForm.html) | New and Edit request (#75) on a phone, with the filament choice picker. Plain HTML, not part of `index.html` |
+| [PhoneRequestDetail.html](PhoneRequestDetail.html) | Request detail (#75) on a phone. Plain HTML, not part of `index.html` |
+| [PhoneUsers.html](PhoneUsers.html) | Users on a phone, with the Requester checkbox and badge (#75). Plain HTML, not part of `index.html` |
 
 ## When this layout applies
 

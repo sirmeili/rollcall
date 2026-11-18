@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New request · RollCall phone (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Global styles from the approved mockups (docs/mockups/web/, direction A "Workshop").
+ * Tokens come from docs/mockups/web/tokens.css. The theme is set on <html data-theme>
+ * by the script in app.html and by lib/theme.svelte.ts. Components add scoped styles. */
+
+:root,
+:root[data-theme="light"] {
+  --bg: #f4f2ee; /* page background */
+  --surface: #ffffff; /* cards, header, tables */
+  --line: #ddd8cf; /* borders and dividers */
+  --text: #1c1b19;
+  --muted: #5e5a53; /* secondary text; 6.5:1 on --surface */
+  --accent: #b45309; /* primary buttons, active filter, Review badge */
+  --onaccent: #ffffff;
+  --chip: #ece8e1; /* neutral fills: hover, open-state chip, avatars */
+  --lowbg: #fdecd3; /* low stock, flagged, warnings */
+  --lowtext: #7c3500;
+  --okbg: #dcefe2;
+  --oktext: #1f5c33;
+  --okdot: #2f8a4e;
+  --track: #e9e5de; /* % left bar: track */
+  --fill: #3f3b35; /* % left bar: fill */
+  --fillLow: #c2410c; /* % left bar: nearly out */
+  --danger: #b3261e;
+
+  /* Spool ring swatch: same treatment for every color */
+  --ringShadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.16);
+  --holeShadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+  --ringShadowSmall: var(--ringShadow);
+
+  --font-head: "Space Grotesk", system-ui, sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* The phone layout's bottom bar, and what the pages leave free for it. */
+  --bottom-bar: calc(84px + env(safe-area-inset-bottom, 0px));
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1c1c1b;
+  --line: #34322e;
+  --text: #f2efe9;
+  --muted: #a9a49b;
+  --accent: #f59e0b;
+  --onaccent: #1a1205;
+  --chip: #262523;
+  --lowbg: #3a2608;
+  --lowtext: #fbbf5c;
+  --okbg: #173322;
+  --oktext: #86d9a3;
+  --okdot: #4ade80;
+  --track: #2c2b28;
+  --fill: #d9d4cb;
+  --fillLow: #fb923c;
+  --danger: #ff8a80;
+
+  /* A gap in the surface color, a thin light rim, then a soft glow, outside and inside the
+     ring, so white and black swatches both stay visible. */
+  --ringShadow:
+    0 0 0 1.5px var(--surface), 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    0 0 10px 2px rgba(255, 255, 255, 0.1);
+  --holeShadow:
+    inset 0 0 0 1.5px var(--surface), inset 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    inset 0 0 6px 1px rgba(255, 255, 255, 0.1);
+  --ringShadowSmall:
+    0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255, 255, 255, 0.28),
+    0 0 6px 1px rgba(255, 255, 255, 0.08), inset 0 0 0 1px var(--surface),
+    inset 0 0 0 1.75px rgba(255, 255, 255, 0.28);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(30px, 6vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Buttons: neutral by default, .primary for the main action. */
+button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* A link that looks like a button, for navigation actions such as "Open spool". */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+/* Filter chips: round, accent when pressed. */
+button.chip {
+  padding: 10px 16px;
+  border-radius: 999px;
+}
+
+button.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+  min-height: 44px;
+}
+
+textarea {
+  padding: 10px 12px;
+  min-height: 88px;
+  resize: vertical;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Tables sit in a box that scrolls sideways on phones. */
+/* Positioned so screen-reader-only text inside a table scrolls with it instead of widening
+   the page (on a phone that pushed the bottom bar off the screen). */
+.tablebox {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.notice {
+  color: var(--lowtext);
+  margin: 0;
+}
+
+.badge-low {
+  background: var(--lowbg);
+  color: var(--lowtext);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.badge-hand {
+  border: 1px dashed var(--muted);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Page heading: title, subtitle, and actions on the right. */
+.pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pagehead p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* ---- Ring swatch (lib/components/ui/Ring.svelte), plus a split ring for multi-color ---- */
+:root, :root[data-theme="light"] { --ringOuterSm: var(--ringShadow); --holeSm: none; }
+:root[data-theme="dark"] {
+  --ringOuterSm: 0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255,255,255,.28), 0 0 6px 1px rgba(255,255,255,.08);
+  --holeSm: inset 0 0 0 1px var(--surface), inset 0 0 0 1.75px rgba(255,255,255,.28);
+}
+.ring { display: inline-block; flex: none; border-radius: 50%; border-style: solid; background: var(--bg); box-shadow: var(--ringShadow), var(--holeShadow); }
+.ring.sm { width: 30px; height: 30px; border-width: 8px; box-shadow: var(--ringShadowSmall); }
+.ring.multi { border: 0; position: relative; box-shadow: var(--ringOuterSm); }
+.ring.multi::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bg); box-shadow: var(--holeSm); }
+li.open .ring.multi::after, .open .ring.multi::after { background: var(--bg); }
+[hidden] { display: none !important; }
+
+
+body{background:#d9d5ce}
+:root[data-theme="dark"] body{background:#050505}
+.stage{display:flex;justify-content:center;padding:28px 16px 48px}
+.phone{position:relative;width:390px;height:844px;border-radius:36px;overflow:hidden;background:var(--bg);color:var(--text);box-shadow:0 0 0 10px #1c1b19,0 20px 50px rgba(0,0,0,.35);display:flex;flex-direction:column}
+@media (max-width:460px){.stage{padding:0}.phone{width:100vw;height:100dvh;border-radius:0;box-shadow:none}}
+
+/* ---- Top bar (PhoneTopBar) ---- */
+.top{display:flex;align-items:center;gap:10px;padding:18px 20px 6px;flex:none}
+.top .title{margin:0;font-family:var(--font-head);font-size:28px;font-weight:700;letter-spacing:-.02em}
+.scroll{flex:1;min-height:0;overflow-y:auto;padding:4px 16px 108px;display:flex;flex-direction:column;gap:10px}
+
+/* ---- Bottom bar (PhoneNav) ---- */
+.bar{position:absolute;left:0;right:0;bottom:0;z-index:42;display:grid;grid-template-columns:1fr auto 1fr;align-items:end;padding:8px 14px 14px;border-top:1px solid var(--line);background:var(--surface)}
+.end{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:64px;min-height:48px;padding:0 6px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:600}
+.start{justify-self:start}
+.finish{justify-self:end}
+.end[aria-expanded=true]{color:var(--text)}
+.dot{position:absolute;top:4px;right:18px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.scan{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:-30px;color:var(--text);font-size:12px;font-weight:700}
+.fab{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent);color:var(--onaccent);box-shadow:0 0 0 5px var(--surface),0 4px 14px rgba(0,0,0,.25)}
+.binitial{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--chip);color:var(--text);font-size:13px;font-weight:700}
+
+/* ---- Sheets (MenuSheet, FilterSheet) ---- */
+.dim{position:absolute;inset:0;z-index:40;border:0;border-radius:0;padding:0;min-height:0;background:rgba(0,0,0,.45)}
+.dim.over{z-index:50}
+.sheet{position:absolute;left:0;right:0;bottom:84px;z-index:41;display:flex;flex-direction:column;gap:14px;max-height:calc(100% - 108px);overflow-y:auto;padding:10px 16px 18px;border-radius:24px 24px 0 0;background:var(--surface);outline:none}
+.sheet.fs{bottom:0;z-index:51;gap:18px;max-height:calc(100% - 48px);padding-bottom:18px}
+.grip{align-self:center;width:40px;height:5px;border-radius:999px;background:var(--line)}
+.pages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.adminpages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.item{display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--bg);font-size:16px;font-weight:600}
+.item.small{flex-direction:column;justify-content:center;gap:4px;min-height:68px;font-size:14px}
+.item[aria-current=page]{background:var(--text);border-color:var(--text);color:var(--bg)}
+.ibadge{margin-left:auto;background:var(--accent);color:var(--onaccent);border-radius:999px;font-size:12px;font-weight:700;padding:1px 8px}
+.shead{display:flex;align-items:center;justify-content:space-between}
+.shead h2{margin:0;font-size:20px}
+.sheet section{display:flex;flex-direction:column;gap:10px}
+.sheet h3{margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip .n{margin-left:4px;font-family:var(--font-mono);font-size:12px;opacity:.75}
+.check{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:600}
+.sfoot{display:grid;grid-template-columns:auto 1fr;gap:10px}
+
+
+
+/* ---- Request form ---- */
+.formwrap{max-width:860px;display:flex;flex-direction:column;gap:20px}
+.back{display:inline-flex;align-items:center;gap:6px;min-height:44px;color:var(--muted);font-weight:500;font-size:14px;align-self:flex-start}
+.back:hover{color:var(--text)}
+.titlerow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.titlerow h1{margin:0}
+.reqid{font-family:var(--font-mono);font-size:15px;color:var(--muted)}
+.tagchip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:6px;white-space:nowrap}
+.st-submitted{background:var(--surface);color:var(--text);border:1px solid var(--line)}
+.st-submitted::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted)}
+
+.sect{display:flex;flex-direction:column;gap:18px;padding:22px 24px}
+.sect h2{margin:0;font-family:var(--font-head);font-size:20px;letter-spacing:-.01em}
+.sect .lead{margin:-10px 0 0;font-size:14px;color:var(--muted);max-width:640px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field > label, .field > .flabel{font-weight:600;font-size:14px}
+.opt{font-weight:400;color:var(--muted)}
+.req{font-weight:600;color:var(--lowtext)}
+.help{margin:0;font-size:13px;color:var(--muted)}
+.counter{font-family:var(--font-mono);font-size:12px;color:var(--muted);align-self:flex-end;margin-top:-2px}
+.counter.over{color:var(--danger)}
+.ferr{margin:0;display:flex;align-items:flex-start;gap:6px;font-size:14px;font-weight:600;color:var(--danger)}
+.ferr svg{flex:none;margin-top:2px}
+input[aria-invalid=true], textarea[aria-invalid=true]{border-color:var(--danger);box-shadow:0 0 0 1px var(--danger)}
+#title{font-family:var(--font-head);font-size:17px;font-weight:600}
+textarea{min-height:120px;resize:vertical;font:inherit;line-height:1.5}
+.row3{display:grid;grid-template-columns:180px 1fr 200px;gap:18px;align-items:start}
+
+/* Quantity stepper */
+.qty{display:flex;align-items:stretch}
+.qty button{width:44px;padding:0;border-radius:0}
+.qty button:first-child{border-radius:10px 0 0 10px}
+.qty button:last-child{border-radius:0 10px 10px 0}
+.qty input{width:64px;text-align:center;border-radius:0;border-left:0;border-right:0;font-family:var(--font-mono);-moz-appearance:textfield}
+.qty input::-webkit-outer-spin-button, .qty input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+/* Priority: radios drawn as a segmented control */
+.seg{display:inline-flex;padding:3px;gap:3px;border-radius:12px;background:var(--chip);border:0;margin:0;min-width:0}
+.seg legend{padding:0;margin-bottom:6px;font-weight:600;font-size:14px;float:left;width:100%}
+.seg .opts{display:flex;gap:3px;clear:both}
+.seg label{position:relative}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg span{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:9px;font-weight:600;font-size:14px;color:var(--muted);white-space:nowrap}
+.seg input:checked + span{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.seg input:focus-visible + span{outline:2px solid var(--accent);outline-offset:1px}
+.prifield{display:block;border:0;padding:0;margin:0;min-width:0}
+.prifield legend{padding:0;margin:0 0 6px;font-weight:600;font-size:14px}
+
+/* Model: drop zone and file card */
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;background:var(--bg)}
+.drop.over{border-color:var(--accent);background:var(--surface)}
+.drop.bad{border-color:var(--danger)}
+.drop .big{font-weight:600}
+.drop .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.filecard{display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.filecard .fi{width:40px;height:40px;border-radius:10px;background:var(--chip);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.filecard .meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.filecard .fname{font-family:var(--font-mono);font-size:14px;font-weight:700;overflow-wrap:anywhere}
+.filecard .fsize{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.filecard .acts{display:flex;gap:8px}
+.filecard.failed{border-color:var(--danger)}
+.filecard.failed .fi{background:var(--danger);color:#fff}
+.upl{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.pbar{height:8px;border-radius:99px;background:var(--track);overflow:hidden}
+.pbar span{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .2s}
+.upl .ut{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.upfail{font-size:13px;font-weight:600;color:var(--danger)}
+.orline{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px}
+.orline::before, .orline::after{content:"";flex:1;height:1px;background:var(--line)}
+.modelrule{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:var(--chip);font-size:13px}
+.modelrule svg{flex:none;margin-top:1px}
+
+/* Filament choices */
+.choices{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.choice{display:grid;grid-template-columns:28px 30px minmax(0,1fr) 220px auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.choice .ord{width:28px;height:28px;border-radius:50%;background:var(--text);color:var(--bg);font-family:var(--font-mono);font-weight:700;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
+.choice .ring{width:30px;height:30px;border-width:8px}
+.cinfo{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cname{font-family:var(--font-head);font-weight:600;font-size:15px}
+.csub{font-size:12px;color:var(--muted)}
+.csub .mono{font-size:12px}
+.kind{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:5px;margin-right:6px;vertical-align:1px}
+.kind.own{background:var(--text);color:var(--bg)}
+.kind.cat{border:1px solid var(--muted);color:var(--muted)}
+.choice input{min-height:40px;font-size:14px}
+.cacts{display:flex;gap:4px}
+.cacts button{width:40px;min-height:40px;padding:0}
+.nochoice{margin:0;padding:14px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);font-size:14px;text-align:center}
+.nochoice.bad{border-color:var(--danger);color:var(--danger);font-weight:600}
+
+.picker{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:16px}
+.searchbox{position:relative}
+.searchbox svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.searchbox input{padding-left:38px;width:100%;box-sizing:border-box}
+.results{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.rgroup{margin:0;padding:8px 14px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--line)}
+.rlist{list-style:none;margin:0;padding:0}
+.rlist li + li{border-top:1px solid var(--line)}
+.rlist + .rgroup{border-top:1px solid var(--line)}
+.res{width:100%;border:0;border-radius:0;background:transparent;display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:12px;align-items:center;justify-items:start;text-align:left;font-weight:400;padding:8px 14px;min-height:56px}
+.res:hover:not(:disabled){background:var(--bg)}
+.res .ring{width:24px;height:24px;border-width:7px}
+.res .add{justify-self:end;display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:14px;color:var(--accent)}
+.res:disabled{opacity:1;cursor:default}
+.res:disabled .add{color:var(--muted)}
+.rcount{margin:0;font-size:13px;color:var(--muted)}
+
+/* Error summary */
+.errsum{border:2px solid var(--danger);border-radius:14px;padding:16px 20px;background:var(--surface)}
+.errsum h2{margin:0 0 8px;font-family:var(--font-head);font-size:18px;display:flex;align-items:center;gap:8px;color:var(--danger)}
+.errsum ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.errsum a{color:var(--text);text-decoration:underline;font-weight:500}
+
+.formfoot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.formfoot .r{display:flex;gap:10px;align-items:center}
+.formfoot .muted{font-size:14px}
+
+/* ---- Phone layout ---- */
+.top .backlink{display:inline-flex;align-items:center;gap:6px;min-height:44px;color:var(--muted);font-weight:600;font-size:15px;margin-left:-4px}
+.scroll.formscroll{padding-bottom:176px}
+.formwrap{gap:14px}
+.titlerow h1{font-size:28px;letter-spacing:-.02em}
+.sect{padding:16px;gap:16px;border-radius:16px}
+.sect h2{font-size:18px}
+.row3{grid-template-columns:1fr;gap:16px}
+.seg{display:flex}
+.seg .opts{flex:1;display:flex}
+.seg label{flex:1;display:flex}
+.seg span{flex:1;display:flex;justify-content:center;padding:0 6px}
+.qty input{flex:1;width:auto}
+.qty{max-width:200px}
+.drop{padding:18px 14px}
+.drop .big{font-size:15px}
+.filecard{flex-wrap:wrap;gap:10px 12px}
+.filecard .acts{width:100%}
+.filecard .acts button{flex:1}
+.choice{grid-template-columns:28px 30px minmax(0,1fr);grid-template-areas:"ord ring info" "note note note" "acts acts acts";gap:10px 10px;padding:12px}
+.choice .ord{grid-area:ord}.choice .ring{grid-area:ring}.choice .cinfo{grid-area:info}
+.choice input{grid-area:note;width:100%;box-sizing:border-box}
+.cacts{grid-area:acts;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.cacts button{width:auto;min-height:44px}
+.res{padding:8px 12px}
+.errsum{padding:14px 16px}
+.errsum h2{font-size:17px}
+.done{margin:0;font-size:14px;color:var(--muted)}
+/* Cancel / Submit sit just above the bottom bar, where the thumb is */
+.actbar{position:absolute;left:0;right:0;bottom:68px;z-index:30;display:grid;grid-template-columns:1fr 2fr;gap:10px;padding:10px 16px;background:var(--surface);border-top:1px solid var(--line)}
+.actbar .button, .actbar button{min-height:48px;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center}
+/* APPROVED (Frank, 17 Nov 2026): no centre button in the bottom bar on the request form; the
+   form's own Cancel and Submit take its place. Scan only shows on the inventory screens. */
+.bar .scan{visibility:hidden}
+
+/* ---- Mockup controls (not part of the design) ---- */
+.mock{background:#37352f;color:#f2efe9;padding:8px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;font-size:12px}
+.mock strong{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+.mock .mrow{display:flex;align-items:center;gap:8px}
+.mock .mrow > span{opacity:.8}
+.mock .mseg{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.12)}
+.mock button{min-height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:inherit;font-size:12px}
+.mock button[aria-pressed=true]{background:#f2efe9;color:#1c1b19}
+
+</style>
+</head>
+<body>
+<aside class="mock" aria-label="Mockup controls">
+<strong>Mockup controls</strong>
+<div class="mrow"><span>State</span><div class="mseg" role="group" aria-label="State">
+<button type="button" data-state="blank" aria-pressed="false">New, blank</button>
+<button type="button" data-state="filled" aria-pressed="true">New, filled in</button>
+<button type="button" data-state="edit" aria-pressed="false">Edit</button>
+<button type="button" data-state="errors" aria-pressed="false">Errors</button>
+<button type="button" data-state="big" aria-pressed="false">File too large</button>
+<button type="button" data-state="type" aria-pressed="false">Wrong file type</button>
+<button type="button" data-state="uploading" aria-pressed="false">Uploading</button>
+<button type="button" data-state="failed" aria-pressed="false">Upload failed</button>
+</div></div>
+<div class="mrow"><span>Role</span><div class="mseg" role="group" aria-label="Role"><button type="button" data-role="viewer" aria-pressed="true">Viewer</button><button type="button" data-role="editor" aria-pressed="false">Editor</button><button type="button" data-role="admin" aria-pressed="false">Admin</button></div></div>
+<div class="mrow"><span>Theme</span><div class="mseg" role="group" aria-label="Theme"><button type="button" data-theme="light" aria-pressed="true">Light</button><button type="button" data-theme="dark" aria-pressed="false">Dark</button></div></div>
+</aside>
+
+<div class="stage">
+<div class="phone" id="phone">
+<header class="top">
+<a class="backlink" href="#" id="back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg><span id="back-t">Requests</span></a>
+</header>
+<div class="scroll formscroll" id="scroll">
+<form class="formwrap" id="form" novalidate>
+<div class="titlerow" id="titlerow"></div>
+
+<div class="errsum" id="errsum" tabindex="-1" role="alert" hidden>
+<h2><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><span id="errsum-h"></span></h2>
+<ul id="errsum-l"></ul>
+</div>
+
+<!-- What to print -->
+<section class="card sect" aria-labelledby="s1">
+<h2 id="s1">What to print</h2>
+<div class="field">
+<label for="title">Title</label>
+<input id="title" type="text" maxlength="120" autocomplete="off" aria-describedby="title-err title-count">
+<p class="ferr" id="title-err" hidden></p>
+<span class="counter" id="title-count" aria-live="off"></span>
+</div>
+<div class="row3">
+<div class="field">
+<label for="qty">Quantity</label>
+<div class="qty"><button type="button" data-step="-1" aria-label="One fewer">−</button><input id="qty" type="number" min="1" max="100" inputmode="numeric" aria-describedby="qty-err"><button type="button" data-step="1" aria-label="One more">+</button></div>
+<p class="ferr" id="qty-err" hidden></p>
+</div>
+<fieldset class="prifield">
+<legend>Priority</legend>
+<div class="seg"><div class="opts">
+<label><input type="radio" name="pri" value="norush"><span>No rush</span></label>
+<label><input type="radio" name="pri" value="normal"><span>Normal</span></label>
+<label><input type="radio" name="pri" value="urgent"><span>Urgent</span></label>
+</div></div>
+</fieldset>
+<div class="field">
+<label for="need">Needed by <span class="opt">(optional)</span></label>
+<input id="need" type="date" min="2026-11-17" aria-describedby="need-err">
+<p class="ferr" id="need-err" hidden></p>
+</div>
+</div>
+</section>
+
+<!-- The model -->
+<section class="card sect" aria-labelledby="s2">
+<h2 id="s2">The model</h2>
+<p class="lead">Upload the file, link to where it's posted, or both.</p>
+<div class="field">
+<span class="flabel" id="file-l">File <span class="opt">(optional)</span></span>
+<div id="filearea"></div>
+<input type="file" id="fileinput" accept=".3mf,.stl" hidden>
+<p class="ferr" id="file-err" hidden></p>
+<p class="sr-only" id="upload-say" role="status"></p>
+</div>
+<div class="field">
+<label for="link">Link <span class="opt">(optional)</span></label>
+<input id="link" type="url" inputmode="url" placeholder="https://makerworld.com/…" autocomplete="off" aria-describedby="link-help link-err">
+<p class="help" id="link-help">Any http or https address, such as MakerWorld or Printables.</p>
+<p class="ferr" id="link-err" hidden></p>
+</div>
+<div class="modelrule" id="modelrule"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v5h1"></path></svg><span>No file or link? Then say in the notes where the model is.</span></div>
+</section>
+
+<!-- Filament -->
+<section class="card sect" aria-labelledby="s3">
+<h2 id="s3">Filament</h2>
+<p class="lead">Pick one or more, in the order you'd like them. Add a note to say what each is for.</p>
+<ol class="choices" id="choices" aria-label="Filament choices, in order"></ol>
+<p class="ferr" id="fil-err" hidden></p>
+<div class="picker">
+<label class="flabel" for="fq" style="font-weight:600;font-size:14px">Add filament</label>
+<div class="searchbox"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input id="fq" type="search" placeholder="Search your products and catalog colors" autocomplete="off" aria-describedby="rcount"></div>
+<p class="rcount" id="rcount" role="status"></p>
+<div class="results" id="results"></div>
+</div>
+</section>
+
+<!-- Notes -->
+<section class="card sect" aria-labelledby="s4">
+<h2 id="s4">Notes</h2>
+<div class="field">
+<label for="notes" id="notes-l"></label>
+<textarea id="notes" maxlength="2000" aria-describedby="notes-help notes-err notes-count"></textarea>
+<p class="help" id="notes-help">Size, infill, supports, anything the printer should know.</p>
+<p class="ferr" id="notes-err" hidden></p>
+<span class="counter" id="notes-count"></span>
+</div>
+</section>
+
+<p class="done" id="done" role="status"></p>
+</form>
+</div>
+<div class="actbar"><a class="button" href="#" id="cancel">Cancel</a><button type="submit" form="form" class="primary" id="submit"></button></div>
+<div id="overlay"></div>
+<nav aria-label="App" class="bar">
+<button type="button" class="end start" id="menubtn" aria-expanded="false" aria-controls="menu-sheet" data-act="menu"></button>
+<span class="scan" aria-hidden="true"></span>
+<a class="end finish" href="#"><span class="binitial" aria-hidden="true" id="uinit">S</span><span id="uname">sam</span></a>
+</nav>
+</div>
+</div>
+
+<script>
+/* Sample data and logic shared by the Catalog mockups (pasted into each page at build). */
+
+/* In-stock and linked products. link: the catalog color it is tied to; how: "tag" (From its tag)
+   or "hand" (Linked by hand). A product with no Sealed or Open spool owns nothing. */
+var STOCK = {
+  plablue: { name: "PLA Basic Blue", material: "PLA", hex: "#0A2CA5", sealed: 2, open: 0, link: "pla-basic/Blue", how: "tag" },
+  marine: { name: "PLA Matte Marine Blue", material: "PLA", hex: "#0078BF", sealed: 0, open: 1, link: "pla-matte/Marine Blue", how: "tag" },
+  plabk: { name: "PLA Basic Black", material: "PLA", hex: "#000000", sealed: 1, open: 1, link: "pla-basic/Black", how: "tag" },
+  blackpla: { name: "Black PLA", material: "PLA", hex: "#000000", sealed: 1, open: 0, link: "pla-basic/Black", how: "hand" },
+  white: { name: "PLA Basic White", material: "PLA", hex: "#FFFFFF", sealed: 3, open: 0, link: "pla-basic/Jade White", how: "tag" },
+  petgbk: { name: "PETG HF Black", material: "PETG", hex: "#000000", sealed: 1, open: 0, link: "petg-hf/Black", how: "tag" },
+  absbk: { name: "ABS Black", material: "ABS", hex: "#000000", sealed: 0, open: 1, link: "abs/Black", how: "tag" },
+  asared: { name: "ASA Red", material: "ASA", hex: "#E02928", sealed: 1, open: 0, link: "asa/Red", how: "tag" },
+  brown: { name: "PETG Translucent Brown", material: "PETG", hex: "#C9A381", sealed: 0, open: 1, link: "petg-translucent/Brown", how: "tag" },
+  silkgold: { name: "Silk Gold PLA", material: "PLA", hex: "#E4BD68", sealed: 0, open: 0, link: "pla-silk/Gold", how: "tag" }
+};
+
+var BLACKS = [["plabk", 0.0], ["blackpla", 0.0], ["petgbk", 0.0], ["absbk", 0.0]];
+
+/* code: the Bambu code (none for some colors). m: [stock id, ΔE] candidates; a product linked
+   to the color itself is dropped from its own similar list. */
+var LINES = [
+  { id: "pla-basic", name: "PLA Basic", material: "PLA", colors: [
+    { name: "Jade White", code: "10100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Black", code: "10101", hexes: ["#000000"], m: BLACKS },
+    { name: "Blue", code: "10601", hexes: ["#0A2CA5"], m: [["plablue", 0.0]] },
+    { name: "Cyan", code: "10603", hexes: ["#0086D6"], m: [["marine", 4.6]] },
+    { name: "Red", code: "10200", hexes: ["#C12E1F"], m: [["asared", 6.9]] },
+    { name: "Hot Pink", code: "10204", hexes: ["#F5547D"], m: [] },
+    { name: "Bambu Green", code: "", hexes: ["#00AE42"], m: [] },
+    { name: "Orange", code: "10300", hexes: ["#FF6A13"], m: [] },
+    { name: "Sunflower Yellow", code: "10400", hexes: ["#FEC600"], m: [] },
+    { name: "Gray", code: "10103", hexes: ["#8E9089"], m: [] },
+    { name: "Cocoa Brown", code: "10802", hexes: ["#6F5034"], m: [] },
+    { name: "Purple", code: "10700", hexes: ["#5E43B7"], m: [] },
+    { name: "Bronze", code: "10801", hexes: ["#847D48"], m: [], disc: true },
+    { name: "Beige", code: "10201", hexes: ["#F7E6DE"], m: [["white", 9.4]], disc: true }
+  ]},
+  { id: "pla-matte", name: "PLA Matte", material: "PLA", colors: [
+    { name: "Ivory White", code: "11100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Charcoal", code: "11101", hexes: ["#000000"], m: BLACKS },
+    { name: "Marine Blue", code: "11600", hexes: ["#0078BF"], m: [["marine", 0.0]] },
+    { name: "Ash Gray", code: "11102", hexes: ["#9B9EA0"], m: [] },
+    { name: "Sakura Pink", code: "11201", hexes: ["#E8AFCF"], m: [] },
+    { name: "Desert Tan", code: "11401", hexes: ["#E8DBB7"], m: [["brown", 9.2]] },
+    { name: "Dark Red", code: "11202", hexes: ["#BB3D43"], m: [["asared", 8.1]] },
+    { name: "Lemon Yellow", code: "11400", hexes: ["#F7D959"], m: [] }
+  ]},
+  { id: "pla-silk", name: "PLA Silk+", material: "PLA", colors: [
+    { name: "Gold", code: "13405", hexes: ["#E4BD68"], m: [] },
+    { name: "Silver", code: "13109", hexes: ["#C8C8C8"], m: [] },
+    { name: "Copper", code: "13801", hexes: ["#B87333"], m: [] }
+  ]},
+  { id: "pla-silk-dual", name: "PLA Silk Dual Color", material: "PLA", colors: [
+    { name: "Gold-Silver", code: "13901", hexes: ["#F4A925", "#C0C0C0"], m: [] },
+    { name: "Blue-Red", code: "13902", hexes: ["#1E4FC2", "#D0322E"], m: [] },
+    { name: "Aurora Purple", code: "13903", hexes: ["#5E43B7", "#E04E8A", "#2A9DF4"], m: [] },
+    { name: "Copper-Teal", code: "", hexes: ["#B87333", "#008080"], m: [], disc: true }
+  ]},
+  { id: "petg-hf", name: "PETG HF", material: "PETG", colors: [
+    { name: "Black", code: "33102", hexes: ["#000000"], m: BLACKS },
+    { name: "Blue", code: "33600", hexes: ["#002E96"], m: [["plablue", 3.1], ["marine", 8.7]] },
+    { name: "White", code: "33100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Red", code: "33200", hexes: ["#EB3A3A"], m: [["asared", 4.2]] },
+    { name: "Gray", code: "33101", hexes: ["#ADB1B2"], m: [] },
+    { name: "Green", code: "33500", hexes: ["#00AE42"], m: [] },
+    { name: "Yellow", code: "33400", hexes: ["#FFD00B"], m: [] },
+    { name: "Orange", code: "33300", hexes: ["#F75403"], m: [] },
+    { name: "Cream", code: "33401", hexes: ["#F9DFB9"], m: [] },
+    { name: "Peanut Brown", code: "33801", hexes: ["#875718"], m: [], disc: true }
+  ]},
+  { id: "petg-translucent", name: "PETG Translucent", material: "PETG", colors: [
+    { name: "Brown", code: "32800", hexes: ["#C9A381"], m: [["brown", 0.0]] },
+    { name: "Clear", code: "32100", hexes: ["#F0F2F2"], m: [["white", 7.8]] },
+    { name: "Teal", code: "32500", hexes: ["#3E8E93"], m: [] }
+  ]},
+  { id: "abs", name: "ABS", material: "ABS", colors: [
+    { name: "Black", code: "40101", hexes: ["#000000"], m: BLACKS },
+    { name: "White", code: "40100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Red", code: "40200", hexes: ["#D32941"], m: [["asared", 5.8]] },
+    { name: "Azure", code: "40601", hexes: ["#489FDF"], m: [["marine", 9.4]] },
+    { name: "Silver", code: "40102", hexes: ["#87909A"], m: [] },
+    { name: "Bambu Green", code: "40500", hexes: ["#00AE42"], m: [] },
+    { name: "Olive", code: "40502", hexes: ["#748C45"], m: [], disc: true }
+  ]},
+  { id: "asa", name: "ASA", material: "ASA", colors: [
+    { name: "Red", code: "45200", hexes: ["#E02928"], m: [["asared", 0.0]] },
+    { name: "Black", code: "45101", hexes: ["#000000"], m: BLACKS },
+    { name: "White", code: "45100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Gray", code: "45102", hexes: ["#8A949E"], m: [] },
+    { name: "Blue", code: "45600", hexes: ["#2140B4"], m: [["plablue", 5.0]] }
+  ]}
+];
+
+var CUTOFF = 10;
+var STORE = "https://us.store.bambulab.com";
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+function colorKey(line, color) { return line.id + "/" + color.name; }
+function isMulti(color) { return color.hexes.length > 1; }
+function inStock(p) { return p.sealed + p.open > 0; }
+
+/** Products linked to this catalog color, split into in stock and none in stock. */
+function linked(line, color) {
+  var key = colorKey(line, color), have = [], none = [];
+  Object.keys(STOCK).forEach(function (id) {
+    var p = STOCK[id];
+    if (p.link !== key) return;
+    (inStock(p) ? have : none).push({ id: id, p: p });
+  });
+  return { have: have, none: none };
+}
+
+function isOwned(line, color) { return linked(line, color).have.length > 0; }
+
+function ownedCounts(line, color) {
+  return linked(line, color).have.reduce(function (s, x) { s.sealed += x.p.sealed; s.open += x.p.open; return s; }, { sealed: 0, open: 0 });
+}
+
+/** Substitutes within the cutoff, closest first; same material first on a tie. A product
+ * linked to this color is never its own substitute, and only in-stock products count. */
+function similar(line, color) {
+  if (isMulti(color)) return [];
+  var key = colorKey(line, color);
+  return color.m
+    .filter(function (x) { var p = STOCK[x[0]]; return x[1] <= CUTOFF && inStock(p) && p.link !== key; })
+    .map(function (x) { var p = STOCK[x[0]]; return { id: x[0], p: p, de: x[1], other: p.material !== line.material }; })
+    .sort(function (a, b) { return a.de - b.de || (a.other - b.other); });
+}
+
+/** Find in store: the store's search, by Bambu code, or by line and color name. */
+function storeUrl(line, color) {
+  var q = color.code ? color.code : line.name + " " + color.name;
+  return STORE + "/search?q=" + encodeURIComponent(q);
+}
+
+function materials() {
+  var seen = [];
+  LINES.forEach(function (l) { if (seen.indexOf(l.material) < 0) seen.push(l.material); });
+  return seen;
+}
+
+/** The color counts per material, for the filter sheet. */
+function materialCounts(showDisc) {
+  var out = {};
+  LINES.forEach(function (l) {
+    l.colors.forEach(function (c) { if (showDisc || !c.disc) out[l.material] = (out[l.material] || 0) + 1; });
+  });
+  return out;
+}
+
+function noFilter() { return { query: "", types: [], owned: false, similarOnly: false, showDisc: false }; }
+
+function activeCount(f) { return (f.types.length ? 1 : 0) + (f.owned ? 1 : 0) + (f.similarOnly ? 1 : 0) + (f.showDisc ? 1 : 0); }
+
+/** Lines with their listed colors under the filter; a line with none left is dropped. */
+function applyFilter(f) {
+  var q = f.query.trim().toLowerCase();
+  var out = [];
+  LINES.forEach(function (line) {
+    if (f.types.length && f.types.indexOf(line.material) < 0) return;
+    var pool = line.colors.filter(function (c) { return f.showDisc || !c.disc; });
+    var lineHit = q && line.name.toLowerCase().indexOf(q) >= 0;
+    var shown = pool.filter(function (c) {
+      if (f.owned && !isOwned(line, c)) return false;
+      if (f.similarOnly && !similar(line, c).length) return false;
+      if (q && !lineHit && c.name.toLowerCase().indexOf(q) < 0 && (c.code || "").indexOf(q) < 0) return false;
+      return true;
+    });
+    if (shown.length) out.push({ line: line, colors: shown, total: pool.length });
+  });
+  return out;
+}
+
+function countColors(groups) { return groups.reduce(function (s, g) { return s + g.colors.length; }, 0); }
+
+function stockText(p) {
+  var parts = [];
+  if (p.sealed) parts.push(p.sealed + " sealed");
+  if (p.open) parts.push(p.open + " open");
+  return parts.join(" · ");
+}
+
+/** The type chip's text: one or two types by name, all but one, or a count. */
+function typeSummary(types) {
+  var all = materials();
+  if (!types.length || types.length === all.length) return "";
+  if (types.length <= 2) return types.join(", ");
+  var missing = all.filter(function (t) { return types.indexOf(t) < 0; });
+  if (missing.length === 1) return "All but " + missing[0];
+  return types.length + " types";
+}
+
+/** The swatch ring: one color as the border, or segments for a multi-color catalog color. */
+function ringHtml(hexes, size) {
+  if (hexes.length === 1) return '<span class="ring ' + size + '" aria-hidden="true" style="border-color:' + hexes[0] + '"></span>';
+  var step = 100 / hexes.length;
+  var stops = hexes.map(function (h, i) { return h + " " + (i * step).toFixed(2) + "% " + ((i + 1) * step).toFixed(2) + "%"; }).join(", ");
+  return '<span class="ring multi ' + size + '" aria-hidden="true" style="background:conic-gradient(from -90deg, ' + stops + ')"></span>';
+}
+
+function hexLabel(hexes) { return hexes.join(" / "); }
+
+/** The hex, then the Bambu code when the color has one (nothing when it has none). */
+function hexCodeHtml(color) {
+  var h = '<span class="hexes">' + hexLabel(color.hexes) + '</span>';
+  if (color.code) h += '<span class="code"><span class="sr-only">Bambu code </span>' + color.code + '</span>';
+  return h;
+}
+
+function badgesHtml(line, color, hideNone) {
+  var b = "";
+  if (isOwned(line, color)) b += '<span class="badge-own">Owned · ' + stockText(ownedCounts(line, color)) + '</span>';
+  if (color.disc) b += '<span class="badge-disc">Discontinued</span>';
+  if (isMulti(color)) b += '<span class="badge-multi">Multi-color</span>';
+  else {
+    var n = similar(line, color).length;
+    b += n ? '<span class="badge-sim">' + n + ' similar in stock</span>' : hideNone ? '' : '<span class="nosim">None similar in stock</span>';
+  }
+  return b;
+}
+
+var EXT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"></path><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg>';
+
+function storeButtonHtml(line, color) {
+  return '<a class="button store" href="' + esc(storeUrl(line, color)) + '" target="_blank" rel="noopener noreferrer">Find in store' + EXT +
+    '<span class="sr-only"> (opens in a new tab)</span></a>';
+}
+
+/** One product row in the Owned or Similar lists. */
+function productRowHtml(p, note, right) {
+  return '<li class="match">' + ringHtml([p.hex], "sm") +
+    '<span class="mtext"><a class="mname" href="#" data-act="product">' + esc(p.name) + '</a>' + note + '</span>' + right + '</li>';
+}
+
+/** The expanded area under a color row: Owned, linked with none in stock, Similar, Find in store. */
+function detailHtml(line, color) {
+  var h = '<div class="detail">', link = linked(line, color);
+  if (link.have.length) {
+    h += '<h4 class="label">Owned</h4><ul class="matches">';
+    link.have.forEach(function (x) {
+      h += productRowHtml(x.p, '<span class="how muted">' + (x.p.how === "hand" ? "Linked by hand" : "From its tag") + '</span>',
+        '<span class="de"></span><span class="stock">' + stockText(x.p) + '</span>');
+    });
+    h += '</ul>';
+  }
+  link.none.forEach(function (x) {
+    h += '<p class="muted linked-none">Linked: <a href="#" data-act="product">' + esc(x.p.name) + '</a>, none in stock</p>';
+  });
+  if (isMulti(color)) {
+    h += '<p class="muted none">Multi-color: no comparison</p>';
+  } else {
+    var list = similar(line, color);
+    h += '<h4 class="label">Similar in-stock colors</h4>';
+    if (!list.length) h += '<p class="muted none">No similar color in stock</p>';
+    else {
+      h += '<ul class="matches">';
+      list.forEach(function (x) {
+        h += productRowHtml(x.p, x.other ? '<span class="warn">⚠ Different material: ' + x.p.material + ', not ' + line.material + '</span>' : '',
+          '<span class="de mono">ΔE ' + x.de.toFixed(1) + '</span><span class="stock">' + stockText(x.p) + '</span>');
+      });
+      h += '</ul>';
+    }
+    h += '<p class="foot muted">Showing in-stock products within ΔE ' + CUTOFF + '</p>';
+  }
+  h += '<div class="storerow">' + storeButtonHtml(line, color) + '</div>';
+  return h + '</div>';
+}
+
+var ICONS = {
+  inventory: '<circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle>',
+  spools: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path>',
+  products: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"></path><path d="M7.5 7.5h.01"></path>',
+  catalog: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0 0 21 9.8C21 6 17 3 12 3z"></path><circle cx="7.5" cy="11.5" r="1"></circle><circle cx="10.5" cy="7.5" r="1"></circle><circle cx="15" cy="7.5" r="1"></circle>',
+  review: '<path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>',
+  devices: '<rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M12 18h.01"></path>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"></path>',
+  settings: '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"></path>'
+};
+function icon(k) { return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' + ICONS[k] + '</svg>'; }
+
+
+ICONS.requests = '<path d="M6 9V3h12v6"></path><rect x="3" y="9" width="18" height="8" rx="2"></rect><path d="M7 17v4h10v-4"></path>';
+
+/* Product names as the Products page shows them */
+var NAMES = { plablue: "Blue PLA Basic", marine: "Marine Blue PLA Matte", plabk: "Black PLA Basic", blackpla: "Black PLA", white: "Jade White PLA Basic", petgbk: "Black PETG HF", absbk: "Black ABS", asared: "Red ASA", brown: "Brown PETG Translucent", silkgold: "Silk Gold PLA" };
+Object.keys(NAMES).forEach(function (k) { STOCK[k].name = NAMES[k]; });
+
+var TODAY = "2026-11-17";
+var MAXB = 95 * 1024 * 1024;
+var WARN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>';
+var FILEICO = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path></svg>';
+
+function mb(b) { return (b / 1048576).toFixed(1) + " MB"; }
+function lineById(id) { return LINES.filter(function (l) { return l.id === id; })[0]; }
+function colorOf(key) { var i = key.indexOf("/"), l = lineById(key.slice(0, i)); return { line: l, color: l.colors.filter(function (c) { return c.name === key.slice(i + 1); })[0] }; }
+
+/* Filament options: owned products (in stock), then catalog colors nobody owns yet */
+function options() {
+  var own = Object.keys(STOCK).filter(function (id) { return inStock(STOCK[id]); }).map(function (id) {
+    var p = STOCK[id];
+    return { key: "p:" + id, kind: "own", name: p.name, hexes: [p.hex], hay: p.name + " " + p.material, sub: p.material + " · " + stockText(p) };
+  });
+  var cat = [];
+  LINES.forEach(function (l) {
+    l.colors.forEach(function (c) {
+      if (c.disc || isOwned(l, c)) return;
+      var sim = similar(l, c);
+      cat.push({
+        key: "c:" + colorKey(l, c), kind: "cat", name: c.name + " " + l.name, hexes: c.hexes,
+        hay: c.name + " " + l.name + " " + l.material + " " + c.code,
+        sub: l.material + (c.code ? " · " + c.code : "") + " · not in stock",
+        sim: isMulti(c) ? null : sim.map(function (x) { return x.p.name; })
+      });
+    });
+  });
+  return { own: own, cat: cat };
+}
+var OPTS = options();
+var BYKEY = {};
+OPTS.own.concat(OPTS.cat).forEach(function (o) { BYKEY[o.key] = o; });
+
+function simText(o) {
+  if (!o.sim) return "Multi-color: no similar colors";
+  if (!o.sim.length) return "Nothing similar in stock";
+  return "Similar in stock: " + o.sim.slice(0, 2).join(", ") + (o.sim.length > 2 ? " +" + (o.sim.length - 2) : "");
+}
+
+/* ---------- Form state ---------- */
+var SAMPLES = {
+  blank: { title: "", qty: 1, pri: "normal", need: "", file: null, link: "", notes: "", fil: [] },
+  filled: {
+    title: "Board game insert for Wingspan", qty: 1, pri: "normal", need: "2026-12-05", file: null,
+    link: "https://makerworld.com/en/models/412877-wingspan-organizer",
+    notes: "The version with the egg tray, please. 0.2 mm layers is fine.",
+    fil: [{ key: "p:plablue", note: "main body" }, { key: "c:pla-basic/Hot Pink", note: "accents" }, { key: "p:marine", note: "card trays" }]
+  },
+  edit: {
+    title: "Lithophane lamp shade for the hallway", qty: 1, pri: "normal", need: "2026-11-24",
+    file: { name: "hallway-lithophane-shade.3mf", size: 19503513 },
+    link: "https://www.printables.com/model/603811-lithophane-lamp-shade",
+    notes: "Print at 100% with the default lithophane settings in the file.",
+    fil: [{ key: "p:white", note: "" }]
+  },
+  errors: { title: "", qty: 1, pri: "urgent", need: "2026-11-12", file: null, link: "", notes: "", fil: [] },
+  big: {
+    title: "Desk organizer with drawers", qty: 1, pri: "normal", need: "", file: { name: "desk-organizer-full-plate.3mf", size: 138832691 },
+    link: "", notes: "", fil: [{ key: "p:plabk", note: "" }]
+  },
+  uploading: {
+    title: "Articulated dragon", qty: 1, pri: "norush", need: "", file: { name: "articulated-dragon-v3.3mf", size: 54840115, up: "uploading", pct: 38 },
+    link: "", notes: "", fil: [{ key: "c:pla-silk/Gold", note: "body" }, { key: "p:plabk", note: "eyes" }]
+  },
+  failed: {
+    title: "Articulated dragon", qty: 1, pri: "norush", need: "", file: { name: "articulated-dragon-v3.3mf", size: 54840115, up: "failed", pct: 61 },
+    link: "", notes: "", fil: [{ key: "c:pla-silk/Gold", note: "body" }, { key: "p:plabk", note: "eyes" }]
+  },
+  type: {
+    title: "Phone stand", qty: 2, pri: "norush", need: "", file: { name: "phone-stand.obj", size: 2306867 },
+    link: "", notes: "", fil: [{ key: "c:pla-matte/Sakura Pink", note: "" }]
+  }
+};
+
+var f, mode, touched, q = "", role = "viewer";
+
+function load(name) {
+  var s = SAMPLES[name];
+  stopUpload();
+  f = { title: s.title, qty: String(s.qty), pri: s.pri, need: s.need, file: s.file ? Object.assign({ up: "done", pct: 100 }, s.file) : null, link: s.link, notes: s.notes,
+    fil: s.fil.map(function (x) { return { key: x.key, note: x.note }; }) };
+  mode = name === "edit" ? "edit" : "new";
+  touched = name === "errors" || name === "big" || name === "type";
+  q = "";
+  document.getElementById("title").value = f.title;
+  document.getElementById("qty").value = f.qty;
+  document.querySelector('input[name=pri][value="' + f.pri + '"]').checked = true;
+  document.getElementById("need").value = f.need;
+  document.getElementById("link").value = f.link;
+  document.getElementById("notes").value = f.notes;
+  document.getElementById("fq").value = "";
+  document.getElementById("done").textContent = "";
+  renderAll();
+}
+
+/* ---------- Validation ---------- */
+function fileProblem() {
+  if (!f.file) return "";
+  if (!/\.(3mf|stl)$/i.test(f.file.name)) return f.file.name + " isn't a 3MF or STL file. Choose a .3mf or .stl file.";
+  if (f.file.size > MAXB) return f.file.name + " is " + mb(f.file.size) + ". Files can be up to 95 MB.";
+  return "";
+}
+function errors() {
+  var e = [];
+  if (!f.title.trim()) e.push({ id: "title", msg: "Enter a title." });
+  var n = Number(f.qty);
+  if (!/^\d+$/.test(f.qty) || n < 1 || n > 100) e.push({ id: "qty", msg: "Enter a quantity from 1 to 100." });
+  if (f.need && f.need < TODAY) e.push({ id: "need", msg: "Needed by can't be in the past. Pick today or later, or leave it empty." });
+  var fp = fileProblem();
+  if (fp) e.push({ id: "file", msg: fp });
+  else if (f.file && f.file.up === "uploading") e.push({ id: "file", msg: f.file.name + " is still uploading. Wait for it to finish, or cancel it." });
+  else if (f.file && f.file.up === "failed") e.push({ id: "file", msg: f.file.name + " didn't upload. Try again, or remove it." });
+  if (f.link && !/^https?:\/\/[^\s\/]+\.[^\s]+$/i.test(f.link)) e.push({ id: "link", msg: "Enter a link that starts with http:// or https://." });
+  if (!f.file && !f.link.trim() && !f.notes.trim()) e.push({ id: "notes", msg: "Add a file or a link, or say in the notes where the model is." });
+  if (!f.fil.length) e.push({ id: "fq", msg: "Add at least one filament." });
+  return e;
+}
+var SUMLABEL = { title: "Title", qty: "Quantity", need: "Needed by", file: "File", link: "Link", notes: "Model", fq: "Filament" };
+
+function renderErrors() {
+  var e = touched ? errors() : [];
+  var by = {};
+  e.forEach(function (x) { by[x.id] = x.msg; });
+  [["title", "title-err", "title"], ["qty", "qty-err", "qty"], ["need", "need-err", "need"], ["link", "link-err", "link"], ["notes", "notes-err", "notes"], ["fq", "fil-err", null], ["file", "file-err", null]].forEach(function (x) {
+    var p = document.getElementById(x[1]);
+    p.hidden = !by[x[0]];
+    p.innerHTML = by[x[0]] ? WARN + "<span>" + by[x[0]] + "</span>" : "";
+    if (x[2]) document.getElementById(x[2]).setAttribute("aria-invalid", by[x[0]] ? "true" : "false");
+  });
+  var nc = document.querySelector(".nochoice");
+  if (nc) nc.classList.toggle("bad", !!by.fq);
+  var drop = document.querySelector(".drop");
+  if (drop) drop.classList.toggle("bad", !!by.file);
+  var sum = document.getElementById("errsum");
+  sum.hidden = e.length === 0;
+  document.getElementById("errsum-h").textContent = e.length === 1 ? "Fix 1 thing before " + (mode === "edit" ? "saving" : "submitting") : "Fix " + e.length + " things before " + (mode === "edit" ? "saving" : "submitting");
+  document.getElementById("errsum-l").innerHTML = e.map(function (x) {
+    var target = x.id === "file" ? (document.getElementById("pickfile") ? "pickfile" : "replacefile") : x.id;
+    return '<li><a href="#' + target + '" data-jump="' + target + '">' + x.msg + "</a></li>";
+  }).join("");
+  return e;
+}
+
+/* ---------- Rendering ---------- */
+function renderHead() {
+  var edit = mode === "edit";
+  document.title = (edit ? "Edit request" : "New request") + " · RollCall (mockup)";
+  document.getElementById("titlerow").innerHTML = edit
+    ? '<h1>Edit request</h1><span class="reqid">#39</span><span class="tagchip st-submitted">Submitted</span>'
+    : "<h1>New request</h1>";
+  document.getElementById("back-t").textContent = edit ? "Request #39" : "Requests";
+  document.getElementById("submit").textContent = edit ? "Save changes" : "Submit request";
+}
+
+function renderCounts() {
+  document.getElementById("title-count").textContent = f.title.length + " / 120";
+  document.getElementById("notes-count").textContent = f.notes.length.toLocaleString("en-US") + " / 2,000";
+}
+
+function renderFile() {
+  var a = document.getElementById("filearea");
+  if (!f.file) {
+    a.innerHTML = '<div class="drop" id="drop"><span style="color:var(--muted)">' + FILEICO + '</span><span class="big">Drag a 3MF or STL file here</span>' +
+      '<div class="row"><span class="muted">or</span><button type="button" id="pickfile" aria-describedby="file-l file-limit">Choose file</button></div>' +
+      '<span class="help" id="file-limit">One file, up to 95 MB.</span></div>';
+  } else {
+    var bad = fileProblem(), up = f.file.up, nm = esc(f.file.name);
+    var meta = '<span class="fname">' + nm + "</span>";
+    var acts;
+    if (!bad && up === "uploading") {
+      meta += '<span class="upl"><span class="pbar" role="progressbar" aria-label="Uploading ' + nm + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + f.file.pct + '"><span style="width:' + f.file.pct + '%"></span></span>' +
+        '<span class="ut">Uploading… ' + f.file.pct + "% · " + (f.file.size * f.file.pct / 100 / 1048576).toFixed(1) + " of " + mb(f.file.size) + "</span></span>";
+      acts = '<button type="button" id="cancelupload" aria-label="Cancel uploading ' + nm + '">Cancel upload</button>';
+    } else if (!bad && up === "failed") {
+      meta += '<span class="upfail">Upload failed at ' + f.file.pct + "%: the connection dropped.</span>";
+      acts = '<button type="button" id="retryfile" aria-label="Try uploading ' + nm + ' again">Try again</button><button type="button" id="removefile" aria-label="Remove ' + nm + '">Remove</button>';
+    } else {
+      meta += '<span class="fsize">' + mb(f.file.size) + (bad ? "" : " · uploaded") + "</span>";
+      acts = '<button type="button" id="replacefile" aria-label="Replace ' + nm + '">Replace</button><button type="button" id="removefile" aria-label="Remove ' + nm + '">Remove</button>';
+    }
+    var cls = "filecard" + (bad || up === "failed" ? " failed" : "");
+    a.innerHTML = '<div class="' + cls + '"><span class="fi">' + (up === "failed" && !bad ? WARN : FILEICO) + '</span><span class="meta">' + meta + '</span><span class="acts">' + acts + "</span></div>";
+  }
+}
+
+function renderNotesLabel() {
+  var need = !f.file && !f.link.trim();
+  document.getElementById("notes-l").innerHTML = need
+    ? 'Notes <span class="req">(required: say where the model is)</span>'
+    : 'Notes <span class="opt">(optional)</span>';
+  document.getElementById("modelrule").hidden = !need;
+}
+
+function ringFor(o, size) { return ringHtml(o.hexes, size || "sm"); }
+
+function renderChoices() {
+  var ol = document.getElementById("choices");
+  if (!f.fil.length) {
+    ol.innerHTML = '<li class="nochoice">No filament yet. Search below to add one.</li>';
+    return;
+  }
+  ol.innerHTML = f.fil.map(function (c, i) {
+    var o = BYKEY[c.key], last = i === f.fil.length - 1;
+    var sub = o.kind === "own"
+      ? '<span class="kind own">Owned</span>' + esc(o.sub)
+      : '<span class="kind cat">Catalog</span>' + esc(o.sub) + "<br>" + esc(simText(o));
+    return '<li class="choice"><span class="ord" aria-hidden="true">' + (i + 1) + "</span>" + ringFor(o) +
+      '<span class="cinfo"><span class="cname"><span class="sr-only">Choice ' + (i + 1) + ": </span>" + esc(o.name) + '</span><span class="csub">' + sub + "</span></span>" +
+      '<input type="text" maxlength="40" placeholder="Note, like main body" value="' + esc(c.note) + '" data-note="' + i + '" aria-label="Note for ' + esc(o.name) + '">' +
+      '<span class="cacts">' +
+      '<button type="button" data-up="' + i + '" aria-label="Move ' + esc(o.name) + ' up"' + (i === 0 ? " disabled" : "") + '><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button>' +
+      '<button type="button" data-down="' + i + '" aria-label="Move ' + esc(o.name) + ' down"' + (last ? " disabled" : "") + '><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"></path></svg></button>' +
+      '<button type="button" data-remove="' + i + '" aria-label="Remove ' + esc(o.name) + '"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>' +
+      "</span></li>";
+  }).join("");
+}
+
+function renderResults() {
+  var words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  function match(o) { var h = o.hay.toLowerCase(); return words.every(function (w) { return h.indexOf(w) >= 0; }); }
+  var chosen = {};
+  f.fil.forEach(function (c) { chosen[c.key] = true; });
+  var own = OPTS.own.filter(match), cat = words.length ? OPTS.cat.filter(match) : [];
+  var MAXC = 5;
+  function row(o) {
+    var on = chosen[o.key];
+    var sub = o.kind === "own" ? esc(o.sub) : esc(o.sub) + " · " + esc(simText(o));
+    return '<li><button type="button" class="res" data-add="' + esc(o.key) + '"' + (on ? " disabled" : "") + ' aria-label="' + (on ? "Added: " : "Add ") + esc(o.name) + '">' +
+      ringFor(o) + '<span class="cinfo"><span class="cname">' + esc(o.name) + '</span><span class="csub">' + sub + "</span></span>" +
+      '<span class="add">' + (on ? "Added" : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add') + "</span></button></li>";
+  }
+  var h = "";
+  var MAXO = words.length ? own.length : 5, ownAll = own.length;
+  own = own.slice(0, MAXO);
+  if (own.length) h += '<p class="rgroup">Your products · in stock</p><ul class="rlist">' + own.map(row).join("") + "</ul>";
+  if (cat.length) h += '<p class="rgroup">Catalog colors · not in stock</p><ul class="rlist">' + cat.slice(0, MAXC).map(row).join("") + "</ul>";
+  var box = document.getElementById("results");
+  box.innerHTML = h;
+  box.hidden = !h;
+  document.getElementById("rcount").textContent = !words.length
+    ? "Showing " + own.length + " of your " + ownAll + " products. Type to search all of them and the catalog."
+    : own.length + cat.length === 0 ? 'Nothing matches "' + q + '".'
+    : own.length + " of your products, " + cat.length + " catalog " + (cat.length === 1 ? "color" : "colors") + (cat.length > MAXC ? " (showing " + MAXC + ")" : "");
+}
+
+function renderAll() {
+  renderHead(); renderCounts(); renderFile(); renderNotesLabel(); renderChoices(); renderResults(); renderErrors();
+}
+
+/* ---------- Events ---------- */
+var form = document.getElementById("form");
+form.addEventListener("input", function (e) {
+  var t = e.target;
+  if (t.id === "title") f.title = t.value;
+  else if (t.id === "qty") f.qty = t.value.trim();
+  else if (t.id === "need") f.need = t.value;
+  else if (t.id === "link") { f.link = t.value.trim(); renderNotesLabel(); }
+  else if (t.id === "notes") f.notes = t.value;
+  else if (t.name === "pri") f.pri = t.value;
+  else if (t.dataset.note) { f.fil[+t.dataset.note].note = t.value; return; }
+  else if (t.id === "fq") { q = t.value; renderResults(); return; }
+  document.getElementById("done").textContent = "";
+  renderCounts();
+  renderErrors();
+});
+form.addEventListener("change", function (e) { if (e.target.name === "pri") f.pri = e.target.value; });
+
+var timer = null;
+function stopUpload() { if (timer) { clearInterval(timer); timer = null; } }
+function say(msg) { document.getElementById("upload-say").textContent = msg; }
+function startUpload(from) {
+  stopUpload();
+  f.file.up = "uploading"; f.file.pct = from || 0;
+  say("Uploading " + f.file.name + ".");
+  timer = setInterval(function () {
+    f.file.pct = Math.min(100, f.file.pct + 7);
+    if (f.file.pct >= 100) { stopUpload(); f.file.up = "done"; say(f.file.name + " uploaded."); renderFile(); renderErrors(); focusFile(); return; }
+    renderFile(); renderErrors();
+  }, 180);
+}
+function focusFile() {
+  var focus = document.getElementById("replacefile") || document.getElementById("cancelupload") || document.getElementById("retryfile") || document.getElementById("pickfile");
+  if (focus && document.activeElement && document.activeElement.closest && !document.activeElement.closest(".mock")) focus.focus();
+}
+function setFile(file) {
+  stopUpload();
+  f.file = file ? { name: file.name, size: file.size, up: "done", pct: 100 } : null;
+  touched = touched || !!fileProblem();
+  if (f.file && !fileProblem()) startUpload(0);
+  renderFile(); renderNotesLabel(); renderErrors();
+  focusFile();
+}
+document.getElementById("fileinput").addEventListener("change", function (e) {
+  if (e.target.files[0]) setFile(e.target.files[0]);
+  e.target.value = "";
+});
+var filearea = document.getElementById("filearea");
+filearea.addEventListener("dragover", function (e) { e.preventDefault(); var d = document.getElementById("drop"); if (d) d.classList.add("over"); });
+filearea.addEventListener("dragleave", function () { var d = document.getElementById("drop"); if (d) d.classList.remove("over"); });
+filearea.addEventListener("drop", function (e) {
+  e.preventDefault();
+  var files = e.dataTransfer.files;
+  if (files.length) setFile(files[0]);
+});
+
+function focusChoice(sel) { var el = document.querySelector(sel); if (el && !el.disabled) el.focus(); }
+
+document.addEventListener("click", function (e) {
+  var t = e.target.closest("button, a");
+  if (!t) return;
+  var d = t.dataset;
+  if (t.tagName === "A" && t.getAttribute("href").charAt(0) === "#") e.preventDefault();
+  if (d.jump) { var el = document.getElementById(d.jump); if (el) { el.focus({ preventScroll: true }); var sc2 = document.getElementById("scroll"); sc2.scrollTop += el.getBoundingClientRect().top - sc2.getBoundingClientRect().top - 60; } return; }
+  if (t.id === "pickfile" || t.id === "replacefile") document.getElementById("fileinput").click();
+  else if (t.id === "removefile") setFile(null);
+  else if (t.id === "cancelupload") { say("Upload cancelled."); setFile(null); }
+  else if (t.id === "retryfile") { startUpload(0); renderFile(); renderErrors(); focusFile(); }
+  else if (d.step) {
+    var n = Math.min(100, Math.max(1, (parseInt(f.qty, 10) || 1) + Number(d.step)));
+    f.qty = String(n); document.getElementById("qty").value = n; renderErrors();
+  }
+  else if (d.add) {
+    f.fil.push({ key: d.add, note: "" });
+    renderChoices(); renderResults(); renderErrors();
+    document.getElementById("rcount").textContent = BYKEY[d.add].name + " added as choice " + f.fil.length + ".";
+    focusChoice('[data-note="' + (f.fil.length - 1) + '"]');
+  }
+  else if (d.remove) {
+    var i = +d.remove, name = BYKEY[f.fil[i].key].name;
+    f.fil.splice(i, 1);
+    renderChoices(); renderResults(); renderErrors();
+    document.getElementById("rcount").textContent = name + " removed.";
+    focusChoice(f.fil.length ? '[data-remove="' + Math.min(i, f.fil.length - 1) + '"]' : "#fq");
+  }
+  else if (d.up || d.down) {
+    var a = +(d.up || d.down), b = d.up ? a - 1 : a + 1;
+    var tmp = f.fil[a]; f.fil[a] = f.fil[b]; f.fil[b] = tmp;
+    renderChoices();
+    document.getElementById("rcount").textContent = BYKEY[tmp.key].name + " is now choice " + (b + 1) + ".";
+    focusChoice((d.up ? '[data-up="' : '[data-down="') + b + '"]') || 0;
+    if (document.activeElement === document.body) focusChoice('[data-remove="' + b + '"]');
+  }
+  else if (d.state) { pick(t); load(d.state); }
+  else if (d.role) {
+    pick(t); role = d.role;
+    var me = role === "admin" ? ["frank", "F"] : role === "editor" ? ["dana", "D"] : ["sam", "S"];
+    document.getElementById("uname").textContent = me[0];
+    document.getElementById("uinit").textContent = me[1];
+    renderOverlay();
+  }
+  else if (d.act === "menu") { menuOpen = !menuOpen; renderMenu(); renderOverlay(); var f1 = document.querySelector("#menu-sheet a"); if (menuOpen && f1) f1.focus(); }
+  else if (d.act === "closemenu") { menuOpen = false; renderMenu(); renderOverlay(); document.getElementById("menubtn").focus(); }
+  else if (d.theme) { pick(t); document.documentElement.setAttribute("data-theme", d.theme); }
+});
+
+form.addEventListener("submit", function (e) {
+  e.preventDefault();
+  touched = true;
+  var errs = renderErrors();
+  if (errs.length) { var es = document.getElementById("errsum"); document.getElementById("scroll").scrollTop = 0; es.focus({ preventScroll: true }); return; }
+  var sc = document.getElementById("scroll"); sc.scrollTop = sc.scrollHeight;
+  document.getElementById("done").textContent = mode === "edit"
+    ? "Saved. In the app, this goes back to request #39."
+    : "Submitted. In the app, this opens the new request.";
+});
+
+function pick(btn) { btn.parentNode.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); }); }
+
+/* ---------- menu ---------- */
+var menuOpen = false;
+function renderMenu() {
+  var mb = document.getElementById("menubtn");
+  mb.setAttribute("aria-expanded", String(menuOpen));
+  mb.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">' +
+    (menuOpen ? '<path d="M6 6l12 12M18 6 6 18"></path>' : '<path d="M4 7h16M4 12h16M4 17h16"></path>') + "</svg>" + (menuOpen ? "Close" : "Menu") + (menuOpen ? "" : '<span class="dot" aria-hidden="true"></span>');
+}
+function renderOverlay() {
+  var o = document.getElementById("overlay");
+  if (!menuOpen) { o.innerHTML = ""; return; }
+  var staff = role !== "viewer", n = staff ? 8 : 3;
+  var main = [["inventory", "Inventory"], ["spools", "Spools"], ["products", "Products"], ["catalog", "Catalog"], ["requests", "Requests"]];
+  if (staff) main.push(["review", "Review"]);
+  main.push(["activity", "Activity"]);
+  var h = '<button type="button" class="dim" aria-label="Close the menu" tabindex="-1" data-act="closemenu"></button><div class="sheet" id="menu-sheet" role="dialog" aria-modal="true" aria-label="Menu"><span class="grip" aria-hidden="true"></span><nav aria-label="Pages" class="pages">';
+  main.forEach(function (m) {
+    var b = m[0] === "requests" ? n : m[0] === "review" ? 3 : 0;
+    h += '<a class="item" href="#"' + (m[0] === "requests" ? ' aria-current="page" aria-label="Requests, ' + n + ' submitted"' : m[0] === "review" ? ' aria-label="Review, 3 waiting"' : "") + ">" + icon(m[0]) + m[1] + (b ? '<span class="ibadge" aria-hidden="true">' + b + "</span>" : "") + "</a>";
+  });
+  h += "</nav>";
+  if (role === "admin") {
+    h += '<div class="label">Admin</div><nav aria-label="Admin pages" class="adminpages">';
+    [["devices", "Devices"], ["users", "Users"], ["settings", "Settings"]].forEach(function (m) { h += '<a class="item small" href="#">' + icon(m[0]) + m[1] + "</a>"; });
+    h += "</nav>";
+  }
+  o.innerHTML = h + "</div>";
+}
+document.addEventListener("keydown", function (e) { if (e.key === "Escape" && menuOpen) { menuOpen = false; renderMenu(); renderOverlay(); document.getElementById("menubtn").focus(); } });
+renderMenu();
+load("filled");
+</script>
+</body>
+</html>
