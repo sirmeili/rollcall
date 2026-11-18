@@ -98,10 +98,11 @@ export function sizeText(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** "Similar in stock: A, B +2", "Nothing similar in stock"; null names a multi-color one. */
+/** "Similar in stock: A, B +2", "No similar color in stock"; null names a multi-color one,
+ * which gets no comparison (as on the Catalog page). */
 export function similarText(names: string[] | null, most = names?.length ?? 0): string {
-  if (names === null) return "Multi-color: no similar colors";
-  if (names.length === 0) return "Nothing similar in stock";
+  if (names === null) return "Multi-color: no comparison";
+  if (names.length === 0) return "No similar color in stock";
   const more = names.length - most;
   return `Similar in stock: ${names.slice(0, most).join(", ")}${more > 0 ? ` +${more}` : ""}`;
 }

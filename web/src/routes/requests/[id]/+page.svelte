@@ -8,12 +8,14 @@
     type Priority,
     type PrintRequest,
   } from "#lib/api/requests.ts";
+  import { session } from "#lib/auth/session.svelte.ts";
   import ChoiceList from "#lib/components/requests/ChoiceList.svelte";
   import PriorityChip from "#lib/components/requests/PriorityChip.svelte";
   import PriorityControl from "#lib/components/requests/PriorityControl.svelte";
   import RequestHistory from "#lib/components/requests/RequestHistory.svelte";
   import StatusChip from "#lib/components/requests/StatusChip.svelte";
   import { calendarDay, shortDate } from "#lib/format.ts";
+  import { whyNoEdit } from "#lib/requests/access.ts";
   import { neededByDate, relativeDay, relativeTime, sizeText } from "#lib/requests/labels.ts";
   import "#lib/requests/requests.css";
 
@@ -78,6 +80,9 @@
         <p class="byline">
           Requested by {request.requester.username} · submitted {relativeTime(request.created_at)}
         </p>
+        {#if session.user?.id === request.requester.id && !request.can_edit}
+          <p class="noedit">{whyNoEdit(session.user, request)}</p>
+        {/if}
       </div>
       {#if request.can_edit}
         <a class="button" href="/requests/{request.id}/edit">
@@ -246,6 +251,12 @@
     margin: 8px 0 0;
     color: var(--muted);
     font-size: 14px;
+  }
+
+  .noedit {
+    margin: 8px 0 0;
+    font-size: 14px;
+    font-weight: 600;
   }
 
   .grid {

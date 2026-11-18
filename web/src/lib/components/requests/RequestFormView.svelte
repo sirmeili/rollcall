@@ -13,6 +13,7 @@
     NOTES_MAX,
     TITLE_MAX,
     formProblems,
+    hasFile,
     summaryHeading,
     type FormField,
     type FormProblem,
@@ -25,7 +26,7 @@
   interface Props {
     initial: RequestForm;
     /** The request being edited; null for a new one. */
-    editing?: { id: number; neededBy: string } | null;
+    editing?: { id: number } | null;
     options: PickerOptions;
     /** Why the filament picker has nothing to offer. */
     optionsFailure?: string | null;
@@ -45,7 +46,7 @@
   let summary = $state<HTMLElement>();
 
   const today = calendarDay(new Date());
-  const local = $derived(checked ? formProblems(form, today, editing?.neededBy ?? "") : []);
+  const local = $derived(checked ? formProblems(form, today) : []);
   const problems = $derived([
     ...local,
     ...fromServer.filter((p) => !local.some((l) => l.field === p.field)),
@@ -55,9 +56,7 @@
       Record<FormField, string>
     >,
   );
-  const hasModel = $derived(
-    form.file.status === "kept" || form.file.status === "uploaded" || !!form.link.trim(),
-  );
+  const hasModel = $derived(hasFile(form.file) || !!form.link.trim());
 
   const TARGETS: Record<string, string> = {
     title: "req-title",
@@ -86,7 +85,7 @@
     checked = true;
     fromServer = [];
     failure = null;
-    if (formProblems(form, today, editing?.neededBy ?? "").length) {
+    if (formProblems(form, today).length) {
       await tick();
       summary?.focus();
       return;

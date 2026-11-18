@@ -131,7 +131,10 @@
       <span class="help" id="req-file-limit">One file, up to 95 MB.</span>
     </div>
   {:else}
-    <div class="filecard" class:failed={file.status === "failed"}>
+    <div
+      class="filecard"
+      class:failed={file.status === "failed" || (file.status === "kept" && file.missing)}
+    >
       <span class="fi" aria-hidden="true">
         <svg
           width="20"
@@ -161,6 +164,8 @@
           </span>
         {:else if file.status === "failed"}
           <span class="upfail">Upload failed at {file.percent}%: {file.message}</span>
+        {:else if file.status === "kept" && file.missing}
+          <span class="upfail">File missing</span>
         {:else}
           <span class="fsize">{sizeText(size)} · uploaded</span>
         {/if}

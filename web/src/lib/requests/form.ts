@@ -14,8 +14,8 @@ export const MAX_MODEL_BYTES = 95 * 1024 * 1024;
 /** The model file on the form. */
 export type FileState =
   | { status: "none" }
-  /** The file the request already has. */
-  | { status: "kept"; name: string; size: number }
+  /** The file the request already has; missing when it is no longer on the server's disk. */
+  | { status: "kept"; name: string; size: number; missing: boolean }
   | { status: "uploading"; name: string; size: number; percent: number }
   | { status: "failed"; name: string; size: number; percent: number; message: string }
   | { status: "uploaded"; upload: Upload };
@@ -62,7 +62,12 @@ export function formFrom(request: PrintRequest): RequestForm {
     link: request.link ?? "",
     notes: request.notes,
     file: request.file
-      ? { status: "kept", name: request.file.name, size: request.file.size }
+      ? {
+          status: "kept",
+          name: request.file.name,
+          size: request.file.size,
+          missing: request.file.missing,
+        }
       : { status: "none" },
     choices: request.choices.map(chosenFrom),
   };
@@ -86,13 +91,15 @@ export function isWebLink(text: string): boolean {
   }
 }
 
-function hasFile(file: FileState): boolean {
-  return file.status === "kept" || file.status === "uploaded";
+/** A file that counts as the model: an upload, or the request's own file while it is on
+ * disk. */
+export function hasFile(file: FileState): boolean {
+  return (file.status === "kept" && !file.missing) || file.status === "uploaded";
 }
 
-/** Everything to fix before sending, in the order of the form. Needed by is checked only
- * when it differs from the saved date, as on the server, so an old request still saves. */
-export function formProblems(form: RequestForm, today: string, savedNeededBy = ""): FormProblem[] {
+/** Everything to fix before sending, in the order of the form. An edit meets the same
+ * rules as a new request. */
+export function formProblems(form: RequestForm, today: string): FormProblem[] {
   const problems: FormProblem[] = [];
   const add = (field: FormField, message: string) => problems.push({ field, message });
   if (!form.title.trim()) add("title", "Enter a title.");
@@ -100,7 +107,7 @@ export function formProblems(form: RequestForm, today: string, savedNeededBy = "
   if (!/^\d+$/.test(form.quantity.trim()) || quantity < 1 || quantity > 100) {
     add("quantity", "Enter a quantity from 1 to 100.");
   }
-  if (form.neededBy && form.neededBy !== savedNeededBy && form.neededBy < today) {
+  if (form.neededBy && form.neededBy < today) {
     add("needed_by", "Needed by can't be in the past. Pick today or later, or leave it empty.");
   }
   if (form.file.status === "uploading") {

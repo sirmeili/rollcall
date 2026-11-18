@@ -21,8 +21,9 @@ import {
   similarText,
   sizeText,
 } from "#lib/requests/labels.ts";
+import { whyNoEdit } from "#lib/requests/access.ts";
 import { chosenFrom, chosenSub, pickerOptions, searchOptions } from "#lib/requests/picker.ts";
-import { product, summary } from "../../test/fixtures.ts";
+import { me, product, summary } from "../../test/fixtures.ts";
 
 const TODAY = "2026-11-18";
 
@@ -145,8 +146,8 @@ describe("request words", () => {
   });
 
   it("says what is similar in stock", () => {
-    expect(similarText(null)).toBe("Multi-color: no similar colors");
-    expect(similarText([])).toBe("Nothing similar in stock");
+    expect(similarText(null)).toBe("Multi-color: no comparison");
+    expect(similarText([])).toBe("No similar color in stock");
     expect(similarText(["A", "B", "C", "D"], 2)).toBe("Similar in stock: A, B +2");
     expect(similarText(["A"])).toBe("Similar in stock: A");
   });
@@ -181,9 +182,7 @@ describe("the filament picker", () => {
       ["c:hot pink", "Hot Pink PLA Basic", "PLA · 10203 · not in stock"],
       ["c:rainbow", "Rainbow PLA Basic", "PLA · not in stock"],
     ]);
-    expect(chosenSub(options.colors[1])).toBe(
-      "PLA · not in stock · Multi-color: no similar colors",
-    );
+    expect(chosenSub(options.colors[1])).toBe("PLA · not in stock · Multi-color: no comparison");
   });
 
   it("works before the catalog is downloaded", () => {
@@ -236,13 +235,20 @@ describe("the request form", () => {
     expect(formProblems(filled({ link: "", notes: "On the USB stick" }), TODAY)).toEqual([]);
   });
 
-  it("refuses a past needed-by date unless it is the one already saved", () => {
-    const old = filled({ neededBy: "2026-11-10" });
-    expect(formProblems(old, TODAY)[0].message).toBe(
+  it("refuses a past needed-by date, on an edit too", () => {
+    expect(formProblems(filled({ neededBy: "2026-11-10" }), TODAY)[0].message).toBe(
       "Needed by can't be in the past. Pick today or later, or leave it empty.",
     );
-    expect(formProblems(old, TODAY, "2026-11-10")).toEqual([]);
     expect(formProblems(filled({ neededBy: TODAY }), TODAY)).toEqual([]);
+  });
+
+  it("doesn't count a file missing from disk as the model", () => {
+    const missing = filled({
+      link: "",
+      file: { status: "kept", name: "lamp.3mf", size: 5, missing: true },
+    });
+    expect(formProblems(missing, TODAY).map((p) => p.field)).toEqual(["notes"]);
+    expect(formProblems({ ...missing, notes: "On the USB stick" }, TODAY)).toEqual([]);
   });
 
   it.each([
@@ -318,7 +324,7 @@ describe("the request form", () => {
       choices: [choice({})],
     } as unknown as PrintRequest;
     const form = formFrom(request);
-    expect(form.file).toEqual({ status: "kept", name: "lamp.3mf", size: 5 });
+    expect(form.file).toEqual({ status: "kept", name: "lamp.3mf", size: 5, missing: false });
     expect(editBody(form)).toMatchObject({ upload_id: null, remove_file: false, link: null });
     expect(editBody({ ...form, file: { status: "none" } }).remove_file).toBe(true);
     expect(formFrom({ ...request, file: null }).file).toEqual({ status: "none" });
@@ -327,5 +333,22 @@ describe("the request form", () => {
   it("counts the things to fix", () => {
     expect(summaryHeading(1, false)).toBe("Fix 1 thing before submitting");
     expect(summaryHeading(3, true)).toBe("Fix 3 things before saving");
+  });
+});
+
+describe("why a request can't be edited", () => {
+  const sams = { can_edit: false, requester: { id: 2, username: "sam" } } as PrintRequest;
+  const sam = me("viewer", { id: 2, username: "sam", requester: true });
+
+  it("names the reason for each person", () => {
+    expect(whyNoEdit(sam, { ...sams, can_edit: true })).toBeNull();
+    expect(whyNoEdit(me("editor", { id: 3 }), sams)).toBe(
+      "Only the person who asked for this request can edit it.",
+    );
+    expect(whyNoEdit(null, sams)).toBe("Only the person who asked for this request can edit it.");
+    expect(whyNoEdit({ ...sam, requester: false }, sams)).toBe(
+      "You can no longer edit this request: you're no longer a Requester.",
+    );
+    expect(whyNoEdit(sam, sams)).toBe("This request can no longer be edited.");
   });
 });

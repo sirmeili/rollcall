@@ -397,7 +397,7 @@ describe("Request detail", () => {
     expect(gone).toHaveTextContent("No longer in the catalog");
     expect(within(gone).queryByRole("link", { name: /Find in store/ })).toBeNull();
     expect(rainbow).toHaveTextContent("PLA · 10900 · not in stock");
-    expect(rainbow).toHaveTextContent("Multi-color: no similar colors");
+    expect(rainbow).toHaveTextContent("Multi-color: no comparison");
     expect(within(rainbow).getByRole("link", { name: /Find in store/ })).toHaveAttribute(
       "href",
       "https://store.example/search?q=10900",
@@ -450,6 +450,17 @@ describe("Request detail", () => {
       "href",
       "/requests/41/edit",
     );
+  });
+
+  it("tells a former Requester why there is no Edit", async () => {
+    signIn({ ...SAM, requester: false });
+    api.getRequest.mockResolvedValue(request());
+    render(DetailPage);
+
+    expect(
+      await screen.findByText("You can no longer edit this request: you're no longer a Requester."),
+    ).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
   });
 
   it("lets an Editor change the priority", async () => {
@@ -620,6 +631,43 @@ describe("New request", () => {
     expect(screen.getByText("1 of your products, 1 catalog color")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Add Blue PLA" }));
     expect(screen.getByRole("button", { name: "Added Blue PLA" })).toBeDisabled();
+  });
+
+  it("shows each choice's stock or similar colors in the picker", async () => {
+    catalogApi.getCatalog.mockResolvedValue({
+      ...CATALOG,
+      lines: [
+        {
+          ...CATALOG.lines[0],
+          colors: [
+            color("Hot Pink"),
+            color("Rainbow", { multi_color: true, hexes: ["FF0000", "00FF00"] }),
+            color("Sky Blue", {
+              similar: [
+                {
+                  product_id: 7,
+                  name: "Blue PLA",
+                  hex: "0A2CA5",
+                  material: "PLA",
+                  delta_e: 3,
+                  sealed: 2,
+                  open: 1,
+                  different_material: false,
+                },
+              ],
+            }),
+          ],
+        },
+      ],
+    });
+    render(NewPage);
+    await userEvent.type(await screen.findByLabelText("Add filament"), "pla");
+
+    const sub = (name: string) => screen.getByRole("button", { name: `Add ${name}` }).textContent;
+    expect(sub("Blue PLA")).toContain("PLA · 2 sealed · 1 open");
+    expect(sub("Hot Pink PLA Basic")).toContain("No similar color in stock");
+    expect(sub("Rainbow PLA Basic")).toContain("Multi-color: no comparison");
+    expect(sub("Sky Blue PLA Basic")).toContain("Similar in stock: Blue PLA");
   });
 
   it("orders and removes choices", async () => {
@@ -895,25 +943,59 @@ describe("Edit request", () => {
     );
   });
 
-  it("keeps a needed-by date that has since passed", async () => {
+  it("asks for a new needed-by date once it has passed", async () => {
     api.getRequest.mockResolvedValue(request({ can_edit: true, needed_by: "2026-11-10" }));
-    api.editRequest.mockResolvedValue(request());
     render(EditPage);
 
     await userEvent.click(await screen.findByRole("button", { name: "Save changes" }));
 
-    expect(api.editRequest).toHaveBeenCalledWith(
-      41,
-      expect.objectContaining({ needed_by: "2026-11-10" }),
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Needed by can't be in the past. Pick today or later, or leave it empty.",
     );
+    expect(api.editRequest).not.toHaveBeenCalled();
   });
 
-  it("says who can edit when this person can't", async () => {
+  it("shows a file missing from disk and takes a new one", async () => {
+    const sent = fakeUpload();
+    api.getRequest.mockResolvedValue(
+      request({
+        can_edit: true,
+        link: null,
+        file: { name: "wingspan.3mf", size: 10, kind: "3mf", missing: true },
+      }),
+    );
+    api.editRequest.mockResolvedValue(request());
+    render(EditPage);
+
+    expect(await screen.findByText("File missing")).toBeVisible();
+    expect(screen.getByRole("textbox", { name: /^Notes/ })).toHaveAccessibleName(
+      "Notes (required: say where the model is)",
+    );
+    await pickFile(modelFile("wingspan.3mf"));
+    sent.finish(upload({ name: "wingspan.3mf" }));
+    await screen.findByText("1 KB · uploaded");
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(api.editRequest).toHaveBeenCalledWith(41, expect.objectContaining({ upload_id: "u1" }));
+  });
+
+  it("tells a former Requester why they can't edit", async () => {
+    signIn({ ...SAM, requester: false });
     api.getRequest.mockResolvedValue(request({ can_edit: false }));
     render(EditPage);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Only the person who asked can edit a request",
+      "You can no longer edit this request: you're no longer a Requester.",
+    );
+  });
+
+  it("says who can edit when this person can't", async () => {
+    signIn(DANA);
+    api.getRequest.mockResolvedValue(request({ can_edit: false }));
+    render(EditPage);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Only the person who asked for this request can edit it.",
     );
     expect(screen.queryByLabelText("Title")).toBeNull();
   });

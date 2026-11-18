@@ -3,8 +3,10 @@
   import { page } from "$app/state";
   import { describeError } from "#lib/api/errors.ts";
   import { editRequest, getRequest, type PrintRequest } from "#lib/api/requests.ts";
+  import { session } from "#lib/auth/session.svelte.ts";
   import RequestFormView from "#lib/components/requests/RequestFormView.svelte";
   import { editBody, formFrom, type RequestForm } from "#lib/requests/form.ts";
+  import { whyNoEdit } from "#lib/requests/access.ts";
   import { loadOptions, type LoadedOptions } from "#lib/requests/load-options.ts";
 
   const id = $derived(Number(page.params.id));
@@ -44,16 +46,13 @@
 {:else if !request.can_edit}
   <div class="page">
     <h1>Edit request</h1>
-    <p role="alert" class="error">
-      Only the person who asked can edit a request, while it's Submitted and they're still a
-      Requester.
-    </p>
+    <p role="alert" class="error">{whyNoEdit(session.user, request)}</p>
     <a href="/requests/{request.id}">Back to the request</a>
   </div>
 {:else}
   <RequestFormView
     initial={formFrom(request)}
-    editing={{ id: request.id, neededBy: request.needed_by ?? "" }}
+    editing={{ id: request.id }}
     options={loaded.options}
     optionsFailure={loaded.failure}
     onsave={save}
