@@ -15,14 +15,11 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Product
 from filament_tracker.db.request_models import FilamentChoice
-from filament_tracker.domain.enums import SpoolState
+from filament_tracker.domain.enums import ChoiceKind, SpoolState
 from filament_tracker.services.catalog_links import CatalogIndex, load_index
 from filament_tracker.services.catalog_read import CatalogColor, FilamentLine, SimilarColor
 from filament_tracker.services.catalog_read import read_catalog as read_whole_catalog
 from filament_tracker.services.queries import inventory
-
-PRODUCT = "product"
-CATALOG_COLOR = "catalog_color"
 
 
 @dataclass(frozen=True)
@@ -32,16 +29,16 @@ class ChoiceInput:
     note: str
 
     @property
-    def key(self) -> tuple[str, int | str | None]:
+    def key(self) -> tuple[ChoiceKind, int | str | None]:
         if self.product_id is not None:
-            return PRODUCT, self.product_id
-        return CATALOG_COLOR, self.catalog_color
+            return ChoiceKind.PRODUCT, self.product_id
+        return ChoiceKind.CATALOG_COLOR, self.catalog_color
 
 
-def choice_key(choice: FilamentChoice) -> tuple[str, int | str | None]:
+def choice_key(choice: FilamentChoice) -> tuple[ChoiceKind, int | str | None]:
     if choice.product_id is not None:
-        return PRODUCT, choice.product_id
-    return CATALOG_COLOR, choice.catalog_uuid
+        return ChoiceKind.PRODUCT, choice.product_id
+    return ChoiceKind.CATALOG_COLOR, choice.catalog_uuid
 
 
 def _stock(session: Session) -> dict[int, tuple[int, int]]:
@@ -114,7 +111,7 @@ def _copy(old: FilamentChoice, position: int, note: str) -> FilamentChoice:
 
 @dataclass(frozen=True)
 class ShownChoice:
-    kind: str
+    kind: ChoiceKind
     note: str
     name: str
     # RRGGBB, the main color first.
@@ -181,7 +178,7 @@ class ChoiceReader:
         found = self._find(choice.catalog_uuid or "")
         if found is None:
             return ShownChoice(
-                kind=CATALOG_COLOR,
+                kind=ChoiceKind.CATALOG_COLOR,
                 note=choice.note,
                 name=_catalog_name(choice.catalog_line, choice.catalog_name),
                 hexes=list(choice.catalog_hexes or []),
@@ -193,7 +190,7 @@ class ChoiceReader:
             )
         line, color = found
         return ShownChoice(
-            kind=CATALOG_COLOR,
+            kind=ChoiceKind.CATALOG_COLOR,
             note=choice.note,
             name=_catalog_name(line.name, color.name),
             hexes=color.hexes,
@@ -209,7 +206,7 @@ class ChoiceReader:
     def _product(self, product: Product, note: str) -> ShownChoice:
         sealed, open_ = self._stock_now().get(product.id, (0, 0))
         return ShownChoice(
-            kind=PRODUCT,
+            kind=ChoiceKind.PRODUCT,
             note=note,
             name=product.display_name,
             hexes=[product.color_rgba[:6].upper()],

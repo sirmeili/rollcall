@@ -12,12 +12,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from filament_tracker.auth import Principal
 from filament_tracker.db.request_models import FilamentChoice, PrintRequest
+from filament_tracker.domain.enums import ModelSource
 from filament_tracker.print_requests.access import sees_every_request
-
-FILE = "file"
-LINK = "link"
-BOTH = "both"
-NOTES_ONLY = "notes"
 
 
 def sort_key(request: PrintRequest) -> tuple[int, bool, date, datetime, int]:
@@ -42,11 +38,11 @@ def visible_requests(session: Session, principal: Principal) -> list[PrintReques
     return sorted(session.scalars(query), key=sort_key)
 
 
-def model_source(request: PrintRequest) -> str:
+def model_source(request: PrintRequest) -> ModelSource:
     """What the request has for its model: a file, a link, both, or only its notes."""
     has_file, has_link = request.file_stored_name is not None, request.link is not None
     if has_file and has_link:
-        return BOTH
+        return ModelSource.BOTH
     if has_file:
-        return FILE
-    return LINK if has_link else NOTES_ONLY
+        return ModelSource.FILE
+    return ModelSource.LINK if has_link else ModelSource.NOTES_ONLY

@@ -40,7 +40,7 @@ def row_out(item: PrintRequest) -> RequestRowOut:
         priority=item.priority,
         status=item.status,
         requester=RequesterOut(id=item.requester.id, username=item.requester.username),
-        model=model_source(item),  # type: ignore[arg-type]
+        model=model_source(item),
         choices=[SwatchOut(name=n, hexes=h) for n, h in map(swatch, item.choices)],
         created_at=item.created_at,
     )
@@ -72,7 +72,7 @@ def request_out(
         shown = reader.show(choice)
         choices.append(
             ChoiceOut(
-                kind=shown.kind,  # type: ignore[arg-type]
+                kind=shown.kind,
                 note=shown.note,
                 name=shown.name,
                 hexes=shown.hexes,

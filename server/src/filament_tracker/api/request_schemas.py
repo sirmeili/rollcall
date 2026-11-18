@@ -1,14 +1,21 @@
 """Request and response bodies for print requests."""
 
 from datetime import date, datetime
-from typing import Annotated, Literal, Self
+from typing import Annotated, Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from filament_tracker.api.schemas import Strict
 from filament_tracker.db.request_models import CHOICE_NOTE_MAX, LINK_MAX, NOTES_MAX, TITLE_MAX
-from filament_tracker.domain.enums import HistoryKind, ModelFileKind, Priority, RequestStatus
+from filament_tracker.domain.enums import (
+    ChoiceKind,
+    HistoryKind,
+    ModelFileKind,
+    ModelSource,
+    Priority,
+    RequestStatus,
+)
 
 # More than anyone would pick; it only stops absurd input.
 MAX_CHOICES = 20
@@ -84,7 +91,7 @@ class SimilarOut(BaseModel):
 
 
 class ChoiceOut(BaseModel):
-    kind: Literal["product", "catalog_color"]
+    kind: ChoiceKind
     note: str
     # The product's name, or the catalog color's name and line.
     name: str
@@ -135,7 +142,7 @@ class RequestRowOut(BaseModel):
     status: RequestStatus
     requester: RequesterOut
     # What it has for the model: file, link, both or notes (only).
-    model: Literal["file", "link", "both", "notes"]
+    model: ModelSource
     choices: list[SwatchOut]
     created_at: datetime
 

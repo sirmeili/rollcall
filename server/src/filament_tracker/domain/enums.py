@@ -68,3 +68,19 @@ class ModelFileKind(StrEnum):
 
     THREE_MF = "3mf"
     STL = "stl"
+
+
+class ModelSource(StrEnum):
+    """What a print request has for its model: a file, a link, both, or only its notes."""
+
+    FILE = "file"
+    LINK = "link"
+    BOTH = "both"
+    NOTES_ONLY = "notes"
+
+
+class ChoiceKind(StrEnum):
+    """What a filament choice is: an in-stock product or a catalog color."""
+
+    PRODUCT = "product"
+    CATALOG_COLOR = "catalog_color"
