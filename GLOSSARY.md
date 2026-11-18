@@ -75,6 +75,10 @@ A phone forgets its server.
 **Role**:
 What a user may do: Viewer, Editor or Admin.
 
+**Requester**:
+A user who may also submit print requests. It is added to a role, never held alone.
+_Avoid_: Requester role
+
 **Device token**:
 The token a scanner sends its scans with.
 
@@ -202,6 +206,30 @@ Return an accepted or dismissed item to Review.
 
 **Likely empty**:
 The AMS's suggestion that a spool is empty. It never changes the spool's state on its own.
+
+### Print requests
+
+**Print request**:
+A Requester's ask to have something printed: a model and the filament to print it in.
+_Avoid_: Job (that is the printer's), order
+
+**Filament choice**:
+One filament a print request asks for: an in-stock product or a catalog color, with an optional note such as "accents". A request has one or more.
+
+**Priority**:
+How soon a print request is wanted: Urgent, Normal or No rush.
+
+**Request history**:
+The record of what happened to a print request: submitted, edited, priority or status changed, by whom and when. It is never edited.
+_Avoid_: Event (that word is for a spool's event log)
+
+**Requests**:
+The page listing print requests: a Requester's own, or every request for Editors and Admins.
+_Avoid_: Review (that word is for the Review queue only)
+
+**Approve**:
+Agree to print a print request.
+_Avoid_: Accept (that word is for flagged events)
 
 ### Home Assistant
 
