@@ -929,6 +929,20 @@ describe("Edit request", () => {
     await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/requests/41"));
   });
 
+  it("adds no more filament once it has 20", async () => {
+    const twenty = Array.from({ length: 20 }, (_, i) =>
+      choice({ catalog_color: `c${i}`, name: `Color ${i}` }),
+    );
+    api.getRequest.mockResolvedValue(request({ can_edit: true, choices: twenty }));
+    render(EditPage);
+
+    await userEvent.type(await screen.findByLabelText("Add filament"), "pla");
+
+    expect(screen.getByText("A request can have up to 20 filaments.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Add Blue PLA" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add Hot Pink PLA Basic" })).toBeDisabled();
+  });
+
   it("removes the file", async () => {
     api.getRequest.mockResolvedValue(request({ can_edit: true }));
     api.editRequest.mockResolvedValue(request());

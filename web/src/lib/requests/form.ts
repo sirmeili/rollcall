@@ -11,6 +11,8 @@ export const NOTE_MAX = 80;
 export const LINK_MAX = 2000;
 export const QUANTITY_MIN = 1;
 export const QUANTITY_MAX = 100;
+/** The most filament choices a request can have; the server allows the same (MAX_CHOICES). */
+export const CHOICES_MAX = 20;
 export const MAX_MODEL_BYTES = 95 * 1024 * 1024;
 
 /** The model file on the form. */
@@ -123,6 +125,7 @@ export function formProblems(form: RequestForm, today: string): FormProblem[] {
     add("notes", "Add a file or a link, or say in the notes where the model is.");
   }
   if (form.choices.length === 0) add("choices", "Add at least one filament.");
+  if (form.choices.length > CHOICES_MAX) add("choices", `Choose up to ${CHOICES_MAX} filaments.`);
   return problems;
 }
 

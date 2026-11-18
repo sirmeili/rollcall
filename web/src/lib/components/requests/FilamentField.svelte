@@ -2,7 +2,7 @@
   /** The request's filament: the choices in order, each with a note, and a search to add
    * in-stock products or catalog colors no one has in stock. */
   import HexRing from "#lib/components/catalog/HexRing.svelte";
-  import { NOTE_MAX } from "#lib/requests/form.ts";
+  import { CHOICES_MAX, NOTE_MAX } from "#lib/requests/form.ts";
   import {
     chosenSub,
     searchOptions,
@@ -27,6 +27,7 @@
   let said = $state("");
   const found = $derived(searchOptions(options, query));
   const chosenKeys = $derived(new Set(choices.map((choice) => choice.key)));
+  const full = $derived(choices.length >= CHOICES_MAX);
 
   function add(option: FilamentOption): void {
     choices = [...choices, { ...option, note: "" }];
@@ -65,7 +66,7 @@
     <button
       type="button"
       class="res"
-      disabled={added}
+      disabled={added || full}
       aria-label="{added ? 'Added' : 'Add'} {option.name}"
       onclick={() => add(option)}
     >
@@ -139,7 +140,9 @@
   {#if failure}
     <p class="ferr">{failure}</p>
   {:else}
-    <p class="rcount" id="req-filament-count" role="status">{found.summary}</p>
+    <p class="rcount" id="req-filament-count" role="status">
+      {full ? `A request can have up to ${CHOICES_MAX} filaments.` : found.summary}
+    </p>
   {/if}
   {#if found.products.length || found.colors.length}
     <div class="results">

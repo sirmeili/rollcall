@@ -5,6 +5,7 @@ import {
   blankForm,
   editBody,
   fileProblem,
+  CHOICES_MAX,
   formFrom,
   formProblems,
   isWebLink,
@@ -233,6 +234,16 @@ describe("the request form", () => {
     expect(problems.map((p) => p.field)).toEqual(["title", "quantity", "notes", "choices"]);
     expect(formProblems(filled({ quantity: "2.5" }), TODAY)[0].field).toBe("quantity");
     expect(formProblems(filled(), TODAY)).toEqual([]);
+  });
+
+  it("takes up to 20 filaments, as the server does", () => {
+    const many = (n: number) =>
+      Array.from({ length: n }, (_, i) => chosenFrom(choice({ catalog_color: `c${i}` })));
+    expect(CHOICES_MAX).toBe(20);
+    expect(formProblems(filled({ choices: many(20) }), TODAY)).toEqual([]);
+    expect(formProblems(filled({ choices: many(21) }), TODAY)).toEqual([
+      { field: "choices", message: "Choose up to 20 filaments." },
+    ]);
   });
 
   it("takes notes that say where the model is instead of a file or link", () => {
