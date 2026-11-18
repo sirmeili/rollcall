@@ -3,8 +3,9 @@ at once: when submitting and on every edit.
 
 - a title, after trimming, of up to 120 characters
 - a quantity from 1 to 100
-- a needed-by date, if any, not in the past in the server's time zone (checked when it is
-  set or changed, so an older request can still be edited after its date)
+- a needed-by date, if any, not in the past in the server's time zone, checked when
+  submitting and on every edit, so a request whose date has passed needs a new date, or
+  none, to be saved
 - a link, if any, is an absolute http or https URL; it is only ever stored and shown
 - the model rule: a file, a link or both; with neither, the notes must not be empty
 """
