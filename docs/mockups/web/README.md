@@ -21,15 +21,18 @@ The live, clickable version is the Claude design canvas "Filament Tracker — In
 | [Review.dc.html](Review.dc.html) | `/review` | Review | Viewer (resolve: Editor) |
 | [Activity.dc.html](Activity.dc.html) | `/activity` | Activity | Viewer (undo: Editor) |
 | [Devices.dc.html](Devices.dc.html) | `/devices` | Devices | Admin |
-| [Users.dc.html](Users.dc.html) | `/users` | Users | Admin |
+| [Users.html](Users.html) | `/users` | Users, with the Requester checkbox and badge (#75) | Admin |
 | [Account.dc.html](Account.dc.html) | `/account` | Account | Viewer |
 | [SignIn.dc.html](SignIn.dc.html) | `/login` | Sign in | None |
 | [Catalog.html](Catalog.html) | `/catalog` | Catalog (#73, #74) | Viewer (Refresh now in the empty state: Admin) |
 | [SettingsCatalog.html](SettingsCatalog.html) | `/settings` | Settings, Catalog card (#73, #74) | Admin |
+| [RequestsList.html](RequestsList.html) | `/requests` | Requests (#75) | Viewer who is a Requester (own requests); Editor (every request) |
+| [RequestForm.html](RequestForm.html) | `/requests/new`, `/requests/{id}/edit` | New request, Edit request (#75) | Requester (edit: own request, while Submitted) |
+| [RequestDetail.html](RequestDetail.html) | `/requests/{id}` | Request detail (#75) | Requester (own request); Editor (every request, change priority) |
 
 The routes are the ones already in `web/src/lib/nav.ts`, except `/catalog`, which #73 adds.
 
-The two Catalog mockups and the Products mockup are plain HTML, unlike the `.dc.html` files: open them straight in a browser. Each has a Mockup controls panel to switch the theme, the role or the state (before the first sync, or a failed sync). The phone version of the Catalog page is in [../mobile-web/PhoneCatalog.html](../mobile-web/PhoneCatalog.html). Where they differ from #73, the issue wins: the sample sync times show 03:12, but scheduled syncs run at 04:00. The mockups are drawn for an Admin, so every control is visible. Hide the controls a role does not allow, as the spec says.
+The two Catalog mockups, the Products mockup, and the Requests and Users mockups (#75) are plain HTML, unlike the `.dc.html` files: open them straight in a browser. Each has a Mockup controls panel to switch the theme, the role or the state (before the first sync, or a failed sync). The phone version of the Catalog page is in [../mobile-web/PhoneCatalog.html](../mobile-web/PhoneCatalog.html). Where they differ from #73, the issue wins: the sample sync times show 03:12, but scheduled syncs run at 04:00. The mockups are drawn for an Admin, so every control is visible. Hide the controls a role does not allow, as the spec says.
 
 One layout difference from the current nav: the mockups take Account out of the nav links and reach it from the account button (initial and username) at the right of the header.
 
@@ -57,7 +60,7 @@ Each file is one page: plain HTML and CSS, plus a small template layer. The file
 
 ## Beyond the spec: decisions
 
-The mockups showed eight things the spec did not cover. The owner decided on them on 2026-11-05, and the spec now includes the approved ones.
+The mockups showed things the spec did not cover. The owner decided on 1 to 8 on 2026-11-05 and on 9 on 2026-11-18, and the spec now includes the approved ones.
 
 | # | Mockup feature | Decision |
 | --- | --- | --- |
@@ -69,6 +72,7 @@ The mockups showed eight things the spec did not cover. The owner decided on the
 | 6 | Account: a password length meter | **Build.** |
 | 7 | Devices: the AMS slot strip on the printer card | **Build** with the Devices page; it shows real slots once printers arrive in M5. |
 | 8 | Users: a short description of each role | **Build.** |
+| 9 | Request form and detail: Find in store on a catalog-color filament choice (#75, 2026-11-18) | **Build**, with #74's store link as it is. |
 
 Also decided:
 

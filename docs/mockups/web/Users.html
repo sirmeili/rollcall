@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Users · RollCall (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Global styles from the approved mockups (docs/mockups/web/, direction A "Workshop").
+ * Tokens come from docs/mockups/web/tokens.css. The theme is set on <html data-theme>
+ * by the script in app.html and by lib/theme.svelte.ts. Components add scoped styles. */
+
+:root,
+:root[data-theme="light"] {
+  --bg: #f4f2ee; /* page background */
+  --surface: #ffffff; /* cards, header, tables */
+  --line: #ddd8cf; /* borders and dividers */
+  --text: #1c1b19;
+  --muted: #5e5a53; /* secondary text; 6.5:1 on --surface */
+  --accent: #b45309; /* primary buttons, active filter, Review badge */
+  --onaccent: #ffffff;
+  --chip: #ece8e1; /* neutral fills: hover, open-state chip, avatars */
+  --lowbg: #fdecd3; /* low stock, flagged, warnings */
+  --lowtext: #7c3500;
+  --okbg: #dcefe2;
+  --oktext: #1f5c33;
+  --okdot: #2f8a4e;
+  --track: #e9e5de; /* % left bar: track */
+  --fill: #3f3b35; /* % left bar: fill */
+  --fillLow: #c2410c; /* % left bar: nearly out */
+  --danger: #b3261e;
+
+  /* Spool ring swatch: same treatment for every color */
+  --ringShadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.16);
+  --holeShadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+  --ringShadowSmall: var(--ringShadow);
+
+  --font-head: "Space Grotesk", system-ui, sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* The phone layout's bottom bar, and what the pages leave free for it. */
+  --bottom-bar: calc(84px + env(safe-area-inset-bottom, 0px));
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1c1c1b;
+  --line: #34322e;
+  --text: #f2efe9;
+  --muted: #a9a49b;
+  --accent: #f59e0b;
+  --onaccent: #1a1205;
+  --chip: #262523;
+  --lowbg: #3a2608;
+  --lowtext: #fbbf5c;
+  --okbg: #173322;
+  --oktext: #86d9a3;
+  --okdot: #4ade80;
+  --track: #2c2b28;
+  --fill: #d9d4cb;
+  --fillLow: #fb923c;
+  --danger: #ff8a80;
+
+  /* A gap in the surface color, a thin light rim, then a soft glow, outside and inside the
+     ring, so white and black swatches both stay visible. */
+  --ringShadow:
+    0 0 0 1.5px var(--surface), 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    0 0 10px 2px rgba(255, 255, 255, 0.1);
+  --holeShadow:
+    inset 0 0 0 1.5px var(--surface), inset 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    inset 0 0 6px 1px rgba(255, 255, 255, 0.1);
+  --ringShadowSmall:
+    0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255, 255, 255, 0.28),
+    0 0 6px 1px rgba(255, 255, 255, 0.08), inset 0 0 0 1px var(--surface),
+    inset 0 0 0 1.75px rgba(255, 255, 255, 0.28);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(30px, 6vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Buttons: neutral by default, .primary for the main action. */
+button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* A link that looks like a button, for navigation actions such as "Open spool". */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+/* Filter chips: round, accent when pressed. */
+button.chip {
+  padding: 10px 16px;
+  border-radius: 999px;
+}
+
+button.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+  min-height: 44px;
+}
+
+textarea {
+  padding: 10px 12px;
+  min-height: 88px;
+  resize: vertical;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Tables sit in a box that scrolls sideways on phones. */
+/* Positioned so screen-reader-only text inside a table scrolls with it instead of widening
+   the page (on a phone that pushed the bottom bar off the screen). */
+.tablebox {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.notice {
+  color: var(--lowtext);
+  margin: 0;
+}
+
+.badge-low {
+  background: var(--lowbg);
+  color: var(--lowtext);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.badge-hand {
+  border: 1px dashed var(--muted);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Page heading: title, subtitle, and actions on the right. */
+.pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pagehead p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* ---- Ring swatch (lib/components/ui/Ring.svelte), plus a split ring for multi-color ---- */
+:root, :root[data-theme="light"] { --ringOuterSm: var(--ringShadow); --holeSm: none; }
+:root[data-theme="dark"] {
+  --ringOuterSm: 0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255,255,255,.28), 0 0 6px 1px rgba(255,255,255,.08);
+  --holeSm: inset 0 0 0 1px var(--surface), inset 0 0 0 1.75px rgba(255,255,255,.28);
+}
+.ring { display: inline-block; flex: none; border-radius: 50%; border-style: solid; background: var(--bg); box-shadow: var(--ringShadow), var(--holeShadow); }
+.ring.sm { width: 30px; height: 30px; border-width: 8px; box-shadow: var(--ringShadowSmall); }
+.ring.multi { border: 0; position: relative; box-shadow: var(--ringOuterSm); }
+.ring.multi::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bg); box-shadow: var(--holeSm); }
+li.open .ring.multi::after, .open .ring.multi::after { background: var(--bg); }
+[hidden] { display: none !important; }
+
+
+/* ---- Header (lib/components/Header.svelte, Nav.svelte) ---- */
+.hdr{border-bottom:1px solid var(--line);background:var(--surface)}
+.hdr .inner{max-width:1240px;margin:0 auto;padding:14px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-head);font-weight:700;font-size:20px;letter-spacing:-.01em}
+.mainnav{flex:1 1 auto}
+.mainnav ul{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0;list-style:none}
+.mainnav a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:8px;color:var(--muted);font-weight:500;font-size:15px}
+.mainnav a:hover{background:var(--chip);color:var(--text)}
+.mainnav a[aria-current=page]{background:var(--text);color:var(--bg)}
+.navbadge{background:var(--accent);color:var(--onaccent);border-radius:999px;font-size:12px;font-weight:700;padding:1px 7px}
+.account{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:10px;border:1px solid var(--line);font-size:14px;font-weight:500}
+.initial{width:26px;height:26px;border-radius:50%;background:var(--chip);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+main{max-width:1240px;margin:0 auto;padding:32px 24px 56px}
+
+
+.hend{display:flex;align-items:center;gap:10px}
+.hdr .inner{gap:12px 20px}
+.mainnav{flex:1 1 0;min-width:0}
+.mainnav ul{gap:2px}
+.mainnav a{padding:0 10px}
+
+/* ---- Users page (routes/users, UserRow.svelte, NewUserForm.svelte) ---- */
+.page{display:flex;flex-direction:column;gap:20px}
+table.users{min-width:860px}
+.who{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.av{width:32px;height:32px;border-radius:50%;background:var(--chip);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.name{font-weight:600;font-size:15px}
+.pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--chip);text-transform:uppercase;letter-spacing:.04em}
+.pill.dis{background:var(--lowbg);color:var(--lowtext)}
+.pill.req{background:var(--okbg);color:var(--oktext);display:inline-flex;align-items:center;gap:5px}
+tr.off .name{color:var(--muted)}
+.rolecell{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px}
+.rolecell select{min-width:120px}
+.check{display:inline-flex;align-items:center;gap:10px;min-height:44px;font-size:14px;font-weight:500;cursor:pointer}
+.check input{width:20px;height:20px;margin:0;accent-color:var(--accent)}
+.check input:disabled + span{color:var(--muted)}
+.date{font-family:var(--font-mono);font-size:13px;color:var(--muted);white-space:nowrap}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+
+/* New user form */
+form.newuser{max-width:720px;display:flex;flex-direction:column;gap:14px}
+.row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:6px;flex:1 1 220px;font-size:13px;font-weight:600;color:var(--muted)}
+.field input, .field select{color:var(--text)}
+.row .field.role{flex:0 1 170px}
+form.newuser > .field{flex:none}
+.reqfield{flex:0 0 auto;display:flex;flex-direction:column;gap:2px}
+.reqfield .check{font-weight:600;color:var(--text)}
+.hint{margin:0;font-size:13px}
+.meter{height:6px;border-radius:99px;background:var(--track);overflow:hidden;max-width:320px}
+.meter span{display:block;height:100%;background:var(--fill);transition:width .15s}
+.formacts{display:flex;gap:10px}
+
+.roles{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
+.roles strong{color:var(--text)}
+
+/* ---- Mockup controls (not part of the design) ---- */
+.mock{background:#37352f;color:#f2efe9;padding:8px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;font-size:12px}
+.mock strong{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+.mock .mrow{display:flex;align-items:center;gap:8px}
+.mock .mrow > span{opacity:.8}
+.mock .mseg{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.12)}
+.mock button{min-height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:inherit;font-size:12px}
+.mock button[aria-pressed=true]{background:#f2efe9;color:#1c1b19}
+
+</style>
+</head>
+<body>
+<aside class="mock" aria-label="Mockup controls">
+<strong>Mockup controls</strong>
+<div class="mrow"><span>State</span><div class="mseg" role="group" aria-label="State"><button type="button" data-state="list" aria-pressed="true">List</button><button type="button" data-state="create" aria-pressed="false">Creating a user</button></div></div>
+<div class="mrow"><span>Theme</span><div class="mseg" role="group" aria-label="Theme"><button type="button" data-theme="light" aria-pressed="true">Light</button><button type="button" data-theme="dark" aria-pressed="false">Dark</button></div></div>
+</aside>
+
+<header class="hdr">
+<div class="inner">
+<a class="brand" href="#"><svg width="30" height="30" viewBox="0 0 140 140" aria-hidden="true"><circle cx="70" cy="70" r="62" fill="#C8324B"></circle><circle cx="70" cy="70" r="50" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="40" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="30" fill="#FFF7F5"></circle><polyline points="56,71 66,81 85,60" fill="none" stroke="#C8324B" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>RollCall</a>
+<nav class="mainnav" aria-label="Main"><ul>
+<li><a href="#">Inventory</a></li>
+<li><a href="#">Spools</a></li>
+<li><a href="#">Products</a></li>
+<li><a href="#">Catalog</a></li>
+<li><a href="#" aria-label="Requests, 8 submitted">Requests<span class="navbadge" aria-hidden="true">8</span></a></li>
+<li><a href="#" aria-label="Review, 3 waiting">Review<span class="navbadge" aria-hidden="true">3</span></a></li>
+<li><a href="#">Activity</a></li>
+<li><a href="#">Devices</a></li>
+<li><a href="#" aria-current="page">Users</a></li>
+<li><a href="#">Settings</a></li>
+</ul></nav>
+<div class="hend"><a class="account" href="#" title="Account"><span class="initial" aria-hidden="true">F</span><span>frank</span></a></div>
+</div>
+</header>
+
+<main>
+<div class="page">
+<div class="pagehead">
+<div>
+<h1>Users</h1>
+<p>There's no sign-up: accounts are created here. Admins only.</p>
+</div>
+<button type="button" class="primary" id="createbtn">Create user</button>
+</div>
+
+<form class="card newuser" id="newuser" aria-labelledby="new-h" novalidate hidden>
+<h2 id="new-h" class="label">New user</h2>
+<div class="row">
+<label class="field">Username<input type="text" id="nu-name" maxlength="32" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+<label class="field role">Role<select id="nu-role"><option value="viewer">Viewer</option><option value="editor">Editor</option><option value="admin">Admin</option></select></label>
+<div class="reqfield">
+<label class="check"><input type="checkbox" id="nu-req" aria-describedby="nu-req-h"><span>Requester</span></label>
+</div>
+</div>
+<p class="muted hint" id="nu-req-h" style="margin-top:-6px">A Requester can submit print requests, with any role.</p>
+<label class="field">First password<input type="password" id="nu-pw" autocomplete="new-password" maxlength="256"></label>
+<div class="meter" aria-hidden="true"><span id="nu-meter" style="width:0"></span></div>
+<p class="muted hint">They can change it from their account page.</p>
+<p class="error" id="nu-err" role="alert" hidden></p>
+<div class="formacts">
+<button type="submit" class="primary">Create</button>
+<button type="button" id="nu-cancel">Cancel</button>
+</div>
+</form>
+<p class="muted" id="msg" role="status" style="margin:0"></p>
+
+<div class="tablebox">
+<table class="users">
+<thead><tr><th scope="col">User</th><th scope="col">Role</th><th scope="col">Last sign-in</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+
+<ul class="roles" aria-label="What each role can do">
+<li><strong>Viewer</strong> sees every page except Requests.</li>
+<li><strong>Editor</strong> also records actions, undoes, edits spools and products, adds spools by hand, resolves review items, and sees every print request and can change its priority.</li>
+<li><strong>Admin</strong> also manages users, scanners, printers, machine tokens and settings.</li>
+<li><strong>Requester</strong> goes with any role: submits print requests and can edit them while they're Submitted. A Viewer who is a Requester sees only their own requests, and keeps read-only access to them if Requester is turned off.</li>
+</ul>
+</div>
+</main>
+
+<script>
+var ROLE = { viewer: "Viewer", editor: "Editor", admin: "Admin" };
+var USERS = [
+  { name: "frank", role: "admin", req: true, last: "17 Nov 2026 16:02", you: true },
+  { name: "dana", role: "editor", req: false, last: "17 Nov 2026 09:47" },
+  { name: "leo", role: "editor", req: true, last: "14 Nov 2026 11:40" },
+  { name: "maya", role: "viewer", req: true, last: "16 Nov 2026 20:38" },
+  { name: "sam", role: "viewer", req: true, last: "17 Nov 2026 07:58" },
+  { name: "theo", role: "viewer", req: false, last: "2 Nov 2026 18:15" },
+  { name: "old-laptop", role: "viewer", req: false, last: "Never", disabled: true }
+];
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+var REQICO = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" aria-hidden="true"><path d="M6 9V3h12v6"></path><rect x="3" y="9" width="18" height="8" rx="2"></rect><path d="M7 17v4h10v-4"></path></svg>';
+
+function render() {
+  document.getElementById("rows").innerHTML = USERS.map(function (u, i) {
+    var n = esc(u.name);
+    return '<tr' + (u.disabled ? ' class="off"' : "") + ">" +
+      '<td><div class="who"><span class="av" aria-hidden="true">' + n.charAt(0).toUpperCase() + '</span><span class="name">' + n + "</span>" +
+      (u.you ? '<span class="pill">You</span>' : "") +
+      (u.req ? '<span class="pill req">' + REQICO + "Requester</span>" : "") +
+      (u.disabled ? '<span class="pill dis">Disabled</span>' : "") + "</div></td>" +
+      '<td><div class="rolecell"><label><span class="sr-only">Role for ' + n + '</span><select data-role="' + i + '"' + (u.you ? " disabled" : "") + ">" +
+      Object.keys(ROLE).map(function (r) { return '<option value="' + r + '"' + (r === u.role ? " selected" : "") + ">" + ROLE[r] + "</option>"; }).join("") +
+      '</select></label><label class="check"><input type="checkbox" data-req="' + i + '"' + (u.req ? " checked" : "") + '><span>Requester<span class="sr-only"> (' + n + ")</span></span></label></div></td>" +
+      '<td class="date">' + u.last + "</td>" +
+      "<td>" + (u.you ? "" : '<div class="actions"><button type="button" class="small">Reset password</button>' +
+        (u.disabled ? '<button type="button" class="small">Enable</button>' : '<button type="button" class="small danger">Disable</button>') + "</div>") + "</td></tr>";
+  }).join("");
+}
+
+function say(t) { document.getElementById("msg").textContent = t; }
+
+document.getElementById("rows").addEventListener("change", function (e) {
+  var t = e.target, d = t.dataset;
+  if (d.role) { var u = USERS[+d.role]; u.role = t.value; say(u.name + " is now " + ROLE[u.role] + "."); }
+  else if (d.req) {
+    var v = USERS[+d.req]; v.req = t.checked;
+    say(v.req ? v.name + " can now submit print requests." : v.name + " can no longer submit print requests. They can still open their earlier requests and download the files, but can't edit them.");
+    render();
+    document.querySelector('[data-req="' + d.req + '"]').focus();
+  }
+});
+
+var form = document.getElementById("newuser");
+function openForm(on) {
+  form.hidden = !on;
+  document.getElementById("createbtn").hidden = on;
+  document.getElementById("nu-err").hidden = true;
+  if (on) {
+    document.getElementById("nu-name").value = "nora";
+    document.getElementById("nu-role").value = "viewer";
+    document.getElementById("nu-req").checked = true;
+    document.getElementById("nu-pw").value = "";
+    meter();
+  }
+}
+function meter() {
+  var n = document.getElementById("nu-pw").value.length;
+  document.getElementById("nu-meter").style.width = Math.min(100, n / 16 * 100) + "%";
+}
+document.getElementById("nu-pw").addEventListener("input", meter);
+form.addEventListener("submit", function (e) {
+  e.preventDefault();
+  var name = document.getElementById("nu-name").value.trim().toLowerCase(), pw = document.getElementById("nu-pw").value;
+  var err = !name ? "Enter a username." : pw.length < 12 ? "The password needs at least 12 characters." : "";
+  var p = document.getElementById("nu-err");
+  p.hidden = !err; p.textContent = err;
+  if (err) return;
+  var role = document.getElementById("nu-role").value, req = document.getElementById("nu-req").checked;
+  USERS.push({ name: name, role: role, req: req, last: "Never" });
+  openForm(false);
+  pick(document.querySelector('[data-state="list"]'));
+  say("Created " + name + " (" + ROLE[role] + (req ? ", Requester" : "") + ").");
+  render();
+});
+document.getElementById("nu-cancel").addEventListener("click", function () { openForm(false); pick(document.querySelector('[data-state="list"]')); });
+document.getElementById("createbtn").addEventListener("click", function () { openForm(true); pick(document.querySelector('[data-state="create"]')); document.getElementById("nu-name").focus(); });
+
+document.addEventListener("click", function (e) {
+  var t = e.target.closest("button, a");
+  if (!t) return;
+  if (t.tagName === "A" && t.getAttribute("href") === "#") e.preventDefault();
+  var d = t.dataset;
+  if (d.state) { pick(t); openForm(d.state === "create"); say(""); }
+  else if (d.theme) { pick(t); document.documentElement.setAttribute("data-theme", d.theme); }
+});
+function pick(btn) { btn.parentNode.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); }); }
+
+render();
+</script>
+</body>
+</html>

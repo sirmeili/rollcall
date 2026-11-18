@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request · RollCall phone (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Global styles from the approved mockups (docs/mockups/web/, direction A "Workshop").
+ * Tokens come from docs/mockups/web/tokens.css. The theme is set on <html data-theme>
+ * by the script in app.html and by lib/theme.svelte.ts. Components add scoped styles. */
+
+:root,
+:root[data-theme="light"] {
+  --bg: #f4f2ee; /* page background */
+  --surface: #ffffff; /* cards, header, tables */
+  --line: #ddd8cf; /* borders and dividers */
+  --text: #1c1b19;
+  --muted: #5e5a53; /* secondary text; 6.5:1 on --surface */
+  --accent: #b45309; /* primary buttons, active filter, Review badge */
+  --onaccent: #ffffff;
+  --chip: #ece8e1; /* neutral fills: hover, open-state chip, avatars */
+  --lowbg: #fdecd3; /* low stock, flagged, warnings */
+  --lowtext: #7c3500;
+  --okbg: #dcefe2;
+  --oktext: #1f5c33;
+  --okdot: #2f8a4e;
+  --track: #e9e5de; /* % left bar: track */
+  --fill: #3f3b35; /* % left bar: fill */
+  --fillLow: #c2410c; /* % left bar: nearly out */
+  --danger: #b3261e;
+
+  /* Spool ring swatch: same treatment for every color */
+  --ringShadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.16);
+  --holeShadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+  --ringShadowSmall: var(--ringShadow);
+
+  --font-head: "Space Grotesk", system-ui, sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* The phone layout's bottom bar, and what the pages leave free for it. */
+  --bottom-bar: calc(84px + env(safe-area-inset-bottom, 0px));
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1c1c1b;
+  --line: #34322e;
+  --text: #f2efe9;
+  --muted: #a9a49b;
+  --accent: #f59e0b;
+  --onaccent: #1a1205;
+  --chip: #262523;
+  --lowbg: #3a2608;
+  --lowtext: #fbbf5c;
+  --okbg: #173322;
+  --oktext: #86d9a3;
+  --okdot: #4ade80;
+  --track: #2c2b28;
+  --fill: #d9d4cb;
+  --fillLow: #fb923c;
+  --danger: #ff8a80;
+
+  /* A gap in the surface color, a thin light rim, then a soft glow, outside and inside the
+     ring, so white and black swatches both stay visible. */
+  --ringShadow:
+    0 0 0 1.5px var(--surface), 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    0 0 10px 2px rgba(255, 255, 255, 0.1);
+  --holeShadow:
+    inset 0 0 0 1.5px var(--surface), inset 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    inset 0 0 6px 1px rgba(255, 255, 255, 0.1);
+  --ringShadowSmall:
+    0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255, 255, 255, 0.28),
+    0 0 6px 1px rgba(255, 255, 255, 0.08), inset 0 0 0 1px var(--surface),
+    inset 0 0 0 1.75px rgba(255, 255, 255, 0.28);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(30px, 6vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Buttons: neutral by default, .primary for the main action. */
+button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* A link that looks like a button, for navigation actions such as "Open spool". */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+/* Filter chips: round, accent when pressed. */
+button.chip {
+  padding: 10px 16px;
+  border-radius: 999px;
+}
+
+button.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+  min-height: 44px;
+}
+
+textarea {
+  padding: 10px 12px;
+  min-height: 88px;
+  resize: vertical;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Tables sit in a box that scrolls sideways on phones. */
+/* Positioned so screen-reader-only text inside a table scrolls with it instead of widening
+   the page (on a phone that pushed the bottom bar off the screen). */
+.tablebox {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.notice {
+  color: var(--lowtext);
+  margin: 0;
+}
+
+.badge-low {
+  background: var(--lowbg);
+  color: var(--lowtext);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.badge-hand {
+  border: 1px dashed var(--muted);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Page heading: title, subtitle, and actions on the right. */
+.pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pagehead p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* ---- Ring swatch (lib/components/ui/Ring.svelte), plus a split ring for multi-color ---- */
+:root, :root[data-theme="light"] { --ringOuterSm: var(--ringShadow); --holeSm: none; }
+:root[data-theme="dark"] {
+  --ringOuterSm: 0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255,255,255,.28), 0 0 6px 1px rgba(255,255,255,.08);
+  --holeSm: inset 0 0 0 1px var(--surface), inset 0 0 0 1.75px rgba(255,255,255,.28);
+}
+.ring { display: inline-block; flex: none; border-radius: 50%; border-style: solid; background: var(--bg); box-shadow: var(--ringShadow), var(--holeShadow); }
+.ring.sm { width: 30px; height: 30px; border-width: 8px; box-shadow: var(--ringShadowSmall); }
+.ring.multi { border: 0; position: relative; box-shadow: var(--ringOuterSm); }
+.ring.multi::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bg); box-shadow: var(--holeSm); }
+li.open .ring.multi::after, .open .ring.multi::after { background: var(--bg); }
+[hidden] { display: none !important; }
+
+
+body{background:#d9d5ce}
+:root[data-theme="dark"] body{background:#050505}
+.stage{display:flex;justify-content:center;padding:28px 16px 48px}
+.phone{position:relative;width:390px;height:844px;border-radius:36px;overflow:hidden;background:var(--bg);color:var(--text);box-shadow:0 0 0 10px #1c1b19,0 20px 50px rgba(0,0,0,.35);display:flex;flex-direction:column}
+@media (max-width:460px){.stage{padding:0}.phone{width:100vw;height:100dvh;border-radius:0;box-shadow:none}}
+
+/* ---- Top bar (PhoneTopBar) ---- */
+.top{display:flex;align-items:center;gap:10px;padding:18px 20px 6px;flex:none}
+.top .title{margin:0;font-family:var(--font-head);font-size:28px;font-weight:700;letter-spacing:-.02em}
+.scroll{flex:1;min-height:0;overflow-y:auto;padding:4px 16px 108px;display:flex;flex-direction:column;gap:10px}
+
+/* ---- Bottom bar (PhoneNav) ---- */
+.bar{position:absolute;left:0;right:0;bottom:0;z-index:42;display:grid;grid-template-columns:1fr auto 1fr;align-items:end;padding:8px 14px 14px;border-top:1px solid var(--line);background:var(--surface)}
+.end{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:64px;min-height:48px;padding:0 6px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:600}
+.start{justify-self:start}
+.finish{justify-self:end}
+.end[aria-expanded=true]{color:var(--text)}
+.dot{position:absolute;top:4px;right:18px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.scan{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:-30px;color:var(--text);font-size:12px;font-weight:700}
+.fab{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent);color:var(--onaccent);box-shadow:0 0 0 5px var(--surface),0 4px 14px rgba(0,0,0,.25)}
+.binitial{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--chip);color:var(--text);font-size:13px;font-weight:700}
+
+/* ---- Sheets (MenuSheet, FilterSheet) ---- */
+.dim{position:absolute;inset:0;z-index:40;border:0;border-radius:0;padding:0;min-height:0;background:rgba(0,0,0,.45)}
+.dim.over{z-index:50}
+.sheet{position:absolute;left:0;right:0;bottom:84px;z-index:41;display:flex;flex-direction:column;gap:14px;max-height:calc(100% - 108px);overflow-y:auto;padding:10px 16px 18px;border-radius:24px 24px 0 0;background:var(--surface);outline:none}
+.sheet.fs{bottom:0;z-index:51;gap:18px;max-height:calc(100% - 48px);padding-bottom:18px}
+.grip{align-self:center;width:40px;height:5px;border-radius:999px;background:var(--line)}
+.pages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.adminpages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.item{display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--bg);font-size:16px;font-weight:600}
+.item.small{flex-direction:column;justify-content:center;gap:4px;min-height:68px;font-size:14px}
+.item[aria-current=page]{background:var(--text);border-color:var(--text);color:var(--bg)}
+.ibadge{margin-left:auto;background:var(--accent);color:var(--onaccent);border-radius:999px;font-size:12px;font-weight:700;padding:1px 8px}
+.shead{display:flex;align-items:center;justify-content:space-between}
+.shead h2{margin:0;font-size:20px}
+.sheet section{display:flex;flex-direction:column;gap:10px}
+.sheet h3{margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip .n{margin-left:4px;font-family:var(--font-mono);font-size:12px;opacity:.75}
+.check{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:600}
+.sfoot{display:grid;grid-template-columns:auto 1fr;gap:10px}
+
+
+
+/* ---- Request detail ---- */
+.wrap{display:flex;flex-direction:column;gap:20px}
+.back{display:inline-flex;align-items:center;gap:6px;min-height:44px;color:var(--muted);font-weight:500;font-size:14px;align-self:flex-start}
+.back:hover{color:var(--text)}
+.head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px}
+.head h1{margin:0;font-family:var(--font-head);font-size:36px;letter-spacing:-.02em;line-height:1.15}
+.chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.reqid{font-family:var(--font-mono);font-size:15px;color:var(--muted)}
+.byline{margin:8px 0 0;color:var(--muted);font-size:14px}
+.byline .mono{font-size:13px}
+.tagchip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 9px;border-radius:6px;white-space:nowrap}
+.pri-urgent{background:var(--lowbg);color:var(--lowtext)}
+.pri-normal{background:var(--chip);color:var(--text)}
+.pri-norush{border:1px dashed var(--muted);color:var(--muted);padding:3px 8px}
+.st-submitted{background:var(--surface);color:var(--text);border:1px solid var(--line);padding:3px 8px}
+.st-submitted::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.editbtn{display:inline-flex;align-items:center;gap:8px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.col{display:flex;flex-direction:column;gap:20px;min-width:0}
+.sect{display:flex;flex-direction:column;gap:14px;padding:22px 24px}
+.sect h2{margin:0;font-family:var(--font-head);font-size:20px;letter-spacing:-.01em}
+
+/* Facts */
+.facts{display:grid;grid-template-columns:auto 1fr;gap:12px 16px;margin:0;align-items:baseline}
+.facts dt{font-size:13px;color:var(--muted)}
+.facts dd{margin:0;font-size:15px}
+.facts .mono{font-size:14px}
+.facts .rel{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.who{display:inline-flex;align-items:center;gap:8px}
+.who .initial{width:24px;height:24px;font-size:12px}
+
+/* Priority control (Editors and Admins) */
+.prictl{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:16px}
+.prictl legend{padding:0;margin:0 0 8px;font-weight:600;font-size:14px}
+.prictl fieldset{border:0;margin:0;padding:0;min-width:0}
+.seg{display:flex;padding:3px;gap:3px;border-radius:12px;background:var(--chip)}
+.seg label{position:relative;flex:1}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg span{display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 8px;border-radius:9px;font-weight:600;font-size:14px;color:var(--muted);white-space:nowrap}
+.seg input:checked + span{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.seg input:focus-visible + span{outline:2px solid var(--accent);outline-offset:1px}
+.prirow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.prirow .muted{font-size:13px}
+
+/* Model */
+.filecard{display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.filecard .fi{width:40px;height:40px;border-radius:10px;background:var(--chip);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.filecard .meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.filecard .fname{font-family:var(--font-mono);font-size:14px;font-weight:700;overflow-wrap:anywhere}
+.filecard .fsize{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.dl{display:inline-flex;align-items:center;gap:8px}
+.linkcard .fname{font-family:var(--font-body);font-weight:600}
+.linkcard .fsize{font-family:var(--font-mono);overflow-wrap:anywhere}
+.nomodel{margin:0;padding:12px 14px;border-radius:10px;background:var(--chip);font-size:14px}
+.notes{margin:0;white-space:pre-wrap;line-height:1.6;font-size:15px;max-width:68ch}
+.nonotes{margin:0;color:var(--muted);font-size:14px}
+
+/* Filament choices (read-only) */
+.choices{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.choice{display:grid;grid-template-columns:28px 30px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.choice .ord{width:28px;height:28px;border-radius:50%;background:var(--text);color:var(--bg);font-family:var(--font-mono);font-weight:700;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
+.choice .ring{width:30px;height:30px;border-width:8px}
+.cinfo{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cname{font-family:var(--font-head);font-weight:600;font-size:15px}
+.csub{font-size:12px;color:var(--muted)}
+.kind{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:5px;margin-right:6px;vertical-align:1px}
+.kind.own{background:var(--text);color:var(--bg)}
+.kind.cat{border:1px solid var(--muted);color:var(--muted)}
+.cnote{font-size:14px;font-style:italic;color:var(--text);text-align:right;max-width:200px}
+.cnote.none{color:var(--muted);font-style:normal;font-size:13px}
+
+/* History */
+.history{list-style:none;margin:0;padding:0}
+.history li{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;padding:12px 0;align-items:start}
+.history li + li{border-top:1px solid var(--line)}
+.history .hi{width:28px;height:28px;border-radius:50%;background:var(--chip);display:inline-flex;align-items:center;justify-content:center;color:var(--muted)}
+.history .what{font-weight:600}
+.history .detail{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.history .detail .tagchip{font-size:10px;padding:2px 6px}
+.history .when{font-family:var(--font-mono);font-size:12px;color:var(--muted);white-space:nowrap;text-align:right}
+.history .when span{display:block;font-family:var(--font-body)}
+.histhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.histnote{margin:0;font-size:13px;color:var(--muted)}
+.missing{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:10px;background:var(--lowbg);color:var(--lowtext);font-weight:700;font-size:14px;white-space:nowrap}
+.filecard.gone{border-color:var(--lowtext)}
+.filecard.gone .fname{color:var(--muted)}
+
+/* Mockup-only note */
+.nopage{border:1px dashed var(--muted);border-radius:12px;padding:20px 22px;color:var(--muted);max-width:640px}
+.nopage strong{color:var(--text)}
+
+/* ---- Phone layout ---- */
+.top{justify-content:space-between}
+.top .backlink{display:inline-flex;align-items:center;gap:6px;min-height:44px;color:var(--muted);font-weight:600;font-size:15px;margin-left:-4px}
+.top .editbtn{min-height:44px}
+.wrap{gap:14px}
+.head h1{font-size:26px}
+.byline{margin-top:6px}
+.grid{grid-template-columns:1fr;gap:14px}
+.col{gap:14px}
+.sect{padding:16px;gap:12px;border-radius:16px}
+.sect h2{font-size:18px}
+.filecard{flex-wrap:wrap;gap:10px 12px}
+.filecard .dl, .filecard .missing{width:100%;box-sizing:border-box;justify-content:center}
+.choice{grid-template-columns:28px 30px minmax(0,1fr);padding:10px 12px}
+.cnote{grid-column:3;text-align:left;max-width:none;margin-top:-4px}
+.history li{grid-template-columns:28px minmax(0,1fr)}
+.history .when{grid-column:2;text-align:left;margin-top:-6px}
+.history .when span{display:inline;margin-left:6px}
+.facts{grid-template-columns:110px 1fr}
+.initial{border-radius:50%;background:var(--chip);display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.prirow button{min-height:44px;width:100%}
+/* APPROVED (Frank, 17 Nov 2026): on the request detail the bottom bar's centre button is
+   + New request instead of Scan; Scan only shows on the inventory screens. It shows only for
+   someone who can submit requests. */
+.bar.nocenter .scan{visibility:hidden}
+
+/* ---- Mockup controls (not part of the design) ---- */
+.mock{background:#37352f;color:#f2efe9;padding:8px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;font-size:12px}
+.mock strong{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+.mock .mrow{display:flex;align-items:center;gap:8px}
+.mock .mrow > span{opacity:.8}
+.mock .mseg{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.12)}
+.mock button{min-height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:inherit;font-size:12px}
+.mock button[aria-pressed=true]{background:#f2efe9;color:#1c1b19}
+
+</style>
+</head>
+<body>
+<aside class="mock" aria-label="Mockup controls">
+<strong>Mockup controls</strong>
+<div class="mrow"><span>Request</span><div class="mseg" role="group" aria-label="Request">
+<button type="button" data-req="39" aria-pressed="true">#39 file + link</button>
+<button type="button" data-req="44" aria-pressed="false">#44 link only</button>
+<button type="button" data-req="33" aria-pressed="false">#33 notes only</button>
+<button type="button" data-req="41" aria-pressed="false">#41 file only (Maya)</button>
+</div></div>
+<div class="mrow"><span>File</span><div class="mseg" role="group" aria-label="File"><button type="button" data-file="ok" aria-pressed="true">Present</button><button type="button" data-file="missing" aria-pressed="false">Missing</button></div></div>
+<div class="mrow"><span>Viewing as</span><div class="mseg" role="group" aria-label="Viewing as"><button type="button" data-role="viewer" aria-pressed="true">Sam, Viewer + Requester</button><button type="button" data-role="former" aria-pressed="false">Sam, no longer a Requester</button><button type="button" data-role="editor" aria-pressed="false">Editor</button><button type="button" data-role="admin" aria-pressed="false">Admin</button></div></div>
+<div class="mrow"><span>Theme</span><div class="mseg" role="group" aria-label="Theme"><button type="button" data-theme="light" aria-pressed="true">Light</button><button type="button" data-theme="dark" aria-pressed="false">Dark</button></div></div>
+</aside>
+
+<div class="stage">
+<div class="phone" id="phone">
+<header class="top">
+<a class="backlink" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Requests</a>
+<a class="button editbtn" href="#" id="editbtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>Edit</a>
+</header>
+<div class="scroll" id="scroll">
+<div class="wrap" id="page">
+
+<div class="head">
+<div>
+<h1 id="title"></h1>
+<div class="chips"><span class="reqid" id="rid"></span><span class="tagchip st-submitted">Submitted</span><span id="prichip"></span></div>
+<p class="byline" id="byline"></p>
+</div>
+</div>
+
+<div class="grid">
+<aside class="col" aria-label="Request details">
+<section class="card sect" aria-labelledby="h-req">
+<h2 id="h-req">Request</h2>
+<dl class="facts" id="facts"></dl>
+<form class="prictl" id="prictl" hidden>
+<fieldset>
+<legend>Priority</legend>
+<div class="seg">
+<label><input type="radio" name="pri" value="norush"><span>No rush</span></label>
+<label><input type="radio" name="pri" value="normal"><span>Normal</span></label>
+<label><input type="radio" name="pri" value="urgent"><span>Urgent</span></label>
+</div>
+</fieldset>
+<div class="prirow"><button type="submit" class="primary small" id="prisave" disabled>Change priority</button><span class="muted" id="primsg" role="status"></span></div>
+</form>
+</section>
+</aside>
+<div class="col">
+<section class="card sect" aria-labelledby="h-model">
+<h2 id="h-model">The model</h2>
+<div id="model"></div>
+</section>
+<section class="card sect" aria-labelledby="h-fil">
+<h2 id="h-fil">Filament</h2>
+<ol class="choices" id="choices" aria-label="Filament choices, in order"></ol>
+</section>
+<section class="card sect" aria-labelledby="h-notes">
+<h2 id="h-notes">Notes</h2>
+<div id="notes"></div>
+</section>
+<section class="card sect" aria-labelledby="h-hist">
+<div class="histhead"><h2 id="h-hist">History</h2><p class="histnote">Newest first.</p></div>
+<ol class="history" id="history"></ol>
+</section>
+</div>
+
+</div>
+</div>
+
+<div class="wrap" id="nopage" hidden style="padding-top:8px">
+<div class="nopage"><strong>Mockup note:</strong> a Viewer who is a Requester sees only their own requests. Sam can't open Maya's request #41; in the app the link wouldn't be there.</div>
+</div>
+</div>
+<div id="overlay"></div>
+<nav aria-label="App" class="bar" id="bar">
+<button type="button" class="end start" id="menubtn" aria-expanded="false" aria-controls="menu-sheet" data-act="menu"></button>
+<a class="scan" href="#" id="newfab"><span class="fab" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>New request</a>
+<a class="end finish" href="#"><span class="binitial" aria-hidden="true" id="uinit">S</span><span id="uname">sam</span></a>
+</nav>
+</div>
+</div>
+
+<script>
+/* Sample data and logic shared by the Catalog mockups (pasted into each page at build). */
+
+/* In-stock and linked products. link: the catalog color it is tied to; how: "tag" (From its tag)
+   or "hand" (Linked by hand). A product with no Sealed or Open spool owns nothing. */
+var STOCK = {
+  plablue: { name: "PLA Basic Blue", material: "PLA", hex: "#0A2CA5", sealed: 2, open: 0, link: "pla-basic/Blue", how: "tag" },
+  marine: { name: "PLA Matte Marine Blue", material: "PLA", hex: "#0078BF", sealed: 0, open: 1, link: "pla-matte/Marine Blue", how: "tag" },
+  plabk: { name: "PLA Basic Black", material: "PLA", hex: "#000000", sealed: 1, open: 1, link: "pla-basic/Black", how: "tag" },
+  blackpla: { name: "Black PLA", material: "PLA", hex: "#000000", sealed: 1, open: 0, link: "pla-basic/Black", how: "hand" },
+  white: { name: "PLA Basic White", material: "PLA", hex: "#FFFFFF", sealed: 3, open: 0, link: "pla-basic/Jade White", how: "tag" },
+  petgbk: { name: "PETG HF Black", material: "PETG", hex: "#000000", sealed: 1, open: 0, link: "petg-hf/Black", how: "tag" },
+  absbk: { name: "ABS Black", material: "ABS", hex: "#000000", sealed: 0, open: 1, link: "abs/Black", how: "tag" },
+  asared: { name: "ASA Red", material: "ASA", hex: "#E02928", sealed: 1, open: 0, link: "asa/Red", how: "tag" },
+  brown: { name: "PETG Translucent Brown", material: "PETG", hex: "#C9A381", sealed: 0, open: 1, link: "petg-translucent/Brown", how: "tag" },
+  silkgold: { name: "Silk Gold PLA", material: "PLA", hex: "#E4BD68", sealed: 0, open: 0, link: "pla-silk/Gold", how: "tag" }
+};
+
+var BLACKS = [["plabk", 0.0], ["blackpla", 0.0], ["petgbk", 0.0], ["absbk", 0.0]];
+
+/* code: the Bambu code (none for some colors). m: [stock id, ΔE] candidates; a product linked
+   to the color itself is dropped from its own similar list. */
+var LINES = [
+  { id: "pla-basic", name: "PLA Basic", material: "PLA", colors: [
+    { name: "Jade White", code: "10100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Black", code: "10101", hexes: ["#000000"], m: BLACKS },
+    { name: "Blue", code: "10601", hexes: ["#0A2CA5"], m: [["plablue", 0.0]] },
+    { name: "Cyan", code: "10603", hexes: ["#0086D6"], m: [["marine", 4.6]] },
+    { name: "Red", code: "10200", hexes: ["#C12E1F"], m: [["asared", 6.9]] },
+    { name: "Hot Pink", code: "10204", hexes: ["#F5547D"], m: [] },
+    { name: "Bambu Green", code: "", hexes: ["#00AE42"], m: [] },
+    { name: "Orange", code: "10300", hexes: ["#FF6A13"], m: [] },
+    { name: "Sunflower Yellow", code: "10400", hexes: ["#FEC600"], m: [] },
+    { name: "Gray", code: "10103", hexes: ["#8E9089"], m: [] },
+    { name: "Cocoa Brown", code: "10802", hexes: ["#6F5034"], m: [] },
+    { name: "Purple", code: "10700", hexes: ["#5E43B7"], m: [] },
+    { name: "Bronze", code: "10801", hexes: ["#847D48"], m: [], disc: true },
+    { name: "Beige", code: "10201", hexes: ["#F7E6DE"], m: [["white", 9.4]], disc: true }
+  ]},
+  { id: "pla-matte", name: "PLA Matte", material: "PLA", colors: [
+    { name: "Ivory White", code: "11100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Charcoal", code: "11101", hexes: ["#000000"], m: BLACKS },
+    { name: "Marine Blue", code: "11600", hexes: ["#0078BF"], m: [["marine", 0.0]] },
+    { name: "Ash Gray", code: "11102", hexes: ["#9B9EA0"], m: [] },
+    { name: "Sakura Pink", code: "11201", hexes: ["#E8AFCF"], m: [] },
+    { name: "Desert Tan", code: "11401", hexes: ["#E8DBB7"], m: [["brown", 9.2]] },
+    { name: "Dark Red", code: "11202", hexes: ["#BB3D43"], m: [["asared", 8.1]] },
+    { name: "Lemon Yellow", code: "11400", hexes: ["#F7D959"], m: [] }
+  ]},
+  { id: "pla-silk", name: "PLA Silk+", material: "PLA", colors: [
+    { name: "Gold", code: "13405", hexes: ["#E4BD68"], m: [] },
+    { name: "Silver", code: "13109", hexes: ["#C8C8C8"], m: [] },
+    { name: "Copper", code: "13801", hexes: ["#B87333"], m: [] }
+  ]},
+  { id: "pla-silk-dual", name: "PLA Silk Dual Color", material: "PLA", colors: [
+    { name: "Gold-Silver", code: "13901", hexes: ["#F4A925", "#C0C0C0"], m: [] },
+    { name: "Blue-Red", code: "13902", hexes: ["#1E4FC2", "#D0322E"], m: [] },
+    { name: "Aurora Purple", code: "13903", hexes: ["#5E43B7", "#E04E8A", "#2A9DF4"], m: [] },
+    { name: "Copper-Teal", code: "", hexes: ["#B87333", "#008080"], m: [], disc: true }
+  ]},
+  { id: "petg-hf", name: "PETG HF", material: "PETG", colors: [
+    { name: "Black", code: "33102", hexes: ["#000000"], m: BLACKS },
+    { name: "Blue", code: "33600", hexes: ["#002E96"], m: [["plablue", 3.1], ["marine", 8.7]] },
+    { name: "White", code: "33100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Red", code: "33200", hexes: ["#EB3A3A"], m: [["asared", 4.2]] },
+    { name: "Gray", code: "33101", hexes: ["#ADB1B2"], m: [] },
+    { name: "Green", code: "33500", hexes: ["#00AE42"], m: [] },
+    { name: "Yellow", code: "33400", hexes: ["#FFD00B"], m: [] },
+    { name: "Orange", code: "33300", hexes: ["#F75403"], m: [] },
+    { name: "Cream", code: "33401", hexes: ["#F9DFB9"], m: [] },
+    { name: "Peanut Brown", code: "33801", hexes: ["#875718"], m: [], disc: true }
+  ]},
+  { id: "petg-translucent", name: "PETG Translucent", material: "PETG", colors: [
+    { name: "Brown", code: "32800", hexes: ["#C9A381"], m: [["brown", 0.0]] },
+    { name: "Clear", code: "32100", hexes: ["#F0F2F2"], m: [["white", 7.8]] },
+    { name: "Teal", code: "32500", hexes: ["#3E8E93"], m: [] }
+  ]},
+  { id: "abs", name: "ABS", material: "ABS", colors: [
+    { name: "Black", code: "40101", hexes: ["#000000"], m: BLACKS },
+    { name: "White", code: "40100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Red", code: "40200", hexes: ["#D32941"], m: [["asared", 5.8]] },
+    { name: "Azure", code: "40601", hexes: ["#489FDF"], m: [["marine", 9.4]] },
+    { name: "Silver", code: "40102", hexes: ["#87909A"], m: [] },
+    { name: "Bambu Green", code: "40500", hexes: ["#00AE42"], m: [] },
+    { name: "Olive", code: "40502", hexes: ["#748C45"], m: [], disc: true }
+  ]},
+  { id: "asa", name: "ASA", material: "ASA", colors: [
+    { name: "Red", code: "45200", hexes: ["#E02928"], m: [["asared", 0.0]] },
+    { name: "Black", code: "45101", hexes: ["#000000"], m: BLACKS },
+    { name: "White", code: "45100", hexes: ["#FFFFFF"], m: [["white", 0.0]] },
+    { name: "Gray", code: "45102", hexes: ["#8A949E"], m: [] },
+    { name: "Blue", code: "45600", hexes: ["#2140B4"], m: [["plablue", 5.0]] }
+  ]}
+];
+
+var CUTOFF = 10;
+var STORE = "https://us.store.bambulab.com";
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+function colorKey(line, color) { return line.id + "/" + color.name; }
+function isMulti(color) { return color.hexes.length > 1; }
+function inStock(p) { return p.sealed + p.open > 0; }
+
+/** Products linked to this catalog color, split into in stock and none in stock. */
+function linked(line, color) {
+  var key = colorKey(line, color), have = [], none = [];
+  Object.keys(STOCK).forEach(function (id) {
+    var p = STOCK[id];
+    if (p.link !== key) return;
+    (inStock(p) ? have : none).push({ id: id, p: p });
+  });
+  return { have: have, none: none };
+}
+
+function isOwned(line, color) { return linked(line, color).have.length > 0; }
+
+function ownedCounts(line, color) {
+  return linked(line, color).have.reduce(function (s, x) { s.sealed += x.p.sealed; s.open += x.p.open; return s; }, { sealed: 0, open: 0 });
+}
+
+/** Substitutes within the cutoff, closest first; same material first on a tie. A product
+ * linked to this color is never its own substitute, and only in-stock products count. */
+function similar(line, color) {
+  if (isMulti(color)) return [];
+  var key = colorKey(line, color);
+  return color.m
+    .filter(function (x) { var p = STOCK[x[0]]; return x[1] <= CUTOFF && inStock(p) && p.link !== key; })
+    .map(function (x) { var p = STOCK[x[0]]; return { id: x[0], p: p, de: x[1], other: p.material !== line.material }; })
+    .sort(function (a, b) { return a.de - b.de || (a.other - b.other); });
+}
+
+/** Find in store: the store's search, by Bambu code, or by line and color name. */
+function storeUrl(line, color) {
+  var q = color.code ? color.code : line.name + " " + color.name;
+  return STORE + "/search?q=" + encodeURIComponent(q);
+}
+
+function materials() {
+  var seen = [];
+  LINES.forEach(function (l) { if (seen.indexOf(l.material) < 0) seen.push(l.material); });
+  return seen;
+}
+
+/** The color counts per material, for the filter sheet. */
+function materialCounts(showDisc) {
+  var out = {};
+  LINES.forEach(function (l) {
+    l.colors.forEach(function (c) { if (showDisc || !c.disc) out[l.material] = (out[l.material] || 0) + 1; });
+  });
+  return out;
+}
+
+function noFilter() { return { query: "", types: [], owned: false, similarOnly: false, showDisc: false }; }
+
+function activeCount(f) { return (f.types.length ? 1 : 0) + (f.owned ? 1 : 0) + (f.similarOnly ? 1 : 0) + (f.showDisc ? 1 : 0); }
+
+/** Lines with their listed colors under the filter; a line with none left is dropped. */
+function applyFilter(f) {
+  var q = f.query.trim().toLowerCase();
+  var out = [];
+  LINES.forEach(function (line) {
+    if (f.types.length && f.types.indexOf(line.material) < 0) return;
+    var pool = line.colors.filter(function (c) { return f.showDisc || !c.disc; });
+    var lineHit = q && line.name.toLowerCase().indexOf(q) >= 0;
+    var shown = pool.filter(function (c) {
+      if (f.owned && !isOwned(line, c)) return false;
+      if (f.similarOnly && !similar(line, c).length) return false;
+      if (q && !lineHit && c.name.toLowerCase().indexOf(q) < 0 && (c.code || "").indexOf(q) < 0) return false;
+      return true;
+    });
+    if (shown.length) out.push({ line: line, colors: shown, total: pool.length });
+  });
+  return out;
+}
+
+function countColors(groups) { return groups.reduce(function (s, g) { return s + g.colors.length; }, 0); }
+
+function stockText(p) {
+  var parts = [];
+  if (p.sealed) parts.push(p.sealed + " sealed");
+  if (p.open) parts.push(p.open + " open");
+  return parts.join(" · ");
+}
+
+/** The type chip's text: one or two types by name, all but one, or a count. */
+function typeSummary(types) {
+  var all = materials();
+  if (!types.length || types.length === all.length) return "";
+  if (types.length <= 2) return types.join(", ");
+  var missing = all.filter(function (t) { return types.indexOf(t) < 0; });
+  if (missing.length === 1) return "All but " + missing[0];
+  return types.length + " types";
+}
+
+/** The swatch ring: one color as the border, or segments for a multi-color catalog color. */
+function ringHtml(hexes, size) {
+  if (hexes.length === 1) return '<span class="ring ' + size + '" aria-hidden="true" style="border-color:' + hexes[0] + '"></span>';
+  var step = 100 / hexes.length;
+  var stops = hexes.map(function (h, i) { return h + " " + (i * step).toFixed(2) + "% " + ((i + 1) * step).toFixed(2) + "%"; }).join(", ");
+  return '<span class="ring multi ' + size + '" aria-hidden="true" style="background:conic-gradient(from -90deg, ' + stops + ')"></span>';
+}
+
+function hexLabel(hexes) { return hexes.join(" / "); }
+
+/** The hex, then the Bambu code when the color has one (nothing when it has none). */
+function hexCodeHtml(color) {
+  var h = '<span class="hexes">' + hexLabel(color.hexes) + '</span>';
+  if (color.code) h += '<span class="code"><span class="sr-only">Bambu code </span>' + color.code + '</span>';
+  return h;
+}
+
+function badgesHtml(line, color, hideNone) {
+  var b = "";
+  if (isOwned(line, color)) b += '<span class="badge-own">Owned · ' + stockText(ownedCounts(line, color)) + '</span>';
+  if (color.disc) b += '<span class="badge-disc">Discontinued</span>';
+  if (isMulti(color)) b += '<span class="badge-multi">Multi-color</span>';
+  else {
+    var n = similar(line, color).length;
+    b += n ? '<span class="badge-sim">' + n + ' similar in stock</span>' : hideNone ? '' : '<span class="nosim">None similar in stock</span>';
+  }
+  return b;
+}
+
+var EXT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"></path><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg>';
+
+function storeButtonHtml(line, color) {
+  return '<a class="button store" href="' + esc(storeUrl(line, color)) + '" target="_blank" rel="noopener noreferrer">Find in store' + EXT +
+    '<span class="sr-only"> (opens in a new tab)</span></a>';
+}
+
+/** One product row in the Owned or Similar lists. */
+function productRowHtml(p, note, right) {
+  return '<li class="match">' + ringHtml([p.hex], "sm") +
+    '<span class="mtext"><a class="mname" href="#" data-act="product">' + esc(p.name) + '</a>' + note + '</span>' + right + '</li>';
+}
+
+/** The expanded area under a color row: Owned, linked with none in stock, Similar, Find in store. */
+function detailHtml(line, color) {
+  var h = '<div class="detail">', link = linked(line, color);
+  if (link.have.length) {
+    h += '<h4 class="label">Owned</h4><ul class="matches">';
+    link.have.forEach(function (x) {
+      h += productRowHtml(x.p, '<span class="how muted">' + (x.p.how === "hand" ? "Linked by hand" : "From its tag") + '</span>',
+        '<span class="de"></span><span class="stock">' + stockText(x.p) + '</span>');
+    });
+    h += '</ul>';
+  }
+  link.none.forEach(function (x) {
+    h += '<p class="muted linked-none">Linked: <a href="#" data-act="product">' + esc(x.p.name) + '</a>, none in stock</p>';
+  });
+  if (isMulti(color)) {
+    h += '<p class="muted none">Multi-color: no comparison</p>';
+  } else {
+    var list = similar(line, color);
+    h += '<h4 class="label">Similar in-stock colors</h4>';
+    if (!list.length) h += '<p class="muted none">No similar color in stock</p>';
+    else {
+      h += '<ul class="matches">';
+      list.forEach(function (x) {
+        h += productRowHtml(x.p, x.other ? '<span class="warn">⚠ Different material: ' + x.p.material + ', not ' + line.material + '</span>' : '',
+          '<span class="de mono">ΔE ' + x.de.toFixed(1) + '</span><span class="stock">' + stockText(x.p) + '</span>');
+      });
+      h += '</ul>';
+    }
+    h += '<p class="foot muted">Showing in-stock products within ΔE ' + CUTOFF + '</p>';
+  }
+  h += '<div class="storerow">' + storeButtonHtml(line, color) + '</div>';
+  return h + '</div>';
+}
+
+var ICONS = {
+  inventory: '<circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle>',
+  spools: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path>',
+  products: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"></path><path d="M7.5 7.5h.01"></path>',
+  catalog: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0 0 21 9.8C21 6 17 3 12 3z"></path><circle cx="7.5" cy="11.5" r="1"></circle><circle cx="10.5" cy="7.5" r="1"></circle><circle cx="15" cy="7.5" r="1"></circle>',
+  review: '<path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>',
+  devices: '<rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M12 18h.01"></path>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"></path>',
+  settings: '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"></path>'
+};
+function icon(k) { return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' + ICONS[k] + '</svg>'; }
+
+
+ICONS.requests = '<path d="M6 9V3h12v6"></path><rect x="3" y="9" width="18" height="8" rx="2"></rect><path d="M7 17v4h10v-4"></path>';
+var NAMES = { plablue: "Blue PLA Basic", marine: "Marine Blue PLA Matte", plabk: "Black PLA Basic", blackpla: "Black PLA", white: "Jade White PLA Basic", petgbk: "Black PETG HF", absbk: "Black ABS", asared: "Red ASA", brown: "Brown PETG Translucent", silkgold: "Silk Gold PLA" };
+Object.keys(NAMES).forEach(function (k) { STOCK[k].name = NAMES[k]; });
+
+var TODAY = new Date(2026, 10, 17);
+var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function pad(n) { return (n < 10 ? "0" : "") + n; }
+function fmt(d) { return d.getDate() + " " + MON[d.getMonth()] + " " + d.getFullYear(); }
+function fmtT(d) { return fmt(d) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+function rel(d) {
+  var n = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - TODAY) / 864e5);
+  if (n === 0) return "today"; if (n === 1) return "tomorrow"; if (n > 0) return "in " + n + " days";
+  if (n === -1) return "yesterday"; return -n + " days ago";
+}
+function mb(b) { return (b / 1048576).toFixed(1) + " MB"; }
+function lineById(id) { return LINES.filter(function (l) { return l.id === id; })[0]; }
+
+var PRI = { urgent: { label: "Urgent", cls: "pri-urgent" }, normal: { label: "Normal", cls: "pri-normal" }, norush: { label: "No rush", cls: "pri-norush" } };
+var USERS = { sam: { name: "Sam", i: "S" }, maya: { name: "Maya", i: "M" }, frank: { name: "Frank", i: "F" }, dana: { name: "Dana", i: "D" } };
+
+/* fil: "p:<stock id>" is an owned product, "c:<line id>/<color>" a catalog color */
+var REQ = {
+  39: {
+    title: "Lithophane lamp shade for the hallway", by: "sam", pri: "normal", qty: 1,
+    need: new Date(2026, 10, 24), at: new Date(2026, 10, 15, 19, 12),
+    file: { name: "hallway-lithophane-shade.3mf", size: 19503513 },
+    link: "https://www.printables.com/model/603811-lithophane-lamp-shade",
+    notes: "Print at 100% with the default lithophane settings in the file.\nIt goes over the hallway ceiling light, so white only, please.",
+    fil: [{ k: "p:white", note: "" }],
+    hist: [
+      { t: "edit", by: "sam", at: new Date(2026, 10, 16, 8, 30), fields: ["Notes", "Needed by"] },
+      { t: "submit", by: "sam", at: new Date(2026, 10, 15, 19, 12) }
+    ]
+  },
+  44: {
+    title: "Cosplay helmet visor mount", by: "sam", pri: "urgent", qty: 1, need: null, at: new Date(2026, 10, 17, 8, 2),
+    file: null, link: "https://makerworld.com/en/models/1180422-helmet-visor-hinge-mount",
+    notes: "", fil: [{ k: "p:absbk", note: "mount" }, { k: "p:asared", note: "hinge caps" }],
+    hist: [
+      { t: "pri", by: "frank", at: new Date(2026, 10, 17, 9, 40), from: "normal", to: "urgent" },
+      { t: "submit", by: "sam", at: new Date(2026, 10, 17, 8, 2) }
+    ]
+  },
+  33: {
+    title: "Spare filament clips", by: "sam", pri: "norush", qty: 20, need: null, at: new Date(2026, 10, 9, 14, 3),
+    file: null, link: "",
+    notes: "Same clips as last time: the model is on the shared drive under 3D > Clips > spool-clip-v2.stl.\nAny bright color is fine.",
+    fil: [{ k: "c:pla-basic/Orange", note: "" }, { k: "p:plablue", note: "if no orange" }],
+    hist: [
+      { t: "pri", by: "sam", at: new Date(2026, 10, 10, 7, 55), from: "normal", to: "norush" },
+      { t: "edit", by: "sam", at: new Date(2026, 10, 10, 7, 55), fields: ["Filament", "Quantity"] },
+      { t: "submit", by: "sam", at: new Date(2026, 10, 9, 14, 3) }
+    ]
+  },
+  41: {
+    title: "Replacement dishwasher rack clips", by: "maya", pri: "urgent", qty: 6, need: new Date(2026, 10, 19), at: new Date(2026, 10, 16, 20, 41),
+    file: { name: "rack-clip-bosch-tine.stl", size: 482304 }, link: "",
+    notes: "", fil: [{ k: "p:petgbk", note: "" }],
+    hist: [{ t: "submit", by: "maya", at: new Date(2026, 10, 16, 20, 41) }]
+  }
+};
+
+var state = { id: 39, role: "viewer", missing: false };
+
+function choiceHtml(c, i) {
+  var html;
+  if (c.k.charAt(0) === "p") {
+    var p = STOCK[c.k.slice(2)];
+    html = ringHtml([p.hex], "sm") + '<span class="cinfo"><span class="cname"><span class="sr-only">Choice ' + (i + 1) + ": </span>" + esc(p.name) + '</span><span class="csub"><span class="kind own">Owned</span>' + p.material + " · " + (stockText(p) || "none left") + "</span></span>";
+  } else {
+    var key = c.k.slice(2), s = key.indexOf("/"), l = lineById(key.slice(0, s)), col = l.colors.filter(function (x) { return x.name === key.slice(s + 1); })[0];
+    var sim = similar(l, col).map(function (x) { return x.p.name; });
+    var simT = sim.length ? "Similar in stock: " + sim.join(", ") : "Nothing similar in stock";
+    html = ringHtml(col.hexes, "sm") + '<span class="cinfo"><span class="cname"><span class="sr-only">Choice ' + (i + 1) + ": </span>" + esc(col.name + " " + l.name) + '</span><span class="csub"><span class="kind cat">Catalog</span>' + l.material + (col.code ? " · " + col.code : "") + " · not in stock<br>" + simT + "</span></span>";
+  }
+  return '<li class="choice"><span class="ord" aria-hidden="true">' + (i + 1) + "</span>" + html +
+    (c.note ? '<span class="cnote">“' + esc(c.note) + "”</span>" : '<span class="cnote none">No note</span>') + "</li>";
+}
+
+var HICO = {
+  submit: '<path d="M12 5v14M5 12h14"></path>',
+  edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path>',
+  pri: '<path d="M7 4v16M7 4l10 4-10 4"></path>'
+};
+function histHtml(h) {
+  var u = USERS[h.by].name, what, detail = "";
+  if (h.t === "submit") what = "Submitted";
+  else if (h.t === "edit") { what = "Edited"; var fl = h.fields.map(function (x) { return x.toLowerCase(); }); detail = "Changed " + (fl.length > 1 ? fl.slice(0, -1).join(", ") + " and " + fl[fl.length - 1] : fl[0]); }
+  else { what = "Priority changed"; detail = '<span class="tagchip ' + PRI[h.from].cls + '">' + PRI[h.from].label + '</span> → <span class="tagchip ' + PRI[h.to].cls + '">' + PRI[h.to].label + "</span>"; }
+  return '<li><span class="hi" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">' + HICO[h.t] + "</svg></span>" +
+    '<span><span class="what">' + what + "</span> by " + u + (detail ? '<span class="detail">' + detail + "</span>" : "") + "</span>" +
+    '<span class="when">' + fmtT(h.at) + "<span>" + rel(h.at) + "</span></span></li>";
+}
+
+function render() {
+  var r = REQ[state.id], staff = state.role === "editor" || state.role === "admin";
+  var me = state.role === "admin" ? "frank" : state.role === "editor" ? "dana" : "sam";
+  var allowed = staff || r.by === me;
+  document.getElementById("page").hidden = !allowed;
+  document.getElementById("nopage").hidden = allowed;
+  document.getElementById("uname").textContent = me;
+  document.getElementById("uinit").textContent = USERS[me].i;
+  /* Requesters in the sample: Sam and Frank (Admin); Dana (Editor) isn't one */
+  var canNew = state.role === "viewer" || state.role === "admin";
+  document.getElementById("bar").classList.toggle("nocenter", !canNew);
+  var fab = document.getElementById("newfab");
+  if (canNew) fab.removeAttribute("aria-hidden"); else fab.setAttribute("aria-hidden", "true");
+  fab.tabIndex = canNew ? 0 : -1;
+  renderOverlay();
+  if (!allowed) return;
+
+  document.title = r.title + " · RollCall (mockup)";
+  document.getElementById("title").textContent = r.title;
+  document.getElementById("rid").textContent = "#" + state.id;
+  document.getElementById("prichip").innerHTML = '<span class="tagchip ' + PRI[r.pri].cls + '"><span class="sr-only">Priority: </span>' + PRI[r.pri].label + "</span>";
+  document.getElementById("byline").innerHTML = "Requested by " + USERS[r.by].name + " · submitted " + rel(r.at);
+  /* Edit: the owner, while Submitted (every request is Submitted for now) */
+  document.getElementById("editbtn").hidden = r.by !== me || state.role === "former";
+
+  var m = "";
+  if (r.file) {
+    m += '<div class="filecard' + (state.missing ? " gone" : "") + '"><span class="fi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path></svg></span>' +
+      '<span class="meta"><span class="fname">' + esc(r.file.name) + '</span><span class="fsize">' + mb(r.file.size) + "</span></span>" +
+      (state.missing
+        ? '<span class="missing"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>File Missing</span></div>'
+        : '<a class="button dl" href="#"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>Download<span class="sr-only"> ' + esc(r.file.name) + ", " + mb(r.file.size) + "</span></a></div>");
+  }
+  if (r.link) {
+    var host = r.link.replace(/^https?:\/\//, "").split("/")[0].replace(/^www\./, "");
+    m += '<div class="filecard linkcard"><span class="fi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"></path><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"></path></svg></span>' +
+      '<span class="meta"><span class="fname">' + esc(host) + '</span><span class="fsize">' + esc(r.link) + "</span></span>" +
+      '<a class="button dl" href="' + esc(r.link) + '" target="_blank" rel="noopener noreferrer">Open link' + EXT + '<span class="sr-only"> on ' + esc(host) + " (opens in a new tab)</span></a></div>";
+  }
+  if (!r.file && !r.link) m = '<p class="nomodel">No file or link. The notes say where the model is.</p>';
+  document.getElementById("model").innerHTML = '<div style="display:flex;flex-direction:column;gap:10px">' + m + "</div>";
+
+  document.getElementById("choices").innerHTML = r.fil.map(choiceHtml).join("");
+  document.getElementById("notes").innerHTML = r.notes ? '<p class="notes">' + esc(r.notes) + "</p>" : '<p class="nonotes">No notes.</p>';
+  document.getElementById("history").innerHTML = r.hist.map(histHtml).join("");
+
+  document.getElementById("facts").innerHTML =
+    "<dt>Requester</dt><dd><span class=\"who\"><span class=\"initial\" aria-hidden=\"true\">" + USERS[r.by].i + "</span>" + USERS[r.by].name + "</span></dd>" +
+    "<dt>Quantity</dt><dd class=\"mono\">" + r.qty + "</dd>" +
+    "<dt>Needed by</dt><dd>" + (r.need ? '<span class="mono">' + fmt(r.need) + '</span><span class="rel">' + rel(r.need) + "</span>" : '<span class="muted">No date</span>') + "</dd>" +
+    "<dt>Submitted</dt><dd><span class=\"mono\">" + fmtT(r.at) + '</span><span class="rel">' + rel(r.at) + "</span></dd>";
+
+  var ctl = document.getElementById("prictl");
+  ctl.hidden = !staff;
+  document.querySelector('#prictl input[value="' + r.pri + '"]').checked = true;
+  document.getElementById("prisave").disabled = true;
+}
+
+document.getElementById("prictl").addEventListener("change", function () {
+  var v = document.querySelector("#prictl input:checked").value;
+  document.getElementById("prisave").disabled = v === REQ[state.id].pri;
+  document.getElementById("primsg").textContent = "";
+});
+document.getElementById("prictl").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var r = REQ[state.id], v = document.querySelector("#prictl input:checked").value;
+  if (v === r.pri) return;
+  var me = state.role === "admin" ? "frank" : "dana";
+  r.hist.unshift({ t: "pri", by: me, at: new Date(2026, 10, 17, 16, 40), from: r.pri, to: v });
+  var from = PRI[r.pri].label;
+  r.pri = v;
+  render();
+  document.getElementById("primsg").textContent = "Changed from " + from + " to " + PRI[v].label + ".";
+  document.querySelector("#prictl input:checked").focus();
+});
+
+document.addEventListener("click", function (e) {
+  var t = e.target.closest("button, a");
+  if (!t) return;
+  var d = t.dataset;
+  if (t.tagName === "A" && t.getAttribute("href") === "#") e.preventDefault();
+  if (d.req) { pick(t); state.id = +d.req; document.getElementById("primsg").textContent = ""; render(); }
+  else if (d.role) { pick(t); state.role = d.role; document.getElementById("primsg").textContent = ""; render(); }
+  else if (d.file) { pick(t); state.missing = d.file === "missing"; render(); }
+  else if (d.theme) { pick(t); document.documentElement.setAttribute("data-theme", d.theme); }
+  else if (d.act === "menu") { menuOpen = !menuOpen; renderMenu(); renderOverlay(); var f1 = document.querySelector("#menu-sheet a"); if (menuOpen && f1) f1.focus(); }
+  else if (d.act === "closemenu") { menuOpen = false; renderMenu(); renderOverlay(); document.getElementById("menubtn").focus(); }
+});
+function pick(btn) { btn.parentNode.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); }); }
+
+/* ---------- menu ---------- */
+var menuOpen = false;
+function renderMenu() {
+  var mb = document.getElementById("menubtn");
+  mb.setAttribute("aria-expanded", String(menuOpen));
+  mb.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">' +
+    (menuOpen ? '<path d="M6 6l12 12M18 6 6 18"></path>' : '<path d="M4 7h16M4 12h16M4 17h16"></path>') + "</svg>" + (menuOpen ? "Close" : "Menu") + (menuOpen ? "" : '<span class="dot" aria-hidden="true"></span>');
+}
+function renderOverlay() {
+  var o = document.getElementById("overlay");
+  if (!menuOpen) { o.innerHTML = ""; return; }
+  var role = state.role === "former" ? "viewer" : state.role; var staff = role !== "viewer", n = staff ? 8 : 3;
+  var main = [["inventory", "Inventory"], ["spools", "Spools"], ["products", "Products"], ["catalog", "Catalog"], ["requests", "Requests"]];
+  if (staff) main.push(["review", "Review"]);
+  main.push(["activity", "Activity"]);
+  var h = '<button type="button" class="dim" aria-label="Close the menu" tabindex="-1" data-act="closemenu"></button><div class="sheet" id="menu-sheet" role="dialog" aria-modal="true" aria-label="Menu"><span class="grip" aria-hidden="true"></span><nav aria-label="Pages" class="pages">';
+  main.forEach(function (m) {
+    var b = m[0] === "requests" ? n : m[0] === "review" ? 3 : 0;
+    h += '<a class="item" href="#"' + (m[0] === "requests" ? ' aria-current="page" aria-label="Requests, ' + n + ' submitted"' : m[0] === "review" ? ' aria-label="Review, 3 waiting"' : "") + ">" + icon(m[0]) + m[1] + (b ? '<span class="ibadge" aria-hidden="true">' + b + "</span>" : "") + "</a>";
+  });
+  h += "</nav>";
+  if (role === "admin") {
+    h += '<div class="label">Admin</div><nav aria-label="Admin pages" class="adminpages">';
+    [["devices", "Devices"], ["users", "Users"], ["settings", "Settings"]].forEach(function (m) { h += '<a class="item small" href="#">' + icon(m[0]) + m[1] + "</a>"; });
+    h += "</nav>";
+  }
+  o.innerHTML = h + "</div>";
+}
+document.addEventListener("keydown", function (e) { if (e.key === "Escape" && menuOpen) { menuOpen = false; renderMenu(); renderOverlay(); document.getElementById("menubtn").focus(); } });
+renderMenu();
+render();
+</script>
+</body>
+</html>
