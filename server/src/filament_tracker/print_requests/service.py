@@ -162,6 +162,18 @@ def _changed(
     return changed
 
 
+def why_not_editable(request: PrintRequest, user: User) -> str | None:
+    """Why the user may not edit the request, or None when they may: only its requester,
+    while they are still a Requester and it is Submitted."""
+    if request.requester_id != user.id:
+        return NOT_YOURS
+    if not user.requester:
+        return NOT_A_REQUESTER
+    if request.status != RequestStatus.SUBMITTED:
+        return NOT_SUBMITTED
+    return None
+
+
 def edit(
     session: Session,
     request: PrintRequest,
@@ -175,12 +187,9 @@ def edit(
     """Save an edit by the request's requester, held to the rules of a new request. An edit
     that changes nothing writes no history entry. file_on_disk: the request's file is still
     on disk."""
-    if request.requester_id != user.id:
-        raise NotAllowed(NOT_YOURS)
-    if not user.requester:
-        raise NotAllowed(NOT_A_REQUESTER)
-    if request.status != RequestStatus.SUBMITTED:
-        raise NotAllowed(NOT_SUBMITTED)
+    reason = why_not_editable(request, user)
+    if reason is not None:
+        raise NotAllowed(reason)
     fields = fields.cleaned()
     upload = _upload(session, fields, user)
     choices = _validate(session, request, fields, upload, today=today, file_on_disk=file_on_disk)

@@ -16,11 +16,11 @@ from filament_tracker.api.request_schemas import (
 from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import Principal
 from filament_tracker.db.request_models import PrintRequest
-from filament_tracker.domain.enums import RequestStatus
 from filament_tracker.print_requests.access import sees_every_request
 from filament_tracker.print_requests.choices import ChoiceReader, swatch
 from filament_tracker.print_requests.files import ModelFiles
 from filament_tracker.print_requests.read import model_source
+from filament_tracker.print_requests.service import why_not_editable
 
 
 def model_files(request: Request) -> ModelFiles:
@@ -59,12 +59,7 @@ def _file_out(item: PrintRequest, files: ModelFiles) -> ModelFileOut | None:
 
 def can_edit(principal: Principal, item: PrintRequest) -> bool:
     user = principal.user
-    return (
-        user is not None
-        and user.id == item.requester_id
-        and user.requester
-        and item.status == RequestStatus.SUBMITTED
-    )
+    return user is not None and why_not_editable(item, user) is None
 
 
 def request_out(
