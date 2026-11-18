@@ -141,9 +141,10 @@ def test_choices_are_shown_with_stock_and_similar_colors(
         0,
     )
     assert (product["note"], product["hexes"]) == ("body", ["000000"])
-    assert (black["kind"], black["name"], black["line"]) == (
+    assert (black["kind"], black["name"], black["color_name"], black["line"]) == (
         "catalog_color",
         "Black PLA Basic",
+        "Black",
         "PLA Basic",
     )
     assert black["in_catalog"] is True

@@ -86,6 +86,7 @@ def request_out(
                 sealed=shown.sealed,
                 open=shown.open,
                 catalog_color=shown.catalog_color,
+                color_name=shown.color_name,
                 line=shown.line,
                 bambu_code=shown.bambu_code,
                 in_catalog=shown.in_catalog,

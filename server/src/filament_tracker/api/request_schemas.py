@@ -97,6 +97,8 @@ class ChoiceOut(BaseModel):
     open: int | None
     # A catalog color's.
     catalog_color: str | None
+    # The catalog color's own name ("Black") and its filament line ("PLA Basic").
+    color_name: str | None
     line: str | None
     bambu_code: str | None
     # False: no longer in the catalog.

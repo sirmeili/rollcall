@@ -124,6 +124,8 @@ class ShownChoice:
     sealed: int | None = None
     open: int | None = None
     catalog_color: str | None = None
+    # A catalog color's own name and its filament line's, for Find in store.
+    color_name: str | None = None
     line: str | None = None
     bambu_code: str | None = None
     in_catalog: bool = True
@@ -184,6 +186,7 @@ class ChoiceReader:
                 name=_catalog_name(choice.catalog_line, choice.catalog_name),
                 hexes=list(choice.catalog_hexes or []),
                 catalog_color=choice.catalog_uuid,
+                color_name=choice.catalog_name,
                 line=choice.catalog_line,
                 in_catalog=False,
                 multi_color=len(choice.catalog_hexes or []) > 1,
@@ -196,6 +199,7 @@ class ChoiceReader:
             hexes=color.hexes,
             material=line.material,
             catalog_color=color.uuid,
+            color_name=color.name,
             line=line.name,
             bambu_code=color.bambu_code,
             multi_color=color.multi_color,
