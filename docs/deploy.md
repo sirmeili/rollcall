@@ -245,7 +245,7 @@ docker compose cp rollcall:/backups ./backups-copy    # copy them off the server
 
 The backup volume is a Docker volume on the same disk by default. To keep backups on another disk, change `rollcall-backups:/backups` in `compose.yaml` to a path, such as `/mnt/backup/rollcall:/backups`, owned by uid 10001 (`sudo chown 10001:10001 /mnt/backup/rollcall`).
 
-Backups hold the database only, not the model files uploaded with print requests. Those are in `/data/request-files` on the data volume, each under a random name; the database records which request each belongs to and its original name. Copy them off the server alongside the backups:
+Backups hold the database only, not the model files uploaded with print requests. Those are in `/data/request-files` on the data volume, each under a random name; the database records which request each belongs to and its original name. A file uploaded on the request form but never saved with a request is deleted once it is a day old, the next time anyone uploads a file. Copy them off the server alongside the backups:
 
 ```sh
 docker compose cp rollcall:/data/request-files ./request-files-copy
