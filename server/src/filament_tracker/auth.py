@@ -100,6 +100,11 @@ def forbidden(detail: str, headers: dict[str, str] | None = None) -> HTTPExcepti
     return HTTPException(status.HTTP_403_FORBIDDEN, detail=detail, headers=headers)
 
 
+def problems(found: dict[str, str]) -> HTTPException:
+    """A 422 naming what is wrong with each field, which the web app shows beside it."""
+    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"problems": found})
+
+
 def settings_of(request: Request) -> Settings:
     return request.app.state.settings
 

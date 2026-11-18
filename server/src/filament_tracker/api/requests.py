@@ -21,7 +21,7 @@ from filament_tracker.api.request_schemas import (
     SubmittedCountOut,
 )
 from filament_tracker.api.request_views import model_files, request_out, row_out
-from filament_tracker.auth import AnyPrincipal, DbSession, Editor, Principal, forbidden
+from filament_tracker.auth import AnyPrincipal, DbSession, Editor, Principal, forbidden, problems
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.db.types import utcnow
@@ -100,7 +100,7 @@ def _fields(body: RequestIn) -> RequestFields:
 
 def _refused(error: Exception) -> HTTPException:
     if isinstance(error, Problems):
-        return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, {"problems": error.problems})
+        return problems(error.problems)
     return forbidden(str(error))
 
 

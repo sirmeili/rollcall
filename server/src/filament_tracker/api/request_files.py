@@ -16,7 +16,7 @@ from starlette.requests import ClientDisconnect
 from filament_tracker.api.request_schemas import UploadOut
 from filament_tracker.api.request_views import model_files
 from filament_tracker.api.requests import RequesterUser, RequestsCaller, find_request
-from filament_tracker.auth import DbSession
+from filament_tracker.auth import DbSession, problems
 from filament_tracker.db.request_models import FILE_NAME_MAX
 from filament_tracker.db.types import utcnow
 from filament_tracker.print_requests.files import NotAModel
@@ -45,9 +45,7 @@ async def upload(
     try:
         found = await model_files(http).receive(session, user, name, http.stream(), utcnow())
     except NotAModel as error:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, {"problems": {FILE: str(error)}}
-        ) from None
+        raise problems({FILE: str(error)}) from None
     except ClientDisconnect:
         # Too large, or the browser went away: nothing was kept, and no one is listening.
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "upload not finished") from None
