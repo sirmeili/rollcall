@@ -51,11 +51,15 @@ def hash_password(password: str) -> str:
     return _hasher.hash(password)
 
 
-def create_user(session: Session, username: str, password: str, role: Role) -> User:
+def create_user(
+    session: Session, username: str, password: str, role: Role, *, requester: bool = False
+) -> User:
     name = normalize_username(username)
     if session.scalar(select(User).where(User.username == name)) is not None:
         raise UsernameTaken("that username is taken")
-    user = User(username=name, password_hash=hash_password(password), role=role)
+    user = User(
+        username=name, password_hash=hash_password(password), role=role, requester=requester
+    )
     session.add(user)
     session.flush()
     return user

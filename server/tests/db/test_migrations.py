@@ -213,3 +213,47 @@ def test_catalog_links_upgrade_a_synced_catalog_with_products(tmp_path: Path) ->
     engine.dispose()
     assert not [c for c in columns if c.startswith("catalog_")]
     assert "bambu_color_code" not in tables
+
+
+def test_requester_upgrades_existing_users_left_off(tmp_path: Path) -> None:
+    # Sessions point at the users: a migration that copies and drops user fails on it.
+    url = f"sqlite:///{tmp_path / 'users.db'}"
+    upgrade(url, "5b8e1c7d2a94")
+    engine = create_db_engine(url)
+    when = "2026-11-17 12:00:00.000000"
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO user (id, username, password_hash, role, password_changed_at,"
+                " created_at) VALUES (1, 'frank', 'x', 'admin', :w, :w),"
+                " (2, 'sam', 'x', 'viewer', :w, :w)"
+            ),
+            {"w": when},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO session (token_hash, user_id, created_at, expires_at, last_seen_at)"
+                " VALUES (:t, 2, :w, :w, :w)"
+            ),
+            {"t": "a" * 64, "w": when},
+        )
+    engine.dispose()
+
+    upgrade(url)
+
+    engine = create_db_engine(url)
+    with engine.connect() as connection:
+        users = connection.execute(text("SELECT username, requester FROM user ORDER BY id")).all()
+        sessions = connection.execute(text("SELECT count(*) FROM session")).scalar()
+    engine.dispose()
+    assert [tuple(row) for row in users] == [("frank", 0), ("sam", 0)]
+    assert sessions == 1
+
+    downgrade(url, "5b8e1c7d2a94")
+
+    engine = create_db_engine(url)
+    columns = [c["name"] for c in inspect(engine).get_columns("user")]
+    tables = inspect(engine).get_table_names()
+    engine.dispose()
+    assert "requester" not in columns
+    assert "print_request" not in tables

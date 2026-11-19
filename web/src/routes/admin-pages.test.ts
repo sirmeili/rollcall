@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
 import type { DeviceOut, PrinterOut, ReviewOut, UserOut } from "#lib/api/types.ts";
 import type { Role } from "#lib/roles.ts";
-import { event, product, spoolDetail, spoolRow } from "../test/fixtures.ts";
+import { event, me, product, spoolDetail, spoolRow } from "../test/fixtures.ts";
 
 const nav = vi.hoisted(() => ({ goto: vi.fn() }));
 vi.mock("$app/navigation", () => ({ goto: nav.goto }));
@@ -57,7 +57,7 @@ const UsersPage = (await import("./users/+page.svelte")).default;
 const AccountPage = (await import("./account/+page.svelte")).default;
 
 function signedInAs(role: Role): void {
-  session.user = { id: 1, username: "frank", role, time_zone: "UTC" };
+  session.user = me(role);
   session.loaded = true;
 }
 
@@ -542,6 +542,7 @@ function user(overrides: Partial<UserOut> = {}): UserOut {
     id: 2,
     username: "jordan",
     role: "editor",
+    requester: false,
     disabled: false,
     created_at: "2026-11-01T00:00:00Z",
     last_login_at: "2026-11-05T14:15:00Z",
@@ -567,7 +568,35 @@ describe("Users page", () => {
     expect(within(rows[3]).getByText("Disabled")).toBeInTheDocument();
     expect(within(rows[3]).getByText("Never")).toBeInTheDocument();
     const roles = screen.getByRole("list", { name: "What each role can do" });
-    expect(within(roles).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(roles).getAllByRole("listitem")).toHaveLength(4);
+    expect(within(roles).getByText(/goes with any role/)).toBeInTheDocument();
+  });
+
+  it("shows a Requester badge and turns Requester on and off", async () => {
+    admin.listUsers.mockResolvedValue([
+      people[0],
+      user({ id: 4, username: "sam", role: "viewer", requester: true }),
+    ]);
+    admin.updateUser.mockResolvedValue(user());
+    render(UsersPage);
+
+    const rows = await screen.findAllByRole("row");
+    expect(within(rows[2]).getByText("Requester", { selector: ".pill" })).toBeInTheDocument();
+    expect(within(rows[1]).queryByText("Requester", { selector: ".pill" })).toBeNull();
+    const box = within(rows[2]).getByRole("checkbox", { name: "Requester (sam)" });
+    expect(box).toBeChecked();
+
+    await userEvent.click(box);
+    expect(admin.updateUser).toHaveBeenCalledWith(4, { requester: false });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "sam can no longer submit print requests.",
+    );
+
+    await userEvent.click(within(rows[1]).getByRole("checkbox", { name: "Requester (frank)" }));
+    expect(admin.updateUser).toHaveBeenLastCalledWith(1, { requester: true });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "frank can now submit print requests.",
+    );
   });
 
   it("changes a role, disables and enables", async () => {
@@ -638,9 +667,28 @@ describe("Users page", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("username is taken.");
     await userEvent.click(screen.getByRole("button", { name: "Create" }));
 
-    expect(admin.createUser).toHaveBeenLastCalledWith("sam", "viewer", "too short ok now");
+    expect(admin.createUser).toHaveBeenLastCalledWith("sam", "viewer", "too short ok now", false);
     expect(await screen.findByRole("status")).toHaveTextContent("Created sam (Viewer).");
     expect(screen.queryByLabelText("Username")).toBeNull();
+  });
+
+  it("creates a Requester", async () => {
+    admin.listUsers.mockResolvedValue(people);
+    admin.createUser.mockResolvedValue(
+      user({ id: 4, username: "nora", role: "viewer", requester: true }),
+    );
+    render(UsersPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Create user" }));
+    await userEvent.type(screen.getByLabelText("Username"), "nora");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Requester" }));
+    await userEvent.type(screen.getByLabelText("First password"), "a long enough password");
+    await userEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    expect(admin.createUser).toHaveBeenCalledWith("nora", "viewer", "a long enough password", true);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Created nora (Viewer, Requester).",
+    );
   });
 
   it("cancels creating, and reports a load failure", async () => {

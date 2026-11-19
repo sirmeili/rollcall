@@ -10,15 +10,17 @@
     user: Me;
     pathname: string;
     reviewCount: number;
+    /** Submitted print requests, for Editors and Admins. */
+    requestCount?: number;
     /** In the phone app: show the Scan button. */
     scan?: boolean;
   }
 
-  let { user, pathname, reviewCount, scan = false }: Props = $props();
+  let { user, pathname, reviewCount, requestCount = 0, scan = false }: Props = $props();
 
   let open = $state(false);
   let menuButton: HTMLButtonElement;
-  const groups = $derived(menuGroups(user.role));
+  const groups = $derived(menuGroups(user));
 
   /** Close the menu and give the focus back to the Menu button. */
   function close(): void {
@@ -38,7 +40,7 @@
     main={groups.main}
     admin={groups.admin}
     current={navItemFor(pathname)}
-    badges={{ "/review": reviewCount }}
+    badges={{ "/review": reviewCount, "/requests": requestCount }}
     onclose={close}
   />
 {/if}
@@ -69,7 +71,7 @@
       {/if}
     </svg>
     {open ? "Close" : "Menu"}
-    {#if reviewCount > 0 && !open}<span class="dot" aria-hidden="true"></span>{/if}
+    {#if reviewCount + requestCount > 0 && !open}<span class="dot" aria-hidden="true"></span>{/if}
   </button>
 
   {#if scan}

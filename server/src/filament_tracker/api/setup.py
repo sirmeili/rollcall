@@ -162,4 +162,4 @@ def finish_setup(
     token = start_session(session, user, days, utcnow())
     session.commit()
     set_session_cookie(request, response, token, days)
-    return me_out(request, user)
+    return me_out(request, session, user)

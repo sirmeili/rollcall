@@ -3,7 +3,7 @@
 The first Admin is created here, so the app never has a default account. Passwords are
 always prompted for, never passed as arguments, so they stay out of shell history.
 
-    ft-admin create-user USERNAME [--role viewer|editor|admin]
+    ft-admin create-user USERNAME [--role viewer|editor|admin] [--requester]
     ft-admin reset-password USERNAME
     ft-admin backup
 """
@@ -39,6 +39,7 @@ def _parser() -> argparse.ArgumentParser:
     create = commands.add_parser("create-user", help="create an account")
     create.add_argument("username")
     create.add_argument("--role", choices=[r.value for r in Role], default=Role.ADMIN.value)
+    create.add_argument("--requester", action="store_true", help="may also submit print requests")
     reset = commands.add_parser(
         "reset-password", help="set a new password and sign the user out everywhere"
     )
@@ -83,7 +84,13 @@ def main(
     try:
         with create_session_factory(engine)() as session:
             if args.command == "create-user":
-                user = create_user(session, args.username, _new_password(prompt), Role(args.role))
+                user = create_user(
+                    session,
+                    args.username,
+                    _new_password(prompt),
+                    Role(args.role),
+                    requester=args.requester,
+                )
                 verb = "created"
             else:
                 name = args.username.strip().lower()
@@ -94,7 +101,8 @@ def main(
                 set_password(session, user, _new_password(prompt))
                 verb = "updated"
             session.commit()
-            print(f"{verb} {user.username} ({user.role.value})")
+            requester = ", requester" if user.requester else ""
+            print(f"{verb} {user.username} ({user.role.value}{requester})")
     except AccountError as exc:
         print(f"ft-admin: {exc}", file=sys.stderr)
         return 1

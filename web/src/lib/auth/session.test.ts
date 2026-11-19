@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
 import { Session } from "#lib/auth/session.svelte.ts";
+import { me } from "../../test/fixtures.ts";
 
 const ALICE = { id: 1, username: "alice", role: "editor" };
 
@@ -125,7 +126,7 @@ describe("Session", () => {
   });
 
   it("finishing setup signs the new admin in", async () => {
-    const admin = { id: 1, username: "frank", role: "admin", time_zone: "UTC" };
+    const admin = me("admin");
     respond([401], [200, { open: true, time_zone_needed: false, kdf_salt_needed: false }]);
     await session.load();
     const fetchFn = respond([201, admin]);

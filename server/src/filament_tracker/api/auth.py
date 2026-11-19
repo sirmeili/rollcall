@@ -1,6 +1,7 @@
 """Sign in, sign out, the current user, and changing one's own password."""
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
+from sqlalchemy.orm import Session
 
 from filament_tracker.api.account_schemas import LoginRequest, Me, PasswordChange
 from filament_tracker.app_settings.store import SettingsStore
@@ -17,6 +18,7 @@ from filament_tracker.auth import (
 from filament_tracker.db.models import User
 from filament_tracker.db.types import utcnow
 from filament_tracker.net import client_ip
+from filament_tracker.print_requests.access import has_requests
 from filament_tracker.services.accounts import (
     AccountError,
     authenticate,
@@ -43,11 +45,13 @@ def _store(request: Request) -> SettingsStore:
     return request.app.state.settings_store
 
 
-def me_out(request: Request, user: User) -> Me:
+def me_out(request: Request, session: Session, user: User) -> Me:
     return Me(
         id=user.id,
         username=user.username,
         role=user.role,
+        requester=user.requester,
+        has_requests=has_requests(session, user),
         time_zone=_store(request).time_zone(),
     )
 
@@ -67,7 +71,7 @@ def login(body: LoginRequest, request: Request, response: Response, session: DbS
     token = start_session(session, user, days, utcnow())
     session.commit()
     set_session_cookie(request, response, token, days)
-    return me_out(request, user)
+    return me_out(request, session, user)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -90,9 +94,9 @@ def logout(request: Request, session: DbSession) -> Response:
 
 
 @router.get("/me", response_model=Me)
-def me(caller: SignedInUser, request: Request) -> Me:
+def me(caller: SignedInUser, request: Request, session: DbSession) -> Me:
     assert caller.user is not None  # noqa: S101 - guaranteed by SignedInUser
-    return me_out(request, caller.user)
+    return me_out(request, session, caller.user)
 
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)

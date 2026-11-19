@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { listUsers, updateUser } from "#lib/api/admin.ts";
+  import { listUsers, updateUser, type UserChanges } from "#lib/api/admin.ts";
   import { describeError } from "#lib/api/errors.ts";
   import type { UserOut } from "#lib/api/types.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import NewUserForm from "#lib/components/users/NewUserForm.svelte";
   import UserRow from "#lib/components/users/UserRow.svelte";
-  import { ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES, type Role } from "#lib/roles.ts";
+  import { REQUESTER_DESCRIPTION, ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES } from "#lib/roles.ts";
 
   let users = $state<UserOut[] | null>(null);
   let failure = $state<string | null>(null);
@@ -26,11 +26,7 @@
     void load();
   });
 
-  async function change(
-    user: UserOut,
-    changes: { role?: Role; disabled?: boolean; password?: string },
-    done: string,
-  ): Promise<void> {
+  async function change(user: UserOut, changes: UserChanges, done: string): Promise<void> {
     busy = true;
     message = null;
     try {
@@ -47,7 +43,8 @@
 
   async function created(user: UserOut): Promise<void> {
     creating = false;
-    message = `Created ${user.username} (${ROLE_LABELS[user.role]}).`;
+    const requester = user.requester ? ", Requester" : "";
+    message = `Created ${user.username} (${ROLE_LABELS[user.role]}${requester}).`;
     await load();
   }
 </script>
@@ -98,6 +95,7 @@
     {#each ROLES as role (role)}
       <li><strong>{ROLE_LABELS[role]}</strong> {ROLE_DESCRIPTIONS[role]}</li>
     {/each}
+    <li><strong>Requester</strong> {REQUESTER_DESCRIPTION}</li>
   </ul>
 </div>
 

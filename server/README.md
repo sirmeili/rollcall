@@ -21,7 +21,7 @@ Run the server with live reload: `uv run uvicorn filament_tracker.main:create_ap
 
 **Tools.** Each has its own section below.
 
-- Accounts: `uv run ft-admin create-user <username> --role viewer|editor|admin` (the password is prompted). Reset one with `uv run ft-admin reset-password <username>`. On a new database, first-start setup also creates the first Admin from the web app, with the setup code the server logs at start. See [Accounts](#accounts).
+- Accounts: `uv run ft-admin create-user <username> --role viewer|editor|admin [--requester]` (the password is prompted). Reset one with `uv run ft-admin reset-password <username>`. On a new database, first-start setup also creates the first Admin from the web app, with the setup code the server logs at start. See [Accounts](#accounts).
 - Scan simulator: `uv run ft-sim scan <dump.bin|export.zip> --action lookup|received|opened|empty` and `uv run ft-sim generate <out.bin>`. `uv run ft-sim check-salt <dumps>` checks the key-derivation constant in use (saved on the Settings page, else `BAMBU_KDF_SALT`) against saved dumps without printing keys. It needs `FT_TOKEN` (a registered device token); see [Register a scanner](#register-a-scanner). Tag dumps never go in the repo.
 - Real printer check: `uv run ft-printer check [--dump <dump.zip>] [--save captures/<name>.jsonl]`, using the printers saved in the app (or `PRINTERS` from `server/.env`); see [Check a real printer](#check-a-real-printer). Captures stay out of the repo.
 - Home Assistant check: `uv run ft-ha check [--event]`, using the Home Assistant settings the server uses; see [Check against Home Assistant](#check-against-home-assistant). It prints counts and states only.
@@ -73,7 +73,13 @@ Or create the first Admin from `server/` instead, which also closes setup; the p
 uv run ft-admin create-user frank --role admin
 ```
 
-Admins add more users through the API (`/api/v1/users`) and, later, the Users page. If every Admin is locked out, `uv run ft-admin reset-password <username>` sets a new password and signs that user out everywhere.
+Admins add more users on the Users page or through the API (`/api/v1/users`). **Requester** is a permission on top of any role, not a role: a Requester submits print requests and edits their own while they are Submitted. Give it on the Users page, or when creating a user from the command line:
+
+```powershell
+uv run ft-admin create-user sam --role viewer --requester
+```
+
+If every Admin is locked out, `uv run ft-admin reset-password <username>` sets a new password and signs that user out everywhere.
 
 To sign in from PowerShell (the browser app comes later in M2):
 
@@ -89,6 +95,8 @@ The session cookie is marked Secure. Browsers accept it over plain HTTP on `loca
 ## Backups
 
 With `BACKUP_DIR` set, the server copies its database there every night at 03:00 in its time zone (the one saved on the Settings page, else `TZ`), using SQLite's online backup, and keeps the newest 14. Files are named by their UTC time, like `filament-20261110T090000Z.db`. The settings key is never copied into them. `uv run ft-admin backup` makes one at once. The Docker image sets `BACKUP_DIR=/backups`; see [docs/deploy.md](../docs/deploy.md) for restoring one.
+
+Backups hold the database only. The model files uploaded with print requests are kept beside the database, in a `request-files` folder next to the database file (`/data/request-files` in the Docker image), each under a random name; [docs/deploy.md](../docs/deploy.md) shows how to copy them. A file uploaded on the request form but never saved with a request is deleted once it is a day old, the next time anyone uploads a file.
 
 ## Catalog
 

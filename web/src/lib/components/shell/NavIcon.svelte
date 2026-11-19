@@ -25,6 +25,9 @@
     ></path>
     <circle cx="7.5" cy="11.5" r="1"></circle><circle cx="10.5" cy="7.5" r="1"></circle>
     <circle cx="15" cy="7.5" r="1"></circle>
+  {:else if href === "/requests"}
+    <path d="M6 9V3h12v6"></path><rect x="3" y="9" width="18" height="8" rx="2"></rect>
+    <path d="M7 17v4h10v-4"></path>
   {:else if href === "/review"}
     <path d="M9 11l3 3L22 4"></path>
     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>

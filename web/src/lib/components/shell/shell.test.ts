@@ -7,9 +7,10 @@ import PhoneNav from "#lib/components/shell/PhoneNav.svelte";
 import PhoneTopBar from "#lib/components/shell/PhoneTopBar.svelte";
 import { menuGroups, pageTitle } from "#lib/nav.ts";
 import { PHONE_QUERY, Viewport } from "#lib/viewport.svelte.ts";
+import { me } from "../../../test/fixtures.ts";
 
-const ADMIN: Me = { id: 1, username: "frank", role: "admin", time_zone: "UTC" };
-const VIEWER: Me = { id: 2, username: "bob", role: "viewer", time_zone: "UTC" };
+const ADMIN: Me = me("admin");
+const VIEWER: Me = me("viewer", { id: 2, username: "bob" });
 
 afterEach(cleanup);
 
@@ -23,17 +24,18 @@ describe("page titles and menu groups", () => {
   });
 
   it("puts the Admin pages apart, and only for Admins", () => {
-    const admin = menuGroups("admin");
+    const admin = menuGroups(me("admin"));
     expect(admin.main.map((item) => item.label)).toEqual([
       "Inventory",
       "Spools",
       "Products",
       "Catalog",
+      "Requests",
       "Review",
       "Activity",
     ]);
     expect(admin.admin.map((item) => item.label)).toEqual(["Devices", "Users", "Settings"]);
-    expect(menuGroups("viewer").admin).toEqual([]);
+    expect(menuGroups(me("viewer")).admin).toEqual([]);
     expect(menuGroups(null)).toEqual({ main: [], admin: [] });
   });
 });
@@ -100,16 +102,20 @@ describe("the bottom bar", () => {
   });
 
   it("opens the menu with every page an Admin may open, the current one marked", async () => {
-    render(PhoneNav, { user: ADMIN, pathname: "/spools/7", reviewCount: 4 });
+    render(PhoneNav, { user: ADMIN, pathname: "/spools/7", reviewCount: 4, requestCount: 2 });
 
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
 
     const menu = screen.getByRole("dialog", { name: "Menu" });
     const pages = within(menu).getByRole("navigation", { name: "Pages" });
-    expect(within(pages).getAllByRole("link")).toHaveLength(6);
+    expect(within(pages).getAllByRole("link")).toHaveLength(7);
     expect(within(pages).getByRole("link", { name: "Review, 4 waiting" })).toHaveAttribute(
       "href",
       "/review",
+    );
+    expect(within(pages).getByRole("link", { name: "Requests, 2 submitted" })).toHaveAttribute(
+      "href",
+      "/requests",
     );
     const spools = within(pages).getByRole("link", { name: "Spools" });
     expect(spools).toHaveAttribute("aria-current", "page");
@@ -121,6 +127,13 @@ describe("the bottom bar", () => {
         .map((link) => link.textContent),
     ).toEqual(["Devices", "Users", "Settings"]);
     expect(screen.getByRole("button", { name: "Close" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("shows Requests in the menu to a Viewer who is a Requester", async () => {
+    render(PhoneNav, { user: me("viewer", { requester: true }), pathname: "/", reviewCount: 0 });
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+
+    expect(screen.getByRole("link", { name: "Requests" })).toHaveAttribute("href", "/requests");
   });
 
   it("hides the Admin pages from a Viewer", async () => {

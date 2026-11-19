@@ -194,6 +194,8 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(32), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(str_enum(Role, "user_role"))
+    # May submit print requests, whatever the role (ADR-0017). It never passes a role check.
+    requester: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     disabled_at: Mapped[datetime | None]
     last_login_at: Mapped[datetime | None]
     password_changed_at: Mapped[datetime] = mapped_column(default=utcnow)
@@ -309,6 +311,6 @@ class SeededPrinter(Base):
     seeded_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
-# The catalog's tables are in their own module; importing it here puts them on Base, so
-# migrations and create_all see every table.
-from filament_tracker.db import catalog_models  # noqa: E402, F401
+# The catalog's and print requests' tables are in their own modules; importing them here
+# puts them on Base, so migrations and create_all see every table.
+from filament_tracker.db import catalog_models, request_models  # noqa: E402, F401

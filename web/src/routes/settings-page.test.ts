@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SettingOut } from "#lib/api/settings.ts";
 import type { MachineTokenOut } from "#lib/api/tokens.ts";
-import { fakeFetch } from "../test/fixtures.ts";
+import { fakeFetch, me } from "../test/fixtures.ts";
 
 const SettingsPage = (await import("./settings/+page.svelte")).default;
 
@@ -259,7 +259,7 @@ describe("Settings page", () => {
   it("saving a time zone applies it to this browser at once", async () => {
     const { session } = await import("#lib/auth/session.svelte.ts");
     const { currentTimeZone, setTimeZone } = await import("#lib/format.ts");
-    session.user = { id: 1, username: "frank", role: "admin", time_zone: "UTC" };
+    session.user = me("admin");
     const fetch = serve({
       "PUT /settings/general": {
         ...GENERAL,

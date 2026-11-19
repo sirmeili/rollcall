@@ -12,8 +12,10 @@
   import StartScreen from "#lib/components/phone/StartScreen.svelte";
   import PhoneNav from "#lib/components/shell/PhoneNav.svelte";
   import PhoneTopBar from "#lib/components/shell/PhoneTopBar.svelte";
-  import { pageTitle, requiredRole } from "#lib/nav.ts";
+  import { mayOpen, pageTitle } from "#lib/nav.ts";
   import { isPhonePath, phone } from "#lib/phone/phone-state.svelte.ts";
+  import { seesEveryRequest } from "#lib/requests/access.ts";
+  import { requestsBadge } from "#lib/requests-badge.svelte.ts";
   import { reviewBadge } from "#lib/review-badge.svelte.ts";
   import { theme } from "#lib/theme.svelte.ts";
   import { viewport } from "#lib/viewport.svelte.ts";
@@ -116,10 +118,13 @@
     if (target) void goto(target, { replaceState: true });
   });
 
-  // The Review badge, refreshed on every page change.
+  // The Review and Requests badges, refreshed on every page change. Only Editors and
+  // Admins get the count of Submitted requests.
   $effect(() => {
     void page.url.pathname;
     if (session.user) void reviewBadge.refresh();
+    if (seesEveryRequest(session.user)) void requestsBadge.refresh();
+    else requestsBadge.clear();
   });
 </script>
 
@@ -137,11 +142,12 @@
       user={session.user}
       pathname={page.url.pathname}
       reviewCount={reviewBadge.count}
+      requestCount={requestsBadge.count}
       scan={phone.app}
     />
   {/if}
   <main class:phone={screen.phone}>
-    {#if session.can(requiredRole(page.url.pathname))}
+    {#if mayOpen(session.user, page.url.pathname)}
       {@render children()}
     {:else}
       <Forbidden />
@@ -152,6 +158,7 @@
       user={session.user}
       pathname={page.url.pathname}
       reviewCount={reviewBadge.count}
+      requestCount={requestsBadge.count}
       scan={phone.app}
     />
   {/if}

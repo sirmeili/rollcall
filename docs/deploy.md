@@ -121,7 +121,7 @@ Do not trust the address RollCall sees when the tunnel points at the server's pu
 
 4. In the settings, set `FORWARDED_ALLOW_IPS=172.30.0.10` and `COOKIE_SECURE=true`, then restart RollCall (`docker compose up -d`, or Update the stack in Portainer).
 5. In the Cloudflare dashboard (Zero Trust › Networks › Tunnels › the tunnel › Public Hostname), point the hostname at `http://rollcall:8000`. `cloudflared` finds RollCall by name on the shared network.
-6. Recommended: put the hostname behind Cloudflare Access, so only the people you allow reach the sign-in page. RollCall's own checks still apply behind it.
+6. Recommended: put the hostname behind Cloudflare Access, so only the people you allow reach the sign-in page. RollCall's own checks still apply behind it. Everyone who opens RollCall from outside your home needs to be in the Allow policy, including each Requester you add on the Users page: without it they never reach the sign-in page.
 
 Then check:
 
@@ -244,6 +244,24 @@ docker compose cp rollcall:/backups ./backups-copy    # copy them off the server
 ```
 
 The backup volume is a Docker volume on the same disk by default. To keep backups on another disk, change `rollcall-backups:/backups` in `compose.yaml` to a path, such as `/mnt/backup/rollcall:/backups`, owned by uid 10001 (`sudo chown 10001:10001 /mnt/backup/rollcall`).
+
+Backups hold the database only, not the model files uploaded with print requests. Those are in `/data/request-files` on the data volume, each under a random name; the database records which request each belongs to and its original name. A file uploaded on the request form but never saved with a request is deleted once it is a day old, the next time anyone uploads a file. Copy them off the server alongside the backups:
+
+```sh
+docker compose cp rollcall:/data/request-files ./request-files-copy
+```
+
+To put them back, for example onto a new server after restoring a backup, run from the folder that holds `request-files-copy`:
+
+```sh
+docker compose stop rollcall
+docker run --rm --user 10001 --entrypoint sh \
+  -v rollcall-data:/data -v "$PWD/request-files-copy:/restore:ro" ghcr.io/sirmeili/rollcall:latest \
+  -c 'mkdir -p /data/request-files && cp -r /restore/. /data/request-files/'
+docker compose start rollcall
+```
+
+A request whose file is not there still opens, and its detail page says File missing.
 
 Backups never contain the settings key. With `SETTINGS_KEY` in `.env`, keep `.env` (or the key) safe as well. Without it, the key is `/data/settings.key` on the data volume; copy it once with `docker compose cp rollcall:/data/settings.key ./settings.key` and store it apart from the backups. A backup restored without its key keeps everything except the saved secrets, which the Settings page then asks for again.
 

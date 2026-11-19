@@ -15,6 +15,7 @@
 
   let username = $state("");
   let role = $state<Role>("viewer");
+  let requester = $state(false);
   let password = $state("");
   let problem = $state<string | null>(null);
   let busy = $state(false);
@@ -26,7 +27,7 @@
     busy = true;
     problem = null;
     try {
-      oncreated(await createUser(username.trim().toLowerCase(), role, password));
+      oncreated(await createUser(username.trim().toLowerCase(), role, password, requester));
     } catch (error) {
       problem = describeError(error);
     } finally {
@@ -55,7 +56,12 @@
         {#each ROLES as option (option)}<option value={option}>{ROLE_LABELS[option]}</option>{/each}
       </select>
     </label>
+    <label class="check">
+      <input type="checkbox" bind:checked={requester} aria-describedby="new-req-h" />
+      <span>Requester</span>
+    </label>
   </div>
+  <p class="muted hint" id="new-req-h">A Requester can submit print requests, with any role.</p>
   <label class="field">
     First password
     <input type="password" autocomplete="new-password" maxlength="256" bind:value={password} />
@@ -93,6 +99,16 @@
   .field input,
   .field select {
     color: var(--text);
+  }
+
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    align-self: flex-end;
+    font-size: 14px;
+    font-weight: 600;
   }
 
   .hint {
