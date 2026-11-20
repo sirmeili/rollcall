@@ -2,7 +2,8 @@
 
 The Requests pages are for Editors and Admins (every request), Requesters, and anyone who
 has made a request (their own). Submitting and editing need Requester; changing priority
-needs Editor. Another user's request answers 404, so its existence isn't revealed.
+needs Editor; moving a request is for the people the pipeline names. Another user's request
+answers 404, so its existence isn't revealed.
 """
 
 from datetime import date, datetime
@@ -13,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from filament_tracker.api.request_schemas import (
+    MoveIn,
     PriorityIn,
     RequestEdit,
     RequestIn,
@@ -25,8 +27,9 @@ from filament_tracker.auth import AnyPrincipal, DbSession, Editor, Principal, fo
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.db.types import utcnow
-from filament_tracker.print_requests import service
-from filament_tracker.print_requests.access import may_open_requests, may_see
+from filament_tracker.domain.enums import Role
+from filament_tracker.print_requests import pipeline, service
+from filament_tracker.print_requests.access import may_open_requests, may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
 from filament_tracker.print_requests.read import visible_requests
 from filament_tracker.print_requests.rules import Problems, RequestFields
@@ -67,7 +70,16 @@ def requests_person(principal: RequestsCaller) -> Principal:
     return principal
 
 
+def mover(principal: RequestsCaller) -> Principal:
+    """A caller who might move a request: an Admin, or a person who might own one. Which
+    moves they may make is the pipeline's to say."""
+    if principal.user is None and principal.role is not Role.ADMIN:
+        raise forbidden(pipeline.NOT_YOURS_TO_MOVE)
+    return principal
+
+
 RequesterUser = Annotated[User, Depends(requester)]
+Mover = Annotated[Principal, Depends(mover)]
 RequestsPerson = Annotated[Principal, Depends(requests_person)]
 
 
@@ -165,7 +177,38 @@ def change_priority(
     request_id: int, body: PriorityIn, caller: Editor, session: DbSession, http: Request
 ) -> RequestOut:
     found = find_request(session, caller, request_id)
-    service.change_priority(found, caller.user, body.priority, now=utcnow())
+    try:
+        service.change_priority(found, caller.user, body.priority, now=utcnow())
+    except service.NotAllowed as error:
+        raise forbidden(str(error)) from None
+    session.commit()
+    session.refresh(found)
+    return request_out(http, session, caller, found)
+
+
+@router.post("/{request_id}/moves", response_model=RequestOut)
+def make_move(
+    request_id: int, body: MoveIn, caller: Mover, session: DbSession, http: Request
+) -> RequestOut:
+    """Move the request to another status. It answers 409 when the request is no longer in
+    `from_status`, and 403 when the pipeline has no such move for the caller."""
+    found = find_request(session, caller, request_id)
+    try:
+        pipeline.make_move(
+            found,
+            expected=body.from_status,
+            to_status=body.to_status,
+            movers=movers(caller, found),
+            user=caller.user,
+            note=body.note,
+            now=utcnow(),
+        )
+    except pipeline.Stale as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
+    except pipeline.NotAMove as error:
+        raise forbidden(str(error)) from None
+    except Problems as error:
+        raise problems(error.problems) from None
     session.commit()
     session.refresh(found)
     return request_out(http, session, caller, found)

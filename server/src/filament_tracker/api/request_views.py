@@ -7,6 +7,7 @@ from filament_tracker.api.request_schemas import (
     ChoiceOut,
     HistoryOut,
     ModelFileOut,
+    MoveOut,
     RequesterOut,
     RequestOut,
     RequestRowOut,
@@ -16,9 +17,10 @@ from filament_tracker.api.request_schemas import (
 from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import Principal
 from filament_tracker.db.request_models import PrintRequest
-from filament_tracker.print_requests.access import sees_every_request
+from filament_tracker.print_requests.access import movers, sees_every_request
 from filament_tracker.print_requests.choices import ChoiceReader, swatch
 from filament_tracker.print_requests.files import ModelFiles
+from filament_tracker.print_requests.pipeline import allowed_moves
 from filament_tracker.print_requests.read import model_source
 from filament_tracker.print_requests.service import why_not_editable
 
@@ -117,6 +119,10 @@ def request_out(
         created_at=item.created_at,
         updated_at=item.updated_at,
         can_edit=can_edit(principal, item),
-        can_change_priority=sees_every_request(principal),
+        can_change_priority=sees_every_request(principal) and not item.status.closed,
+        moves=[
+            MoveOut(to_status=m.to_status, reason_required=m.needs_reason)
+            for m in allowed_moves(item, movers(principal, item))
+        ],
         store_address=store.store_address(),
     )

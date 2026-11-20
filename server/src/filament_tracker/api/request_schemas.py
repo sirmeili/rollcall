@@ -59,6 +59,23 @@ class PriorityIn(Strict):
     priority: Priority
 
 
+class MoveIn(Strict):
+    """A move to another request status, naming the status the caller saw it in."""
+
+    from_status: RequestStatus
+    to_status: RequestStatus
+    # A note, or the reason a move needs; trimmed, and checked against the move.
+    note: str = ""
+
+
+class MoveOut(BaseModel):
+    """A move the caller may make now."""
+
+    to_status: RequestStatus
+    # The note is a reason, which may not be left empty.
+    reason_required: bool
+
+
 class RequesterOut(BaseModel):
     id: int
     username: str
@@ -127,7 +144,7 @@ class HistoryOut(BaseModel):
     # An edit's changed fields: title, quantity, needed_by, priority, link, notes, file,
     # filament.
     fields: list[str] | None
-    # A priority change's old and new priority.
+    # A priority change's old and new priority, or a status change's old and new status.
     from_value: str | None
     to_value: str | None
     note: str | None
@@ -166,6 +183,8 @@ class RequestOut(BaseModel):
     # What the caller may do to it now.
     can_edit: bool
     can_change_priority: bool
+    # The moves the caller may make, the main next step first.
+    moves: list[MoveOut]
     # The store Find in store searches, without a trailing slash.
     store_address: str
 
