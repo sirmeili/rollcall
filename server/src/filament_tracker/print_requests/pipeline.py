@@ -65,6 +65,16 @@ S = RequestStatus
 PIPELINE: tuple[Move, ...] = (
     Move(S.SUBMITTED, S.APPROVED, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
     Move(S.SUBMITTED, S.REJECTED, Mover.ADMIN, Note.REASON, emails_requester=True),
+    Move(S.APPROVED, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
+    Move(S.APPROVED, S.WAITING_ON_FILAMENT, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
+    Move(S.WAITING_ON_FILAMENT, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
+    Move(S.QUEUED, S.PRINTING, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
+    Move(S.PRINTING, S.DONE, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
+    Move(S.PRINTING, S.FAILED, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
+    # Reprint: another attempt of the same request.
+    Move(S.FAILED, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
+    Move(S.DONE, S.PICKED_UP, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
+    Move(S.DONE, S.PICKED_UP, Mover.REQUESTER, Note.OPTIONAL, emails_requester=False),
 )
 
 
@@ -83,6 +93,17 @@ class Moved:
     request: PrintRequest
     move: Move
     user: User | None
+
+
+def attempt(request: PrintRequest) -> int:
+    """Which try at printing this is: 1, plus 1 for each Reprint in its history. There is no
+    attempt table or field; a reprinted request stays the same request."""
+    return 1 + sum(
+        1
+        for entry in request.history
+        if entry.kind == HistoryKind.STATUS_CHANGED
+        and (entry.from_value, entry.to_value) == (S.FAILED.value, S.QUEUED.value)
+    )
 
 
 def allowed_moves(request: PrintRequest, movers: set[Mover]) -> list[Move]:

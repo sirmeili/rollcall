@@ -130,7 +130,18 @@ def test_a_move_from_a_status_the_request_has_left_is_refused(
     assert _read(sam, created["id"])["status"] == "rejected"
 
 
-ALLOWED = {("submitted", "approved"), ("submitted", "rejected")}
+ALLOWED = {
+    ("submitted", "approved"),
+    ("submitted", "rejected"),
+    ("approved", "queued"),
+    ("approved", "waiting_on_filament"),
+    ("waiting_on_filament", "queued"),
+    ("queued", "printing"),
+    ("printing", "done"),
+    ("printing", "failed"),
+    ("failed", "queued"),
+    ("done", "picked_up"),
+}
 OTHER_PAIRS = [
     (a.value, b.value)
     for a in RequestStatus
@@ -192,9 +203,6 @@ def test_the_detail_lists_the_moves_the_caller_may_make(
     ]
     assert _read(dana, created["id"])["moves"] == []
     assert _read(sam, created["id"])["moves"] == []
-    # Nothing more to do once it is approved, until the next moves are added.
-    approved = move(frank, created["id"], "submitted", "approved").json()
-    assert approved["moves"] == []
 
 
 def test_an_admin_machine_token_moves_a_request_as_no_one(

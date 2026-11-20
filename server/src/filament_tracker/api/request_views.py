@@ -20,7 +20,7 @@ from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.print_requests.access import movers, sees_every_request
 from filament_tracker.print_requests.choices import ChoiceReader, swatch
 from filament_tracker.print_requests.files import ModelFiles
-from filament_tracker.print_requests.pipeline import allowed_moves
+from filament_tracker.print_requests.pipeline import allowed_moves, attempt
 from filament_tracker.print_requests.read import model_source
 from filament_tracker.print_requests.service import why_not_editable
 
@@ -124,5 +124,6 @@ def request_out(
             MoveOut(to_status=m.to_status, reason_required=m.needs_reason)
             for m in allowed_moves(item, movers(principal, item))
         ],
+        attempt=attempt(item),
         store_address=store.store_address(),
     )

@@ -185,6 +185,8 @@ class RequestOut(BaseModel):
     can_change_priority: bool
     # The moves the caller may make, the main next step first.
     moves: list[MoveOut]
+    # Which try at printing it this is: 1, plus 1 for each Reprint.
+    attempt: int
     # The store Find in store searches, without a trailing slash.
     store_address: str
 
