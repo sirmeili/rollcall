@@ -1,9 +1,10 @@
 """A spool's net weight and grams left (ADR-0019): figures on the spool, not events.
 
 - Net weight comes from the tag's filament weight. A spool with none takes its product's
-  catalog color's size weight when that color has exactly one size, otherwise 1000 g.
-- Grams left is the net weight on Received, and net weight x remaining % whenever the AMS
-  writes a new remaining %. An Admin can set either by hand.
+  catalog color's size weight when all that color's sizes weigh the same, otherwise 1000 g.
+- Grams left is the net weight on Received, including a spool first seen as Opened (received
+  and opened in one step); opening a received spool keeps it. It is net weight x remaining %
+  whenever the AMS writes a new remaining %. An Admin can set either by hand.
 
 Callers own the transaction: nothing here commits.
 """
@@ -35,10 +36,13 @@ def fallback_net_weight(session: Session, product: Product) -> int:
     color = product.catalog_manual_uuid or product.catalog_auto_uuid
     if color is None:
         return FALLBACK_NET_WEIGHT_G
-    weights = session.scalars(
-        select(CatalogSize.filament_weight).where(CatalogSize.variant_uuid == color)
-    ).all()
-    return round(weights[0]) if len(weights) == 1 else FALLBACK_NET_WEIGHT_G
+    # Several sizes of one weight (a refill and a spool, say) still give one weight.
+    weights = set(
+        session.scalars(
+            select(CatalogSize.filament_weight).where(CatalogSize.variant_uuid == color)
+        )
+    )
+    return round(weights.pop()) if len(weights) == 1 else FALLBACK_NET_WEIGHT_G
 
 
 def give_fallback_net_weight(session: Session, spool: Spool) -> None:

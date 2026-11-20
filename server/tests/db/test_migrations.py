@@ -334,7 +334,7 @@ def test_existing_spools_get_net_weight_and_grams_left(tmp_path: Path) -> None:
                 " moved_from) VALUES ('f', 'b', 0, 'TPU', 'TPU', '[]')"
             )
         )
-        for color in ("one", "two"):
+        for color in ("one", "two", "same"):
             connection.execute(
                 text(
                     "INSERT INTO catalog_variant (uuid, filament_uuid, position, name, color_hex,"
@@ -343,7 +343,13 @@ def test_existing_spools_get_net_weight_and_grams_left(tmp_path: Path) -> None:
                 ),
                 {"c": color},
             )
-        for size, color, weight in [("s1", "one", 500.0), ("s2", "two", 500.0), ("s3", "two", 250)]:
+        for size, color, weight in [
+            ("s1", "one", 500.0),
+            ("s2", "two", 500.0),
+            ("s3", "two", 250),
+            ("s4", "same", 750.0),
+            ("s5", "same", 750.0),
+        ]:
             connection.execute(
                 text(
                     "INSERT INTO catalog_size (uuid, variant_uuid, filament_weight, refill,"
@@ -353,8 +359,13 @@ def test_existing_spools_get_net_weight_and_grams_left(tmp_path: Path) -> None:
                 {"s": size, "c": color, "w": weight},
             )
         # 1: no catalog link; 2: linked by hand to a color with one size; 3: linked by its
-        # tag to a color with two sizes.
-        for id_, manual, auto in [(1, None, None), (2, "one", None), (3, None, "two")]:
+        # tag to a color with two weights; 4: to a color with two sizes of one weight.
+        for id_, manual, auto in [
+            (1, None, None),
+            (2, "one", None),
+            (3, None, "two"),
+            (4, None, "same"),
+        ]:
             connection.execute(
                 text(
                     "INSERT INTO product (id, filament_type, color_rgba, display_name,"
@@ -373,6 +384,7 @@ def test_existing_spools_get_net_weight_and_grams_left(tmp_path: Path) -> None:
             (6, 1, "open", 50, None),  # seen by the AMS first, no tag
             (7, 1, "empty", 0, 1000),  # empty: unknown
             (8, 1, None, None, 0),  # Unknown state, a tag with no weight
+            (9, 4, "sealed", None, None),  # placeholder, two sizes of one weight
         ]
         for id_, product, state, pct, weight in spools:
             connection.execute(
@@ -414,4 +426,5 @@ def test_existing_spools_get_net_weight_and_grams_left(tmp_path: Path) -> None:
         (6, 1000, 500),
         (7, 1000, None),
         (8, 1000, None),
+        (9, 750, 750),
     ]

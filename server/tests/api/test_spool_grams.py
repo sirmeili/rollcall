@@ -102,6 +102,15 @@ def test_a_placeholder_whose_color_has_several_sizes_holds_1000_g(
     assert _placeholder(editor, product_id)["net_weight_g"] == 1000
 
 
+def test_a_placeholder_whose_color_has_several_sizes_of_one_weight_takes_it(
+    editor: TestClient, db: Session
+) -> None:
+    product_id = _product(editor)
+    _link(editor, product_id, _catalog_color(db, 500.0, 500.0))
+
+    assert _placeholder(editor, product_id)["net_weight_g"] == 500
+
+
 def test_scanning_a_placeholders_tag_replaces_the_fallback_with_the_tag_weight(
     client: TestClient, token: str, editor: TestClient, viewer: TestClient
 ) -> None:

@@ -28,14 +28,15 @@ def upgrade() -> None:
 
 
 def _fill(connection: sa.Connection) -> None:
-    """Net weight from the spool's tag, else its catalog color's only size, else 1000 g.
+    """Net weight from the spool's tag, else its catalog color's size weight when all its
+    sizes weigh the same, else 1000 g.
     Grams left: the net weight when Sealed, net weight x remaining % when Open with one,
     otherwise unknown."""
-    sizes: dict[str, list[float]] = {}
+    sizes: dict[str, set[float]] = {}
     for color, weight in connection.execute(
         sa.text("SELECT variant_uuid, filament_weight FROM catalog_size")
     ):
-        sizes.setdefault(color, []).append(weight)
+        sizes.setdefault(color, set()).add(weight)
     tag_weights: dict[int, int] = {}
     for spool_id, decoded in connection.execute(
         sa.text(
@@ -56,8 +57,9 @@ def _fill(connection: sa.Connection) -> None:
     for spool_id, state, pct, color in spools:
         net = tag_weights.get(spool_id)
         if net is None:
-            own = sizes.get(color or "", [])
-            net = round(own[0]) if len(own) == 1 else FALLBACK_NET_WEIGHT_G
+            # Several sizes of one weight still give one weight.
+            own = sizes.get(color or "", set())
+            net = round(next(iter(own))) if len(own) == 1 else FALLBACK_NET_WEIGHT_G
         left = None
         if state == "sealed":
             left = net
