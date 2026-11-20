@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import Engine, inspect, text
+from sqlalchemy.exc import IntegrityError
 
 from filament_tracker.db.engine import create_db_engine
 from filament_tracker.db.migrate import downgrade, upgrade
@@ -257,3 +259,63 @@ def test_requester_upgrades_existing_users_left_off(tmp_path: Path) -> None:
     engine.dispose()
     assert "requester" not in columns
     assert "print_request" not in tables
+
+
+def test_the_request_pipeline_keeps_existing_requests_submitted(tmp_path: Path) -> None:
+    url = f"sqlite:///{tmp_path / 'requests.db'}"
+    upgrade(url, "8be4824dafad")
+    engine = create_db_engine(url)
+    when = "2026-11-18 12:00:00.000000"
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO user (id, username, password_hash, role, requester,"
+                " password_changed_at, created_at) VALUES (1, 'sam', 'x', 'viewer', 1, :w, :w)"
+            ),
+            {"w": when},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO print_request (id, requester_id, title, notes, quantity, priority,"
+                " status, created_at, updated_at) VALUES (1, 1, 'Lamp', 'here', 1, 'normal',"
+                " 'submitted', :w, :w)"
+            ),
+            {"w": when},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO request_history (request_id, kind, user_id, at)"
+                " VALUES (1, 'submitted', 1, :w)"
+            ),
+            {"w": when},
+        )
+    engine.dispose()
+
+    upgrade(url)
+
+    engine = create_db_engine(url)
+    with engine.begin() as connection:
+        status = connection.execute(text("SELECT status FROM print_request")).scalar()
+        kinds = connection.execute(text("SELECT kind FROM request_history")).scalars().all()
+        # The widened checks take the new statuses and history kind, and nothing else.
+        connection.execute(text("UPDATE print_request SET status = 'waiting_on_filament'"))
+        connection.execute(
+            text(
+                "INSERT INTO request_history (request_id, kind, user_id, at)"
+                " VALUES (1, 'status_changed', 1, :w)"
+            ),
+            {"w": when},
+        )
+    with pytest.raises(IntegrityError), engine.begin() as connection:
+        connection.execute(text("UPDATE print_request SET status = 'lost'"))
+    engine.dispose()
+    assert (status, kinds) == ("submitted", ["submitted"])
+
+    downgrade(url, "8be4824dafad")
+
+    engine = create_db_engine(url)
+    with engine.connect() as connection:
+        status = connection.execute(text("SELECT status FROM print_request")).scalar()
+        kinds = connection.execute(text("SELECT kind FROM request_history")).scalars().all()
+    engine.dispose()
+    assert (status, kinds) == ("submitted", ["submitted"])
