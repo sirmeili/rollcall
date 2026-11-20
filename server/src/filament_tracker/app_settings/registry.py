@@ -16,6 +16,7 @@ from zoneinfo import available_timezones
 from filament_tracker.ha.broker import parse_mqtt_url
 from filament_tracker.ha.rest import parse_ha_url
 from filament_tracker.mail.address import clean_address
+from filament_tracker.mail.transport import SECURITIES
 
 MAX_VALUE = 1024
 PREFIX_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}(/[A-Za-z0-9_-]{1,64}){0,3}$")
@@ -27,7 +28,6 @@ ACCESS_SECRET_PATTERN = re.compile(r"cfast_[A-Za-z0-9]{48}|[A-Za-z0-9]{32,128}")
 MIN_SESSION_DAYS, MAX_SESSION_DAYS = 1, 365
 CATALOG_SYNCS = ("off", "daily", "weekly")
 MIN_CUTOFF, MAX_CUTOFF = 0.5, 50.0
-SMTP_SECURITIES = ("starttls", "tls", "none")
 HOST_PATTERN = re.compile(r"[A-Za-z0-9.-]{1,253}|\[[0-9A-Fa-f:.]{2,45}\]")
 
 
@@ -144,8 +144,9 @@ def smtp_port(value: str) -> str:
 
 
 def smtp_security(value: str) -> str:
-    if value not in SMTP_SECURITIES:
-        raise ValueError("use starttls, tls or none")
+    if value not in SECURITIES:
+        *first, last = SECURITIES
+        raise ValueError(f"use {', '.join(first)} or {last}")
     return value
 
 

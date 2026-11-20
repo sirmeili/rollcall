@@ -6,11 +6,13 @@ pass a fake outbox.
 
 from dataclasses import dataclass
 from email.message import EmailMessage
-from typing import Literal, Protocol
+from typing import Literal, Protocol, get_args
 
 from pydantic import SecretStr
 
+# How to secure the connection; the only list of them, which the settings check against.
 Security = Literal["starttls", "tls", "none"]
+SECURITIES: tuple[Security, ...] = get_args(Security)
 
 
 @dataclass(frozen=True)

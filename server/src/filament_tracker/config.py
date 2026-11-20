@@ -12,6 +12,8 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from filament_tracker.mail.transport import Security
+
 Network = IPv4Network | IPv6Network
 Networks = Annotated[tuple[Network, ...], NoDecode]
 
@@ -85,7 +87,7 @@ class Settings(BaseSettings):
     # logged or returned.
     smtp_host: str | None = None
     smtp_port: int = Field(default=587, ge=1, le=65535)
-    smtp_security: Literal["starttls", "tls", "none"] = "starttls"
+    smtp_security: Security = "starttls"
     smtp_user: str | None = None
     smtp_password: SecretStr | None = None
     smtp_from: str | None = None
