@@ -349,6 +349,113 @@ describe("Attempt", () => {
   });
 });
 
+describe("Cancelling a request", () => {
+  const CANCEL_FREELY: Move = { to_status: "cancelled", reason_required: false };
+  const CANCEL_WITH_REASON: Move = { to_status: "cancelled", reason_required: true };
+
+  it.each([
+    ["the requester", "queued", SAM, [CANCEL_FREELY], ["Cancel request"]],
+    [
+      "an Admin",
+      "submitted",
+      FRANK,
+      [...APPROVE_OR_REJECT, CANCEL_WITH_REASON],
+      ["Approve", "Reject", "Cancel request"],
+    ],
+    ["an Admin", "failed", FRANK, [CANCEL_WITH_REASON], ["Cancel request"]],
+  ] as const)("offers %s Cancel request in %s", async (_who, status, user, moves, buttons) => {
+    signIn(user);
+    api.getRequest.mockResolvedValue(request({ status, moves: [...moves] }));
+    render(DetailPage);
+
+    const cancel = await screen.findByRole("button", { name: "Cancel request" });
+    expect(
+      within(actions())
+        .getAllByRole("button")
+        .map((b) => b.textContent?.trim()),
+    ).toEqual(buttons);
+    expect(cancel).not.toHaveClass("primary");
+  });
+
+  it.each([
+    ["an Editor", "submitted", DANA],
+    ["the requester", "printing", SAM],
+    ["an Admin", "done", FRANK],
+    ["the requester", "picked_up", SAM],
+  ] as const)(
+    "offers %s no Cancel request when the server lists none in %s",
+    async (_who, status, user) => {
+      signIn(user);
+      api.getRequest.mockResolvedValue(request({ status, moves: [] }));
+      render(DetailPage);
+
+      await screen.findByRole("heading", { name: "Wingspan insert" });
+      expect(screen.queryByRole("button", { name: "Cancel request" })).toBeNull();
+    },
+  );
+
+  it("lets the requester cancel with an optional note", async () => {
+    signIn(SAM);
+    api.getRequest.mockResolvedValue(request({ moves: [CANCEL_FREELY] }));
+    api.moveRequest.mockResolvedValue(
+      request({
+        status: "cancelled",
+        history: [{ ...moved("cancelled", null), username: "sam" }],
+      }),
+    );
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Cancel request" }));
+    const dialog = screen.getByRole("dialog", { name: "Cancel this request?" });
+    const note = within(dialog).getByLabelText("Note (optional)");
+    expect(note).not.toBeRequired();
+    expect(dialog).toHaveTextContent("Editors and Admins see the note.");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel request" }));
+
+    expect(api.moveRequest).toHaveBeenCalledWith(41, "submitted", "cancelled", "");
+    expect(statusChip()).toHaveTextContent("Status: Cancelled");
+    expect(await screen.findByText("Cancelled by sam")).toBeVisible();
+  });
+
+  it("asks an Admin for a reason before cancelling someone else's request", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request({ status: "failed", moves: [CANCEL_WITH_REASON] }));
+    api.moveRequest.mockResolvedValue(request({ status: "cancelled" }));
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Cancel request" }));
+    const dialog = screen.getByRole("dialog", { name: "Cancel this request?" });
+    const reason = within(dialog).getByLabelText("Reason");
+    const confirm = within(dialog).getByRole("button", { name: "Cancel request" });
+    expect(reason).toBeRequired();
+    expect(dialog).toHaveTextContent("The requester sees the reason.");
+    expect(confirm).toBeDisabled();
+    await userEvent.type(reason, "The model can't be printed.");
+    await userEvent.click(confirm);
+
+    expect(api.moveRequest).toHaveBeenCalledWith(
+      41,
+      "failed",
+      "cancelled",
+      "The model can't be printed.",
+    );
+  });
+
+  it("keeps the request when the dialog is closed", async () => {
+    signIn(SAM);
+    api.getRequest.mockResolvedValue(request({ moves: [CANCEL_FREELY] }));
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Cancel request" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Keep request" }),
+    );
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(api.moveRequest).not.toHaveBeenCalled();
+  });
+});
+
 describe("Status badge", () => {
   it("names the status on the list", async () => {
     signIn(DANA);

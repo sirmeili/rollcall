@@ -36,6 +36,8 @@ export interface MoveWords {
   question: string;
   /** The history entry's title. */
   done: string;
+  /** The dialog's button that closes it without moving, when "Cancel" would be unclear. */
+  dismiss?: string;
 }
 
 const MOVE_WORDS: Partial<Record<RequestStatus, MoveWords>> = {
@@ -53,6 +55,12 @@ const MOVE_WORDS: Partial<Record<RequestStatus, MoveWords>> = {
     action: "Mark Picked Up",
     question: "Mark this request Picked Up?",
     done: "Marked Picked Up",
+  },
+  cancelled: {
+    action: "Cancel request",
+    question: "Cancel this request?",
+    done: "Cancelled",
+    dismiss: "Keep request",
   },
 };
 

@@ -11,7 +11,7 @@ refused rather than made twice. Each move writes one `status_changed` history en
 from and to status, the user, the time and the note or reason.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
 
@@ -53,6 +53,8 @@ class Move:
     by: Mover
     note: Note
     emails_requester: bool
+    # What an Admin moving their own request is asked for instead; no one is emailed then.
+    owner_note: Note | None = None
 
     @property
     def needs_reason(self) -> bool:
@@ -75,6 +77,22 @@ PIPELINE: tuple[Move, ...] = (
     Move(S.FAILED, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
     Move(S.DONE, S.PICKED_UP, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
     Move(S.DONE, S.PICKED_UP, Mover.REQUESTER, Note.OPTIONAL, emails_requester=False),
+    # Cancel, while the request hasn't started printing; last, so the next steps come first.
+    *(
+        Move(status, S.CANCELLED, Mover.REQUESTER, Note.OPTIONAL, emails_requester=False)
+        for status in (S.SUBMITTED, S.APPROVED, S.WAITING_ON_FILAMENT, S.QUEUED)
+    ),
+    *(
+        Move(
+            status,
+            S.CANCELLED,
+            Mover.ADMIN,
+            Note.REASON,
+            emails_requester=True,
+            owner_note=Note.OPTIONAL,
+        )
+        for status in (S.SUBMITTED, S.APPROVED, S.WAITING_ON_FILAMENT, S.QUEUED, S.FAILED)
+    ),
 )
 
 
@@ -108,7 +126,8 @@ def attempt(request: PrintRequest) -> int:
 
 def allowed_moves(request: PrintRequest, movers: set[Mover]) -> list[Move]:
     """The moves these movers may make from the request's status now, one per status they
-    lead to. A mover who is both an Admin and the requester moves as an Admin."""
+    lead to. A mover who is both an Admin and the requester moves as an Admin, asked for the
+    move's owner note where it has one."""
     found: dict[RequestStatus, Move] = {}
     for rule in PIPELINE:
         if rule.from_status != request.status or rule.by not in movers:
@@ -116,7 +135,15 @@ def allowed_moves(request: PrintRequest, movers: set[Mover]) -> list[Move]:
         held = found.get(rule.to_status)
         if held is None or (held.by is not Mover.ADMIN and rule.by is Mover.ADMIN):
             found[rule.to_status] = rule
+    if Mover.REQUESTER in movers:
+        found = {to: _as_owner(rule) for to, rule in found.items()}
     return list(found.values())
+
+
+def _as_owner(rule: Move) -> Move:
+    if rule.by is not Mover.ADMIN or rule.owner_note is None:
+        return rule
+    return replace(rule, note=rule.owner_note, emails_requester=False)
 
 
 def clean_note(note: str, rule: Move) -> str:

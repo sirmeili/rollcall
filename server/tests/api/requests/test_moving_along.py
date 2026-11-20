@@ -219,7 +219,7 @@ def test_queueing_an_approved_request_is_not_a_reprint(sam: TestClient, frank: T
 
 # --- The moves offered ------------------------------------------------------------------------
 
-OPTIONAL = False
+CANCEL = {"to_status": "cancelled", "reason_required": True}
 ADMIN_OFFERS = {
     "approved": ["queued", "waiting_on_filament"],
     "waiting_on_filament": ["queued"],
@@ -228,6 +228,7 @@ ADMIN_OFFERS = {
     "done": ["picked_up"],
     "failed": ["queued"],
 }
+CANCELLABLE = {"approved", "waiting_on_filament", "queued", "failed"}
 
 
 @pytest.mark.parametrize(("status", "offered"), ADMIN_OFFERS.items())
@@ -238,17 +239,18 @@ def test_the_detail_offers_an_admin_the_next_steps_main_one_first(
 
     moves = _read(frank, request_id)["moves"]
 
-    assert [m["to_status"] for m in moves] == offered
-    assert all(m["reason_required"] is OPTIONAL for m in moves)
+    steps = [{"to_status": to, "reason_required": False} for to in offered]
+    assert moves == steps + ([CANCEL] if status in CANCELLABLE else [])
 
 
 @pytest.mark.parametrize("status", ["approved", "waiting_on_filament", "queued", "printing"])
-def test_the_detail_offers_the_requester_nothing_before_done(
+def test_the_detail_offers_the_requester_only_cancel_before_done(
     sam: TestClient, frank: TestClient, status: str
 ) -> None:
     request_id = _in(sam, frank, status)
 
-    assert _read(sam, request_id)["moves"] == []
+    cancel = [{"to_status": "cancelled", "reason_required": False}]
+    assert _read(sam, request_id)["moves"] == ([] if status == "printing" else cancel)
 
 
 def test_the_detail_offers_the_requester_picked_up_once_done(

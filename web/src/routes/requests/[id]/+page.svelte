@@ -163,6 +163,7 @@
       <MoveDialog
         status={shown.status}
         {move}
+        mine={session.user?.id === request.requester.id}
         {busy}
         problem={moveProblem}
         failure={moveFailure}
