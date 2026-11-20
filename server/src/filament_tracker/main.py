@@ -41,6 +41,7 @@ from filament_tracker.mail.sender import MailSender
 from filament_tracker.mail.settings import smtp_server
 from filament_tracker.mail.smtp import SmtpSender
 from filament_tracker.mail.transport import MailTransport
+from filament_tracker.print_requests import holding
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
 from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
 from filament_tracker.printer.manager import PrinterManager
@@ -50,6 +51,7 @@ from filament_tracker.services.catalog_sync import CatalogSyncer
 from filament_tracker.services.cooldown import TEST_EMAIL_GAP, Cooldown
 from filament_tracker.services.printers import seed_printers
 from filament_tracker.services.setup import SetupGate
+from filament_tracker.services.stock_changes import on_change
 from filament_tracker.services.throttle import LoginThrottle
 from filament_tracker.webapp import default_web_dir, mount_web_app
 
@@ -82,6 +84,8 @@ def create_app(
         upgrade(settings.database_url)
         engine = create_db_engine(settings.database_url)
         app.state.session_factory = create_session_factory(engine)
+        # Waiting print requests take filament as soon as stock changes (ADR-0020).
+        on_change(app.state.session_factory, holding.retry)
         box = SecretBox(load_key(settings.settings_key, settings.database_url))
         app.state.secret_box = box
         with app.state.session_factory() as session:

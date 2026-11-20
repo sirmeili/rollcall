@@ -14,17 +14,25 @@ attempt's. It places holds and lands on Queued when every choice is covered, oth
 Waiting on Filament: one move by the Admin either way, with no email.
 
 The moves to Done, Failed and Cancelled release the request's holds, with that reason.
+
+When stock changes (ADR-0020), Approved and Waiting on Filament requests are retried in
+Active-tab order: each short choice takes more holds, and a request with every choice
+covered moves to Queued automatically, with no user and no email. A Queued request is never
+moved back; one that becomes short shows its shortfall.
 """
 
 from datetime import datetime
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import FilamentChoice, PrintRequest
+from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import ReleaseReason, RequestStatus
 from filament_tracker.print_requests import pipeline
 from filament_tracker.print_requests.pipeline import Moved, Mover
+from filament_tracker.print_requests.read import sort_key
 from filament_tracker.print_requests.rules import Problems
 from filament_tracker.services import holds
 from filament_tracker.services.catalog_links import linked_product
@@ -50,6 +58,9 @@ REPRINT = (RequestStatus.FAILED, RequestStatus.QUEUED)
 
 # Where a request's choices are held and may be short.
 HOLDING = (RequestStatus.APPROVED, RequestStatus.WAITING_ON_FILAMENT, RequestStatus.QUEUED)
+
+# Where a request waits for filament, and is retried when stock changes.
+WAITING = (RequestStatus.APPROVED, RequestStatus.WAITING_ON_FILAMENT)
 
 
 def holder(choice: FilamentChoice) -> holds.Holder:
@@ -210,3 +221,37 @@ def available(session: Session, choice: FilamentChoice) -> int:
     """The grams not held of the product the choice would be held on (0 with none)."""
     found = product_id(session, choice)
     return 0 if found is None else holds.product_available(session, found)
+
+
+def _hold_more(session: Session, wanted: dict[FilamentChoice, int], now: datetime) -> bool:
+    """Hold more for each short choice, toward its grams; whether every choice is covered."""
+    covered = True
+    for choice, grams in wanted.items():
+        short = holds.shortfall(session, holder(choice), grams)
+        if short:
+            found = product_id(session, choice)
+            short = holds.place(session, holder(choice), found, short, now).short
+        covered = covered and short == 0
+    return covered
+
+
+def retry(session: Session) -> None:
+    """Retry the requests waiting for filament, in Active-tab order, after stock changed. A
+    request whose choices have no grams yet (approved before grams were asked) is left."""
+    now = utcnow()
+    waiting = session.scalars(select(PrintRequest).where(PrintRequest.status.in_(WAITING)))
+    for request in sorted(waiting, key=sort_key):
+        wanted = {c: c.grams for c in request.choices if c.grams is not None}
+        if len(wanted) < len(request.choices):
+            continue
+        if _hold_more(session, wanted, now):
+            pipeline.make_move(
+                request,
+                expected=request.status,
+                to_status=RequestStatus.QUEUED,
+                movers={Mover.AUTOMATIC},
+                user=None,
+                note="",
+                now=now,
+            )
+    session.flush()

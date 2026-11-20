@@ -81,6 +81,8 @@ PIPELINE: tuple[Move, ...] = (
     Move(S.APPROVED, S.QUEUED, Mover.AUTOMATIC, Note.OPTIONAL, emails_requester=False),
     Move(S.APPROVED, S.WAITING_ON_FILAMENT, Mover.AUTOMATIC, Note.OPTIONAL, emails_requester=False),
     Move(S.WAITING_ON_FILAMENT, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
+    # Retried when stock changes, once its holds cover every choice.
+    Move(S.WAITING_ON_FILAMENT, S.QUEUED, Mover.AUTOMATIC, Note.OPTIONAL, emails_requester=False),
     Move(S.QUEUED, S.PRINTING, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
     Move(S.PRINTING, S.DONE, Mover.ADMIN, Note.OPTIONAL, emails_requester=True, photos=True),
     Move(S.PRINTING, S.FAILED, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
