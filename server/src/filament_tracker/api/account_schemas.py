@@ -42,6 +42,11 @@ class Me(UserBase):
     time_zone: str
     # Has made a print request, so keeps the Requests page even when no longer a Requester.
     has_requests: bool
+    # The Account switches: emails about one's own requests, and (Admins) about new ones.
+    email_on_request_change: bool
+    email_on_new_request: bool
+    # Whether this server can send email at all (an SMTP host is saved).
+    email_set_up: bool
 
 
 class UserOut(UserBase):
@@ -67,7 +72,9 @@ class UserUpdate(Strict):
 
 
 class AccountUpdate(Strict):
-    """What a user changes on their own Account page."""
+    """What a user changes on their own Account page. Each field left out stays as it is."""
 
-    # An empty value (or null) clears it; left out, it stays as it is.
+    # An empty value (or null) clears it.
     email: EmailText | None = None
+    email_on_request_change: bool | None = None
+    email_on_new_request: bool | None = None
