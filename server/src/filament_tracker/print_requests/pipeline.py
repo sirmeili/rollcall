@@ -106,11 +106,13 @@ class NotAMove(Exception):
 
 @dataclass(frozen=True)
 class Moved:
-    """A move that was made: which one, and by whom (None for a later automatic move)."""
+    """A move that was made: which one, by whom (None for a later automatic move), and its
+    note or reason, trimmed ("" for none)."""
 
     request: PrintRequest
     move: Move
     user: User | None
+    note: str = ""
 
 
 def attempt(request: PrintRequest) -> int:
@@ -186,4 +188,4 @@ def make_move(
     )
     request.status = to_status
     request.updated_at = now
-    return Moved(request, rule, user)
+    return Moved(request, rule, user, cleaned)

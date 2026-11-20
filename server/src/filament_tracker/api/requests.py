@@ -6,6 +6,7 @@ needs Editor; moving a request is for the people the pipeline names. Another use
 answers 404, so its existence isn't revealed.
 """
 
+from collections.abc import Callable
 from datetime import date, datetime
 from typing import Annotated
 from zoneinfo import ZoneInfo
@@ -28,7 +29,9 @@ from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus, Role
-from filament_tracker.print_requests import pipeline, service
+from filament_tracker.mail.message import Email
+from filament_tracker.mail.sender import MailSender
+from filament_tracker.print_requests import emails, pipeline, service
 from filament_tracker.print_requests.access import may_open_requests, may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
 from filament_tracker.print_requests.read import ListFilter, Tab, visible_requests
@@ -111,6 +114,23 @@ def _fields(body: RequestIn) -> RequestFields:
     )
 
 
+def _mail(http: Request) -> MailSender:
+    return http.app.state.mail
+
+
+def _public_url(http: Request) -> str | None:
+    """Where emails link to: PUBLIC_URL only, never this request's Host header."""
+    return http.app.state.settings_store.text("public_url")
+
+
+def _send(http: Request, build: Callable[[str | None], list[Email]]) -> None:
+    """Build the emails once the change has committed, from the public URL, and hand them to
+    the background sender; nothing is built while email is off."""
+    mail = _mail(http)
+    if mail.on:
+        mail.send_later(build(_public_url(http)))
+
+
 def _refused(error: Exception) -> HTTPException:
     if isinstance(error, Problems):
         return problems(error.problems)
@@ -151,6 +171,7 @@ def submit(
     except (Problems, service.NotAllowed) as error:
         raise _refused(error) from None
     session.commit()
+    _send(http, lambda public_url: emails.new_request_emails(session, created, public_url))
     session.refresh(created)
     return request_out(http, session, caller, created)
 
@@ -207,7 +228,7 @@ def make_move(
     `from_status`, and 403 when the pipeline has no such move for the caller."""
     found = find_request(session, caller, request_id)
     try:
-        pipeline.make_move(
+        moved = pipeline.make_move(
             found,
             expected=body.from_status,
             to_status=body.to_status,
@@ -223,5 +244,6 @@ def make_move(
     except Problems as error:
         raise problems(error.problems) from None
     session.commit()
+    _send(http, lambda public_url: emails.move_emails(moved, public_url))
     session.refresh(found)
     return request_out(http, session, caller, found)
