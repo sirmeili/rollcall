@@ -73,6 +73,12 @@ ROUTES = [
     ("put", "/api/v1/settings/home-assistant", Role.ADMIN),
     ("delete", "/api/v1/settings/home-assistant/ha_url", Role.ADMIN),
     ("post", "/api/v1/settings/home-assistant/test", Role.ADMIN),
+    ("get", "/api/v1/settings/email", Role.ADMIN),
+    ("put", "/api/v1/settings/email", Role.ADMIN),
+    ("delete", "/api/v1/settings/email/smtp_host", Role.ADMIN),
+    ("get", "/api/v1/settings/email/status", Role.ADMIN),
+    ("post", "/api/v1/settings/email/test", Role.ADMIN),
+    ("patch", "/api/v1/auth/me", Role.VIEWER),
     ("post", f"/api/v1/events/{uuid4()}/revert", Role.EDITOR),
 ]
 
