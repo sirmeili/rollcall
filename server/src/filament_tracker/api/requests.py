@@ -84,7 +84,7 @@ def mover(principal: RequestsCaller) -> Principal:
 
 
 RequesterUser = Annotated[User, Depends(requester)]
-Mover = Annotated[Principal, Depends(mover)]
+MovingCaller = Annotated[Principal, Depends(mover)]
 RequestsPerson = Annotated[Principal, Depends(requests_person)]
 
 
@@ -221,7 +221,7 @@ def change_priority(
 
 @router.post("/{request_id}/moves", response_model=RequestOut)
 def make_move(
-    request_id: int, body: MoveIn, caller: Mover, session: DbSession, http: Request
+    request_id: int, body: MoveIn, caller: MovingCaller, session: DbSession, http: Request
 ) -> RequestOut:
     """Move the request to another status, saving any photo uploads with a move that takes
     them (Done). It answers 409 when the request is no longer in `from_status`, and 403 when
