@@ -1,8 +1,8 @@
 <script lang="ts">
   /** A filament choice's grams and holds, once approved. Editors and Admins see its grams,
-   * each hold (spool and grams) and what is short; the requester sees only whether it is
-   * held or waiting on filament. Nothing shows before Approve, or once the request has
-   * left the statuses that hold filament. */
+   * each hold (spool and grams) and what is short; anyone else gets only whether it is held
+   * (`held`) and sees "Held" or "Waiting on filament". Nothing shows before Approve, or once
+   * the request has left the statuses that hold filament. */
   import type { Choice } from "#lib/api/requests.ts";
 
   interface Props {
@@ -17,9 +17,9 @@
   }
 </script>
 
-{#if choice.short_g !== null}
-  {#if choice.holds === null}
-    <span class="holds">{choice.short_g > 0 ? "Waiting on filament" : "Held"}</span>
+{#if choice.held !== null}
+  {#if choice.holds === null || choice.short_g === null}
+    <span class="holds">{choice.held ? "Held" : "Waiting on filament"}</span>
   {:else}
     <span class="holds">
       <span>{gramsText(choice.grams, choice.short_g)}</span>

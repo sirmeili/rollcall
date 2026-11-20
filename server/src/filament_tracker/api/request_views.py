@@ -94,6 +94,7 @@ def request_out(
     choices = []
     for choice in item.choices:
         shown = reader.show(choice)
+        short = holding.shortfall(session, item, choice)
         choices.append(
             ChoiceOut(
                 id=choice.id,
@@ -112,10 +113,11 @@ def request_out(
                 in_catalog=shown.in_catalog,
                 multi_color=shown.multi_color,
                 similar=[SimilarOut.model_validate(s, from_attributes=True) for s in shown.similar],
-                grams=choice.grams,
-                short_g=holding.shortfall(session, item, choice),
+                held=None if short is None else short == 0,
+                grams=choice.grams if staff else None,
+                short_g=short if staff else None,
                 holds=_holds_out(session, choice) if staff else None,
-                available_g=holding.available(session, choice),
+                available_g=holding.available(session, choice) if staff else None,
             )
         )
     history = [

@@ -92,6 +92,7 @@ function choice(fields: Partial<Choice>): Choice {
     in_catalog: true,
     multi_color: false,
     similar: [],
+    held: null,
     grams: null,
     short_g: null,
     holds: null,

@@ -219,16 +219,24 @@ def test_grams_are_never_promised_twice(
     assert _read(frank, first["id"])["choices"][0]["short_g"] == 0
 
 
-def test_the_requester_sees_grams_and_shortfall_but_no_holds(
-    client: TestClient, token: str, sam: TestClient, frank: TestClient
+@pytest.mark.parametrize(("grams", "held"), [(100, True), (5000, False)])
+def test_the_requester_sees_only_whether_each_choice_is_held(
+    client: TestClient, token: str, sam: TestClient, frank: TestClient, grams: int, held: bool
 ) -> None:
     pla = stock(client, token, "000000FF", "PLA", "received")
     created = submitted(sam, choices=[_product(pla)])
-    approve(frank, created, {_ids(created)[0]: 100})
+    approve(frank, created, {_ids(created)[0]: grams})
 
     [shown] = _read(sam, created["id"])["choices"]
 
-    assert (shown["grams"], shown["short_g"], shown["holds"]) == (100, 0, None)
+    assert shown["held"] is held
+    assert (shown["grams"], shown["short_g"], shown["holds"], shown["available_g"]) == (
+        None,
+        None,
+        None,
+        None,
+    )
+    assert _read(frank, created["id"])["choices"][0]["held"] is held
 
 
 def test_an_editor_sees_the_holds(
@@ -246,14 +254,19 @@ def test_an_editor_sees_the_holds(
 
 
 def test_a_submitted_request_has_no_grams_or_shortfall_yet(
-    client: TestClient, token: str, sam: TestClient
+    client: TestClient, token: str, sam: TestClient, frank: TestClient
 ) -> None:
     pla = stock(client, token, "000000FF", "PLA", "received")
     created = submitted(sam, choices=[_product(pla)])
 
-    [shown] = created["choices"]
+    [shown] = _read(frank, created["id"])["choices"]
 
-    assert (shown["grams"], shown["short_g"], shown["available_g"]) == (None, None, 1000)
+    assert (shown["held"], shown["grams"], shown["short_g"], shown["available_g"]) == (
+        None,
+        None,
+        None,
+        1000,
+    )
 
 
 def test_an_admin_token_approves_with_grams(

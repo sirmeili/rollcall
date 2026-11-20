@@ -167,14 +167,18 @@ class ChoiceOut(BaseModel):
     multi_color: bool
     # Similar in-stock colors; empty for a multi-color one.
     similar: list[SimilarOut]
-    # The grams for the whole quantity, from Approve; None until then.
+    # Held in full, while the request is Approved, Waiting on Filament or Queued; else None.
+    # The only word on holds a requester gets.
+    held: bool | None
+    # For Editors and Admins only; None for anyone else:
+    # the grams for the whole quantity, from Approve (None until then),
     grams: int | None
-    # Grams not yet held, while the request is Approved, Waiting on Filament or Queued.
+    # the grams not yet held, while the request is Approved, Waiting on Filament or Queued,
     short_g: int | None
-    # Its holds, for Editors and Admins only; None for anyone else.
+    # its holds,
     holds: list[HoldOut] | None
-    # Grams not held of the product it would be held on (0 with none).
-    available_g: int
+    # and the grams not held of the product it would be held on (0 with none).
+    available_g: int | None
 
 
 class SwatchOut(BaseModel):

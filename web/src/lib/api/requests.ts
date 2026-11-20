@@ -90,14 +90,17 @@ export interface Choice {
   in_catalog: boolean;
   multi_color: boolean;
   similar: SimilarColor[];
-  /** The grams for the whole quantity, from Approve; null until then. */
+  /** Held in full, while the request is Approved, Waiting on Filament or Queued; else null.
+   * The only word on holds a requester gets. */
+  held: boolean | null;
+  /** The rest are for Editors and Admins only, and null for anyone else. The grams for the
+   * whole quantity, from Approve (null until then). */
   grams: number | null;
   /** Grams not yet held, while the request is Approved, Waiting on Filament or Queued. */
   short_g: number | null;
-  /** Its holds, for Editors and Admins; null for anyone else. */
   holds: Hold[] | null;
   /** Grams not held of the product it would be held on (0 with none). */
-  available_g: number;
+  available_g: number | null;
 }
 
 export type HistoryKind =

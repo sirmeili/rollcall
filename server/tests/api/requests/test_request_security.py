@@ -1,7 +1,8 @@
 """Security suite for print requests (see docs/testing.md): every route refuses no
 credentials, scanners and machine tokens below its role; uploads stop at 95 MB without the
 whole body being read, on their route only (20 MB for photos); a model file is never served
-as something a browser would run, and a photo only as an image."""
+as something a browser would run, and a photo only as an image; a request's grams, holds and
+available grams are shown only to Editors and Admins."""
 
 import io
 from collections.abc import Iterator
@@ -13,7 +14,7 @@ from api_helpers import CSRF, admin, bearer, register
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image
-from request_helpers import REQUESTS, move, person, request_body, submitted
+from request_helpers import REQUESTS, approve, move, person, request_body, stock, submitted
 
 from filament_tracker.domain.enums import Role
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES
@@ -103,6 +104,38 @@ def test_another_users_request_reads_as_not_found_on_every_route(
         headers=CSRF,
     )
     assert moved.status_code == 404
+
+
+# --- Holds --------------------------------------------------------------------------------
+
+STAFF_ONLY = ("grams", "short_g", "holds", "available_g")
+
+
+def test_a_requester_and_a_viewer_get_no_grams_shortfall_holds_or_available_grams(
+    app: FastAPI, client: TestClient, token: str
+) -> None:
+    pla = stock(client, token, "000000FF", "PLA", "received")
+    sam = person(app, "sam")
+    vic = person(app, "vic")
+    frank = person(app, "frank", Role.ADMIN, requester=False)
+    choices = [{"product_id": pla, "note": ""}]
+    sams, vics = submitted(sam, choices=choices), submitted(vic, choices=choices)
+    for request in (sams, vics):
+        assert approve(frank, request, grams=100).status_code == 200
+    # Vic is a Viewer who no longer holds Requester, and still sees their own request.
+    vic_id = next(
+        u["id"]
+        for u in client.get("/api/v1/users", headers=admin()).json()
+        if u["username"] == "vic"
+    )
+    client.patch(f"/api/v1/users/{vic_id}", json={"requester": False}, headers=admin())
+
+    for user, request in ((sam, sams), (vic, vics)):
+        [shown] = user.get(f"{REQUESTS}/{request['id']}").json()["choices"]
+        assert {field: shown[field] for field in STAFF_ONLY} == dict.fromkeys(STAFF_ONLY)
+        assert shown["held"] is True
+    [staff] = frank.get(f"{REQUESTS}/{sams['id']}").json()["choices"]
+    assert all(staff[field] is not None for field in STAFF_ONLY)
 
 
 # --- Uploads -------------------------------------------------------------------------------

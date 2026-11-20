@@ -570,6 +570,7 @@ describe("Holds on the filament choices", () => {
         status: "waiting_on_filament",
         choices: [
           blue({
+            held: true,
             grams: 900,
             short_g: 0,
             holds: [
@@ -577,7 +578,7 @@ describe("Holds on the filament choices", () => {
               { spool_id: 15, product_id: 7, product_name: "Blue PLA", grams: 600 },
             ],
           }),
-          pink({ grams: 250, short_g: 250, holds: [] }),
+          pink({ held: false, grams: 250, short_g: 250, holds: [] }),
         ],
       }),
     );
@@ -605,8 +606,8 @@ describe("Holds on the filament choices", () => {
       request({
         status: "waiting_on_filament",
         choices: [
-          blue({ grams: 900, short_g: 0, holds: null }),
-          pink({ grams: 250, short_g: 100, holds: null }),
+          blue({ held: true, available_g: null }),
+          pink({ held: false, available_g: null }),
         ],
       }),
     );
