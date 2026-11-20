@@ -6,13 +6,14 @@ import type { Choice, ChoiceIn } from "#lib/api/requests.ts";
 import type { ProductSummary } from "#lib/api/types.ts";
 import { stockText, storeSearchUrl, storeUrl } from "#lib/catalog.ts";
 import { similarText } from "#lib/requests/labels.ts";
+import { aboutGrams } from "#lib/spools.ts";
 
 interface OptionBase {
   /** "p:12" for a product, "c:<uuid>" for a catalog color: the list and identity key. */
   key: string;
   name: string;
   hexes: string[];
-  /** "PLA · 2 sealed · 1 open", "PLA · 10101 · not in stock" */
+  /** "PLA · 2 sealed · 1 open · about 1120 g", "PLA · 10101 · not in stock" */
   sub: string;
   /** A catalog color's similar in-stock products; null for a multi-color one. */
   similar: string[] | null;
@@ -39,16 +40,21 @@ export interface PickerOptions {
   colors: FilamentOption[];
 }
 
+/** A product's grams not held: "about 1120 g", or "grams unknown" when an open spool's are. */
+function gramsText(item: Pick<ProductSummary, "available_g" | "available_unknown">): string {
+  return item.available_unknown ? "grams unknown" : aboutGrams(item.available_g);
+}
+
 export function pickerOptions(inventory: ProductSummary[], catalog: Catalog | null): PickerOptions {
   const products = inventory
     .filter((item) => item.counts.sealed + item.counts.open > 0)
-    .map(({ product, counts }) => ({
+    .map(({ product, counts, ...grams }) => ({
       key: `p:${product.id}`,
       kind: "product" as const,
       productId: product.id,
       name: product.display_name,
       hexes: [product.color_rgba.slice(0, 6).toUpperCase()],
-      sub: `${product.filament_type} · ${stockText(counts.sealed, counts.open)}`,
+      sub: `${product.filament_type} · ${stockText(counts.sealed, counts.open)} · ${gramsText(grams)}`,
       similar: [],
       hay: `${product.display_name} ${product.filament_type}`,
     }));

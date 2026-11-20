@@ -50,6 +50,8 @@ export function summary(overrides: Partial<ProductSummary> = {}): ProductSummary
     counts: { sealed: 1, open: 1, empty: 3, unknown: 0 },
     low_stock: true,
     open_spools: [{ id: 3, remaining_pct: 12, nearly_out: true }],
+    available_g: 1120,
+    available_unknown: false,
     ...overrides,
   };
 }
@@ -116,6 +118,10 @@ export function tag(overrides: Partial<TagOut> = {}): TagOut {
 export function spoolDetail(overrides: Partial<SpoolDetail> = {}): SpoolDetail {
   return {
     ...spoolRow(),
+    held_g: 0,
+    available_g: 620,
+    over_held: false,
+    holding_requests: [],
     notes: "Dried 8 h",
     tags: [tag()],
     events: [

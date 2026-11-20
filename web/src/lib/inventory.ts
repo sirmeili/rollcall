@@ -4,6 +4,7 @@
 
 import type { ProductSummary } from "#lib/api/types.ts";
 import { hexText } from "#lib/format.ts";
+import { aboutGrams } from "#lib/spools.ts";
 
 export const ALL_TYPES = "All";
 
@@ -39,6 +40,16 @@ export function noFilter(): InventoryFilter {
 /** Products with a sealed or open spool. Used-up ones stay on Spools and Products. */
 export function onHand(items: ProductSummary[]): ProductSummary[] {
   return items.filter((item) => item.counts.sealed + item.counts.open > 0);
+}
+
+/** A product's grams not held: "about 1120 g", or "unknown" when an open spool's grams are. */
+export function availableGrams(item: ProductSummary): string {
+  return item.available_unknown ? "unknown" : aboutGrams(item.available_g);
+}
+
+/** The same as a line of its own: "about 1120 g available". */
+export function availableText(item: ProductSummary): string {
+  return item.available_unknown ? "grams available unknown" : `${availableGrams(item)} available`;
 }
 
 /** Whether any of a product's open spools is nearly out. */

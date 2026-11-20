@@ -3,7 +3,7 @@
   import OpenSpools from "#lib/components/inventory/OpenSpools.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
   import { hexText } from "#lib/format.ts";
-  import { thresholdText } from "#lib/inventory.ts";
+  import { availableText, thresholdText } from "#lib/inventory.ts";
   import { sourceText } from "#lib/products.ts";
 
   let { item }: { item: ProductSummary } = $props();
@@ -38,6 +38,7 @@
       <dd>{item.counts.empty}</dd>
     </div>
   </dl>
+  <p class="grams">{availableText(item)}</p>
   {#if item.open_spools.length}
     <div class="open">
       <h3 class="label">Open spools · left</h3>
@@ -59,6 +60,12 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
+  }
+
+  .grams {
+    margin: -6px 0 0;
+    font-size: 14px;
+    color: var(--muted);
   }
 
   .head {

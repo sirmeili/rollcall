@@ -178,6 +178,7 @@ describe("CompactList", () => {
     expect(blackRow).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("LOW · ≤2")).toBeInTheDocument();
     expect(screen.getByText("From tag")).toBeInTheDocument();
+    expect(screen.getByText("Available").nextElementSibling).toHaveTextContent("about 1120 g");
     expect(screen.getByRole("link", { name: "View spools" })).toHaveAttribute(
       "href",
       "/spools?q=Black+PLA+Basic",

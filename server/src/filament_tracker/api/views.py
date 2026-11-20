@@ -11,6 +11,7 @@ from filament_tracker.api.read_schemas import (
     ProductDetail,
     ProductSummary,
     SpoolDetail,
+    SpoolHeld,
     SpoolRow,
     TagOut,
     UnidentifiedTag,
@@ -18,6 +19,7 @@ from filament_tracker.api.read_schemas import (
 from filament_tracker.db.models import Event, Product, Spool, Tag
 from filament_tracker.domain.enums import EventType
 from filament_tracker.services.catalog_links import CatalogLink, catalog_link
+from filament_tracker.services.holds import ProductGrams
 from filament_tracker.services.queries import UNKNOWN, ProductCounts, is_nearly_out
 
 
@@ -46,7 +48,7 @@ def product_detail(product: Product) -> ProductDetail:
     return detail
 
 
-def product_summary(item: ProductCounts) -> ProductSummary:
+def product_summary(item: ProductCounts, grams: ProductGrams) -> ProductSummary:
     return ProductSummary(
         product=product_detail(item.product),
         counts=Counts(**item.counts),
@@ -55,6 +57,8 @@ def product_summary(item: ProductCounts) -> ProductSummary:
             OpenSpool(id=s.id, remaining_pct=s.remaining_pct, nearly_out=is_nearly_out(s))
             for s in item.open_spools
         ],
+        available_g=grams.available,
+        available_unknown=grams.unknown,
     )
 
 
@@ -127,10 +131,11 @@ def tag_out(tag: Tag) -> TagOut:
     )
 
 
-def spool_detail(spool: Spool, events: list[Event]) -> SpoolDetail:
+def spool_detail(spool: Spool, events: list[Event], held: SpoolHeld) -> SpoolDetail:
     tags = sorted(spool.tags, key=lambda t: t.first_seen_at)
     return SpoolDetail(
         **spool_row(spool).model_dump(),
+        **held.model_dump(),
         notes=spool.notes,
         tags=[tag_out(t) for t in tags],
         events=[event_out(e) for e in events],

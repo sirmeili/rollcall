@@ -163,6 +163,87 @@ def test_a_holder_with_no_holds_is_short_its_whole_target(session: Session) -> N
     assert holds.shortfall(session, FIRST, 120) == 120
 
 
+def test_a_products_grams_are_unknown_when_an_open_spool_has_unknown_grams(
+    session: Session, black: Product
+) -> None:
+    white = Product(filament_type="PLA", color_rgba="FFFFFFFF", display_name="White PLA Basic")
+    session.add(white)
+    spool(session, black, SpoolState.OPEN, 600)
+    spool(session, black, SpoolState.SEALED, 1000)
+    spool(session, black, SpoolState.EMPTY, 500)
+    holds.place(session, FIRST, black.id, 250, NOW)
+    spool(session, white, SpoolState.SEALED, 1000)
+    spool(session, white, SpoolState.OPEN, None)
+
+    found = holds.product_grams(session, [black.id, white.id])
+
+    assert found == {
+        black.id: holds.ProductGrams(available=1350, unknown=False),
+        white.id: holds.ProductGrams(available=1000, unknown=True),
+    }
+
+
+def test_a_product_with_no_spools_has_none_available(session: Session, black: Product) -> None:
+    assert holds.product_grams(session, [black.id]) == {
+        black.id: holds.ProductGrams(available=0, unknown=False)
+    }
+
+
+def test_a_spools_holders_and_their_grams(session: Session, black: Product) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 500)
+    holds.place(session, FIRST, black.id, 100, NOW)
+    holds.place(session, SECOND, black.id, 150, NOW)
+    holds.place(session, FIRST, black.id, 50, NOW)
+
+    assert holds.holders_on(session, opened) == {FIRST: 150, SECOND: 150}
+    assert holds.spool_grams(session, opened) == holds.SpoolGrams(
+        held=300, available=200, over_held=False
+    )
+
+
+def test_a_spool_held_beyond_its_grams_left_is_over_held_with_none_available(
+    session: Session, black: Product
+) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 500)
+    holds.place(session, FIRST, black.id, 400, NOW)
+    holds.place(session, SECOND, black.id, 100, NOW)
+    opened.grams_left_g = 300
+    session.flush()
+
+    assert holds.spool_grams(session, opened) == holds.SpoolGrams(
+        held=500, available=0, over_held=True
+    )
+
+
+def test_ignored_holders_do_not_count_toward_over_held(session: Session, black: Product) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 500)
+    holds.place(session, FIRST, black.id, 400, NOW)
+    holds.place(session, SECOND, black.id, 100, NOW)
+    opened.grams_left_g = 300
+    session.flush()
+
+    assert holds.spool_grams(session, opened, ignore={FIRST}) == holds.SpoolGrams(
+        held=500, available=0, over_held=False
+    )
+
+
+def test_a_held_spool_with_unknown_grams_has_none_available_and_is_not_over_held(
+    session: Session, black: Product
+) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 500)
+    holds.place(session, FIRST, black.id, 200, NOW)
+    opened.grams_left_g = None
+    session.flush()
+
+    assert holds.spool_grams(session, opened) == holds.SpoolGrams(
+        held=200, available=0, over_held=False
+    )
+    unheld = spool(session, black, SpoolState.OPEN, None)
+    assert holds.spool_grams(session, unheld) == holds.SpoolGrams(
+        held=0, available=None, over_held=False
+    )
+
+
 def test_releasing_keeps_the_holds_with_when_and_why_and_frees_their_grams(
     session: Session, black: Product
 ) -> None:
