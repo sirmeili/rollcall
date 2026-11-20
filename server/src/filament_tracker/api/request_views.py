@@ -21,6 +21,7 @@ from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.print_requests.access import may_change_photos, movers, sees_every_request
 from filament_tracker.print_requests.choices import ChoiceReader, swatch
 from filament_tracker.print_requests.files import ModelFiles
+from filament_tracker.print_requests.photos import Photos
 from filament_tracker.print_requests.pipeline import allowed_moves, attempt
 from filament_tracker.print_requests.read import model_source
 from filament_tracker.print_requests.service import why_not_editable
@@ -28,6 +29,11 @@ from filament_tracker.print_requests.service import why_not_editable
 
 def model_files(request: Request) -> ModelFiles:
     return request.app.state.model_files
+
+
+def stored_photos(request: Request) -> Photos:
+    """Photos of finished prints, kept beside the model files."""
+    return Photos(model_files(request))
 
 
 def _store(request: Request) -> SettingsStore:

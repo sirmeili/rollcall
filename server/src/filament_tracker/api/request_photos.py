@@ -19,7 +19,7 @@ from starlette.requests import ClientDisconnect
 
 from filament_tracker.api.request_files import content_disposition
 from filament_tracker.api.request_schemas import PhotosIn, PhotoUploadOut, RequestOut
-from filament_tracker.api.request_views import model_files, request_out
+from filament_tracker.api.request_views import model_files, request_out, stored_photos
 from filament_tracker.api.requests import RequestsCaller, find_request, send_after_commit
 from filament_tracker.auth import AnyPrincipal, DbSession, forbidden, problems
 from filament_tracker.db.models import User
@@ -44,10 +44,6 @@ def photo_admin(principal: AnyPrincipal) -> User:
 
 
 PhotoAdmin = Annotated[User, Depends(photo_admin)]
-
-
-def stored_photos(http: Request) -> photos.Photos:
-    return photos.Photos(model_files(http))
 
 
 def _photo(session: Session, found: PrintRequest, photo_id: UUID) -> RequestPhoto:

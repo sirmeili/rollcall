@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
+from filament_tracker.api.deps import mail_sender
 from filament_tracker.api.request_schemas import (
     MoveIn,
     PriorityIn,
@@ -23,14 +24,13 @@ from filament_tracker.api.request_schemas import (
     RequestRowOut,
     SubmittedCountOut,
 )
-from filament_tracker.api.request_views import model_files, request_out, row_out
+from filament_tracker.api.request_views import model_files, request_out, row_out, stored_photos
 from filament_tracker.auth import AnyPrincipal, DbSession, Editor, Principal, forbidden, problems
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus, Role
 from filament_tracker.mail.message import Email
-from filament_tracker.mail.sender import MailSender
 from filament_tracker.print_requests import emails, photos, pipeline, service
 from filament_tracker.print_requests.access import may_open_requests, may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
@@ -115,10 +115,6 @@ def _fields(body: RequestIn) -> RequestFields:
     )
 
 
-def _mail(http: Request) -> MailSender:
-    return http.app.state.mail
-
-
 def _public_url(http: Request) -> str | None:
     """Where emails link to: PUBLIC_URL only, never this request's Host header."""
     return http.app.state.settings_store.text("public_url")
@@ -127,7 +123,7 @@ def _public_url(http: Request) -> str | None:
 def send_after_commit(http: Request, build: Callable[[str | None], list[Email]]) -> None:
     """Build the emails once the change has committed, from the public URL, and hand them to
     the background sender; nothing is built while email is off."""
-    mail = _mail(http)
+    mail = mail_sender(http)
     if mail.on:
         mail.send_later(build(_public_url(http)))
 
@@ -257,7 +253,7 @@ def make_move(
     send_after_commit(
         http,
         lambda public_url: emails.move_emails(
-            moved, public_url, photos.Photos(model_files(http)).email_copies(added)
+            moved, public_url, stored_photos(http).email_copies(added)
         ),
     )
     session.refresh(found)

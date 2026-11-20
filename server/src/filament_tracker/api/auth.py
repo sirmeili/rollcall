@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from filament_tracker.api.account_schemas import AccountUpdate, LoginRequest, Me, PasswordChange
+from filament_tracker.api.deps import mail_sender
 from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import (
     SESSION_COOKIE,
@@ -56,7 +57,7 @@ def me_out(request: Request, session: Session, user: User) -> Me:
         has_requests=has_requests(session, user),
         email_on_request_change=user.email_on_request_change,
         email_on_new_request=user.email_on_new_request,
-        email_set_up=request.app.state.mail.on,
+        email_set_up=mail_sender(request).on,
         time_zone=_store(request).time_zone(),
     )
 

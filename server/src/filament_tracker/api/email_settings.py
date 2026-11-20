@@ -8,10 +8,10 @@ from datetime import datetime
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from filament_tracker.api.deps import mail_sender
 from filament_tracker.app_settings.registry import EMAIL
 from filament_tracker.auth import Admin, forbidden
 from filament_tracker.mail.checks import test_email
-from filament_tracker.mail.sender import MailSender
 from filament_tracker.mail.transport import MailError
 
 router = APIRouter(tags=["settings"])
@@ -37,13 +37,9 @@ class TestEmailOut(BaseModel):
     message: str
 
 
-def _sender(request: Request) -> MailSender:
-    return request.app.state.mail
-
-
 @router.get(f"/settings/{EMAIL}/status", response_model=EmailStatusOut)
 def email_status(_: Admin, request: Request) -> EmailStatusOut:
-    sender = _sender(request)
+    sender = mail_sender(request)
     failure = sender.last_failure
     return EmailStatusOut(
         on=sender.on,
@@ -62,7 +58,7 @@ def send_test_email(principal: Admin, request: Request) -> TestEmailOut:
     if not user.email:
         return TestEmailOut(ok=False, message=NO_ADDRESS)
     try:
-        _sender(request).send_now(test_email(user.email))
+        mail_sender(request).send_now(test_email(user.email))
     except MailError as error:
         return TestEmailOut(ok=False, message=str(error))
     return TestEmailOut(ok=True, message=f"Sent a test email to {user.email}.")
