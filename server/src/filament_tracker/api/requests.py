@@ -28,7 +28,7 @@ from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus, Role
-from filament_tracker.print_requests import pipeline, service
+from filament_tracker.print_requests import photos, pipeline, service
 from filament_tracker.print_requests.access import may_open_requests, may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
 from filament_tracker.print_requests.read import ListFilter, Tab, visible_requests
@@ -38,6 +38,7 @@ router = APIRouter(prefix="/requests", tags=["requests"])
 
 NO_ACCESS = "requires Requester or the editor role"
 NOT_OPEN = "Filter by open statuses only."
+NO_PHOTOS = "Photos can be added only when moving a request to Done."
 
 
 def requests_user(principal: AnyPrincipal, session: DbSession) -> Principal:
@@ -203,19 +204,25 @@ def change_priority(
 def make_move(
     request_id: int, body: MoveIn, caller: Mover, session: DbSession, http: Request
 ) -> RequestOut:
-    """Move the request to another status. It answers 409 when the request is no longer in
-    `from_status`, and 403 when the pipeline has no such move for the caller."""
+    """Move the request to another status, saving any photo uploads with a move that takes
+    them (Done). It answers 409 when the request is no longer in `from_status`, and 403 when
+    the pipeline has no such move for the caller. Nothing is saved when it is refused."""
     found = find_request(session, caller, request_id)
+    now = utcnow()
     try:
-        pipeline.make_move(
+        moved = pipeline.make_move(
             found,
             expected=body.from_status,
             to_status=body.to_status,
             movers=movers(caller, found),
             user=caller.user,
             note=body.note,
-            now=utcnow(),
+            now=now,
         )
+        if body.photo_ids:
+            if not moved.move.photos:
+                raise Problems({photos.PHOTOS: NO_PHOTOS})
+            photos.add(session, found, body.photo_ids, caller.user, now)
     except pipeline.Stale as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
     except pipeline.NotAMove as error:

@@ -16,6 +16,7 @@ from filament_tracker.domain.enums import (
     Priority,
     RequestStatus,
 )
+from filament_tracker.print_requests.photos import MAX_PHOTOS
 
 # More than anyone would pick; it only stops absurd input.
 MAX_CHOICES = 20
@@ -66,6 +67,8 @@ class MoveIn(Strict):
     to_status: RequestStatus
     # A note, or the reason a move needs; trimmed, and checked against the move.
     note: str = ""
+    # Photo uploads to save with a move that takes photos (Done).
+    photo_ids: Annotated[list[UUID], Field(max_length=MAX_PHOTOS)] = []
 
 
 class MoveOut(BaseModel):
@@ -74,6 +77,27 @@ class MoveOut(BaseModel):
     to_status: RequestStatus
     # The note is a reason, which may not be left empty.
     reason_required: bool
+    # Up to 4 photos may be saved with it.
+    photos: bool
+
+
+class PhotosIn(Strict):
+    """Photo uploads to save with a Done or Picked Up request."""
+
+    photo_ids: Annotated[list[UUID], Field(min_length=1, max_length=MAX_PHOTOS)]
+
+
+class PhotoOut(BaseModel):
+    """A photo of the finished print. Its `id` names it in the photo's address."""
+
+    id: UUID
+    name: str
+    uploaded_at: datetime
+
+
+class PhotoUploadOut(BaseModel):
+    id: UUID
+    name: str
 
 
 class RequesterOut(BaseModel):
@@ -175,6 +199,8 @@ class RequestOut(BaseModel):
     status: RequestStatus
     requester: RequesterOut
     file: ModelFileOut | None
+    # Oldest first.
+    photos: list[PhotoOut]
     choices: list[ChoiceOut]
     # Newest first.
     history: list[HistoryOut]
@@ -183,6 +209,8 @@ class RequestOut(BaseModel):
     # What the caller may do to it now.
     can_edit: bool
     can_change_priority: bool
+    # Add and remove photos: a signed-in Admin, while the request is Done or Picked Up.
+    can_change_photos: bool
     # The moves the caller may make, the main next step first.
     moves: list[MoveOut]
     # Which try at printing it this is: 1, plus 1 for each Reprint.

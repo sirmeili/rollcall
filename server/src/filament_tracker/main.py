@@ -16,6 +16,7 @@ from filament_tracker.api import (
     health,
     printers,
     request_files,
+    request_photos,
     requests,
     review,
     scans,
@@ -41,6 +42,7 @@ from filament_tracker.mail.settings import smtp_server
 from filament_tracker.mail.smtp import SmtpSender
 from filament_tracker.mail.transport import MailTransport
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
+from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.backup import BackupScheduler
 from filament_tracker.services.catalog_schedule import CatalogScheduler
@@ -123,7 +125,10 @@ def create_app(
     app.add_exception_handler(RequestValidationError, validation_error)
     app.add_middleware(
         BodySizeLimitMiddleware,
-        larger={("POST", API_PREFIX + request_files.UPLOAD_PATH): MAX_MODEL_BYTES},
+        larger={
+            ("POST", API_PREFIX + request_files.UPLOAD_PATH): MAX_MODEL_BYTES,
+            ("POST", API_PREFIX + request_photos.PHOTO_UPLOAD_PATH): MAX_PHOTO_BYTES,
+        },
     )
     app.add_middleware(SessionRenewalMiddleware)
     # Added last, so it runs first: headers go on every response, including a 413.
@@ -146,6 +151,7 @@ def create_app(
         email_settings,
         catalog,
         request_files,
+        request_photos,
         requests,
     ):
         app.include_router(module.router, prefix=API_PREFIX)

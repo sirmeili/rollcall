@@ -8,6 +8,7 @@ from filament_tracker.api.request_schemas import (
     HistoryOut,
     ModelFileOut,
     MoveOut,
+    PhotoOut,
     RequesterOut,
     RequestOut,
     RequestRowOut,
@@ -17,7 +18,7 @@ from filament_tracker.api.request_schemas import (
 from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import Principal
 from filament_tracker.db.request_models import PrintRequest
-from filament_tracker.print_requests.access import movers, sees_every_request
+from filament_tracker.print_requests.access import may_change_photos, movers, sees_every_request
 from filament_tracker.print_requests.choices import ChoiceReader, swatch
 from filament_tracker.print_requests.files import ModelFiles
 from filament_tracker.print_requests.pipeline import allowed_moves, attempt
@@ -114,14 +115,19 @@ def request_out(
         status=item.status,
         requester=RequesterOut(id=item.requester.id, username=item.requester.username),
         file=_file_out(item, model_files(http)),
+        photos=[
+            PhotoOut(id=photo.id, name=photo.file_name, uploaded_at=photo.uploaded_at)
+            for photo in item.photos
+        ],
         choices=choices,
         history=history,
         created_at=item.created_at,
         updated_at=item.updated_at,
         can_edit=can_edit(principal, item),
         can_change_priority=sees_every_request(principal) and not item.status.closed,
+        can_change_photos=may_change_photos(principal, item),
         moves=[
-            MoveOut(to_status=m.to_status, reason_required=m.needs_reason)
+            MoveOut(to_status=m.to_status, reason_required=m.needs_reason, photos=m.photos)
             for m in allowed_moves(item, movers(principal, item))
         ],
         attempt=attempt(item),

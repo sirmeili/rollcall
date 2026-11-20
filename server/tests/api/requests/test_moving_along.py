@@ -143,7 +143,9 @@ def test_a_former_requester_still_marks_their_request_picked_up(
     request_id = _in(sam, frank, "done")
     client.patch("/api/v1/users/1", json={"requester": False}, headers=admin())
 
-    assert _read(sam, request_id)["moves"] == [{"to_status": "picked_up", "reason_required": False}]
+    assert _read(sam, request_id)["moves"] == [
+        {"to_status": "picked_up", "reason_required": False, "photos": False}
+    ]
     assert move(sam, request_id, "done", "picked_up").status_code == 200
 
 
@@ -219,7 +221,7 @@ def test_queueing_an_approved_request_is_not_a_reprint(sam: TestClient, frank: T
 
 # --- The moves offered ------------------------------------------------------------------------
 
-CANCEL = {"to_status": "cancelled", "reason_required": True}
+CANCEL = {"to_status": "cancelled", "reason_required": True, "photos": False}
 ADMIN_OFFERS = {
     "approved": ["queued", "waiting_on_filament"],
     "waiting_on_filament": ["queued"],
@@ -239,7 +241,7 @@ def test_the_detail_offers_an_admin_the_next_steps_main_one_first(
 
     moves = _read(frank, request_id)["moves"]
 
-    steps = [{"to_status": to, "reason_required": False} for to in offered]
+    steps = [{"to_status": to, "reason_required": False, "photos": to == "done"} for to in offered]
     assert moves == steps + ([CANCEL] if status in CANCELLABLE else [])
 
 
@@ -249,7 +251,7 @@ def test_the_detail_offers_the_requester_only_cancel_before_done(
 ) -> None:
     request_id = _in(sam, frank, status)
 
-    cancel = [{"to_status": "cancelled", "reason_required": False}]
+    cancel = [{"to_status": "cancelled", "reason_required": False, "photos": False}]
     assert _read(sam, request_id)["moves"] == ([] if status == "printing" else cancel)
 
 
@@ -259,7 +261,9 @@ def test_the_detail_offers_the_requester_picked_up_once_done(
     request_id = _in(sam, frank, "done")
     dana = person(app, "dana", Role.EDITOR)
 
-    assert _read(sam, request_id)["moves"] == [{"to_status": "picked_up", "reason_required": False}]
+    assert _read(sam, request_id)["moves"] == [
+        {"to_status": "picked_up", "reason_required": False, "photos": False}
+    ]
     assert _read(dana, request_id)["moves"] == []
 
 

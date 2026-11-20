@@ -13,6 +13,7 @@ from filament_tracker.auth import Principal
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import Role
+from filament_tracker.print_requests.photos import PHOTO_STATUSES
 from filament_tracker.print_requests.pipeline import Mover
 
 
@@ -50,3 +51,13 @@ def movers(principal: Principal, request: PrintRequest) -> set[Mover]:
     if principal.user is not None and request.requester_id == principal.user.id:
         found.add(Mover.REQUESTER)
     return found
+
+
+def may_change_photos(principal: Principal, request: PrintRequest) -> bool:
+    """A signed-in Admin adds and removes photos while the request is Done or Picked Up.
+    Tokens act for no one, and a photo records who uploaded it."""
+    return (
+        principal.user is not None
+        and Mover.ADMIN in movers(principal, request)
+        and request.status in PHOTO_STATUSES
+    )

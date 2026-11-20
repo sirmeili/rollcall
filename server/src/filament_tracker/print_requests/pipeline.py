@@ -1,5 +1,6 @@
 """The request pipeline: every move a print request may make between request statuses, who
-may make it, whether it needs a reason, and whether it emails the requester.
+may make it, whether it needs a reason, whether it takes photos, and whether it emails the
+requester.
 
 This is the only place that changes a request's status. The API, the detail page's buttons
 and later automatic moves (from filament holds, #77, and the printer, #80) all go through
@@ -55,6 +56,8 @@ class Move:
     emails_requester: bool
     # What an Admin moving their own request is asked for instead; no one is emailed then.
     owner_note: Note | None = None
+    # Up to 4 photos of the finished print may be saved with it.
+    photos: bool = False
 
     @property
     def needs_reason(self) -> bool:
@@ -71,7 +74,7 @@ PIPELINE: tuple[Move, ...] = (
     Move(S.APPROVED, S.WAITING_ON_FILAMENT, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
     Move(S.WAITING_ON_FILAMENT, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
     Move(S.QUEUED, S.PRINTING, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
-    Move(S.PRINTING, S.DONE, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
+    Move(S.PRINTING, S.DONE, Mover.ADMIN, Note.OPTIONAL, emails_requester=True, photos=True),
     Move(S.PRINTING, S.FAILED, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
     # Reprint: another attempt of the same request.
     Move(S.FAILED, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),

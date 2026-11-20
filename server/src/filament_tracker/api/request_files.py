@@ -27,10 +27,11 @@ UPLOAD_PATH = "/requests/uploads"
 router = APIRouter(tags=["requests"])
 
 
-def content_disposition(name: str) -> str:
-    """An attachment named `name`, with an ASCII fallback for older clients."""
+def content_disposition(name: str, disposition: str = "attachment") -> str:
+    """An attachment (or inline content) named `name`, with an ASCII fallback for older
+    clients."""
     fallback = "".join(ch if ch.isascii() and ch not in '"\\' else "_" for ch in name)
-    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(name, safe='')}"
+    return f"{disposition}; filename=\"{fallback}\"; filename*=UTF-8''{quote(name, safe='')}"
 
 
 @router.post(UPLOAD_PATH, response_model=UploadOut, status_code=status.HTTP_201_CREATED)

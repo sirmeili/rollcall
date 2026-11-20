@@ -189,9 +189,9 @@ def test_an_admin_who_asked_for_a_request_still_approves_it(
     created = submitted(ada)
 
     assert _read(ada, created["id"])["moves"] == [
-        {"to_status": "approved", "reason_required": False},
-        {"to_status": "rejected", "reason_required": True},
-        {"to_status": "cancelled", "reason_required": False},
+        {"to_status": "approved", "reason_required": False, "photos": False},
+        {"to_status": "rejected", "reason_required": True, "photos": False},
+        {"to_status": "cancelled", "reason_required": False, "photos": False},
     ]
     assert move(ada, created["id"], "submitted", "approved").status_code == 200
 
@@ -203,13 +203,13 @@ def test_the_detail_lists_the_moves_the_caller_may_make(
     dana = person(app, "dana", Role.EDITOR)
 
     assert _read(frank, created["id"])["moves"] == [
-        {"to_status": "approved", "reason_required": False},
-        {"to_status": "rejected", "reason_required": True},
-        {"to_status": "cancelled", "reason_required": True},
+        {"to_status": "approved", "reason_required": False, "photos": False},
+        {"to_status": "rejected", "reason_required": True, "photos": False},
+        {"to_status": "cancelled", "reason_required": True, "photos": False},
     ]
     assert _read(dana, created["id"])["moves"] == []
     assert _read(sam, created["id"])["moves"] == [
-        {"to_status": "cancelled", "reason_required": False}
+        {"to_status": "cancelled", "reason_required": False, "photos": False}
     ]
 
 

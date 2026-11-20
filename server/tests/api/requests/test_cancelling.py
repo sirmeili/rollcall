@@ -154,8 +154,8 @@ def test_editors_and_other_requesters_cannot_cancel(app: FastAPI, sam: TestClien
     assert _read(sam, created["id"])["status"] == "submitted"
 
 
-CANCEL_FREELY = {"to_status": "cancelled", "reason_required": False}
-CANCEL_WITH_REASON = {"to_status": "cancelled", "reason_required": True}
+CANCEL_FREELY = {"to_status": "cancelled", "reason_required": False, "photos": False}
+CANCEL_WITH_REASON = {"to_status": "cancelled", "reason_required": True, "photos": False}
 
 
 @pytest.mark.parametrize("status", WAITING)
