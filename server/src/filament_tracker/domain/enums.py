@@ -77,6 +77,8 @@ class HistoryKind(StrEnum):
     EDITED = "edited"
     PRIORITY_CHANGED = "priority_changed"
     STATUS_CHANGED = "status_changed"
+    PHOTO_ADDED = "photo_added"
+    PHOTO_REMOVED = "photo_removed"
 
 
 class ModelFileKind(StrEnum):
