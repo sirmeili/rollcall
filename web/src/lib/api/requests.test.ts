@@ -46,6 +46,22 @@ describe("the request calls", () => {
     ]);
     expect(fileUrl(41)).toMatch(/\/api\/v1\/requests\/41\/file$/);
   });
+
+  it("list a tab with the status filter and Only mine, leaving out what is off", async () => {
+    const fetch = fakeFetch({
+      "GET /requests?tab=closed": [],
+      "GET /requests?tab=active&status=queued&status=failed&mine=true": [],
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await listRequests({ tab: "closed", statuses: [], mine: false });
+    await listRequests({ tab: "active", statuses: ["queued", "failed"], mine: true });
+
+    expect(fetch.calls.map((c) => c.path)).toEqual([
+      "/requests?tab=closed",
+      "/requests?tab=active&status=queued&status=failed&mine=true",
+    ]);
+  });
 });
 
 /** Stands in for XMLHttpRequest: records what is sent, and the test answers. */

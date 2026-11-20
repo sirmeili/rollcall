@@ -10,7 +10,7 @@ from datetime import date, datetime
 from typing import Annotated
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from filament_tracker.api.request_schemas import (
@@ -27,16 +27,17 @@ from filament_tracker.auth import AnyPrincipal, DbSession, Editor, Principal, fo
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.db.types import utcnow
-from filament_tracker.domain.enums import Role
+from filament_tracker.domain.enums import RequestStatus, Role
 from filament_tracker.print_requests import pipeline, service
 from filament_tracker.print_requests.access import may_open_requests, may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
-from filament_tracker.print_requests.read import visible_requests
+from filament_tracker.print_requests.read import ListFilter, Tab, visible_requests
 from filament_tracker.print_requests.rules import Problems, RequestFields
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
 NO_ACCESS = "requires Requester or the editor role"
+NOT_OPEN = "Filter by open statuses only."
 
 
 def requests_user(principal: AnyPrincipal, session: DbSession) -> Principal:
@@ -117,10 +118,22 @@ def _refused(error: Exception) -> HTTPException:
 
 
 @router.get("", response_model=list[RequestRowOut])
-def list_requests(caller: RequestsCaller, session: DbSession) -> list[RequestRowOut]:
-    """Every request for Editors and Admins, otherwise the caller's own: most urgent first,
-    then by needed-by date (no date last), then oldest first."""
-    return [row_out(item) for item in visible_requests(session, caller)]
+def list_requests(
+    caller: RequestsCaller,
+    session: DbSession,
+    tab: Tab = Tab.ACTIVE,
+    status_: Annotated[list[RequestStatus] | None, Query(alias="status")] = None,
+    mine: bool = False,
+) -> list[RequestRowOut]:
+    """Every request for Editors and Admins, otherwise the caller's own. The Active tab is
+    most urgent first, then by needed-by date (no date last), then oldest first; the Closed
+    tab is the latest move first. Editors and Admins may keep only some open statuses
+    (`status`, repeated) or only their own requests (`mine`)."""
+    statuses = status_ or []
+    if any(s.closed for s in statuses):
+        raise problems({"status": NOT_OPEN})
+    wanted = ListFilter(tab=tab, statuses=statuses, mine=mine)
+    return [row_out(item) for item in visible_requests(session, caller, wanted)]
 
 
 @router.get("/count", response_model=SubmittedCountOut)
