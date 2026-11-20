@@ -11,7 +11,14 @@
   import RequestTable from "#lib/components/requests/RequestTable.svelte";
   import { canSubmit, seesEveryRequest } from "#lib/requests/access.ts";
   import { STATUS_LABELS } from "#lib/requests/labels.ts";
-  import { emptyState, OPEN_STATUSES, SORT_TEXT, TABS, toggleStatus } from "#lib/requests/list.ts";
+  import {
+    emptyState,
+    OPEN_STATUSES,
+    SORT_TEXT,
+    STAFF_INTRO,
+    TABS,
+    toggleStatus,
+  } from "#lib/requests/list.ts";
   import { viewport } from "#lib/viewport.svelte.ts";
 
   const screen = viewport();
@@ -54,7 +61,7 @@
 
   const intro = $derived(
     seesAll
-      ? "Print requests from everyone. Most urgent first."
+      ? STAFF_INTRO[tab]
       : canNew
         ? "Your print requests. You can edit a request while it's still Submitted."
         : "Your earlier print requests. You can no longer submit or edit requests, but you can still open them and download their files.",

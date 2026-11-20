@@ -79,6 +79,23 @@ describe("Requests list tabs", () => {
     );
   });
 
+  it("tells Editors how each tab is sorted", async () => {
+    signIn(DANA);
+    render(ListPage);
+
+    expect(
+      await screen.findByText("Print requests from everyone. Most urgent first."),
+    ).toBeVisible();
+
+    const tabs = screen.getByRole("group", { name: "Show" });
+    await userEvent.click(within(tabs).getByRole("button", { name: "Closed" }));
+
+    expect(
+      screen.getByText("Print requests from everyone. Most recently closed first."),
+    ).toBeVisible();
+    expect(screen.queryByText(/Most urgent first/)).toBeNull();
+  });
+
   it("gives a Requester no status filter and no Only mine", async () => {
     signIn(SAM);
     render(ListPage);

@@ -21,6 +21,12 @@ export const SORT_TEXT: Record<RequestTab, string> = {
   closed: "Most recently closed first",
 };
 
+/** The page's intro for Editors and Admins, who see everyone's requests, on each tab. */
+export const STAFF_INTRO: Record<RequestTab, string> = {
+  active: "Print requests from everyone. Most urgent first.",
+  closed: "Print requests from everyone. Most recently closed first.",
+};
+
 /** The status filter with one status turned on or off, kept in pipeline order. */
 export function toggleStatus(chosen: RequestStatus[], status: RequestStatus): RequestStatus[] {
   const next = chosen.includes(status) ? chosen.filter((s) => s !== status) : [...chosen, status];
