@@ -77,9 +77,14 @@ ROUTES = [
     ("put", "/api/v1/settings/email", Role.ADMIN),
     ("delete", "/api/v1/settings/email/smtp_host", Role.ADMIN),
     ("get", "/api/v1/settings/email/status", Role.ADMIN),
-    ("post", "/api/v1/settings/email/test", Role.ADMIN),
-    ("patch", "/api/v1/auth/me", Role.VIEWER),
     ("post", f"/api/v1/events/{uuid4()}/revert", Role.EDITOR),
+]
+
+
+# Routes only a signed-in user can use, never a token, and the lowest role allowed.
+USER_ROUTES = [
+    ("patch", "/api/v1/auth/me", Role.VIEWER),
+    ("post", "/api/v1/settings/email/test", Role.ADMIN),
 ]
 
 
@@ -104,6 +109,34 @@ def test_each_route_needs_its_role(
         assert status == 403
 
 
+@pytest.mark.parametrize(("method", "path", "needed"), USER_ROUTES)
+@pytest.mark.parametrize("role", list(Role))
+def test_each_signed_in_route_needs_its_role(
+    app: FastAPI, client: TestClient, method: str, path: str, needed: Role, role: Role
+) -> None:
+    user = signed_in(app, role)
+
+    status = _call(user, method, path, CSRF).status_code
+
+    if role.allows(needed):
+        assert status not in (401, 403)
+    else:
+        assert status == 403
+
+
+@pytest.mark.parametrize(("method", "path", "needed"), USER_ROUTES)
+def test_signed_in_routes_refuse_every_token(
+    client: TestClient, method: str, path: str, needed: Role
+) -> None:
+    made = client.post(
+        "/api/v1/tokens", json={"name": "Script", "role": "admin"}, headers=admin()
+    ).json()
+
+    assert _call(client, method, path, admin()).status_code == 403
+    assert _call(client, method, path, bearer(made["token"])).status_code == 403
+    assert _call(client, method, path).status_code == 401
+
+
 @pytest.mark.parametrize(
     ("method", "path", "needed"), [r for r in ROUTES if r[2] in (Role.EDITOR, Role.ADMIN)]
 )
@@ -115,7 +148,7 @@ def test_requester_gains_no_editor_or_admin_route(
     assert _call(requester, method, path, CSRF).status_code == 403
 
 
-@pytest.mark.parametrize(("method", "path", "needed"), ROUTES)
+@pytest.mark.parametrize(("method", "path", "needed"), ROUTES + USER_ROUTES)
 def test_cookie_writes_need_the_csrf_header(
     app: FastAPI, client: TestClient, method: str, path: str, needed: Role
 ) -> None:
