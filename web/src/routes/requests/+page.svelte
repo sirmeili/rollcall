@@ -1,25 +1,56 @@
 <script lang="ts">
   import { describeError } from "#lib/api/errors.ts";
-  import { listRequests, type RequestRow } from "#lib/api/requests.ts";
+  import {
+    listRequests,
+    type RequestRow,
+    type RequestStatus,
+    type RequestTab,
+  } from "#lib/api/requests.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import RequestCards from "#lib/components/requests/RequestCards.svelte";
   import RequestTable from "#lib/components/requests/RequestTable.svelte";
   import { canSubmit, seesEveryRequest } from "#lib/requests/access.ts";
+  import { STATUS_LABELS } from "#lib/requests/labels.ts";
+  import { emptyState, OPEN_STATUSES, SORT_TEXT, TABS, toggleStatus } from "#lib/requests/list.ts";
   import { viewport } from "#lib/viewport.svelte.ts";
 
   const screen = viewport();
   const seesAll = $derived(seesEveryRequest(session.user));
   const canNew = $derived(canSubmit(session.user));
+  // Editors and Admins who are also Requesters have requests of their own among everyone's.
+  const offerMine = $derived(seesAll && canNew);
+
+  let tab = $state<RequestTab>("active");
+  let statuses = $state<RequestStatus[]>([]);
+  let mine = $state(false);
 
   let requests = $state<RequestRow[] | null>(null);
   let failure = $state<string | null>(null);
 
+  // Reload whenever the tab or a filter changes. The status filter is for the Active tab.
   $effect(() => {
-    listRequests().then(
-      (rows) => (requests = rows),
-      (error) => (failure = describeError(error)),
+    const query = {
+      tab,
+      statuses: seesAll && tab === "active" ? [...statuses] : [],
+      mine: offerMine && mine,
+    };
+    const controller = new AbortController();
+    listRequests(query, controller.signal).then(
+      (rows) => {
+        requests = rows;
+        failure = null;
+      },
+      (error) => {
+        if (!controller.signal.aborted) failure = describeError(error);
+      },
     );
+    return () => controller.abort();
   });
+
+  function show(next: RequestTab): void {
+    tab = next;
+    requests = null;
+  }
 
   const intro = $derived(
     seesAll
@@ -28,21 +59,13 @@
         ? "Your print requests. You can edit a request while it's still Submitted."
         : "Your earlier print requests. You can no longer submit or edit requests, but you can still open them and download their files.",
   );
-  const emptyHeading = $derived(
-    seesAll
-      ? "No print requests yet"
-      : canNew
-        ? "You haven't asked for any prints yet"
-        : "You don't have any print requests",
-  );
-  const emptyText = $derived(
-    seesAll
-      ? canNew
-        ? "Requests from everyone with the Requester permission show up here. Start one yourself with New request."
-        : "Requests from everyone with the Requester permission show up here."
-      : canNew
-        ? "Ask for something to be printed: add a model file or link, pick filament, and say when you need it."
-        : "You can no longer submit print requests.",
+  const empty = $derived(
+    emptyState({
+      tab,
+      seesAll,
+      canSubmit: canNew,
+      filtered: (tab === "active" && statuses.length > 0) || (offerMine && mine),
+    }),
   );
 </script>
 
@@ -71,21 +94,51 @@
     {#if canNew}{@render newButton()}{/if}
   </div>
 
+  <div class="toolbar">
+    <div class="toolbar chips" role="group" aria-label="Show">
+      {#each TABS as option (option.value)}
+        <button
+          type="button"
+          class="chip"
+          aria-pressed={tab === option.value}
+          onclick={() => show(option.value)}>{option.label}</button
+        >
+      {/each}
+    </div>
+    {#if seesAll && tab === "active"}
+      <div class="toolbar chips" role="group" aria-label="Filter by status">
+        {#each OPEN_STATUSES as status (status)}
+          <button
+            type="button"
+            class="chip"
+            aria-pressed={statuses.includes(status)}
+            onclick={() => (statuses = toggleStatus(statuses, status))}
+            >{STATUS_LABELS[status]}</button
+          >
+        {/each}
+      </div>
+    {/if}
+    {#if offerMine}
+      <button type="button" class="chip" aria-pressed={mine} onclick={() => (mine = !mine)}
+        >Only mine</button
+      >
+    {/if}
+  </div>
+
   {#if failure}
     <p role="alert" class="error">{failure}</p>
   {:else if !requests}
     <p class="muted">Loading…</p>
   {:else if requests.length === 0}
     <section class="card empty">
-      <h2>{emptyHeading}</h2>
-      <p class="muted">{emptyText}</p>
-      {#if canNew}{@render newButton()}{/if}
+      <h2>{empty.heading}</h2>
+      <p class="muted">{empty.text}</p>
+      {#if empty.offerNew}{@render newButton()}{/if}
     </section>
   {:else}
     <p class="meta muted">
       <strong>{requests.length}</strong>
-      {requests.length === 1 ? "request" : "requests"} · Most urgent first, then by needed-by date, then
-      oldest first
+      {requests.length === 1 ? "request" : "requests"} · {SORT_TEXT[tab]}
     </p>
     {#if screen.phone}
       <RequestCards {requests} showRequester={seesAll} />
@@ -96,6 +149,10 @@
 </div>
 
 <style>
+  .chips {
+    gap: 8px;
+  }
+
   .meta {
     margin: -8px 0 0;
     font-size: 14px;

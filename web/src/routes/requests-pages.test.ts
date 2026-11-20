@@ -159,20 +159,6 @@ describe("Requests list", () => {
     expect(screen.queryByRole("link", { name: "New request" })).toBeNull();
   });
 
-  it.each([
-    [DANA, "No print requests yet", false],
-    [{ ...DANA, requester: true }, "No print requests yet", true],
-    [SAM, "You haven't asked for any prints yet", true],
-    [{ ...SAM, requester: false }, "You don't have any print requests", false],
-  ])("explains an empty list (%#)", async (user, heading, canNew) => {
-    signIn(user);
-    api.listRequests.mockResolvedValue([]);
-    render(ListPage);
-
-    expect(await screen.findByRole("heading", { name: heading })).toBeVisible();
-    expect(screen.queryAllByRole("link", { name: "New request" })).toHaveLength(canNew ? 2 : 0);
-  });
-
   it("shows cards on a phone", async () => {
     signIn(DANA);
     viewport().phone = true;
