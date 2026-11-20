@@ -96,7 +96,7 @@ The session cookie is marked Secure. Browsers accept it over plain HTTP on `loca
 
 With `BACKUP_DIR` set, the server copies its database there every night at 03:00 in its time zone (the one saved on the Settings page, else `TZ`), using SQLite's online backup, and keeps the newest 14. Files are named by their UTC time, like `filament-20261110T090000Z.db`. The settings key is never copied into them. `uv run ft-admin backup` makes one at once. The Docker image sets `BACKUP_DIR=/backups`; see [docs/deploy.md](../docs/deploy.md) for restoring one.
 
-Backups hold the database only. The model files and photos uploaded with print requests are kept beside the database, in a `request-files` folder next to the database file (`/data/request-files` in the Docker image), each under a random name; [docs/deploy.md](../docs/deploy.md) shows how to copy them. A file or photo uploaded but never saved with a request is deleted once it is a day old, the next time anyone uploads one of the same kind.
+Backups hold the database only. The model files and photos uploaded with print requests are kept beside the database, in a `request-files` folder next to the database file (`/data/request-files` in the Docker image), each under a random name ([ADR 0018](../docs/adr/0018-request-photos-are-files-beside-model-files.md)); [docs/deploy.md](../docs/deploy.md) shows how to copy them. A file or photo uploaded but never saved with a request is deleted once it is a day old, the next time anyone uploads one of the same kind.
 
 ## Catalog
 
