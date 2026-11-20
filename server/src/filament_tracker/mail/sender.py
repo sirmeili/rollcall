@@ -26,6 +26,7 @@ RETRIES = (60.0, 240.0, 600.0)
 STOP_TIMEOUT = 5.0
 NO_FROM = "No from address is set."
 UNEXPECTED = "The email couldn't be sent."
+BAD_SETTINGS = "The email settings couldn't be read."
 
 
 @dataclass(frozen=True)
@@ -89,7 +90,7 @@ class MailSender:
     def send_now(self, email: Email) -> None:
         """Send one email and wait for the result, with no retries. Raises MailError; email
         being off is an error here too."""
-        server = self._server()
+        server = self._settings()
         if server is None:
             raise MailError("Email is off: no SMTP host is set.")
         self._deliver(server, email)
@@ -115,11 +116,11 @@ class MailSender:
         return None
 
     def _attempt(self, item: _Pending) -> None:
-        server = self._server()
-        if server is None:
-            logger.info("email is off, so an email was dropped")
-            return
         try:
+            server = self._settings()
+            if server is None:
+                logger.info("email is off, so an email was dropped")
+                return
             self._deliver(server, item.email)
         except MailError as error:
             if item.attempt < len(self._retries):
@@ -130,6 +131,17 @@ class MailSender:
                     self._wake.notify_all()
                 return
             logger.warning("an email was dropped after %d tries: %s", item.attempt + 1, error)
+
+    def _settings(self) -> SmtpServer | None:
+        """The saved SMTP server, or None when email is off. Raises MailError, recorded as
+        the last failure, when the settings can't be read."""
+        try:
+            return self._server()
+        except Exception as error:
+            # Only the type: the error's text could hold a setting's value.
+            logger.warning("email: unexpected %s while reading the settings", type(error).__name__)
+            self.last_failure = Failure(self._clock(), BAD_SETTINGS)
+            raise MailError(BAD_SETTINGS) from None
 
     def _deliver(self, server: SmtpServer, email: Email) -> None:
         try:

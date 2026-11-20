@@ -200,3 +200,29 @@ def test_stopping_drops_waiting_emails(outbox: FakeOutbox, server: list[SmtpServ
 
     assert time.monotonic() - started < 1
     assert outbox.sent == []
+
+
+def test_settings_that_cant_be_read_are_a_failed_attempt_that_is_retried(
+    outbox: FakeOutbox, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    reads = []
+
+    def server() -> SmtpServer:
+        reads.append(1)
+        if len(reads) == 1:
+            raise ValueError(f"invalid literal for int(): {PASSWORD}")
+        return SERVER
+
+    sender = MailSender(outbox, server, retries=SHORT)
+    sender.start()
+    try:
+        sender.send_later([EMAIL])
+
+        wait_for(lambda: len(outbox.sent) == 1)
+    finally:
+        sender.stop()
+    assert sender.last_failure is not None
+    assert sender.last_failure.message == "The email settings couldn't be read."
+    assert "ValueError" in caplog.text
+    assert PASSWORD not in caplog.text
