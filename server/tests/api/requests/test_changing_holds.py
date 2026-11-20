@@ -335,3 +335,33 @@ def test_editors_and_requesters_are_refused_and_requesters_see_the_change(
 
     entry = _read(sam, queued["id"])["history"][0]
     assert (entry["kind"], entry["username"]) == ("holds_changed", "frank")
+
+
+def test_a_hold_removed_from_a_waiting_request_is_not_held_again_for_it_until_stock_changes(
+    client: TestClient, token: str, sam: TestClient, frank: TestClient
+) -> None:
+    pla = stock(client, token, BLACK_PLA, "PLA", "received")
+    first = _approved(sam, frank, pla, 1500)
+    second = _approved(sam, frank, pla, 400)
+    assert (first["status"], second["status"]) == ("waiting_on_filament", "waiting_on_filament")
+    assert _holds(second) == []
+
+    response = remove_hold(frank, first, _hold_id(first))
+
+    assert response.status_code == 200, response.text
+    read = response.json()
+    assert (read["status"], _holds(read), _choice(read)["short_g"]) == (
+        "waiting_on_filament",
+        [],
+        1500,
+    )
+    # The freed grams go to the next waiting request instead.
+    spool_id = _spool(client, pla)
+    assert _holds(_read(frank, second["id"])) == [(spool_id, 400)]
+    assert _read(frank, second["id"])["status"] == "queued"
+
+    # A later stock change retries the first request as any other.
+    stock(client, token, BLACK_PLA, "PLA", "received")
+    again = _read(frank, first["id"])
+    assert _choice(again)["short_g"] == 0
+    assert again["status"] == "queued"

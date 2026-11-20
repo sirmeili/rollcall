@@ -25,7 +25,8 @@ Filament or Queued: a choice's grams (holding them again), a hold's spool or gra
 on any Sealed or Open spool (of another product, say, for a similar color), or no hold. A
 hold by hand takes no more than the spool has free, unless its grams are unknown. Each
 change names the status it expects, releases what it replaces as `changed`, writes one
-`holds_changed` entry, sends no email, and checks the request again as a retry does.
+`holds_changed` entry, sends no email, and checks the request again: it moves to Queued
+once covered, but takes no more holds until a later retry, so the change isn't undone.
 """
 
 from datetime import datetime
@@ -72,6 +73,9 @@ REPRINT = (RequestStatus.FAILED, RequestStatus.QUEUED)
 
 # Where a request's choices are held and may be short.
 HOLDING = (RequestStatus.APPROVED, RequestStatus.WAITING_ON_FILAMENT, RequestStatus.QUEUED)
+
+# The session's requests whose holds were changed by hand, which its retry only checks.
+_CHANGED_BY_HAND = "holds_changed_by_hand"
 
 # Where a request waits for filament, and is retried when stock changes.
 WAITING = (RequestStatus.APPROVED, RequestStatus.WAITING_ON_FILAMENT)
@@ -241,12 +245,15 @@ def available(session: Session, choice: FilamentChoice) -> int:
     return 0 if found is None else holds.product_available(session, found)
 
 
-def _hold_more(session: Session, wanted: dict[FilamentChoice, int], now: datetime) -> bool:
-    """Hold more for each short choice, toward its grams; whether every choice is covered."""
+def _hold_more(
+    session: Session, wanted: dict[FilamentChoice, int], now: datetime, *, top_up: bool = True
+) -> bool:
+    """Hold more for each short choice, toward its grams (only check them, without
+    `top_up`); whether every choice is covered."""
     covered = True
     for choice, grams in wanted.items():
         short = holds.shortfall(session, holder(choice), grams)
-        if short:
+        if short and top_up:
             found = product_id(session, choice)
             short = holds.place(session, holder(choice), found, short, now).short
         covered = covered and short == 0
@@ -255,23 +262,28 @@ def _hold_more(session: Session, wanted: dict[FilamentChoice, int], now: datetim
 
 def retry(session: Session) -> None:
     """Retry the requests waiting for filament, in Active-tab order, after stock changed. A
-    request whose choices have no grams yet (approved before grams were asked) is left."""
+    request whose choices have no grams yet (approved before grams were asked) is left. A
+    request whose holds were changed by hand in this transaction is only checked, so the
+    retry its change set off doesn't undo it; later retries treat it as any other."""
     now = utcnow()
+    by_hand: set[int] = session.info.pop(_CHANGED_BY_HAND, set())
     waiting = session.scalars(select(PrintRequest).where(PrintRequest.status.in_(WAITING)))
     for request in sorted(waiting, key=sort_key):
-        _retry_one(session, request, now)
+        _retry_one(session, request, now, top_up=request.id not in by_hand)
     session.flush()
 
 
-def _retry_one(session: Session, request: PrintRequest, now: datetime) -> None:
-    """Hold more for a request waiting for filament, and queue it once every choice is
-    covered; nothing for any other request."""
+def _retry_one(
+    session: Session, request: PrintRequest, now: datetime, *, top_up: bool = True
+) -> None:
+    """Hold more for a request waiting for filament (unless not `top_up`), and queue it once
+    every choice is covered; nothing for any other request."""
     if request.status not in WAITING:
         return
     wanted = {c: c.grams for c in request.choices if c.grams is not None}
     if len(wanted) < len(request.choices):
         return
-    if _hold_more(session, wanted, now):
+    if _hold_more(session, wanted, now, top_up=top_up):
         pipeline.make_move(
             request,
             expected=request.status,
@@ -300,11 +312,13 @@ def _changing(request: PrintRequest, expected: RequestStatus) -> None:
 
 
 def _changed(session: Session, request: PrintRequest, user: User, now: datetime) -> None:
-    """Record the change and check the request again."""
+    """Record the change and check the request again, without holding more for it: in this
+    transaction, the retry that a release sets off only checks it too."""
     request.history.append(RequestHistory(kind=HistoryKind.HOLDS_CHANGED, user=user, at=now))
     request.updated_at = now
+    session.info.setdefault(_CHANGED_BY_HAND, set()).add(request.id)
     session.flush()
-    _retry_one(session, request, now)
+    _retry_one(session, request, now, top_up=False)
     session.flush()
 
 
