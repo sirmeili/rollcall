@@ -2,6 +2,7 @@
 request is Done or Picked Up; the requester sees them. Each is checked by its contents and
 re-encoded, so no metadata survives."""
 
+import asyncio
 import io
 from datetime import timedelta
 from pathlib import Path
@@ -20,6 +21,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.request_models import PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus, Role
+from filament_tracker.print_requests.photos import Photos
 
 PHOTO_UPLOADS = f"{REQUESTS}/photo-uploads"
 TO_PRINTING = ["approved", "queued", "printing"]
@@ -401,3 +403,24 @@ def test_an_upload_never_saved_is_removed_after_a_day(
     request_id = printing(sam, frank)
     assert move(frank, request_id, "printing", "done", photo_ids=[stale]).status_code == 422
     assert len(list(files_dir.iterdir())) == 2
+
+
+def test_an_upload_is_stored_off_the_event_loop(
+    frank: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Writing the files and the database would hold up every other request on the loop."""
+    stored_on_the_loop = []
+    real_store = Photos.store
+
+    def store(self: Photos, *args: Any) -> RequestPhoto:
+        try:
+            asyncio.get_running_loop()
+            stored_on_the_loop.append(True)
+        except RuntimeError:
+            stored_on_the_loop.append(False)
+        return real_store(self, *args)
+
+    monkeypatch.setattr(Photos, "store", store)
+
+    assert upload_photo(frank, jpeg()).status_code == 201
+    assert stored_on_the_loop == [False]

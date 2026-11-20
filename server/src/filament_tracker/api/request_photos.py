@@ -75,7 +75,14 @@ async def upload_photo(
         photo = await run_in_threadpool(photos.reencode, body)
     except photos.NotAPhoto as error:
         raise problems({photos.PHOTO: str(error)}) from None
-    stored = stored_photos(http).store(session, user, name, photo, utcnow())
+    return await run_in_threadpool(_keep, stored_photos(http), session, user, name, photo)
+
+
+def _keep(
+    kept: photos.Photos, session: Session, user: User, name: str, photo: photos.Reencoded
+) -> PhotoUploadOut:
+    """Store the photo and commit: file and database work, run off the event loop."""
+    stored = kept.store(session, user, name, photo, utcnow())
     session.commit()
     return PhotoUploadOut(id=stored.id, name=stored.file_name)
 
