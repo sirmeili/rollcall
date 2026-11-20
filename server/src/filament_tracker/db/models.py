@@ -99,6 +99,10 @@ class Spool(Base):
     opened_at: Mapped[datetime | None]
     emptied_at: Mapped[datetime | None]
     remaining_pct: Mapped[int | None]
+    # Grams of filament when full (from the tag, else a fallback) and grams left now. Both
+    # are edited in place, not events (ADR-0019); grams left is None when unknown.
+    net_weight_g: Mapped[int | None]
+    grams_left_g: Mapped[int | None]
     location: Mapped[str | None] = mapped_column(String(100))
     notes: Mapped[str | None] = mapped_column(String(2000))
     # Set when its "Likely empty" suggestion is dismissed; cleared when the AMS reports more.

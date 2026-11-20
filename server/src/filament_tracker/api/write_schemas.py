@@ -38,6 +38,10 @@ class SpoolUpdate(Strict):
 
     location: Location = None
     notes: Notes = None
+    net_weight_g: int | None = Field(default=None, description="Admins only: 1 to 10,000 g")
+    grams_left_g: int | None = Field(
+        default=None, description="Admins only: 0 to the net weight; can't be cleared"
+    )
 
 
 class BulkLocation(Strict):

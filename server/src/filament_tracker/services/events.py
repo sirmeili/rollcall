@@ -23,6 +23,7 @@ from filament_tracker.domain.state import (
     Step,
     replay,
 )
+from filament_tracker.services import grams
 
 
 class RevertError(ValueError):
@@ -91,6 +92,8 @@ def append_event(
     session.add(event)
     step = reproject(spool).steps[event.id]
     event.flagged = flag or step.outcome is Outcome.FLAGGED
+    if event_type is EventType.RECEIVED and step.outcome is Outcome.APPLIED:
+        grams.received(spool)
     session.flush()
     return AppendResult(event, step)
 

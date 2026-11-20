@@ -319,3 +319,99 @@ def test_the_request_pipeline_keeps_existing_requests_submitted(tmp_path: Path) 
         kinds = connection.execute(text("SELECT kind FROM request_history")).scalars().all()
     engine.dispose()
     assert (status, kinds) == ("submitted", ["submitted"])
+
+
+def test_existing_spools_get_net_weight_and_grams_left(tmp_path: Path) -> None:
+    url = f"sqlite:///{tmp_path / 'spools.db'}"
+    upgrade(url, "29efdaa213bf")
+    engine = create_db_engine(url)
+    when = "2026-11-20 12:00:00.000000"
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO catalog_brand VALUES ('b', 'Bambu Lab', '[]')"))
+        connection.execute(
+            text(
+                "INSERT INTO catalog_filament (uuid, brand_uuid, position, name, material,"
+                " moved_from) VALUES ('f', 'b', 0, 'TPU', 'TPU', '[]')"
+            )
+        )
+        for color in ("one", "two"):
+            connection.execute(
+                text(
+                    "INSERT INTO catalog_variant (uuid, filament_uuid, position, name, color_hex,"
+                    " extra_hexes, gradient, discontinued, moved_from)"
+                    " VALUES (:c, 'f', 0, :c, 'FF0000', '[]', 0, 0, '[]')"
+                ),
+                {"c": color},
+            )
+        for size, color, weight in [("s1", "one", 500.0), ("s2", "two", 500.0), ("s3", "two", 250)]:
+            connection.execute(
+                text(
+                    "INSERT INTO catalog_size (uuid, variant_uuid, filament_weight, refill,"
+                    " discontinued, purchase_links, moved_from)"
+                    " VALUES (:s, :c, :w, 0, 0, '[]', '[]')"
+                ),
+                {"s": size, "c": color, "w": weight},
+            )
+        # 1: no catalog link; 2: linked by hand to a color with one size; 3: linked by its
+        # tag to a color with two sizes.
+        for id_, manual, auto in [(1, None, None), (2, "one", None), (3, None, "two")]:
+            connection.execute(
+                text(
+                    "INSERT INTO product (id, filament_type, color_rgba, display_name,"
+                    " low_stock_threshold, provisional, created_at, catalog_manual_uuid,"
+                    " catalog_auto_uuid) VALUES (:id, 'TPU', 'FF0000FF', 'TPU', 0, 0, :w, :m, :a)"
+                ),
+                {"id": id_, "w": when, "m": manual, "a": auto},
+            )
+        spools = [
+            # id, product, state, remaining %, tag weight
+            (1, 1, "sealed", None, 750),  # sealed, from its tag
+            (2, 1, "open", 40, 750),  # open with a remaining %
+            (3, 1, "open", None, 750),  # open, no remaining %: unknown
+            (4, 2, "sealed", None, None),  # placeholder, its color's only size
+            (5, 3, "sealed", None, None),  # placeholder, a color with two sizes
+            (6, 1, "open", 50, None),  # seen by the AMS first, no tag
+            (7, 1, "empty", 0, 1000),  # empty: unknown
+            (8, 1, None, None, 0),  # Unknown state, a tag with no weight
+        ]
+        for id_, product, state, pct, weight in spools:
+            connection.execute(
+                text(
+                    "INSERT INTO spool (id, product_id, state, remaining_pct, created_at)"
+                    " VALUES (:id, :p, :s, :pct, :w)"
+                ),
+                {"id": id_, "p": product, "s": state, "pct": pct, "w": when},
+            )
+            if weight is not None:
+                connection.execute(
+                    text(
+                        "INSERT INTO tag (uid, spool_id, decoded_json, first_seen_at)"
+                        " VALUES (:uid, :id, :json, :w)"
+                    ),
+                    {
+                        "uid": f"{id_:08X}",
+                        "id": id_,
+                        "json": f'{{"spool_weight_g": {weight}}}',
+                        "w": when,
+                    },
+                )
+    engine.dispose()
+
+    upgrade(url)
+
+    engine = create_db_engine(url)
+    with engine.connect() as connection:
+        rows = connection.execute(
+            text("SELECT id, net_weight_g, grams_left_g FROM spool ORDER BY id")
+        ).all()
+    engine.dispose()
+    assert [tuple(row) for row in rows] == [
+        (1, 750, 750),
+        (2, 750, 300),
+        (3, 750, None),
+        (4, 500, 500),
+        (5, 1000, 1000),
+        (6, 1000, 500),
+        (7, 1000, None),
+        (8, 1000, None),
+    ]

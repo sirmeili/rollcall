@@ -26,6 +26,7 @@ from filament_tracker.decoder import DecodeError, TagRecord, decode
 from filament_tracker.domain.actions import ScreenAction, menu_for
 from filament_tracker.domain.enums import EventSource, EventType, Role
 from filament_tracker.domain.state import Outcome
+from filament_tracker.services import grams
 from filament_tracker.services.catalog_links import link_product
 from filament_tracker.services.events import AppendResult, append_event
 
@@ -91,6 +92,7 @@ def handle_scan(session: Session, device: Device, scan: ScanEvent, now: datetime
     elif spool.product is not product:
         _move_to_tag_product(session, spool, product)
     _keep_tag(session, scan, record, spool)
+    grams.give_fallback_net_weight(session, spool)
 
     result = append_event(
         session,
@@ -222,10 +224,13 @@ def _keep_tag(session: Session, scan: ScanEvent, record: TagRecord, spool: Spool
     if tag is None:
         tag = Tag(uid=record.tag_uid)
         session.add(tag)
+    newly_linked = tag.spool is not spool
     tag.spool = spool
     tag.raw_blocks = [b.upper() for b in scan.blocks]
     tag.decoded_json = record.to_json_dict()
     tag.decoder_version = record.decoder_version
+    if newly_linked:
+        grams.take_tag_net_weight(spool, tag)
 
 
 def _keep_unidentified(session: Session, scan: ScanEvent) -> None:

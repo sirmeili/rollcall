@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Event, Product, Spool, Tag
 from filament_tracker.domain.enums import EventSource, EventType, SpoolState
+from filament_tracker.services import grams
 from filament_tracker.services.events import AppendResult, append_event
 
 
@@ -47,6 +48,7 @@ def add_placeholder(
     of this product's tag links to the oldest such placeholder."""
     spool = Spool(product=product, location=location, notes=notes)
     session.add(spool)
+    grams.give_fallback_net_weight(session, spool)
     session.flush()
     record_action(session, spool, EventType.RECEIVED, received_at, user_id=user_id)
     return spool

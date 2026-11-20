@@ -15,11 +15,11 @@ from filament_tracker.api.write_schemas import (
     ProductUpdate,
     SpoolUpdate,
 )
-from filament_tracker.auth import DbSession, Editor, Principal
+from filament_tracker.auth import DbSession, Editor, Principal, forbidden, problems
 from filament_tracker.db.models import Product, Spool
 from filament_tracker.db.types import utcnow
-from filament_tracker.domain.enums import EventType
-from filament_tracker.services import edits, queries
+from filament_tracker.domain.enums import EventType, Role
+from filament_tracker.services import edits, grams, queries
 from filament_tracker.services.catalog_links import UnknownColor, set_manual
 
 router = APIRouter(tags=["edits"])
@@ -60,14 +60,38 @@ def _detail(session: DbSession, spool: Spool) -> SpoolDetail:
     return spool_detail(spool, queries.spool_events(session, spool))
 
 
+GRAMS_FIELDS = frozenset({"net_weight_g", "grams_left_g"})
+
+
 @router.patch("/spools/{spool_id}", response_model=SpoolDetail)
-def update_spool(spool_id: int, body: SpoolUpdate, _: Editor, session: DbSession) -> SpoolDetail:
-    """Edit location and notes. Fields left out of the body are not changed."""
+def update_spool(
+    spool_id: int, body: SpoolUpdate, caller: Editor, session: DbSession
+) -> SpoolDetail:
+    """Edit location and notes, and (Admins only) net weight and grams left. Fields left out
+    of the body are not changed. Grams are changed in place: no event, no undo (ADR-0019)."""
+    sent = body.model_fields_set
+    if sent & GRAMS_FIELDS and caller.role is not Role.ADMIN:
+        raise forbidden("only Admins can edit net weight and grams left")
     spool = _spool(session, spool_id)
-    for name in body.model_fields_set:
+    if sent & GRAMS_FIELDS:
+        _set_grams(spool, body)
+    for name in sent - GRAMS_FIELDS:
         setattr(spool, name, getattr(body, name))
     session.commit()
     return _detail(session, spool)
+
+
+def _set_grams(spool: Spool, body: SpoolUpdate) -> None:
+    sent = body.model_fields_set
+    if "grams_left_g" in sent and body.grams_left_g is None:
+        raise problems({"grams_left_g": "Grams left can't be cleared."})
+    found = grams.set_by_hand(
+        spool,
+        body.net_weight_g if "net_weight_g" in sent else spool.net_weight_g,
+        body.grams_left_g if "grams_left_g" in sent else spool.grams_left_g,
+    )
+    if found:
+        raise problems(found)
 
 
 @router.patch("/spools", response_model=list[SpoolRow])

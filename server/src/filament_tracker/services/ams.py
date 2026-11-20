@@ -6,8 +6,8 @@
   as made from the AMS, which keeps the tray's material ID so a scanned tag can fill it in.
 - A known spool that has never been opened by the AMS, and is sealed or Unknown, is
   recorded as `opened`. Once per spool: an undone AMS `opened` is not recorded again.
-- The remaining % is written to the spool only when it changes; more than 0% brings back a
-  dismissed "Likely empty" suggestion.
+- The remaining % is written to the spool only when it changes, and sets its grams left
+  (over any hand figure); more than 0% brings back a dismissed "Likely empty" suggestion.
 - Each slot's row records what is loaded, so pages can show where a spool is.
 
 Callers own the transaction: this flushes but does not commit.
@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.models import Printer, PrinterSlot, Product, Spool
 from filament_tracker.domain.enums import EventSource, EventType, SpoolState
 from filament_tracker.printer.report import TrayReport
+from filament_tracker.services import grams
 from filament_tracker.services.events import append_event
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,7 @@ def _track_spool(session: Session, printer: Printer, tray: TrayReport, now: date
     if spool is None:
         spool = Spool(tray_uid=tray.tray_uuid, product=_match_product(session, tray))
         session.add(spool)
+        grams.give_fallback_net_weight(session, spool)
         append_event(
             session, spool, EventType.OPENED, EventSource.AMS, now, payload=where, flag=True
         )
@@ -79,6 +81,7 @@ def _track_spool(session: Session, printer: Printer, tray: TrayReport, now: date
     remaining = tray.remaining_pct
     if remaining is not None and spool.remaining_pct != remaining:
         spool.remaining_pct = remaining
+        grams.from_remaining_pct(spool)
         if remaining > 0:
             spool.likely_empty_dismissed_at = None
     return spool

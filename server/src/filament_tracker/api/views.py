@@ -79,6 +79,8 @@ def spool_row(spool: Spool) -> SpoolRow:
         placeholder=spool.tray_uid is None,
         location=spool.location,
         remaining_pct=spool.remaining_pct,
+        net_weight_g=spool.net_weight_g,
+        grams_left_g=spool.grams_left_g,
         received_at=spool.received_at,
         opened_at=spool.opened_at,
         emptied_at=spool.emptied_at,
@@ -125,24 +127,11 @@ def tag_out(tag: Tag) -> TagOut:
     )
 
 
-def spool_weight_g(tags: list[Tag]) -> int | None:
-    """The filament weight from the first decoded tag that has one."""
-    for tag in tags:
-        weight = (tag.decoded_json or {}).get("spool_weight_g")
-        if isinstance(weight, int) and weight > 0:
-            return weight
-    return None
-
-
 def spool_detail(spool: Spool, events: list[Event]) -> SpoolDetail:
     tags = sorted(spool.tags, key=lambda t: t.first_seen_at)
-    weight = spool_weight_g(tags)
-    pct = spool.remaining_pct
     return SpoolDetail(
         **spool_row(spool).model_dump(),
         notes=spool.notes,
-        spool_weight_g=weight,
-        grams_left=round(weight * pct / 100) if weight is not None and pct is not None else None,
         tags=[tag_out(t) for t in tags],
         events=[event_out(e) for e in events],
     )
