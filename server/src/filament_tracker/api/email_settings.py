@@ -5,7 +5,7 @@ The group's settings themselves are read and saved like every other group (api/s
 
 from datetime import datetime
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
 from filament_tracker.api.deps import mail_sender
@@ -13,10 +13,12 @@ from filament_tracker.app_settings.registry import EMAIL
 from filament_tracker.auth import Admin, forbidden
 from filament_tracker.mail.checks import test_email
 from filament_tracker.mail.transport import MailError
+from filament_tracker.services.cooldown import Cooldown
 
 router = APIRouter(tags=["settings"])
 
 NO_ADDRESS = "Add your email address on Account first."
+TOO_SOON = "Wait a few seconds before sending another test email."
 
 
 class FailureOut(BaseModel):
@@ -57,6 +59,9 @@ def send_test_email(principal: Admin, request: Request) -> TestEmailOut:
         raise forbidden("only a signed-in Admin can send a test email")
     if not user.email:
         return TestEmailOut(ok=False, message=NO_ADDRESS)
+    cooldown: Cooldown = request.app.state.test_email_cooldown
+    if not cooldown.start():
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, TOO_SOON)
     try:
         mail_sender(request).send_now(test_email(user.email))
     except MailError as error:

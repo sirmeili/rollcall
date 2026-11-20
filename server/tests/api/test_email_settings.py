@@ -13,6 +13,7 @@ from pydantic import SecretStr
 from filament_tracker.config import Settings
 from filament_tracker.domain.enums import Role
 from filament_tracker.main import create_app
+from filament_tracker.services.cooldown import TEST_EMAIL_GAP, Cooldown
 
 URL = "/api/v1/settings/email"
 TEST_URL = f"{URL}/test"
@@ -38,10 +39,27 @@ def outbox() -> FakeOutbox:
     return FakeOutbox()
 
 
+class FakeClock:
+    """The test email cooldown's clock, moved by hand so no test sleeps."""
+
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
 @pytest.fixture
-def app(db_url: str, outbox: FakeOutbox) -> FastAPI:
+def clock() -> FakeClock:
+    return FakeClock()
+
+
+@pytest.fixture
+def app(db_url: str, outbox: FakeOutbox, clock: FakeClock) -> FastAPI:
     settings = Settings(database_url=db_url, admin_token=ADMIN_TOKEN, _env_file=None)
-    return create_app(settings, mail_transport=outbox)
+    app = create_app(settings, mail_transport=outbox)
+    app.state.test_email_cooldown = Cooldown(TEST_EMAIL_GAP, clock=clock)
+    return app
 
 
 @pytest.fixture
@@ -213,8 +231,38 @@ def test_send_test_email_needs_a_signed_in_admin(client: TestClient, outbox: Fak
     assert outbox.attempts == 0
 
 
+def test_a_second_test_email_within_30_seconds_is_refused(
+    boss: TestClient, outbox: FakeOutbox, client: TestClient, clock: FakeClock
+) -> None:
+    save(client, SETUP)
+    outbox.fail(message="Can't reach the mail server. Check the host and port.")
+    boss.post(TEST_URL, headers=CSRF)
+    clock.now += 29
+
+    response = boss.post(TEST_URL, headers=CSRF)
+
+    # A failed test counts too: the second one is refused without trying the server.
+    assert response.status_code == 429
+    assert response.json()["detail"] == "Wait a few seconds before sending another test email."
+    assert outbox.attempts == 1
+
+
+def test_a_test_email_after_30_seconds_is_sent(
+    boss: TestClient, outbox: FakeOutbox, client: TestClient, clock: FakeClock
+) -> None:
+    save(client, SETUP)
+    boss.post(TEST_URL, headers=CSRF)
+    clock.now += 30
+
+    response = boss.post(TEST_URL, headers=CSRF)
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert len(outbox.sent) == 2
+
+
 def test_the_last_success_and_failure_are_shown(
-    boss: TestClient, outbox: FakeOutbox, client: TestClient
+    boss: TestClient, outbox: FakeOutbox, client: TestClient, clock: FakeClock
 ) -> None:
     assert boss.get(STATUS_URL).json() == {
         "on": False,
@@ -224,6 +272,7 @@ def test_the_last_success_and_failure_are_shown(
     save(client, SETUP)
     boss.post(TEST_URL, headers=CSRF)
     outbox.fail(message="Can't reach the mail server. Check the host and port.")
+    clock.now += TEST_EMAIL_GAP
     boss.post(TEST_URL, headers=CSRF)
 
     status = boss.get(STATUS_URL).json()

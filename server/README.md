@@ -285,7 +285,7 @@ Checklist before a release that changes the Home Assistant link:
 RollCall emails users through your mail provider's SMTP server. Set it in the **Email** group of the Settings page (Admin), or in `server/.env` (see [docs/configuration.md](../docs/configuration.md)): the host, port, security (`starttls`, `tls` or `none`), user, password and from address, and the Public URL that links in emails use. With no host, email is off.
 
 - **Addresses**: each user adds their own address on the Account page, and an Admin can set anyone's on the Users page. Addresses are optional and never verified.
-- **Send test email** sends to the signed-in Admin's own address with the saved settings and shows the result.
+- **Send test email** sends to the signed-in Admin's own address with the saved settings and shows the result. The server allows one test every 30 seconds.
 - **In the background**: emails are handed to a background sender, so nothing waits for the mail server. A failed send is retried 3 times over about 15 minutes, then logged and dropped. Emails still waiting are lost on a restart. The Email group shows the last success and the last failure.
 - The password is stored encrypted, and never shown or logged. Errors are short descriptions such as "The mail server refused the user name or password", never the mail server's own text.
 

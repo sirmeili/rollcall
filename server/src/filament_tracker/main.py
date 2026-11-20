@@ -47,6 +47,7 @@ from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.backup import BackupScheduler
 from filament_tracker.services.catalog_schedule import CatalogScheduler
 from filament_tracker.services.catalog_sync import CatalogSyncer
+from filament_tracker.services.cooldown import TEST_EMAIL_GAP, Cooldown
 from filament_tracker.services.printers import seed_printers
 from filament_tracker.services.setup import SetupGate
 from filament_tracker.services.throttle import LoginThrottle
@@ -121,6 +122,7 @@ def create_app(
     # Wrong setup codes are throttled like sign-ins, but apart from them.
     app.state.setup_throttle = LoginThrottle()
     app.state.setup_gate = SetupGate()
+    app.state.test_email_cooldown = Cooldown(TEST_EMAIL_GAP)
     app.state.model_files = ModelFiles(files_dir(settings.database_url))
     app.add_exception_handler(RequestValidationError, validation_error)
     app.add_middleware(
