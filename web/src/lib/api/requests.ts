@@ -154,8 +154,27 @@ export interface Upload {
   kind: ModelKind;
 }
 
-export function listRequests(): Promise<RequestRow[]> {
-  return api<RequestRow[]>("/requests");
+/** Active holds every open status; Closed holds Picked Up, Rejected and Cancelled. */
+export type RequestTab = "active" | "closed";
+
+export interface RequestQuery {
+  tab: RequestTab;
+  /** Open statuses to keep; none keeps them all. Only Editors and Admins filter. */
+  statuses: RequestStatus[];
+  /** Only the caller's own requests. */
+  mine: boolean;
+}
+
+/** The query string for `GET /requests`, leaving out filters that are off. */
+export function requestQuery(query: RequestQuery): string {
+  const params = new URLSearchParams({ tab: query.tab });
+  for (const status of query.statuses) params.append("status", status);
+  if (query.mine) params.set("mine", "true");
+  return `?${params.toString()}`;
+}
+
+export function listRequests(query?: RequestQuery, signal?: AbortSignal): Promise<RequestRow[]> {
+  return api<RequestRow[]>(`/requests${query ? requestQuery(query) : ""}`, { signal });
 }
 
 export function getRequest(id: number): Promise<PrintRequest> {
