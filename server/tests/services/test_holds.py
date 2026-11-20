@@ -7,11 +7,12 @@ import pytest
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Product, Spool
-from filament_tracker.domain.enums import SpoolState
+from filament_tracker.domain.enums import ReleaseReason, SpoolState
 from filament_tracker.services import holds
 from filament_tracker.services.holds import Holder
 
 NOW = datetime(2026, 11, 20, 9, 0, tzinfo=UTC)
+LATER = datetime(2026, 11, 21, 15, 30, tzinfo=UTC)
 FIRST = Holder("filament_choice", 1)
 SECOND = Holder("filament_choice", 2)
 
@@ -146,3 +147,23 @@ def test_a_spool_held_beyond_its_grams_left_has_none_available_and_counts_only_w
 
 def test_a_holder_with_no_holds_is_short_its_whole_target(session: Session) -> None:
     assert holds.shortfall(session, FIRST, 120) == 120
+
+
+def test_releasing_keeps_the_holds_with_when_and_why_and_frees_their_grams(
+    session: Session, black: Product
+) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 300)
+    sealed = spool(session, black, SpoolState.SEALED, 1000)
+    holds.place(session, FIRST, black.id, 500, NOW)
+    holds.place(session, SECOND, black.id, 100, NOW)
+
+    released = holds.release(session, FIRST, ReleaseReason.FAILED, LATER)
+
+    assert [(h.spool_id, h.grams, h.released_at, h.release_reason) for h in released] == [
+        (opened.id, 300, LATER, ReleaseReason.FAILED),
+        (sealed.id, 200, LATER, ReleaseReason.FAILED),
+    ]
+    assert held(session, FIRST) == []
+    assert held(session, SECOND) == [(sealed.id, 100)]
+    assert holds.product_available(session, black.id) == 1200
+    assert holds.release(session, FIRST, ReleaseReason.DONE, LATER) == []

@@ -10,6 +10,8 @@ This is the one place holds are placed and read. A holder is named only by its t
   first, then Sealed ones, least first. It splits across spools and keeps a partial cover.
 - A holder's shortfall is its target less its active held grams, where its grams on a spool
   count only up to that spool's grams left.
+- Releasing a holder's holds keeps them, with when and why they were released; their grams
+  are then available again.
 
 Callers own the transaction: nothing here commits.
 """
@@ -22,7 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Spool, SpoolHold
-from filament_tracker.domain.enums import SpoolState
+from filament_tracker.domain.enums import ReleaseReason, SpoolState
 
 IN_STOCK = (SpoolState.SEALED, SpoolState.OPEN)
 
@@ -126,6 +128,19 @@ def active_holds(session: Session, holder: Holder) -> list[SpoolHold]:
         .order_by(SpoolHold.id)
     )
     return list(session.scalars(query))
+
+
+def release(
+    session: Session, holder: Holder, reason: ReleaseReason, now: datetime
+) -> list[SpoolHold]:
+    """Release the holder's active holds, keeping them with the time and reason; the holds
+    released, oldest first."""
+    released = active_holds(session, holder)
+    for hold in released:
+        hold.released_at = now
+        hold.release_reason = reason
+    session.flush()
+    return released
 
 
 def shortfall(session: Session, holder: Holder, target: int) -> int:
