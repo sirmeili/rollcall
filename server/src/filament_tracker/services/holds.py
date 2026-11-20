@@ -5,7 +5,8 @@ This is the one place holds are placed and read. A holder is named only by its t
 
 - A spool's grams count only while it is Sealed or Open; an Empty or Unknown spool has none.
 - Available grams are grams left less active holds, never below 0, and unknown when grams
-  left is unknown and nothing is held.
+  left is unknown and nothing is held. A spool is over-held when its holds exceed its grams
+  left; the caller names holders that don't count toward that.
 - Placing holds for a product takes Open spools with known grams first, least grams left
   first, then Sealed ones, least first. It splits across spools and keeps a partial cover.
 - A holder's shortfall is its target less its active held grams, where its grams on a spool
@@ -15,6 +16,7 @@ Callers own the transaction: nothing here commits.
 """
 
 from collections import defaultdict
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -39,6 +41,15 @@ class Holder:
 class Placed:
     held: int
     short: int
+
+
+@dataclass(frozen=True)
+class ProductGrams:
+    """A product's grams not held, and whether an Open spool's grams are unknown (they are
+    left out of `available`)."""
+
+    available: int
+    unknown: bool
 
 
 def _grams_left(spool: Spool) -> int | None:
@@ -80,6 +91,57 @@ def product_available(session: Session, product_id: int) -> int:
     spools = _in_stock(session, product_id)
     held = _held_on(session, [s.id for s in spools])
     return sum(_available(s, held.get(s.id, 0)) or 0 for s in spools)
+
+
+def product_grams(session: Session, product_ids: Collection[int]) -> dict[int, ProductGrams]:
+    """Each product's available grams over its Sealed and Open spools, in two queries."""
+    query = select(Spool).where(Spool.product_id.in_(product_ids), Spool.state.in_(IN_STOCK))
+    spools = list(session.scalars(query))
+    held = _held_on(session, [s.id for s in spools])
+    available: dict[int, int] = dict.fromkeys(product_ids, 0)
+    unknown: set[int] = set()
+    for spool in spools:
+        available[spool.product_id] += _available(spool, held.get(spool.id, 0)) or 0
+        if spool.state is SpoolState.OPEN and spool.grams_left_g is None:
+            unknown.add(spool.product_id)
+    return {i: ProductGrams(available[i], i in unknown) for i in product_ids}
+
+
+@dataclass(frozen=True)
+class SpoolGrams:
+    """A spool's active held grams, its available grams (None when unknown), and whether
+    its holds, less any ignored, exceed its grams left."""
+
+    held: int
+    available: int | None
+    over_held: bool
+
+
+def holders_on(session: Session, spool: Spool) -> dict[Holder, int]:
+    """Each holder's active held grams on the spool, by first hold."""
+    query = (
+        select(SpoolHold)
+        .where(SpoolHold.spool_id == spool.id, SpoolHold.released_at.is_(None))
+        .order_by(SpoolHold.id)
+    )
+    found: dict[Holder, int] = defaultdict(int)
+    for hold in session.scalars(query):
+        found[Holder(hold.holder_type, hold.holder_id)] += hold.grams
+    return dict(found)
+
+
+def spool_grams(session: Session, spool: Spool, ignore: Collection[Holder] = ()) -> SpoolGrams:
+    """The spool's held and available grams. Holders in `ignore` still hold grams but don't
+    count toward over-held (the caller decides which: Inventory doesn't know what they are)."""
+    holders = holders_on(session, spool)
+    held = sum(holders.values())
+    left = _grams_left(spool)
+    counted = sum(grams for holder, grams in holders.items() if holder not in ignore)
+    return SpoolGrams(
+        held=held,
+        available=_available(spool, held),
+        over_held=left is not None and counted > left,
+    )
 
 
 def place(

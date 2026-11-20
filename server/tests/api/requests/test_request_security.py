@@ -2,7 +2,7 @@
 credentials, scanners and machine tokens below its role; uploads stop at 95 MB without the
 whole body being read, on their route only (20 MB for photos); a model file is never served
 as something a browser would run, and a photo only as an image; a request's grams, holds and
-available grams are shown only to Editors and Admins."""
+available grams, and the requests holding a spool, are shown only to Editors and Admins."""
 
 import io
 from collections.abc import Iterator
@@ -136,6 +136,35 @@ def test_a_requester_and_a_viewer_get_no_grams_shortfall_holds_or_available_gram
         assert shown["held"] is True
     [staff] = frank.get(f"{REQUESTS}/{sams['id']}").json()["choices"]
     assert all(staff[field] is not None for field in STAFF_ONLY)
+
+
+@pytest.mark.parametrize("role", list(Role))
+def test_the_requests_holding_a_spool_go_only_to_editors_and_admins(
+    app: FastAPI, client: TestClient, token: str, role: Role
+) -> None:
+    pla = stock(client, token, "000000FF", "PLA", "received")
+    sam = person(app, "sam")
+    frank = person(app, "frank", Role.ADMIN, requester=False)
+    mine = submitted(sam, choices=[{"product_id": pla, "note": ""}])
+    assert approve(frank, mine, grams=100).status_code == 200
+    spool = client.get(f"/api/v1/spools?product_id={pla}", headers=admin()).json()["items"][0]
+    path = f"/api/v1/spools/{spool['id']}"
+    made = client.post("/api/v1/tokens", json={"name": "Script", "role": role}, headers=admin())
+    # A Requester of the role, holding the spool with their own request, and a token of it.
+    callers = [
+        (person(app, f"user-{role.value}", role, requester=True), {}),
+        (client, bearer(made.json()["token"])),
+    ]
+    if role is Role.VIEWER:
+        callers.append((sam, {}))
+
+    for caller, headers in callers:
+        shown = caller.get(path, headers=headers).json()
+        assert shown["held_g"] == 100
+        if role.allows(Role.EDITOR):
+            assert shown["holding_requests"] == [{"id": mine["id"], "title": mine["title"]}]
+        else:
+            assert shown["holding_requests"] is None
 
 
 # --- Uploads -------------------------------------------------------------------------------

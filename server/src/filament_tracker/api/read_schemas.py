@@ -71,6 +71,11 @@ class ProductSummary(BaseModel):
     counts: Counts
     low_stock: bool
     open_spools: list[OpenSpool] = Field(description="Open spools, oldest opened first")
+    available_g: int = Field(
+        description="About how many grams of its Sealed and Open spools are not held, leaving "
+        "out spools whose grams are unknown"
+    )
+    available_unknown: bool = Field(description="An Open spool's grams are unknown")
 
 
 class AmsSlotRef(BaseModel):
@@ -122,7 +127,25 @@ class EventOut(BaseModel):
     reviewed_by: str | None = Field(description="Who accepted it; null for the admin token")
 
 
-class SpoolDetail(SpoolRow):
+class HoldingRequestOut(BaseModel):
+    id: int
+    title: str
+
+
+class SpoolHeld(BaseModel):
+    held_g: int = Field(description="Grams held for requests")
+    available_g: int | None = Field(
+        description="About how many grams are not held, never below 0; null if unknown"
+    )
+    over_held: bool = Field(
+        description="Held beyond its grams left, leaving out holds of Printing requests"
+    )
+    holding_requests: list[HoldingRequestOut] | None = Field(
+        description="The requests holding it; Editors and Admins only, else null"
+    )
+
+
+class SpoolDetail(SpoolRow, SpoolHeld):
     notes: str | None
     tags: list[TagOut]
     events: list[EventOut] = Field(description="Newest first")
