@@ -89,9 +89,7 @@
     try {
       const photoIds = await uploaded(photos);
       if (photoIds === null) return;
-      request = photoIds.length
-        ? await moveRequest(id, shown.status, move.to_status, note, photoIds)
-        : await moveRequest(id, shown.status, move.to_status, note);
+      request = await moveRequest(id, shown.status, move.to_status, note, photoIds);
       moving = null;
       changed = null;
     } catch (error) {

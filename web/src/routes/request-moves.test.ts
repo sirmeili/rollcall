@@ -118,7 +118,7 @@ describe("Moving a request", () => {
     await userEvent.type(note, "Next week");
     await userEvent.click(within(dialog).getByRole("button", { name: "Approve" }));
 
-    expect(api.moveRequest).toHaveBeenCalledWith(41, "submitted", "approved", "Next week");
+    expect(api.moveRequest).toHaveBeenCalledWith(41, "submitted", "approved", "Next week", []);
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(statusChip()).toHaveTextContent("Status: Approved");
     expect(await screen.findByText("Approved by frank")).toBeVisible();
@@ -147,7 +147,13 @@ describe("Moving a request", () => {
     expect(dialog).toHaveTextContent("17/500");
     await userEvent.click(confirm);
 
-    expect(api.moveRequest).toHaveBeenCalledWith(41, "submitted", "rejected", "   No clear PETG.");
+    expect(api.moveRequest).toHaveBeenCalledWith(
+      41,
+      "submitted",
+      "rejected",
+      "   No clear PETG.",
+      [],
+    );
     expect(await screen.findByText("Rejected by frank")).toBeVisible();
     expect(screen.getByText("No clear PETG.")).toBeVisible();
   });
@@ -303,7 +309,7 @@ describe("Moving a request along", () => {
     expect(confirm).toBeEnabled();
     await userEvent.click(confirm);
 
-    expect(api.moveRequest).toHaveBeenCalledWith(41, "printing", to, "");
+    expect(api.moveRequest).toHaveBeenCalledWith(41, "printing", to, "", []);
     expect(statusChip()).toHaveTextContent(`Status: ${to === "done" ? "Done" : "Failed"}`);
   });
 
@@ -324,7 +330,7 @@ describe("Moving a request along", () => {
     await userEvent.type(within(dialog).getByLabelText("Note (optional)"), "Bed adhesion.");
     await userEvent.click(within(dialog).getByRole("button", { name: "Reprint" }));
 
-    expect(api.moveRequest).toHaveBeenCalledWith(41, "failed", "queued", "Bed adhesion.");
+    expect(api.moveRequest).toHaveBeenCalledWith(41, "failed", "queued", "Bed adhesion.", []);
     expect(await screen.findByText("Reprinted by frank")).toBeVisible();
     expect(screen.getByText("Attempt 2")).toBeVisible();
   });
@@ -412,7 +418,7 @@ describe("Cancelling a request", () => {
     expect(dialog).toHaveTextContent("Editors and Admins see the note.");
     await userEvent.click(within(dialog).getByRole("button", { name: "Cancel request" }));
 
-    expect(api.moveRequest).toHaveBeenCalledWith(41, "submitted", "cancelled", "");
+    expect(api.moveRequest).toHaveBeenCalledWith(41, "submitted", "cancelled", "", []);
     expect(statusChip()).toHaveTextContent("Status: Cancelled");
     expect(await screen.findByText("Cancelled by sam")).toBeVisible();
   });
@@ -438,6 +444,7 @@ describe("Cancelling a request", () => {
       "failed",
       "cancelled",
       "The model can't be printed.",
+      [],
     );
   });
 
