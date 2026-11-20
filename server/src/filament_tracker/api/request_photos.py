@@ -25,8 +25,8 @@ from filament_tracker.auth import AnyPrincipal, DbSession, forbidden, problems
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import FILE_NAME_MAX, PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
-from filament_tracker.domain.enums import Role
 from filament_tracker.print_requests import emails, photos
+from filament_tracker.print_requests.access import is_admin
 from filament_tracker.print_requests.rules import Problems
 
 PHOTO_UPLOAD_PATH = "/requests/photo-uploads"
@@ -37,8 +37,7 @@ router = APIRouter(tags=["requests"])
 def photo_admin(principal: AnyPrincipal) -> User:
     """A signed-in Admin, checked before the body is read. Tokens act for no one, and a photo
     records who uploaded it."""
-    role = principal.role
-    if principal.user is None or role is None or not role.allows(Role.ADMIN):
+    if principal.user is None or not is_admin(principal):
         raise forbidden(photos.ADMINS_ONLY)
     return principal.user
 

@@ -29,10 +29,10 @@ from filament_tracker.auth import AnyPrincipal, DbSession, Editor, Principal, fo
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
-from filament_tracker.domain.enums import RequestStatus, Role
+from filament_tracker.domain.enums import RequestStatus
 from filament_tracker.mail.message import Email
 from filament_tracker.print_requests import emails, photos, pipeline, service
-from filament_tracker.print_requests.access import may_open_requests, may_see, movers
+from filament_tracker.print_requests.access import is_admin, may_open_requests, may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
 from filament_tracker.print_requests.read import ListFilter, Tab, visible_requests
 from filament_tracker.print_requests.rules import Problems, RequestFields
@@ -78,7 +78,7 @@ def requests_person(principal: RequestsCaller) -> Principal:
 def mover(principal: RequestsCaller) -> Principal:
     """A caller who might move a request: an Admin, or a person who might own one. Which
     moves they may make is the pipeline's to say."""
-    if principal.user is None and principal.role is not Role.ADMIN:
+    if principal.user is None and not is_admin(principal):
         raise forbidden(pipeline.NOT_YOURS_TO_MOVE)
     return principal
 
