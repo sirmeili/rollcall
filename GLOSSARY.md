@@ -121,7 +121,7 @@ How much filament a spool has, in grams. The AMS's remaining % sets it, and an A
 _Avoid_: Remaining grams, weight (that word is for the spool's full amount)
 
 **Hold**:
-Grams of a spool set aside for something, such as an approved print request, so they aren't promised twice. A filament choice can be held across several spools of its product. A hold is released, and kept with when and why, when the request is Done, Failed or Cancelled.
+Grams of a spool set aside for something, such as an approved print request, so they aren't promised twice. A filament choice can be held across several spools of its product. A hold is released, and kept with when and why, when the request is Done, Failed or Cancelled, or when its spool becomes Empty or Unknown.
 _Avoid_: Reservation, allocation
 
 **Available grams**:
