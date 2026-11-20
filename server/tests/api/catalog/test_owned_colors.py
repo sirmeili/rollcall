@@ -42,8 +42,10 @@ def by_hand(client: TestClient, name: str, rgba: str, color: str, *actions: str)
 def shelf(client: TestClient, token: str) -> dict[str, int]:
     """Scanned PLA Basic Black (sealed, linked from its tag); a hand-added "Black PLA"
     linked by hand to Black (open); "Jade PLA" linked to Jade White and used up; and an
-    unlinked black PETG (open)."""
+    unlinked black PETG (open). Black PLA is linked first: a color another product has is
+    refused by hand, but a scan's automatic link can still share it."""
     refresh(client)
+    black_pla = by_hand(client, "Black PLA", "050505FF", "var-black", "opened")
     scan(client, token, SyntheticTag(variant_id="A00-K0"), "received")
     petg = SyntheticTag(
         filament_type="PETG",
@@ -57,7 +59,7 @@ def shelf(client: TestClient, token: str) -> dict[str, int]:
     ids = {
         p["display_name"]: p["id"] for p in client.get("/api/v1/products", headers=admin()).json()
     }
-    ids["Black PLA"] = by_hand(client, "Black PLA", "050505FF", "var-black", "opened")
+    assert ids["Black PLA"] == black_pla
     ids["Jade PLA"] = by_hand(client, "Jade PLA", "FFFFFFFF", "var-jade", "opened", "empty")
     return ids
 

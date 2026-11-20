@@ -155,10 +155,27 @@ class UnknownColor(LookupError):
     """No catalog color has this UUID."""
 
 
+class ColorTaken(ValueError):
+    """Another product is already linked to this catalog color."""
+
+    def __init__(self, other: Product) -> None:
+        super().__init__(f"{other.display_name} is already linked to that color.")
+        self.other = other
+
+
+def linked_products(session: Session, uuid: str) -> list[Product]:
+    """The products whose effective link is this catalog color, oldest first. A manual link
+    is refused while another product has it, but automatic links can still share one."""
+    index = _session_index(session)
+    query = select(Product).order_by(Product.created_at, Product.id)
+    return [p for p in session.scalars(query) if effective_uuid(p, index) == uuid]
+
+
 def set_manual(
     session: Session, product: Product, uuid: str | None, user_id: int | None, now: datetime
 ) -> None:
-    """Link the product to a catalog color by hand, or clear its manual link (None)."""
+    """Link the product to a catalog color by hand, or clear its manual link (None). A color
+    is the link of at most one product: one another product has is refused (ColorTaken)."""
     if uuid is None:
         product.catalog_manual_uuid = product.catalog_manual_by = None
         product.catalog_manual_at = None
@@ -167,6 +184,9 @@ def set_manual(
         color = _session_index(session).colors.get(uuid)
         if color is None:
             raise UnknownColor(uuid)
+        other = next((p for p in linked_products(session, uuid) if p.id != product.id), None)
+        if other is not None:
+            raise ColorTaken(other)
         product.catalog_manual_uuid = uuid
         product.catalog_manual_by = user_id
         product.catalog_manual_at = now

@@ -183,3 +183,41 @@ def test_clearing_a_link_to_a_dropped_color_goes_back_to_the_color_from_its_tag(
     assert cleared["how"] == "tag"
     assert cleared["in_catalog"] is True
     assert cleared["linked_by"] is None
+
+
+def test_a_color_another_product_is_linked_to_is_refused(
+    editor: TestClient, product_id: int
+) -> None:
+    made = editor.post(
+        "/api/v1/products",
+        json={"display_name": "By hand", "filament_type": "PLA", "color_rgba": "000000FF"},
+        headers=CSRF,
+    ).json()
+
+    response = _link(editor, made["id"], "var-black")
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "PLA Basic #000000 is already linked to that color."
+    assert editor.get(f"/api/v1/products/{made['id']}").json()["product"]["catalog_link"] is None
+
+
+def test_a_product_may_be_linked_by_hand_to_its_own_color(
+    editor: TestClient, product_id: int
+) -> None:
+    response = _link(editor, product_id, "var-black")
+
+    assert response.status_code == 200
+    assert response.json()["catalog_link"]["how"] == "hand"
+
+
+def test_a_color_freed_by_moving_the_other_products_link_can_be_taken(
+    editor: TestClient, product_id: int
+) -> None:
+    made = editor.post(
+        "/api/v1/products",
+        json={"display_name": "By hand", "filament_type": "PLA", "color_rgba": "000000FF"},
+        headers=CSRF,
+    ).json()
+    _link(editor, product_id, "var-jade")
+
+    assert _link(editor, made["id"], "var-black").status_code == 200

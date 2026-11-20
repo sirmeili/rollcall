@@ -20,7 +20,7 @@ from filament_tracker.db.models import Product, Spool
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import EventType, Role
 from filament_tracker.services import edits, grams, queries
-from filament_tracker.services.catalog_links import UnknownColor, set_manual
+from filament_tracker.services.catalog_links import ColorTaken, UnknownColor, set_manual
 
 router = APIRouter(tags=["edits"])
 
@@ -171,5 +171,7 @@ def update_product(
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, "no such catalog color"
             ) from None
+        except ColorTaken as error:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
     session.commit()
     return product_detail(product)
