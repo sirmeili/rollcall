@@ -7,7 +7,8 @@
 
   interface Props {
     user: UserOut;
-    /** The signed-in admin's own row: no changes, so nobody locks themselves out. */
+    /** The signed-in admin's own row: only the email address changes, so nobody locks
+     * themselves out. */
     you: boolean;
     busy: boolean;
     onchange: (user: UserOut, changes: UserChanges, done: string) => void;
@@ -17,6 +18,26 @@
 
   let resetting = $state(false);
   let password = $state("");
+  let editingEmail = $state(false);
+  let email = $state("");
+
+  function editEmail(): void {
+    email = user.email ?? "";
+    editingEmail = true;
+  }
+
+  function saveEmail(event: SubmitEvent): void {
+    event.preventDefault();
+    const value = email.trim();
+    onchange(
+      user,
+      { email: value },
+      value
+        ? `Saved the email address for ${user.username}.`
+        : `Removed the email address for ${user.username}.`,
+    );
+    editingEmail = false;
+  }
 
   function reset(event: SubmitEvent): void {
     event.preventDefault();
@@ -50,6 +71,7 @@
       {/if}
       {#if user.disabled}<span class="pill dis">Disabled</span>{/if}
     </div>
+    <p class="email" class:none={!user.email}>{user.email ?? "No email address"}</p>
   </td>
   <td>
     <div class="rolecell">
@@ -91,26 +113,46 @@
   </td>
   <td class="date">{user.last_login_at ? dateTime(user.last_login_at) : "Never"}</td>
   <td>
-    {#if !you}
-      {#if resetting}
-        <form class="reset" onsubmit={reset}>
-          <label>
-            <span class="sr-only">New password for {user.username}</span>
-            <input
-              type="password"
-              autocomplete="new-password"
-              placeholder="New password, 12+ characters"
-              maxlength="256"
-              bind:value={password}
-            />
-          </label>
-          <button type="submit" class="small primary" disabled={busy || !passwordOk(password)}
-            >Set</button
-          >
-          <button type="button" class="small" onclick={() => (resetting = false)}>Cancel</button>
-        </form>
-      {:else}
-        <div class="actions">
+    {#if editingEmail}
+      <form class="reset" onsubmit={saveEmail}>
+        <label>
+          <span class="sr-only">Email address for {user.username}</span>
+          <input
+            type="email"
+            autocomplete="off"
+            autocapitalize="none"
+            spellcheck="false"
+            placeholder="name@example.com"
+            maxlength="254"
+            bind:value={email}
+          />
+        </label>
+        <button type="submit" class="small primary" disabled={busy}>Save</button>
+        <button type="button" class="small" onclick={() => (editingEmail = false)}>Cancel</button>
+      </form>
+    {:else if resetting && !you}
+      <form class="reset" onsubmit={reset}>
+        <label>
+          <span class="sr-only">New password for {user.username}</span>
+          <input
+            type="password"
+            autocomplete="new-password"
+            placeholder="New password, 12+ characters"
+            maxlength="256"
+            bind:value={password}
+          />
+        </label>
+        <button type="submit" class="small primary" disabled={busy || !passwordOk(password)}
+          >Set</button
+        >
+        <button type="button" class="small" onclick={() => (resetting = false)}>Cancel</button>
+      </form>
+    {:else}
+      <div class="actions">
+        <button type="button" class="small" disabled={busy} onclick={editEmail}
+          >{user.email ? "Change email" : "Set email"}</button
+        >
+        {#if !you}
           <button type="button" class="small" disabled={busy} onclick={() => (resetting = true)}
             >Reset password</button
           >
@@ -135,8 +177,8 @@
                 )}>Disable</button
             >
           {/if}
-        </div>
-      {/if}
+        {/if}
+      </div>
     {/if}
   </td>
 </tr>
@@ -182,6 +224,17 @@
     gap: 4px;
     background: var(--text);
     color: var(--bg);
+  }
+
+  .email {
+    margin: 4px 0 0 42px;
+    font-size: 13px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+
+  .email.none {
+    font-style: italic;
   }
 
   .rolecell {
