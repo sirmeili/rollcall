@@ -1,15 +1,21 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import { ApiError } from "#lib/api/client.ts";
   import { describeError } from "#lib/api/errors.ts";
   import {
     changePriority,
     fileUrl,
     getRequest,
+    type Move,
+    moveRequest,
     type Priority,
     type PrintRequest,
+    problemsOf,
   } from "#lib/api/requests.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import ChoiceList from "#lib/components/requests/ChoiceList.svelte";
+  import MoveButtons from "#lib/components/requests/MoveButtons.svelte";
+  import MoveDialog from "#lib/components/requests/MoveDialog.svelte";
   import PriorityChip from "#lib/components/requests/PriorityChip.svelte";
   import PriorityControl from "#lib/components/requests/PriorityControl.svelte";
   import RequestHistory from "#lib/components/requests/RequestHistory.svelte";
@@ -24,18 +30,61 @@
   let request = $state<PrintRequest | null>(null);
   let failure = $state<string | null>(null);
 
-  $effect(() => {
-    request = null;
-    failure = null;
-    if (!Number.isInteger(id) || id <= 0) {
-      failure = "Not found. It may have been removed.";
-      return;
-    }
+  // The move being confirmed, and how it went.
+  let moving = $state<Move | null>(null);
+  let busy = $state(false);
+  let moveProblem = $state<string | null>(null);
+  let moveFailure = $state<string | null>(null);
+  // Said when someone else moved the request first.
+  let changed = $state<string | null>(null);
+
+  function load(): void {
     getRequest(id).then(
       (found) => (request = found),
       (error) => (failure = describeError(error)),
     );
+  }
+
+  $effect(() => {
+    request = null;
+    failure = null;
+    changed = null;
+    if (!Number.isInteger(id) || id <= 0) {
+      failure = "Not found. It may have been removed.";
+      return;
+    }
+    load();
   });
+
+  function pick(move: Move): void {
+    moving = move;
+    moveProblem = null;
+    moveFailure = null;
+  }
+
+  async function confirmMove(shown: PrintRequest, move: Move, note: string): Promise<void> {
+    busy = true;
+    moveProblem = null;
+    moveFailure = null;
+    try {
+      request = await moveRequest(id, shown.status, move.to_status, note);
+      moving = null;
+      changed = null;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        // Someone else moved it first: say so, and show it as it is now.
+        moving = null;
+        changed = describeError(error);
+        load();
+      } else {
+        const problems = problemsOf(error);
+        if (problems?.note) moveProblem = problems.note;
+        else moveFailure = describeError(error);
+      }
+    } finally {
+      busy = false;
+    }
+  }
 
   async function setPriority(priority: Priority): Promise<void> {
     try {
@@ -64,6 +113,8 @@
     Requests
   </a>
 
+  {#if changed}<p role="alert" class="error">{changed}</p>{/if}
+
   {#if failure}
     <p role="alert" class="error">{failure}</p>
   {:else if !request}
@@ -84,21 +135,37 @@
           <p class="noedit">{whyNoEdit(session.user, request)}</p>
         {/if}
       </div>
-      {#if request.can_edit}
-        <a class="button" href="/requests/{request.id}/edit">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            aria-hidden="true"
-            ><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg
-          >Edit
-        </a>
-      {/if}
+      <div class="acts">
+        <MoveButtons moves={request.moves} {busy} onpick={pick} />
+        {#if request.can_edit}
+          <a class="button" href="/requests/{request.id}/edit">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              aria-hidden="true"
+              ><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg
+            >Edit
+          </a>
+        {/if}
+      </div>
     </div>
+
+    {#if moving}
+      {@const shown = request}
+      {@const move = moving}
+      <MoveDialog
+        {move}
+        {busy}
+        problem={moveProblem}
+        failure={moveFailure}
+        onconfirm={(note) => confirmMove(shown, move, note)}
+        onclose={() => (moving = null)}
+      />
+    {/if}
 
     <div class="grid">
       <div class="col">
@@ -232,6 +299,12 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
+  }
+
+  .acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   h1 {

@@ -17,6 +17,7 @@ import {
   historyDetail,
   historyTitle,
   listText,
+  mainMove,
   neededByDate,
   relativeDay,
   similarText,
@@ -139,6 +140,31 @@ describe("request words", () => {
     expect(historyTitle(changed)).toBe("Priority changed");
     expect(historyDetail(changed)).toBe("Normal → Urgent");
     expect(historyDetail(entry({}))).toBeNull();
+  });
+
+  it("describes a move between statuses", () => {
+    const approved = entry({
+      kind: "status_changed",
+      username: "frank",
+      from_value: "submitted",
+      to_value: "approved",
+    });
+    expect(historyTitle(approved)).toBe("Approved by frank");
+    expect(historyDetail(approved)).toBe("Submitted → Approved");
+    const automatic = entry({
+      kind: "status_changed",
+      username: null,
+      from_value: "approved",
+      to_value: "waiting_on_filament",
+    });
+    expect(historyTitle(automatic)).toBe("Moved to Waiting on Filament");
+  });
+
+  it("makes the first move that goes ahead the main one", () => {
+    expect(mainMove([{ to_status: "approved" }, { to_status: "rejected" }])).toBe("approved");
+    expect(mainMove([{ to_status: "rejected" }, { to_status: "approved" }])).toBe("approved");
+    expect(mainMove([{ to_status: "rejected" }])).toBeNull();
+    expect(mainMove([])).toBeNull();
   });
 
   it("gives file sizes in KB or MB", () => {

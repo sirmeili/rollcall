@@ -1,5 +1,6 @@
 <script lang="ts">
-  /** A request's history, newest first: submitted, edited and priority changes. */
+  /** A request's history, newest first: submitted, edited, and priority and status
+   * changes, each with its note or reason. */
   import type { HistoryEntry } from "#lib/api/requests.ts";
   import { dateTime } from "#lib/format.ts";
   import { historyDetail, historyTitle, relativeTime } from "#lib/requests/labels.ts";
@@ -10,6 +11,7 @@
     submitted: "M12 5v14M5 12h14",
     edited: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z",
     priority_changed: "M7 4v16M7 4l10 4-10 4",
+    status_changed: "M5 12h14M13 6l6 6-6 6",
   };
 </script>
 

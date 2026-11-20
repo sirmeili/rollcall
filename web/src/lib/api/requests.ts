@@ -12,7 +12,17 @@ import {
 import type { SimilarColor } from "#lib/api/catalog.ts";
 
 export type Priority = "urgent" | "normal" | "no_rush";
-export type RequestStatus = "submitted";
+export type RequestStatus =
+  | "submitted"
+  | "approved"
+  | "waiting_on_filament"
+  | "queued"
+  | "printing"
+  | "done"
+  | "picked_up"
+  | "rejected"
+  | "cancelled"
+  | "failed";
 export type ModelKind = "3mf" | "stl";
 /** What a request has for its model; "notes" when only its notes say where it is. */
 export type ModelSource = "file" | "link" | "both" | "notes";
@@ -72,7 +82,7 @@ export interface Choice {
   similar: SimilarColor[];
 }
 
-export type HistoryKind = "submitted" | "edited" | "priority_changed";
+export type HistoryKind = "submitted" | "edited" | "priority_changed" | "status_changed";
 
 export interface HistoryEntry {
   kind: HistoryKind;
@@ -80,9 +90,17 @@ export interface HistoryEntry {
   at: string;
   /** An edit's changed fields. */
   fields: string[] | null;
+  /** A priority change's old and new priority, or a status change's old and new status. */
   from_value: string | null;
   to_value: string | null;
   note: string | null;
+}
+
+/** A move the caller may make now. */
+export interface Move {
+  to_status: RequestStatus;
+  /** Its note is a reason, which may not be left empty. */
+  reason_required: boolean;
 }
 
 export interface PrintRequest {
@@ -103,6 +121,8 @@ export interface PrintRequest {
   updated_at: string;
   can_edit: boolean;
   can_change_priority: boolean;
+  /** The moves the caller may make, the main next step first. */
+  moves: Move[];
   /** The store Find in store searches. */
   store_address: string;
 }
@@ -152,6 +172,20 @@ export function editRequest(id: number, body: RequestEdit): Promise<PrintRequest
 
 export function changePriority(id: number, priority: Priority): Promise<PrintRequest> {
   return api<PrintRequest>(`/requests/${id}/priority`, { method: "POST", body: { priority } });
+}
+
+/** Move a request to another status. `from` is the status the caller saw it in: if it has
+ * moved since, this fails with 409. */
+export function moveRequest(
+  id: number,
+  from: RequestStatus,
+  to: RequestStatus,
+  note: string,
+): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/moves`, {
+    method: "POST",
+    body: { from_status: from, to_status: to, note },
+  });
 }
 
 /** Submitted requests, for the Requests link (Editors and Admins). */
