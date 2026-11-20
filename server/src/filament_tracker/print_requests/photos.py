@@ -14,6 +14,7 @@ never saved are removed after a day.
 
 import io
 import secrets
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
@@ -136,6 +137,11 @@ class Photos:
         )
         session.add(stored)
         return stored
+
+    def email_copies(self, photos: Iterable[RequestPhoto]) -> list[bytes]:
+        """The email copies of these photos, leaving out any whose file is gone."""
+        names = (photo.email_stored_name for photo in photos)
+        return [self.files.path(name).read_bytes() for name in names if self.files.exists(name)]
 
     def delete(self, photo: RequestPhoto) -> None:
         self.files.delete(photo.stored_name)

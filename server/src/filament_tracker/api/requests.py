@@ -26,7 +26,7 @@ from filament_tracker.api.request_schemas import (
 from filament_tracker.api.request_views import model_files, request_out, row_out
 from filament_tracker.auth import AnyPrincipal, DbSession, Editor, Principal, forbidden, problems
 from filament_tracker.db.models import User
-from filament_tracker.db.request_models import PrintRequest
+from filament_tracker.db.request_models import PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus, Role
 from filament_tracker.mail.message import Email
@@ -230,6 +230,7 @@ def make_move(
     the pipeline has no such move for the caller. Nothing is saved when it is refused."""
     found = find_request(session, caller, request_id)
     now = utcnow()
+    added: list[RequestPhoto] = []
     try:
         moved = pipeline.make_move(
             found,
@@ -243,7 +244,7 @@ def make_move(
         if body.photo_ids:
             if not moved.move.photos:
                 raise Problems({photos.PHOTOS: NO_PHOTOS})
-            photos.add(session, found, body.photo_ids, caller.user, now)
+            added = photos.add(session, found, body.photo_ids, caller.user, now)
     except pipeline.Stale as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
     except pipeline.NotAMove as error:
@@ -251,6 +252,11 @@ def make_move(
     except Problems as error:
         raise problems(error.problems) from None
     session.commit()
-    _send(http, lambda public_url: emails.move_emails(moved, public_url))
+    _send(
+        http,
+        lambda public_url: emails.move_emails(
+            moved, public_url, photos.Photos(model_files(http)).email_copies(added)
+        ),
+    )
     session.refresh(found)
     return request_out(http, session, caller, found)

@@ -3,11 +3,13 @@
 
 Each is sent only to a person with an address, the matching Account switch on, and an
 account that isn't disabled. Links use PUBLIC_URL only, never the incoming request's Host
-header; without it, emails have no link.
+header; without it, emails have no link. The Done email shows the photos saved with the
+move, as inline images in the HTML part, from each photo's email copy.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import date
+from email.utils import make_msgid
 from html import escape
 
 from sqlalchemy import select
@@ -16,7 +18,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import Priority, RequestStatus, Role
-from filament_tracker.mail.message import Email
+from filament_tracker.mail.message import Email, InlineImage
 from filament_tracker.print_requests.pipeline import Moved
 
 S = RequestStatus
@@ -58,8 +60,9 @@ PRIORITY_LABELS = {
 }
 
 
-def move_emails(moved: Moved, public_url: str | None) -> list[Email]:
-    """The requester's email about a move, if the move emails them and they want it."""
+def move_emails(moved: Moved, public_url: str | None, photos: Sequence[bytes] = ()) -> list[Email]:
+    """The requester's email about a move, if the move emails them and they want it, showing
+    `photos` (the email copies of those saved with the move)."""
     if not moved.move.emails_requester:
         return []
     request = moved.request
@@ -76,6 +79,7 @@ def move_emails(moved: Moved, public_url: str | None) -> list[Email]:
             [(label, moved.note)] if moved.note else [],
             _link(request, public_url),
             FOOTER,
+            photos,
         )
     ]
 
@@ -138,8 +142,10 @@ def _compose(
     details: Iterable[tuple[str, str]],
     link: str | None,
     footer: str | None,
+    photos: Sequence[bytes] = (),
 ) -> Email:
-    """The sentence, the labelled details, the link and the footer, as text and HTML."""
+    """The sentence, the labelled details, the link and the footer, as text and HTML, with
+    the photos shown inline in the HTML after the details."""
     details = list(details)
     text = [sentence]
     html = [f"<p>{escape(sentence)}</p>"]
@@ -147,6 +153,12 @@ def _compose(
         text.append("\n".join(f"{label}: {value}" for label, value in details))
         lines = (f"<strong>{escape(label)}:</strong> {escape(value)}" for label, value in details)
         html.append(f"<p>{'<br>'.join(lines)}</p>")
+    images = tuple(InlineImage(make_msgid("photo")[1:-1], photo) for photo in photos)
+    for number, image in enumerate(images, 1):
+        html.append(
+            f'<p><img src="cid:{escape(image.content_id)}" alt="Photo {number} of your print"'
+            ' style="max-width: 100%; height: auto;"></p>'
+        )
     if link is not None:
         text.append(f"{OPEN}: {link}")
         html.append(f'<p><a href="{escape(link)}">{OPEN}</a></p>')
@@ -158,4 +170,5 @@ def _compose(
         subject=subject,
         text="\n\n".join(text) + "\n",
         html=f"<!doctype html><html><body>{''.join(html)}</body></html>",
+        images=images,
     )
