@@ -159,6 +159,7 @@
       {@const move = moving}
       <MoveDialog
         {move}
+        mine={session.user?.id === request.requester.id}
         {busy}
         problem={moveProblem}
         failure={moveFailure}

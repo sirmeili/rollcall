@@ -36,11 +36,19 @@ export interface MoveWords {
   question: string;
   /** The history entry's title. */
   done: string;
+  /** The dialog's button that closes it without moving, when "Cancel" would be unclear. */
+  dismiss?: string;
 }
 
 const MOVE_WORDS: Partial<Record<RequestStatus, MoveWords>> = {
   approved: { action: "Approve", question: "Approve this request?", done: "Approved" },
   rejected: { action: "Reject", question: "Reject this request?", done: "Rejected" },
+  cancelled: {
+    action: "Cancel request",
+    question: "Cancel this request?",
+    done: "Cancelled",
+    dismiss: "Keep request",
+  },
 };
 
 export function moveWords(to: RequestStatus): MoveWords {

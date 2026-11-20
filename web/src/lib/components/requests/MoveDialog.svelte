@@ -7,6 +7,8 @@
 
   interface Props {
     move: Move;
+    /** The caller asked for the request. */
+    mine: boolean;
     busy: boolean;
     /** The server's problem with the note. */
     problem: string | null;
@@ -16,10 +18,18 @@
     onclose: () => void;
   }
 
-  let { move, busy, problem, failure, onconfirm, onclose }: Props = $props();
+  let { move, mine, busy, problem, failure, onconfirm, onclose }: Props = $props();
 
   const words = $derived(moveWords(move.to_status));
   const label = $derived(move.reason_required ? "Reason" : "Note (optional)");
+  const dismiss = $derived(words.dismiss ?? "Cancel");
+  const hint = $derived(
+    move.reason_required
+      ? "The requester sees the reason."
+      : mine
+        ? "Editors and Admins see the note."
+        : "The requester sees the note.",
+  );
   let note = $state("");
   const blank = $derived(move.reason_required && !note.trim());
 
@@ -55,7 +65,7 @@
   }
 </script>
 
-<button type="button" class="dim" aria-label="Cancel" tabindex="-1" onclick={onclose}></button>
+<button type="button" class="dim" aria-label={dismiss} tabindex="-1" onclick={onclose}></button>
 <div
   class="movedlg"
   role="dialog"
@@ -80,16 +90,14 @@
         aria-invalid={problem ? "true" : undefined}
         bind:value={note}></textarea>
       <div class="hintrow">
-        <span class="hint" id="move-hint">
-          {move.reason_required ? "The requester sees the reason." : "The requester sees the note."}
-        </span>
+        <span class="hint" id="move-hint">{hint}</span>
         <span class="hint mono" id="move-count">{note.length}/{NOTE_MAX}</span>
       </div>
       {#if problem}<p class="error">{problem}</p>{/if}
       {#if failure}<p role="alert" class="error">{failure}</p>{/if}
     </div>
     <div class="foot">
-      <button type="button" onclick={onclose}>Cancel</button>
+      <button type="button" onclick={onclose}>{dismiss}</button>
       <button type="submit" class="primary" disabled={busy || blank}>{words.action}</button>
     </div>
   </form>
