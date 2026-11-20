@@ -116,7 +116,7 @@ def test_grams_are_taken_only_by_approve(
 
     assert response.status_code == 422
     assert response.json()["detail"]["problems"] == {
-        "grams": "Grams are given only when approving."
+        "grams": "Grams are given only when approving or reprinting."
     }
 
 
