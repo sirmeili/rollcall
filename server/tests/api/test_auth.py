@@ -37,6 +37,7 @@ def test_login_sets_a_strict_session_cookie_and_returns_the_user(
         "username": "alice",
         "role": "editor",
         "requester": False,
+        "email": None,
         "has_requests": False,
         "time_zone": "UTC",
     }

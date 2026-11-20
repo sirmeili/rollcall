@@ -9,7 +9,7 @@ from ipaddress import IPv4Network, IPv6Network, ip_network
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 Network = IPv4Network | IPv6Network
@@ -81,6 +81,18 @@ class Settings(BaseSettings):
         default="homeassistant", pattern=r"^[A-Za-z0-9_-]{1,64}(/[A-Za-z0-9_-]{1,64}){0,3}$"
     )
 
+    # The mail server for emails to users. Unset host: email is off. The password is never
+    # logged or returned.
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_security: Literal["starttls", "tls", "none"] = "starttls"
+    smtp_user: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_from: str | None = None
+    # The address the family opens RollCall at, for links in emails: https, with no path.
+    # Unset: emails have no links.
+    public_url: str | None = None
+
     # Home Assistant itself, for firing events through its REST API, with a long-lived
     # access token. Unset: no events are fired. The token is never logged.
     ha_url: str | None = None
@@ -101,6 +113,34 @@ class Settings(BaseSettings):
         from filament_tracker.app_settings.registry import store_address
 
         return store_address(value.strip())
+
+    @field_validator("public_url")
+    @classmethod
+    def _public_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        from filament_tracker.app_settings.registry import public_url
+
+        return public_url(value.strip())
+
+    @field_validator("smtp_host", "smtp_user", "smtp_from")
+    @classmethod
+    def _smtp_text(cls, value: str | None, info: ValidationInfo) -> str | None:
+        value = value.strip() if value is not None else ""
+        if not value:
+            return None
+        from filament_tracker.app_settings.registry import smtp_from, smtp_host
+
+        checks = {"smtp_host": smtp_host, "smtp_from": smtp_from}
+        check = checks.get(info.field_name or "")
+        return check(value) if check else value
+
+    @field_validator("smtp_password")
+    @classmethod
+    def _blank_password(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None or not value.get_secret_value():
+            return None
+        return value
 
     @field_validator("ha_token")
     @classmethod

@@ -1,9 +1,9 @@
-"""Sign in, sign out, the current user, and changing one's own password."""
+"""Sign in, sign out, the current user, and changing one's own email address and password."""
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
-from filament_tracker.api.account_schemas import LoginRequest, Me, PasswordChange
+from filament_tracker.api.account_schemas import AccountUpdate, LoginRequest, Me, PasswordChange
 from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import (
     SESSION_COOKIE,
@@ -22,6 +22,7 @@ from filament_tracker.print_requests.access import has_requests
 from filament_tracker.services.accounts import (
     AccountError,
     authenticate,
+    email_address,
     set_password,
     start_session,
 )
@@ -51,6 +52,7 @@ def me_out(request: Request, session: Session, user: User) -> Me:
         username=user.username,
         role=user.role,
         requester=user.requester,
+        email=user.email,
         has_requests=has_requests(session, user),
         time_zone=_store(request).time_zone(),
     )
@@ -97,6 +99,22 @@ def logout(request: Request, session: DbSession) -> Response:
 def me(caller: SignedInUser, request: Request, session: DbSession) -> Me:
     assert caller.user is not None  # noqa: S101 - guaranteed by SignedInUser
     return me_out(request, session, caller.user)
+
+
+@router.patch("/me", response_model=Me)
+def update_account(
+    body: AccountUpdate, caller: SignedInUser, request: Request, session: DbSession
+) -> Me:
+    """Change one's own account: the email address."""
+    user = caller.user
+    assert user is not None  # noqa: S101 - guaranteed by SignedInUser
+    try:
+        if "email" in body.model_fields_set:
+            user.email = email_address(body.email)
+    except AccountError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    session.commit()
+    return me_out(request, session, user)
 
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
