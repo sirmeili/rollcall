@@ -23,30 +23,28 @@ from filament_tracker.domain.enums import Priority, RequestStatus, Role
 from filament_tracker.mail.message import Email, InlineImage
 from filament_tracker.print_requests.pipeline import Moved
 
-S = RequestStatus
-
 # The subject and the one sentence saying what happened, for each status a move that
 # emails the requester leads to.
 MOVE_WORDING: dict[RequestStatus, tuple[str, str]] = {
-    S.APPROVED: (
+    RequestStatus.APPROVED: (
         "Your print request was approved: {title}",
         'Your print request "{title}" was approved.',
     ),
-    S.REJECTED: (
+    RequestStatus.REJECTED: (
         "Your print request was rejected: {title}",
         'Your print request "{title}" was rejected.',
     ),
-    S.WAITING_ON_FILAMENT: (
+    RequestStatus.WAITING_ON_FILAMENT: (
         "Your print request is waiting on filament: {title}",
         'Your print request "{title}" is waiting on filament.',
     ),
-    S.PRINTING: (
+    RequestStatus.PRINTING: (
         "Your print request is printing: {title}",
         'Your print request "{title}" is printing.',
     ),
-    S.DONE: ("Your print is done: {title}", 'Your print "{title}" is done.'),
-    S.FAILED: ("Your print failed: {title}", 'Your print "{title}" failed.'),
-    S.CANCELLED: (
+    RequestStatus.DONE: ("Your print is done: {title}", 'Your print "{title}" is done.'),
+    RequestStatus.FAILED: ("Your print failed: {title}", 'Your print "{title}" failed.'),
+    RequestStatus.CANCELLED: (
         "Your print request was cancelled: {title}",
         'Your print request "{title}" was cancelled.',
     ),
@@ -78,12 +76,12 @@ def move_emails(moved: Moved, public_url: str | None, photos: Sequence[bytes] = 
     return [
         _compose(
             to,
-            subject.format(title=_one_line(request.title)),
-            sentence.format(title=request.title),
-            [(label, moved.note)] if moved.note else [],
-            _link(request, public_url),
-            FOOTER,
-            photos,
+            subject=subject.format(title=_one_line(request.title)),
+            sentence=sentence.format(title=request.title),
+            details=[(label, moved.note)] if moved.note else [],
+            link=_link(request, public_url),
+            footer=FOOTER,
+            photos=photos,
         )
     ]
 
@@ -102,12 +100,11 @@ def new_photo_emails(
     return [
         _compose(
             to,
-            NEW_PHOTO_SUBJECT.format(title=_one_line(request.title)),
-            NEW_PHOTO_SENTENCE.format(title=request.title),
-            [],
-            _link(request, public_url),
-            FOOTER,
-            photos,
+            subject=NEW_PHOTO_SUBJECT.format(title=_one_line(request.title)),
+            sentence=NEW_PHOTO_SENTENCE.format(title=request.title),
+            link=_link(request, public_url),
+            footer=FOOTER,
+            photos=photos,
         )
     ]
 
@@ -131,11 +128,12 @@ def new_request_emails(
         emails.append(
             _compose(
                 to,
-                NEW_REQUEST_SUBJECT.format(requester=requester, title=_one_line(request.title)),
-                NEW_REQUEST_SENTENCE.format(requester=requester, title=request.title),
-                details,
-                _link(request, public_url),
-                None,
+                subject=NEW_REQUEST_SUBJECT.format(
+                    requester=requester, title=_one_line(request.title)
+                ),
+                sentence=NEW_REQUEST_SENTENCE.format(requester=requester, title=request.title),
+                details=details,
+                link=_link(request, public_url),
             )
         )
     return emails
@@ -170,11 +168,12 @@ def _day(day: date) -> str:
 
 def _compose(
     to: str,
+    *,
     subject: str,
     sentence: str,
-    details: Iterable[tuple[str, str]],
+    details: Iterable[tuple[str, str]] = (),
     link: str | None,
-    footer: str | None,
+    footer: str | None = None,
     photos: Sequence[bytes] = (),
 ) -> Email:
     """The sentence, the labelled details, the link and the footer, as text and HTML, with
