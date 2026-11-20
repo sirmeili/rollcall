@@ -16,6 +16,11 @@ export interface Me extends UserBase {
   time_zone: string;
   /** Has made a print request, so keeps the Requests page after Requester is turned off. */
   has_requests: boolean;
+  /** The Account switches: emails about one's own requests, and (Admins) about new ones. */
+  email_on_request_change: boolean;
+  email_on_new_request: boolean;
+  /** Whether this server can send email at all (an SMTP host is saved). */
+  email_set_up: boolean;
 }
 
 /** Response bodies from server/src/filament_tracker/api/read_schemas.py. */

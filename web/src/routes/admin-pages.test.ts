@@ -855,6 +855,91 @@ describe("Account page", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("use an email address like");
   });
 
+  it("offers every user the request-change switch, on by default", async () => {
+    session.user = me("viewer");
+    render(AccountPage);
+
+    expect(
+      screen.getByRole("checkbox", { name: "Email me when my requests change" }),
+    ).toBeChecked();
+    expect(
+      screen.queryByRole("checkbox", { name: "Email me when a request is submitted" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Email isn't set up on this server.")).not.toBeInTheDocument();
+  });
+
+  it("offers Admins the new-request switch too", async () => {
+    render(AccountPage);
+
+    expect(
+      screen.getByRole("checkbox", { name: "Email me when my requests change" }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "Email me when a request is submitted" }),
+    ).toBeChecked();
+  });
+
+  it("turns a switch off and on", async () => {
+    admin.updateAccount.mockResolvedValue(me("admin", { email_on_new_request: false }));
+    render(AccountPage);
+
+    const box = screen.getByRole("checkbox", { name: "Email me when a request is submitted" });
+    await userEvent.click(box);
+
+    expect(admin.updateAccount).toHaveBeenCalledWith({ email_on_new_request: false });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "You won't be emailed when a request is submitted.",
+    );
+    expect(session.user?.email_on_new_request).toBe(false);
+    expect(box).not.toBeChecked();
+
+    admin.updateAccount.mockResolvedValue(me("admin", { email_on_request_change: false }));
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Email me when my requests change" }),
+    );
+
+    expect(admin.updateAccount).toHaveBeenLastCalledWith({ email_on_request_change: false });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "You won't be emailed when your requests change.",
+    );
+  });
+
+  it("says when turning a switch on", async () => {
+    session.user = me("viewer", { email_on_request_change: false });
+    admin.updateAccount.mockResolvedValue(me("viewer"));
+    render(AccountPage);
+
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Email me when my requests change" }),
+    );
+
+    expect(admin.updateAccount).toHaveBeenCalledWith({ email_on_request_change: true });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "You'll be emailed when your requests change.",
+    );
+  });
+
+  it("explains a switch that couldn't be saved, and puts it back", async () => {
+    admin.updateAccount.mockRejectedValue(new ApiError(0, "network"));
+    render(AccountPage);
+
+    const box = screen.getByRole("checkbox", { name: "Email me when my requests change" });
+    await userEvent.click(box);
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(box).toBeChecked();
+  });
+
+  it("says when email isn't set up on this server", async () => {
+    session.user = me("admin", { email_set_up: false });
+    render(AccountPage);
+
+    expect(screen.getByText("Email isn't set up on this server.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: "Email me when my requests change" }),
+    ).toBeChecked();
+  });
+
   it("shows the meter's progress", async () => {
     await openAccount();
 
