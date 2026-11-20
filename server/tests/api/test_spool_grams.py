@@ -134,14 +134,27 @@ def test_a_tag_without_a_weight_takes_the_fallback(
     assert (detail["net_weight_g"], detail["grams_left_g"]) == (1000, 1000)
 
 
-def test_an_open_spool_with_no_remaining_pct_has_unknown_grams_left(
+def test_a_spool_first_scanned_as_opened_is_full(
     client: TestClient, token: str, viewer: TestClient
 ) -> None:
     spool_id = scan(client, token, SyntheticTag(spool_weight_g=750), "opened")["spool"]["id"]
 
     detail = viewer.get(f"/api/v1/spools/{spool_id}").json()
 
-    assert (detail["net_weight_g"], detail["grams_left_g"]) == (750, None)
+    assert (detail["state"], detail["net_weight_g"], detail["grams_left_g"]) == ("open", 750, 750)
+
+
+def test_opening_a_received_spool_keeps_its_grams_left(
+    client: TestClient, token: str, admin_user: TestClient
+) -> None:
+    tag = SyntheticTag(spool_weight_g=750)
+    spool_id = scan(client, token, tag, "received")["spool"]["id"]
+    _edit(admin_user, spool_id, {"grams_left_g": 600})
+
+    scan(client, token, tag, "opened")
+
+    detail = admin_user.get(f"/api/v1/spools/{spool_id}").json()
+    assert (detail["state"], detail["grams_left_g"]) == ("open", 600)
 
 
 # --- Editing by hand -------------------------------------------------------------------------

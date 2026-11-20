@@ -92,7 +92,11 @@ def append_event(
     session.add(event)
     step = reproject(spool).steps[event.id]
     event.flagged = flag or step.outcome is Outcome.FLAGGED
-    if event_type is EventType.RECEIVED and step.outcome is Outcome.APPLIED:
+    # Received, or Opened on a spool never received (both in one step): the spool is full.
+    if step.outcome is Outcome.APPLIED and (
+        event_type is EventType.RECEIVED
+        or (event_type is EventType.OPENED and step.implicit_receive)
+    ):
         grams.received(spool)
     session.flush()
     return AppendResult(event, step)
