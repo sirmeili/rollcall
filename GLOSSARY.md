@@ -228,8 +228,22 @@ The page listing print requests: a Requester's own, or every request for Editors
 _Avoid_: Review (that word is for the Review queue only)
 
 **Approve**:
-Agree to print a print request.
+Agree to print a print request. It moves the request to Approved.
 _Avoid_: Accept (that word is for flagged events)
+
+**Request status**:
+Where a print request is. While it goes ahead: Submitted, Approved, Waiting on Filament, Queued, Printing, Done, Picked Up. When it stops: Rejected, Cancelled, Failed.
+_Avoid_: Accepted (for Approved), state (that word is for a spool), stage
+
+**Reject**:
+Decline a Submitted print request, with a reason.
+
+**Reprint**:
+Send a Failed print request back to Queued for another attempt. It stays the same request.
+_Avoid_: Retry, resubmit
+
+**Attempt**:
+One try at printing a print request. A reprint starts the next one.
 
 ### Home Assistant
 
