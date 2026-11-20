@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { ApiError } from "#lib/api/client.ts";
+  import { describeError } from "#lib/api/errors.ts";
   import { sendTestEmail } from "#lib/api/settings.ts";
   import EmailStatus from "#lib/components/settings/EmailStatus.svelte";
   import SettingsGroupCard, {
@@ -14,6 +16,12 @@
     try {
       const result = await sendTestEmail();
       return [{ text: result.message, ok: result.ok }];
+    } catch (error) {
+      // Too soon after the last test: shown like a failed send.
+      if (error instanceof ApiError && error.status === 429) {
+        return [{ text: describeError(error), ok: false }];
+      }
+      throw error;
     } finally {
       version += 1;
     }

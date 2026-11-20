@@ -142,6 +142,25 @@ describe("Settings page, Email", () => {
     expect(within(results).getByRole("listitem")).not.toHaveClass("ok");
   });
 
+  it("shows the server's wait message when a test email comes too soon", async () => {
+    serve({
+      "POST /settings/email/test": new Response(
+        JSON.stringify({ detail: "Wait a few seconds before sending another test email." }),
+        { status: 429 },
+      ),
+    });
+    render(SettingsPage);
+
+    await screen.findByLabelText("SMTP host");
+    await userEvent.click(form().getByRole("button", { name: "Send test email" }));
+
+    const results = await form().findByRole("list", { name: "Test results" });
+    expect(within(results).getByRole("listitem")).toHaveTextContent(
+      "Wait a few seconds before sending another test email.",
+    );
+    expect(within(results).getByRole("listitem")).not.toHaveClass("ok");
+  });
+
   it("shows the last success and the last failure", async () => {
     serve({
       "GET /settings/email/status": {
