@@ -375,9 +375,22 @@ describe("Moving a request along", () => {
     expect(statusChip()).toHaveTextContent(`Status: ${to === "done" ? "Done" : "Failed"}`);
   });
 
-  it("reprints a failed request, and shows the attempt", async () => {
+  /** A Failed request whose choices were last held at 300 g and 40 g. */
+  function failedWithGrams() {
+    const shown = request({ status: "failed", moves: OPTIONAL("queued") });
+    const [blue, pink] = shown.choices;
+    return {
+      ...shown,
+      choices: [
+        { ...blue, grams: 300, available_g: 900 },
+        { ...pink, grams: 40, available_g: 15 },
+      ],
+    };
+  }
+
+  it("reprints a failed request with the last attempt's grams, and shows the attempt", async () => {
     signIn(FRANK);
-    api.getRequest.mockResolvedValue(request({ status: "failed", moves: OPTIONAL("queued") }));
+    api.getRequest.mockResolvedValue(failedWithGrams());
     api.moveRequest.mockResolvedValue(
       request({
         status: "queued",
@@ -389,11 +402,56 @@ describe("Moving a request along", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Reprint" }));
     const dialog = screen.getByRole("dialog", { name: "Reprint this request?" });
+    const blue = within(dialog).getByLabelText("Blue PLA");
+    const pink = within(dialog).getByLabelText("Hot Pink PLA Basic");
+    expect(blue).toHaveValue(300);
+    expect(pink).toHaveValue(40);
+    expect(pink).toHaveAccessibleDescription("about 15 g available");
+    await userEvent.clear(blue);
+    await userEvent.type(blue, "350");
     await userEvent.type(within(dialog).getByLabelText("Note (optional)"), "Bed adhesion.");
     await userEvent.click(within(dialog).getByRole("button", { name: "Reprint" }));
 
-    expect(api.moveRequest).toHaveBeenCalledWith(41, "failed", "queued", "Bed adhesion.", []);
+    expect(api.moveRequest).toHaveBeenCalledWith(41, "failed", "queued", "Bed adhesion.", [], {
+      1: 350,
+      2: 40,
+    });
     expect(await screen.findByText("Reprinted by frank")).toBeVisible();
+    expect(screen.getByText("Attempt 2")).toBeVisible();
+  });
+
+  it("can't reprint with a grams field left empty", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(failedWithGrams());
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Reprint" }));
+    const dialog = screen.getByRole("dialog", { name: "Reprint this request?" });
+    await userEvent.clear(within(dialog).getByLabelText("Blue PLA"));
+
+    expect(within(dialog).getByRole("button", { name: "Reprint" })).toBeDisabled();
+  });
+
+  it("shows a reprint that waits for filament as Reprinted, counting the attempt", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(failedWithGrams());
+    api.moveRequest.mockResolvedValue(
+      request({
+        status: "waiting_on_filament",
+        attempt: 2,
+        history: [{ ...moved("waiting_on_filament", null), from_value: "failed" }],
+      }),
+    );
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Reprint" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Reprint" }),
+    );
+
+    expect(statusChip()).toHaveTextContent("Status: Waiting on Filament");
+    expect(await screen.findByText("Reprinted by frank")).toBeVisible();
+    expect(screen.getByText("Failed → Waiting on Filament")).toBeVisible();
     expect(screen.getByText("Attempt 2")).toBeVisible();
   });
 });

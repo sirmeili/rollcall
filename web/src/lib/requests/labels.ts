@@ -64,16 +64,22 @@ const MOVE_WORDS: Partial<Record<RequestStatus, MoveWords>> = {
   },
 };
 
-/** A move from Failed back to Queued: another attempt of the same request. */
+/** A move out of Failed to Queued, or to Waiting on Filament when its filament is short:
+ * another attempt of the same request. */
 const REPRINT: MoveWords = {
   action: "Reprint",
   question: "Reprint this request?",
   done: "Reprinted",
 };
 
+/** Whether a move from one status to another is a Reprint, wherever it lands. */
+export function isReprint(from: RequestStatus | undefined, to: RequestStatus): boolean {
+  return from === "failed" && (to === "queued" || to === "waiting_on_filament");
+}
+
 /** A move's words, by the status it leads to and, for a Reprint, the one it leaves. */
 export function moveWords(to: RequestStatus, from?: RequestStatus): MoveWords {
-  if (from === "failed" && to === "queued") return REPRINT;
+  if (isReprint(from, to)) return REPRINT;
   return (
     MOVE_WORDS[to] ?? {
       action: `Move to ${STATUS_LABELS[to]}`,
