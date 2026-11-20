@@ -5,7 +5,8 @@
   import type { SpoolDetail } from "#lib/api/types.ts";
   import { aboutGrams } from "#lib/spools.ts";
 
-  /** Net weight and grams left: estimates, edited in place by Admins (ADR-0019). */
+  /** Net weight and grams left: estimates, edited in place by Admins (ADR-0019). Then the
+   * grams held and available, and for Editors and Admins the requests holding the spool. */
   interface Props {
     spool: SpoolDetail;
     canEdit: boolean;
@@ -85,6 +86,25 @@
       <dd>{aboutGrams(spool.grams_left_g)}</dd>
     </dl>
   {/if}
+  <dl>
+    <dt>Held</dt>
+    <dd>{aboutGrams(spool.held_g)}</dd>
+    <dt>Available</dt>
+    <dd>
+      {aboutGrams(spool.available_g)}
+      {#if spool.over_held}<span class="notice">Over-held: more is held than is left.</span>{/if}
+    </dd>
+    {#if spool.holding_requests?.length}
+      <dt>Held for</dt>
+      <dd>
+        <ul>
+          {#each spool.holding_requests as request (request.id)}
+            <li><a href="/requests/{request.id}">{request.title}</a></li>
+          {/each}
+        </ul>
+      </dd>
+    {/if}
+  </dl>
 </section>
 
 <style>
@@ -108,6 +128,17 @@
 
   dd {
     margin: -8px 0 0;
+  }
+
+  .notice {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 18px;
   }
 
   p {

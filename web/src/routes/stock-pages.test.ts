@@ -380,6 +380,56 @@ describe("Spool detail page", () => {
     expect(within(grams).queryByRole("spinbutton")).toBeNull();
   });
 
+  it("shows held and available grams to everyone", async () => {
+    stock.getSpool.mockResolvedValue(
+      spoolDetail({ grams_left_g: 620, held_g: 200, available_g: 420, holding_requests: null }),
+    );
+    render(SpoolPage);
+
+    const grams = await screen.findByRole("region", { name: "Grams" });
+    expect(within(grams).getByText("Held").nextElementSibling).toHaveTextContent("about 200 g");
+    expect(within(grams).getByText("Available").nextElementSibling).toHaveTextContent(
+      "about 420 g",
+    );
+    expect(within(grams).queryByText(/over-held/i)).toBeNull();
+    expect(within(grams).queryByText("Held for")).toBeNull();
+  });
+
+  it("lists the requests holding the spool, linked, for Editors and Admins", async () => {
+    signedInAs("editor");
+    stock.getSpool.mockResolvedValue(
+      spoolDetail({
+        held_g: 500,
+        holding_requests: [
+          { id: 7, title: "Lamp shade" },
+          { id: 9, title: "Vase" },
+        ],
+      }),
+    );
+    render(SpoolPage);
+
+    const grams = await screen.findByRole("region", { name: "Grams" });
+    expect(within(grams).getByRole("link", { name: "Lamp shade" })).toHaveAttribute(
+      "href",
+      "/requests/7",
+    );
+    expect(within(grams).getByRole("link", { name: "Vase" })).toHaveAttribute(
+      "href",
+      "/requests/9",
+    );
+  });
+
+  it("shows an over-held spool as none available, with a note", async () => {
+    stock.getSpool.mockResolvedValue(
+      spoolDetail({ grams_left_g: 300, held_g: 500, available_g: 0, over_held: true }),
+    );
+    render(SpoolPage);
+
+    const grams = await screen.findByRole("region", { name: "Grams" });
+    expect(within(grams).getByText("Available").nextElementSibling).toHaveTextContent("about 0 g");
+    expect(within(grams).getByText("Over-held: more is held than is left.")).toBeInTheDocument();
+  });
+
   it("lets an Admin edit net weight and grams left", async () => {
     signedInAs("admin");
     stock.getSpool.mockResolvedValue(spoolDetail({ net_weight_g: 1000, grams_left_g: 620 }));
