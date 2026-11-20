@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
-import type { HistoryEntry, Move } from "#lib/api/requests.ts";
+import type { HistoryEntry, Move, RequestStatus } from "#lib/api/requests.ts";
 import type { Me } from "#lib/api/types.ts";
 import { setTimeZone } from "#lib/format.ts";
 import { viewport } from "#lib/viewport.svelte.ts";
@@ -240,6 +240,112 @@ describe("Moving a request", () => {
     expect(api.getRequest).toHaveBeenCalledTimes(2);
     await vi.waitFor(() => expect(statusChip()).toHaveTextContent("Status: Rejected"));
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+  });
+});
+
+const OPTIONAL = (...to: RequestStatus[]): Move[] =>
+  to.map((to_status) => ({ to_status, reason_required: false }));
+
+describe("Moving a request along", () => {
+  it.each([
+    [
+      "approved",
+      OPTIONAL("queued", "waiting_on_filament"),
+      ["Queue", "Move to Waiting on Filament"],
+    ],
+    ["waiting_on_filament", OPTIONAL("queued"), ["Queue"]],
+    ["queued", OPTIONAL("printing"), ["Start printing"]],
+    ["printing", OPTIONAL("done", "failed"), ["Mark Done", "Mark Failed"]],
+    ["failed", OPTIONAL("queued"), ["Reprint"]],
+    ["done", OPTIONAL("picked_up"), ["Mark Picked Up"]],
+  ] as const)(
+    "offers an Admin the next steps from %s, the main one first",
+    async (status, moves, names) => {
+      signIn(FRANK);
+      api.getRequest.mockResolvedValue(request({ status, moves: [...moves] }));
+      render(DetailPage);
+
+      const main = await screen.findByRole("button", { name: names[0] });
+      const buttons = within(actions()).getAllByRole("button");
+      expect(buttons.map((b) => b.textContent?.trim())).toEqual(names);
+      expect(main).toHaveClass("primary");
+      for (const other of buttons.slice(1)) expect(other).not.toHaveClass("primary");
+    },
+  );
+
+  it("offers the requester Mark Picked Up once it is Done", async () => {
+    signIn(SAM);
+    api.getRequest.mockResolvedValue(request({ status: "done", moves: OPTIONAL("picked_up") }));
+    render(DetailPage);
+
+    const picked = await screen.findByRole("button", { name: "Mark Picked Up" });
+    expect(picked).toHaveClass("primary");
+    expect(within(actions()).getAllByRole("button")).toHaveLength(1);
+  });
+
+  it.each([
+    ["Mark Done", "done", "Mark this request Done?"],
+    ["Mark Failed", "failed", "Mark this request Failed?"],
+  ] as const)("%s asks for an optional note", async (name, to, question) => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(
+      request({ status: "printing", moves: OPTIONAL("done", "failed") }),
+    );
+    api.moveRequest.mockResolvedValue(request({ status: to }));
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name }));
+    const dialog = screen.getByRole("dialog", { name: question });
+    const note = within(dialog).getByLabelText("Note (optional)");
+    const confirm = within(dialog).getByRole("button", { name });
+    expect(note).not.toBeRequired();
+    expect(note).toHaveAttribute("maxlength", "500");
+    expect(confirm).toBeEnabled();
+    await userEvent.click(confirm);
+
+    expect(api.moveRequest).toHaveBeenCalledWith(41, "printing", to, "");
+    expect(statusChip()).toHaveTextContent(`Status: ${to === "done" ? "Done" : "Failed"}`);
+  });
+
+  it("reprints a failed request, and shows the attempt", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request({ status: "failed", moves: OPTIONAL("queued") }));
+    api.moveRequest.mockResolvedValue(
+      request({
+        status: "queued",
+        attempt: 2,
+        history: [{ ...moved("queued", "Bed adhesion."), from_value: "failed" }],
+      }),
+    );
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Reprint" }));
+    const dialog = screen.getByRole("dialog", { name: "Reprint this request?" });
+    await userEvent.type(within(dialog).getByLabelText("Note (optional)"), "Bed adhesion.");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Reprint" }));
+
+    expect(api.moveRequest).toHaveBeenCalledWith(41, "failed", "queued", "Bed adhesion.");
+    expect(await screen.findByText("Reprinted by frank")).toBeVisible();
+    expect(screen.getByText("Attempt 2")).toBeVisible();
+  });
+});
+
+describe("Attempt", () => {
+  it("is not shown for the first attempt", async () => {
+    signIn(SAM);
+    api.getRequest.mockResolvedValue(request({ status: "printing", attempt: 1 }));
+    render(DetailPage);
+
+    await screen.findByRole("heading", { name: "Wingspan insert" });
+    expect(screen.queryByText(/Attempt/)).toBeNull();
+  });
+
+  it("shows the attempt under the status badge from the second on", async () => {
+    signIn(SAM);
+    api.getRequest.mockResolvedValue(request({ status: "printing", attempt: 3 }));
+    render(DetailPage);
+
+    expect(await screen.findByText("Attempt 3")).toBeVisible();
   });
 });
 

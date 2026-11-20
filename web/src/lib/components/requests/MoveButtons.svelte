@@ -1,16 +1,18 @@
 <script lang="ts">
   /** The moves the caller may make from here, as the server lists them; the main next step is
    * the primary button. */
-  import type { Move } from "#lib/api/requests.ts";
+  import type { Move, RequestStatus } from "#lib/api/requests.ts";
   import { mainMove, moveWords } from "#lib/requests/labels.ts";
 
   interface Props {
+    /** The status the request is in now. */
+    status: RequestStatus;
     moves: Move[];
     busy: boolean;
     onpick: (move: Move) => void;
   }
 
-  let { moves, busy, onpick }: Props = $props();
+  let { status, moves, busy, onpick }: Props = $props();
 
   const main = $derived(mainMove(moves));
 </script>
@@ -22,7 +24,7 @@
         type="button"
         class:primary={move.to_status === main}
         disabled={busy}
-        onclick={() => onpick(move)}>{moveWords(move.to_status).action}</button
+        onclick={() => onpick(move)}>{moveWords(move.to_status, status).action}</button
       >
     {/each}
   </div>

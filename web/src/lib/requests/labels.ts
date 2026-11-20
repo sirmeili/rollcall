@@ -41,9 +41,31 @@ export interface MoveWords {
 const MOVE_WORDS: Partial<Record<RequestStatus, MoveWords>> = {
   approved: { action: "Approve", question: "Approve this request?", done: "Approved" },
   rejected: { action: "Reject", question: "Reject this request?", done: "Rejected" },
+  queued: { action: "Queue", question: "Queue this request?", done: "Queued" },
+  printing: {
+    action: "Start printing",
+    question: "Start printing this request?",
+    done: "Started printing",
+  },
+  done: { action: "Mark Done", question: "Mark this request Done?", done: "Marked Done" },
+  failed: { action: "Mark Failed", question: "Mark this request Failed?", done: "Marked Failed" },
+  picked_up: {
+    action: "Mark Picked Up",
+    question: "Mark this request Picked Up?",
+    done: "Marked Picked Up",
+  },
 };
 
-export function moveWords(to: RequestStatus): MoveWords {
+/** A move from Failed back to Queued: another attempt of the same request. */
+const REPRINT: MoveWords = {
+  action: "Reprint",
+  question: "Reprint this request?",
+  done: "Reprinted",
+};
+
+/** A move's words, by the status it leads to and, for a Reprint, the one it leaves. */
+export function moveWords(to: RequestStatus, from?: RequestStatus): MoveWords {
+  if (from === "failed" && to === "queued") return REPRINT;
   return (
     MOVE_WORDS[to] ?? {
       action: `Move to ${STATUS_LABELS[to]}`,
@@ -133,7 +155,7 @@ function statusLabel(value: string | null): string {
 export function historyTitle(entry: HistoryEntry): string {
   const verb =
     entry.kind === "status_changed"
-      ? moveWords(entry.to_value as RequestStatus).done
+      ? moveWords(entry.to_value as RequestStatus, entry.from_value as RequestStatus).done
       : HISTORY_VERBS[entry.kind];
   return entry.username ? `${verb} by ${entry.username}` : verb;
 }

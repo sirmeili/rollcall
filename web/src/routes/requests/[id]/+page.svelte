@@ -128,6 +128,9 @@
           <StatusChip status={request.status} />
           <PriorityChip priority={request.priority} />
         </div>
+        {#if request.attempt >= 2}
+          <p class="attempt">Attempt {request.attempt}</p>
+        {/if}
         <p class="byline">
           Requested by {request.requester.username} · submitted {relativeTime(request.created_at)}
         </p>
@@ -136,7 +139,7 @@
         {/if}
       </div>
       <div class="acts">
-        <MoveButtons moves={request.moves} {busy} onpick={pick} />
+        <MoveButtons status={request.status} moves={request.moves} {busy} onpick={pick} />
         {#if request.can_edit}
           <a class="button" href="/requests/{request.id}/edit">
             <svg
@@ -158,6 +161,7 @@
       {@const shown = request}
       {@const move = moving}
       <MoveDialog
+        status={shown.status}
         {move}
         {busy}
         problem={moveProblem}
@@ -318,6 +322,12 @@
     align-items: center;
     gap: 8px;
     margin-top: 10px;
+  }
+
+  .attempt {
+    margin: 6px 0 0;
+    font-size: 14px;
+    font-weight: 600;
   }
 
   .byline {

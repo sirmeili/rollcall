@@ -123,6 +123,8 @@ export interface PrintRequest {
   can_change_priority: boolean;
   /** The moves the caller may make, the main next step first. */
   moves: Move[];
+  /** Which try at printing it this is: 1, plus 1 for each Reprint. */
+  attempt: number;
   /** The store Find in store searches. */
   store_address: string;
 }

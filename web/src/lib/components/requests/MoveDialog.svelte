@@ -2,10 +2,12 @@
   /** Confirms a move to another status, with an optional note or a required reason, as the
    * other dialogs do (the Catalog color dialog's frame). Cancel, Escape or the dimmed page
    * close it without moving. */
-  import type { Move } from "#lib/api/requests.ts";
+  import type { Move, RequestStatus } from "#lib/api/requests.ts";
   import { moveWords, NOTE_MAX } from "#lib/requests/labels.ts";
 
   interface Props {
+    /** The status the request is in now. */
+    status: RequestStatus;
     move: Move;
     busy: boolean;
     /** The server's problem with the note. */
@@ -16,9 +18,9 @@
     onclose: () => void;
   }
 
-  let { move, busy, problem, failure, onconfirm, onclose }: Props = $props();
+  let { status, move, busy, problem, failure, onconfirm, onclose }: Props = $props();
 
-  const words = $derived(moveWords(move.to_status));
+  const words = $derived(moveWords(move.to_status, status));
   const label = $derived(move.reason_required ? "Reason" : "Note (optional)");
   let note = $state("");
   const blank = $derived(move.reason_required && !note.trim());

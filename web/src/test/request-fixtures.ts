@@ -116,6 +116,7 @@ export function request(fields: Partial<PrintRequest> = {}): PrintRequest {
     can_edit: false,
     can_change_priority: false,
     moves: [],
+    attempt: 1,
     store_address: "https://store.example",
     ...fields,
   };

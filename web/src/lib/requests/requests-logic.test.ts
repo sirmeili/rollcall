@@ -18,6 +18,7 @@ import {
   historyTitle,
   listText,
   mainMove,
+  moveWords,
   neededByDate,
   relativeDay,
   similarText,
@@ -158,6 +159,32 @@ describe("request words", () => {
       to_value: "waiting_on_filament",
     });
     expect(historyTitle(automatic)).toBe("Moved to Waiting on Filament");
+  });
+
+  it("calls a move from Failed to Queued a reprint", () => {
+    const reprint = entry({ kind: "status_changed", from_value: "failed", to_value: "queued" });
+    expect(historyTitle(reprint)).toBe("Reprinted by sam");
+    expect(historyDetail(reprint)).toBe("Failed → Queued");
+    const queued = entry({ kind: "status_changed", from_value: "approved", to_value: "queued" });
+    expect(historyTitle(queued)).toBe("Queued by sam");
+  });
+
+  it.each([
+    ["approved", "queued", "Queue", "Queued"],
+    [
+      "approved",
+      "waiting_on_filament",
+      "Move to Waiting on Filament",
+      "Moved to Waiting on Filament",
+    ],
+    ["queued", "printing", "Start printing", "Started printing"],
+    ["printing", "done", "Mark Done", "Marked Done"],
+    ["printing", "failed", "Mark Failed", "Marked Failed"],
+    ["failed", "queued", "Reprint", "Reprinted"],
+    ["done", "picked_up", "Mark Picked Up", "Marked Picked Up"],
+  ] as const)("names the move from %s to %s", (from, to, action, done) => {
+    expect(moveWords(to, from).action).toBe(action);
+    expect(moveWords(to, from).done).toBe(done);
   });
 
   it("makes the first move that goes ahead the main one", () => {
