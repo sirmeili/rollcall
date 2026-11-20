@@ -13,6 +13,7 @@ from filament_tracker.auth import Principal
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import Role
+from filament_tracker.print_requests.pipeline import Mover
 
 
 def has_requests(session: Session, user: User) -> bool:
@@ -37,3 +38,15 @@ def may_see(principal: Principal, request: PrintRequest) -> bool:
     if sees_every_request(principal):
         return True
     return principal.user is not None and request.requester_id == principal.user.id
+
+
+def movers(principal: Principal, request: PrintRequest) -> set[Mover]:
+    """Who the caller moves a request as: an Admin, its requester, both or neither. Owning
+    the request is what counts, not holding Requester (ADR-0017)."""
+    found = set()
+    role = principal.role
+    if principal.device is None and role is not None and role.allows(Role.ADMIN):
+        found.add(Mover.ADMIN)
+    if principal.user is not None and request.requester_id == principal.user.id:
+        found.add(Mover.REQUESTER)
+    return found

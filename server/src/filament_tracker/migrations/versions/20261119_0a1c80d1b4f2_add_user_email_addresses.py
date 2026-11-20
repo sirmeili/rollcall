@@ -1,7 +1,7 @@
 """add user email addresses
 
 Revision ID: 0a1c80d1b4f2
-Revises: 8be4824dafad
+Revises: edd3e5a79906
 Create Date: 2026-11-19 23:35:40.636662
 """
 
@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "0a1c80d1b4f2"
-down_revision: str | None = "8be4824dafad"
+down_revision: str | None = "edd3e5a79906"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

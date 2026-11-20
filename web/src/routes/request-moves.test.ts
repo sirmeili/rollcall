@@ -1,0 +1,269 @@
+import { render, screen, within } from "@testing-library/svelte";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "#lib/api/client.ts";
+import type { HistoryEntry, Move } from "#lib/api/requests.ts";
+import type { Me } from "#lib/api/types.ts";
+import { setTimeZone } from "#lib/format.ts";
+import { viewport } from "#lib/viewport.svelte.ts";
+import { me } from "../test/fixtures.ts";
+import { request, row } from "../test/request-fixtures.ts";
+
+const nav = vi.hoisted(() => ({
+  page: { params: { id: "41" } as Record<string, string>, url: new URL("https://localhost/") },
+  goto: vi.fn(),
+}));
+vi.mock("$app/state", () => ({ page: nav.page }));
+vi.mock("$app/navigation", () => ({ goto: nav.goto }));
+
+const api = vi.hoisted(() => ({
+  listRequests: vi.fn(),
+  getRequest: vi.fn(),
+  moveRequest: vi.fn(),
+}));
+vi.mock("#lib/api/requests.ts", async (original) => ({
+  ...(await original<typeof import("#lib/api/requests.ts")>()),
+  ...api,
+}));
+
+const { session } = await import("#lib/auth/session.svelte.ts");
+const ListPage = (await import("./requests/+page.svelte")).default;
+const DetailPage = (await import("./requests/[id]/+page.svelte")).default;
+
+const FRANK = me("admin", { id: 1, username: "frank" });
+const DANA = me("editor", { id: 3, username: "dana" });
+const SAM = me("viewer", { id: 2, username: "sam", requester: true, has_requests: true });
+const VIC = me("viewer", { id: 4, username: "vic" });
+
+const APPROVE_OR_REJECT: Move[] = [
+  { to_status: "approved", reason_required: false },
+  { to_status: "rejected", reason_required: true },
+];
+
+function signIn(user: Me): void {
+  session.user = user;
+  session.loaded = true;
+}
+
+function moved(to: string, note: string | null): HistoryEntry {
+  return {
+    kind: "status_changed",
+    username: "frank",
+    at: "2026-11-18T14:00:00Z",
+    fields: null,
+    from_value: "submitted",
+    to_value: to,
+    note,
+  };
+}
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-18T15:00:00Z") });
+  setTimeZone("UTC");
+  viewport().phone = false;
+  nav.page.params = { id: "41" };
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.resetAllMocks();
+});
+
+function statusChip(): HTMLElement {
+  return screen.getByText("Status:").parentElement!;
+}
+
+function actions(): HTMLElement {
+  return screen.getByRole("group", { name: "Move this request" });
+}
+
+describe("Moving a request", () => {
+  it("offers an Admin Approve, as the main step, and Reject", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request({ moves: APPROVE_OR_REJECT }));
+    render(DetailPage);
+
+    const approve = await screen.findByRole("button", { name: "Approve" });
+    const buttons = within(actions()).getAllByRole("button");
+    expect(buttons.map((b) => b.textContent?.trim())).toEqual(["Approve", "Reject"]);
+    expect(approve).toHaveClass("primary");
+    expect(screen.getByRole("button", { name: "Reject" })).not.toHaveClass("primary");
+  });
+
+  it.each([
+    ["an Editor", DANA],
+    ["the Requester", SAM],
+    ["a Viewer", VIC],
+  ])("offers %s no moves the server doesn't list", async (_who, user) => {
+    signIn(user);
+    api.getRequest.mockResolvedValue(request({ moves: [] }));
+    render(DetailPage);
+
+    await screen.findByRole("heading", { name: "Wingspan insert" });
+    expect(screen.queryByRole("group", { name: "Move this request" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reject" })).toBeNull();
+  });
+
+  it("approves with an optional note", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request({ moves: APPROVE_OR_REJECT }));
+    api.moveRequest.mockResolvedValue(
+      request({ status: "approved", history: [moved("approved", "Next week")] }),
+    );
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    const dialog = screen.getByRole("dialog", { name: "Approve this request?" });
+    const note = within(dialog).getByLabelText("Note (optional)");
+    await userEvent.type(note, "Next week");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Approve" }));
+
+    expect(api.moveRequest).toHaveBeenCalledWith(41, "submitted", "approved", "Next week");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(statusChip()).toHaveTextContent("Status: Approved");
+    expect(await screen.findByText("Approved by frank")).toBeVisible();
+    expect(screen.getByText("Next week")).toBeVisible();
+  });
+
+  it("asks for a reason before rejecting", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request({ moves: APPROVE_OR_REJECT }));
+    api.moveRequest.mockResolvedValue(
+      request({ status: "rejected", history: [moved("rejected", "No clear PETG.")] }),
+    );
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Reject" }));
+    const dialog = screen.getByRole("dialog", { name: "Reject this request?" });
+    const reason = within(dialog).getByLabelText("Reason");
+    const confirm = within(dialog).getByRole("button", { name: "Reject" });
+    expect(reason).toBeRequired();
+    expect(reason).toHaveAttribute("maxlength", "500");
+    expect(dialog).toHaveTextContent("The requester sees the reason.");
+    expect(confirm).toBeDisabled();
+    await userEvent.type(reason, "   ");
+    expect(confirm).toBeDisabled();
+    await userEvent.type(reason, "No clear PETG.");
+    expect(dialog).toHaveTextContent("17/500");
+    await userEvent.click(confirm);
+
+    expect(api.moveRequest).toHaveBeenCalledWith(41, "submitted", "rejected", "   No clear PETG.");
+    expect(await screen.findByText("Rejected by frank")).toBeVisible();
+    expect(screen.getByText("No clear PETG.")).toBeVisible();
+  });
+
+  it("closes the dialog without moving on Cancel or Escape", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request({ moves: APPROVE_OR_REJECT }));
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Reject" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Approve" }));
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Approve" }));
+    await userEvent.click(screen.getAllByRole("button", { name: "Cancel" })[0]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(api.moveRequest).not.toHaveBeenCalled();
+  });
+
+  it("keeps Tab inside the dialog", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request({ moves: APPROVE_OR_REJECT }));
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    const dialog = screen.getByRole("dialog");
+    const note = within(dialog).getByLabelText("Note (optional)");
+    const confirm = within(dialog).getByRole("button", { name: "Approve" });
+    expect(note).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(confirm).toHaveFocus();
+    await userEvent.tab();
+    expect(note).toHaveFocus();
+    await userEvent.tab();
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toHaveFocus();
+  });
+
+  it("shows the server's problem with the note in the dialog", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request({ moves: APPROVE_OR_REJECT }));
+    api.moveRequest.mockRejectedValue(
+      new ApiError(422, "refused", { problems: { note: "Give a reason." } }),
+    );
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Reject" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText("Reason"), "x");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Reject" }));
+
+    expect(await within(dialog).findByText("Give a reason.")).toBeVisible();
+  });
+
+  it("explains any other failure in the dialog", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request({ moves: APPROVE_OR_REJECT }));
+    api.moveRequest.mockRejectedValue(new ApiError(403, "no"));
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Approve" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Your role cannot do that.");
+  });
+
+  it("says when someone else moved it first, and reloads it", async () => {
+    signIn(FRANK);
+    api.getRequest
+      .mockResolvedValueOnce(request({ moves: APPROVE_OR_REJECT }))
+      .mockResolvedValueOnce(request({ status: "rejected", moves: [] }));
+    api.moveRequest.mockRejectedValue(
+      new ApiError(409, "This request has changed. Reload to see it."),
+    );
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Approve" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This request has changed. Reload to see it.",
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(api.getRequest).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(statusChip()).toHaveTextContent("Status: Rejected"));
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+  });
+});
+
+describe("Status badge", () => {
+  it("names the status on the list", async () => {
+    signIn(DANA);
+    api.listRequests.mockResolvedValue([
+      row({ id: 1, title: "One", status: "approved" }),
+      row({ id: 2, title: "Two", status: "waiting_on_filament" }),
+    ]);
+    render(ListPage);
+
+    const rows = await screen.findAllByRole("row");
+    expect(rows[1]).toHaveTextContent("Status: Approved");
+    expect(rows[2]).toHaveTextContent("Status: Waiting on Filament");
+  });
+
+  it("names the status on the detail page", async () => {
+    signIn(SAM);
+    api.getRequest.mockResolvedValue(request({ status: "rejected" }));
+    render(DetailPage);
+
+    await screen.findByRole("heading", { name: "Wingspan insert" });
+    expect(statusChip()).toHaveTextContent("Status: Rejected");
+    expect(statusChip()).toHaveClass("tagchip", "st-rejected");
+  });
+});

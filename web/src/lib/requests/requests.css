@@ -51,19 +51,57 @@
   padding: 3px 8px;
 }
 
-.st-submitted {
+/* A status chip: an outlined chip with a dot, filled once the request is done, stopped or
+   failed. */
+.st {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--line);
   padding: 3px 8px;
 }
 
-.st-submitted::before {
+.st::before {
   content: "";
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--muted);
+}
+
+.st-approved::before,
+.st-waiting_on_filament::before,
+.st-queued::before,
+.st-printing::before {
+  background: var(--accent);
+}
+
+.st-done,
+.st-picked_up {
+  background: var(--okbg);
+  color: var(--oktext);
+  border-color: transparent;
+}
+
+.st-done::before,
+.st-picked_up::before {
+  background: var(--okdot);
+}
+
+.st-failed {
+  background: var(--lowbg);
+  color: var(--lowtext);
+  border-color: transparent;
+}
+
+.st-failed::before {
+  background: var(--lowtext);
+}
+
+.st-rejected,
+.st-cancelled {
+  background: var(--chip);
+  color: var(--muted);
+  border-color: transparent;
 }
 
 .reqid {

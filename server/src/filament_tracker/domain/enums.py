@@ -50,9 +50,24 @@ class Priority(StrEnum):
 
 
 class RequestStatus(StrEnum):
-    """Where a print request is. #76 adds the rest of the pipeline."""
+    """Where a print request is. While it goes ahead: Submitted to Picked Up. When it stops:
+    Rejected, Cancelled or Failed. The moves between them are in print_requests/pipeline.py."""
 
     SUBMITTED = "submitted"
+    APPROVED = "approved"
+    WAITING_ON_FILAMENT = "waiting_on_filament"
+    QUEUED = "queued"
+    PRINTING = "printing"
+    DONE = "done"
+    PICKED_UP = "picked_up"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+
+    @property
+    def closed(self) -> bool:
+        """Picked Up, Rejected and Cancelled; every other status, Failed too, is open."""
+        return self in (RequestStatus.PICKED_UP, RequestStatus.REJECTED, RequestStatus.CANCELLED)
 
 
 class HistoryKind(StrEnum):
@@ -61,6 +76,7 @@ class HistoryKind(StrEnum):
     SUBMITTED = "submitted"
     EDITED = "edited"
     PRIORITY_CHANGED = "priority_changed"
+    STATUS_CHANGED = "status_changed"
 
 
 class ModelFileKind(StrEnum):

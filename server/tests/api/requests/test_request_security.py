@@ -24,6 +24,7 @@ ROUTES = [
     ("get", f"{REQUESTS}/1", Role.EDITOR),
     ("patch", f"{REQUESTS}/1", None),
     ("post", f"{REQUESTS}/1/priority", Role.EDITOR),
+    ("post", f"{REQUESTS}/1/moves", Role.ADMIN),
     ("post", UPLOADS, None),
     ("get", f"{REQUESTS}/1/file", Role.EDITOR),
 ]
@@ -87,6 +88,12 @@ def test_another_users_request_reads_as_not_found_on_every_route(
     assert sam.get(f"{REQUESTS}/{theirs}/file").status_code == 404
     edit = sam.patch(f"{REQUESTS}/{theirs}", json=request_body(), headers=CSRF)
     assert edit.status_code == 404
+    moved = sam.post(
+        f"{REQUESTS}/{theirs}/moves",
+        json={"from_status": "submitted", "to_status": "approved"},
+        headers=CSRF,
+    )
+    assert moved.status_code == 404
 
 
 # --- Uploads -------------------------------------------------------------------------------
