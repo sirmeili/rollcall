@@ -17,6 +17,7 @@ export function me(role: Me["role"], overrides: Partial<Me> = {}): Me {
     username: "frank",
     role,
     requester: false,
+    email: null,
     has_requests: false,
     time_zone: "UTC",
     ...overrides,

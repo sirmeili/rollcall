@@ -11,6 +11,7 @@ from filament_tracker.api import (
     catalog,
     devices,
     edits,
+    email_settings,
     events,
     health,
     printers,
@@ -35,6 +36,10 @@ from filament_tracker.config import Settings
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
 from filament_tracker.ha.link import HomeAssistantLink
+from filament_tracker.mail.sender import MailSender
+from filament_tracker.mail.settings import smtp_server
+from filament_tracker.mail.smtp import SmtpSender
+from filament_tracker.mail.transport import MailTransport
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.backup import BackupScheduler
@@ -59,10 +64,15 @@ def _backups(settings: Settings, store: SettingsStore) -> BackupScheduler | None
 
 
 def create_app(
-    settings: Settings | None = None, *, catalog_transport: httpx.BaseTransport | None = None
+    settings: Settings | None = None,
+    *,
+    catalog_transport: httpx.BaseTransport | None = None,
+    mail_transport: MailTransport | None = None,
 ) -> FastAPI:
-    """The server. `catalog_transport` replaces the network for catalog syncs, in tests."""
+    """The server. `catalog_transport` replaces the network for catalog syncs, and
+    `mail_transport` the SMTP sender for emails, in tests."""
     settings = settings or Settings()
+    mail_transport = mail_transport or SmtpSender()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -82,6 +92,9 @@ def create_app(
         app.state.home_assistant = home_assistant
         home_assistant.start()
         app.state.setup_gate.start(app.state.session_factory)
+        mail = MailSender(mail_transport, lambda: smtp_server(store))
+        app.state.mail = mail
+        mail.start()
         catalog = CatalogSyncer(app.state.session_factory, transport=catalog_transport)
         app.state.catalog = catalog
         catalog_scheduler = CatalogScheduler(
@@ -95,6 +108,7 @@ def create_app(
             if backups is not None:
                 backups.stop()
             catalog_scheduler.stop()
+            mail.stop()
             home_assistant.stop()
             printer_links.stop()
             engine.dispose()
@@ -129,6 +143,7 @@ def create_app(
         tokens,
         setup,
         app_settings,
+        email_settings,
         catalog,
         request_files,
         requests,

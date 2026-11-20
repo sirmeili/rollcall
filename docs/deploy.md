@@ -30,7 +30,7 @@ chmod 600 .env
 Edit `.env`. At least:
 
 - `TRUSTED_NETWORKS`: your LAN only, such as `192.168.1.0/24`. Bearer tokens (scanners, the phone app, Home Assistant), the API docs and first-start setup work only from here. The default allows every private range, which includes Docker's own networks, so narrow it.
-- `SETTINGS_KEY`: recommended. It encrypts the secrets saved in the app (Home Assistant password and token, printer access codes, the tag key constant). Set here, it is not stored on the data volume, so a copy of the volume or a backup does not hold it. Keep a copy somewhere safe, such as a password manager. Generate one with:
+- `SETTINGS_KEY`: recommended. It encrypts the secrets saved in the app (Home Assistant password and token, printer access codes, the tag key constant, the SMTP password). Set here, it is not stored on the data volume, so a copy of the volume or a backup does not hold it. Keep a copy somewhere safe, such as a password manager. Generate one with:
 
   ```sh
   python3 -c "import base64, secrets; print(base64.b64encode(secrets.token_bytes(32)).decode())"

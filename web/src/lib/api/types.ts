@@ -7,6 +7,8 @@ export interface UserBase {
   role: Role;
   /** May submit print requests, alongside the role (ADR-0017). */
   requester: boolean;
+  /** Optional and never verified. */
+  email: string | null;
 }
 
 export interface Me extends UserBase {

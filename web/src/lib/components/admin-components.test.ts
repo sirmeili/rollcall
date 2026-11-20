@@ -26,6 +26,7 @@ const USER: UserOut = {
   username: "jordan",
   role: "editor",
   requester: false,
+  email: null,
   disabled: false,
   created_at: "2026-11-01T00:00:00Z",
   last_login_at: null,
@@ -110,7 +111,8 @@ describe("UserRow", () => {
 
     await rerender({ you: true, busy: false });
     expect(screen.getByText("You")).toBeInTheDocument();
-    expect(screen.queryByRole("button")).toBeNull();
+    // Your own row changes only the email address.
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Set email"]);
   });
 });
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import CatalogSettings from "#lib/components/settings/CatalogSettings.svelte";
+  import EmailSettings from "#lib/components/settings/EmailSettings.svelte";
   import GeneralSettings from "#lib/components/settings/GeneralSettings.svelte";
   import HomeAssistantSettings from "#lib/components/settings/HomeAssistantSettings.svelte";
   import MachineTokens from "#lib/components/settings/MachineTokens.svelte";
@@ -20,5 +21,6 @@
   <ScannerSettings />
   <HomeAssistantSettings />
   <CatalogSettings />
+  <EmailSettings />
   <MachineTokens />
 </div>

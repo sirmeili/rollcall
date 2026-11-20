@@ -3,6 +3,7 @@
 import { api } from "#lib/api/client.ts";
 import type {
   DeviceCreated,
+  Me,
   DeviceOut,
   EventOut,
   EventSource,
@@ -159,10 +160,17 @@ export interface UserChanges {
   requester?: boolean;
   disabled?: boolean;
   password?: string;
+  /** Empty removes it. */
+  email?: string;
 }
 
 export function updateUser(id: number, changes: UserChanges): Promise<UserOut> {
   return api<UserOut>(`/users/${id}`, { method: "PATCH", body: changes });
+}
+
+/** Change one's own account: the email address (empty removes it). */
+export function updateAccount(changes: { email: string }): Promise<Me> {
+  return api<Me>("/auth/me", { method: "PATCH", body: changes });
 }
 
 export function changePassword(currentPassword: string, newPassword: string): Promise<void> {

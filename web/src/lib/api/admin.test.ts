@@ -30,6 +30,7 @@ describe("admin API calls", () => {
       "POST /review/spools/16/restore": null,
       "GET /printers": [],
       "POST /printers/1/unpin": { id: 1 },
+      "PATCH /auth/me": { id: 1, email: "frank@example.com" },
     });
     vi.stubGlobal("fetch", fetch);
 
@@ -63,6 +64,9 @@ describe("admin API calls", () => {
     await admin.restoreLikelyEmpty(16);
     expect(await admin.listPrinters()).toEqual([]);
     expect((await admin.unpinPrinter(1)).id).toBe(1);
+    expect((await admin.updateAccount({ email: "frank@example.com" })).email).toBe(
+      "frank@example.com",
+    );
 
     expect(fetch.calls.filter((c) => c.method !== "GET")).toEqual([
       { method: "POST", path: "/review/events/e1/accept", body: undefined },
@@ -92,6 +96,7 @@ describe("admin API calls", () => {
       { method: "POST", path: "/review/spools/16/dismiss", body: undefined },
       { method: "POST", path: "/review/spools/16/restore", body: undefined },
       { method: "POST", path: "/printers/1/unpin", body: undefined },
+      { method: "PATCH", path: "/auth/me", body: { email: "frank@example.com" } },
     ]);
   });
 });

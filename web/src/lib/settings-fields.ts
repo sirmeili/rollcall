@@ -84,6 +84,43 @@ export const HOME_ASSISTANT_FIELDS: readonly FieldInfo[] = [
   },
 ];
 
+export const EMAIL_FIELDS: readonly FieldInfo[] = [
+  {
+    key: "smtp_host",
+    label: "SMTP host",
+    help: "Your mail provider's SMTP server. Empty: email is off.",
+    placeholder: "smtp.example.com",
+  },
+  {
+    key: "smtp_port",
+    label: "Port",
+    help: "Usually 587 for starttls and 465 for tls.",
+    placeholder: "587",
+    inputmode: "numeric",
+  },
+  {
+    key: "smtp_security",
+    label: "Security",
+    help: "starttls, tls (TLS from the start) or none.",
+    placeholder: "starttls",
+    suggestions: ["starttls", "tls", "none"],
+  },
+  { key: "smtp_user", label: "User", help: "The mail server login. Empty: no login." },
+  { key: "smtp_password", label: "Password", help: "The mail server login's password." },
+  {
+    key: "smtp_from",
+    label: "From address",
+    help: "Who the emails come from, with or without a name.",
+    placeholder: "RollCall <rollcall@example.com>",
+  },
+  {
+    key: "public_url",
+    label: "Public URL",
+    help: "The https address the family opens RollCall at, for links in emails. Empty: no links.",
+    placeholder: "https://rollcall.example.com",
+  },
+];
+
 /** Where a value comes from, in words. */
 export function sourceText(setting: SettingOut): string {
   if (setting.unreadable) return "Needs entering again";

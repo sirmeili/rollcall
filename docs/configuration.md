@@ -24,6 +24,12 @@ The pull request that adds, removes or changes a setting in `server/src/filament
 | `CATALOG_SYNC` | `weekly` | How often the catalog syncs from its two sources, the Open Filament Database (`api.openfilamentdatabase.org`) and BambuStudio's color code list on GitHub (`raw.githubusercontent.com`): `off`, `daily` or `weekly`, at 04:00 in `TZ` (Mondays for `weekly`). `off` contacts neither except when an Admin presses Refresh now; defaults to `daily` | Yes |
 | `SIMILARITY_CUTOFF` | `10` | The largest ΔE (CIEDE2000, 0.5 to 50) at which an in-stock product counts as a similar in-stock color on the Catalog page; defaults to 10. Below 2 is barely visible; 2–10 is close; above 25 is clearly different | Yes |
 | `STORE_ADDRESS` | `https://eu.store.bambulab.com` | The Bambu Lab store that Find in store searches, by Bambu code. An `https` address with no path, query or fragment; one trailing slash is dropped. Defaults to `https://us.store.bambulab.com`; the store picks a region from where the visitor is, so change it only if that goes wrong | Yes |
+| `SMTP_HOST` | `smtp.example.com` | The mail server RollCall sends email through. Unset: email is off | Yes |
+| `SMTP_PORT` | `465` | The mail server's port (1 to 65535); defaults to 587 | Yes |
+| `SMTP_SECURITY` | `tls` | How the connection is encrypted: `starttls` (connect, then upgrade; the default), `tls` (TLS from the start, usually port 465) or `none`. Certificates are checked against the system's trusted ones | Yes |
+| `SMTP_USER`, `SMTP_PASSWORD` | `rollcall@example.com`, the password | The mail server login. Unset user: no login. The password is stored encrypted, never returned or logged | Yes |
+| `SMTP_FROM` | `RollCall <rollcall@example.com>` | The from address of every email, with or without a name. Unset: sending fails with "No from address is set" | Yes |
+| `PUBLIC_URL` | `https://rollcall.example.com` | The address the family opens RollCall at, for links in emails. An `https` address with no path, query or fragment; one trailing slash is dropped. Unset: emails have no links. Links are never built from an incoming request's address | Yes |
 | `TRUSTED_NETWORKS` | `192.168.0.0/16,10.0.0.0/8` | LAN ranges allowed to use bearer tokens, scanner routes, the API docs and first-start setup; defaults to the private ranges | No |
 | `FORWARDED_ALLOW_IPS` | `192.168.1.5` | Address of the reverse proxy whose `X-Forwarded-For` is trusted. Unset: none | No |
 | `SESSION_DAYS` | `30` | How long a web sign-in lasts, in days (1 to 365); defaults to 30 | Yes |

@@ -13,6 +13,8 @@ from filament_tracker.services.accounts import MAX_PASSWORD
 # so they give one clear message.
 Username = Annotated[str, StringConstraints(min_length=1, max_length=64)]
 Password = Annotated[str, StringConstraints(min_length=1, max_length=MAX_PASSWORD)]
+# Checked by mail/address.py; this limit only stops absurd input. Empty clears it.
+EmailText = Annotated[str, StringConstraints(max_length=1024)]
 
 
 class LoginRequest(Strict):
@@ -31,6 +33,8 @@ class UserBase(BaseModel):
     role: Role
     # May submit print requests, alongside the role (ADR-0017).
     requester: bool
+    # Optional and never verified.
+    email: str | None
 
 
 class Me(UserBase):
@@ -58,3 +62,12 @@ class UserUpdate(Strict):
     requester: bool | None = None
     disabled: bool | None = None
     password: Password | None = None
+    # An empty value (or null) clears it; left out, it stays as it is.
+    email: EmailText | None = None
+
+
+class AccountUpdate(Strict):
+    """What a user changes on their own Account page."""
+
+    # An empty value (or null) clears it; left out, it stays as it is.
+    email: EmailText | None = None
