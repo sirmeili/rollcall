@@ -129,7 +129,7 @@ def create_app(
     app.state.setup_gate = SetupGate()
     app.state.test_email_cooldown = Cooldown(TEST_EMAIL_GAP)
     app.state.model_files = ModelFiles(files_dir(settings.database_url))
-    # Spool detail names the requests holding a spool through this (ADR-0014).
+    # Spool detail names the requests holding a spool through this (ADR-0020).
     app.state.holder_reader = request_holders.holding_requests
     app.add_exception_handler(RequestValidationError, validation_error)
     app.add_middleware(

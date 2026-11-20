@@ -1,7 +1,7 @@
 """Print Requests' answer to Spool detail's question: which requests hold this spool.
 
 Wired in at start as the app's `HolderReader` (`api/spool_holders.py`), so Inventory reads
-it without importing Print Requests (ADR-0014).
+it without importing Print Requests (ADR-0014, ADR-0020).
 """
 
 from collections.abc import Collection
