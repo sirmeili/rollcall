@@ -130,7 +130,14 @@ def test_a_move_from_a_status_the_request_has_left_is_refused(
     assert _read(sam, created["id"])["status"] == "rejected"
 
 
-ALLOWED = {("submitted", "approved"), ("submitted", "rejected")}
+ALLOWED = {
+    ("submitted", "approved"),
+    ("submitted", "rejected"),
+    *(
+        (status, "cancelled")
+        for status in ("submitted", "approved", "waiting_on_filament", "queued", "failed")
+    ),
+}
 OTHER_PAIRS = [
     (a.value, b.value)
     for a in RequestStatus
@@ -176,6 +183,7 @@ def test_an_admin_who_asked_for_a_request_still_approves_it(
     assert _read(ada, created["id"])["moves"] == [
         {"to_status": "approved", "reason_required": False},
         {"to_status": "rejected", "reason_required": True},
+        {"to_status": "cancelled", "reason_required": False},
     ]
     assert move(ada, created["id"], "submitted", "approved").status_code == 200
 
@@ -189,12 +197,12 @@ def test_the_detail_lists_the_moves_the_caller_may_make(
     assert _read(frank, created["id"])["moves"] == [
         {"to_status": "approved", "reason_required": False},
         {"to_status": "rejected", "reason_required": True},
+        {"to_status": "cancelled", "reason_required": True},
     ]
     assert _read(dana, created["id"])["moves"] == []
-    assert _read(sam, created["id"])["moves"] == []
-    # Nothing more to do once it is approved, until the next moves are added.
-    approved = move(frank, created["id"], "submitted", "approved").json()
-    assert approved["moves"] == []
+    assert _read(sam, created["id"])["moves"] == [
+        {"to_status": "cancelled", "reason_required": False}
+    ]
 
 
 def test_an_admin_machine_token_moves_a_request_as_no_one(
