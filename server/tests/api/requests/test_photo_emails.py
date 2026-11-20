@@ -6,14 +6,14 @@ import io
 from email.message import EmailMessage
 
 import pytest
-from api_helpers import CSRF
+from api_helpers import CSRF, admin
 from email_helpers import email_on, sent
 from fake_outbox import FakeOutbox, html_of, text_of
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image
 from request_helpers import person
-from test_photos import jpeg, move, png, printing, uploaded_photo
+from test_photos import add_photos, jpeg, move, png, printing, remove_photo, uploaded_photo
 
 from filament_tracker.domain.enums import Role
 
@@ -106,3 +106,133 @@ def test_a_done_email_without_photos_has_no_images(
     message = _one(app, outbox)
     assert inline_images(message) == []
     assert "<img" not in html_of(message)
+
+
+def test_a_photo_added_later_emails_the_requester_with_the_photo_inline(
+    app: FastAPI, frank: TestClient, outbox: FakeOutbox, done_id: int
+) -> None:
+    photo_id = uploaded_photo(frank, jpeg((1600, 1200)))
+
+    assert add_photos(frank, done_id, photo_id).status_code == 200
+
+    message = _one(app, outbox)
+    assert message["To"] == "sam@example.com"
+    assert message["Subject"] == f"New photo of your print: {TITLE}"
+    link = f"https://rollcall.example.com/requests/{done_id}"
+    assert text_of(message) == (
+        f'A new photo of your print "{TITLE}" was added.\n\nOpen the request: {link}\n\n{FOOTER}\n'
+    )
+    [(content_id, image)] = inline_images(message)
+    assert (image.format, image.size) == ("JPEG", (1024, 768))
+    html = html_of(message)
+    assert f'src="cid:{content_id}"' in html
+    assert f'<a href="{link}">Open the request</a>' in html
+
+
+def test_a_photo_added_after_pick_up_emails_the_requester(
+    app: FastAPI, frank: TestClient, outbox: FakeOutbox, done_id: int
+) -> None:
+    assert move(frank, done_id, "done", "picked_up").status_code == 200
+    sent(app, outbox)
+
+    assert add_photos(frank, done_id, uploaded_photo(frank, png())).status_code == 200
+
+    message = _one(app, outbox)
+    assert message["Subject"] == f"New photo of your print: {TITLE}"
+    assert len(inline_images(message)) == 1
+
+
+def test_photos_added_together_come_in_one_email(
+    app: FastAPI, frank: TestClient, outbox: FakeOutbox, done_id: int
+) -> None:
+    ids = [uploaded_photo(frank, jpeg()), uploaded_photo(frank, png())]
+
+    assert add_photos(frank, done_id, *ids).status_code == 200
+
+    assert len(inline_images(_one(app, outbox))) == 2
+
+
+def test_removing_a_photo_sends_no_email(
+    app: FastAPI, frank: TestClient, outbox: FakeOutbox, done_id: int
+) -> None:
+    photo_id = uploaded_photo(frank, jpeg())
+    add_photos(frank, done_id, photo_id)
+    sent(app, outbox)
+
+    assert remove_photo(frank, done_id, photo_id).status_code == 200
+
+    assert sent(app, outbox) == []
+
+
+def test_no_new_photo_email_to_a_requester_with_no_address(
+    app: FastAPI, sam: TestClient, frank: TestClient, outbox: FakeOutbox, done_id: int
+) -> None:
+    sam.patch("/api/v1/auth/me", json={"email": ""}, headers=CSRF)
+
+    assert add_photos(frank, done_id, uploaded_photo(frank, jpeg())).status_code == 200
+
+    assert sent(app, outbox) == []
+
+
+def test_no_new_photo_email_to_a_requester_whose_switch_is_off(
+    app: FastAPI, sam: TestClient, frank: TestClient, outbox: FakeOutbox, done_id: int
+) -> None:
+    sam.patch("/api/v1/auth/me", json={"email_on_request_change": False}, headers=CSRF)
+
+    assert add_photos(frank, done_id, uploaded_photo(frank, jpeg())).status_code == 200
+
+    assert sent(app, outbox) == []
+
+
+def test_no_new_photo_email_to_a_disabled_requester(
+    app: FastAPI,
+    client: TestClient,
+    sam: TestClient,
+    frank: TestClient,
+    outbox: FakeOutbox,
+    done_id: int,
+) -> None:
+    sam_id = sam.get("/api/v1/auth/me").json()["id"]
+    client.patch(f"/api/v1/users/{sam_id}", json={"disabled": True}, headers=admin())
+
+    assert add_photos(frank, done_id, uploaded_photo(frank, jpeg())).status_code == 200
+
+    assert sent(app, outbox) == []
+
+
+def test_no_new_photo_email_while_email_is_off(
+    app: FastAPI, client: TestClient, frank: TestClient, outbox: FakeOutbox, done_id: int
+) -> None:
+    email_on(client, smtp_host="")
+
+    assert add_photos(frank, done_id, uploaded_photo(frank, jpeg())).status_code == 200
+
+    email_on(client)  # So the check below can see what was sent.
+    assert sent(app, outbox) == []
+
+
+def test_no_new_photo_email_when_an_admin_adds_a_photo_to_their_own_request(
+    app: FastAPI, client: TestClient, outbox: FakeOutbox
+) -> None:
+    email_on(client)
+    boss = person(app, "boss", Role.ADMIN)
+    boss.patch("/api/v1/auth/me", json={"email": "boss@example.com"}, headers=CSRF)
+    request_id = printing(boss, boss)
+    assert move(boss, request_id, "printing", "done").status_code == 200
+    sent(app, outbox)
+
+    assert add_photos(boss, request_id, uploaded_photo(boss, jpeg())).status_code == 200
+
+    assert sent(app, outbox) == []
+
+
+def test_no_link_in_the_new_photo_email_without_a_public_url(
+    app: FastAPI, client: TestClient, frank: TestClient, outbox: FakeOutbox, done_id: int
+) -> None:
+    email_on(client, public_url="")
+
+    assert add_photos(frank, done_id, uploaded_photo(frank, jpeg())).status_code == 200
+
+    message = _one(app, outbox)
+    assert text_of(message) == f'A new photo of your print "{TITLE}" was added.\n\n{FOOTER}\n'
+    assert "Open the request" not in html_of(message)

@@ -20,13 +20,13 @@ from starlette.requests import ClientDisconnect
 from filament_tracker.api.request_files import content_disposition
 from filament_tracker.api.request_schemas import PhotosIn, PhotoUploadOut, RequestOut
 from filament_tracker.api.request_views import model_files, request_out
-from filament_tracker.api.requests import RequestsCaller, find_request
+from filament_tracker.api.requests import RequestsCaller, find_request, send_after_commit
 from filament_tracker.auth import AnyPrincipal, DbSession, forbidden, problems
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import FILE_NAME_MAX, PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import Role
-from filament_tracker.print_requests import photos
+from filament_tracker.print_requests import emails, photos
 from filament_tracker.print_requests.rules import Problems
 
 PHOTO_UPLOAD_PATH = "/requests/photo-uploads"
@@ -89,13 +89,20 @@ def add_photos(
     session: DbSession,
     http: Request,
 ) -> RequestOut:
-    """Save photo uploads with a Done or Picked Up request, up to 4 photos in all."""
+    """Save photo uploads with a Done or Picked Up request, up to 4 photos in all, emailing
+    the requester the new photos."""
     found = find_request(session, caller, request_id)
     try:
-        photos.add(session, found, body.photo_ids, caller.user, utcnow())
+        added = photos.add(session, found, body.photo_ids, caller.user, utcnow())
     except Problems as error:
         raise problems(error.problems) from None
     session.commit()
+    send_after_commit(
+        http,
+        lambda public_url: emails.new_photo_emails(
+            found, caller.user, stored_photos(http).email_copies(added), public_url
+        ),
+    )
     session.refresh(found)
     return request_out(http, session, caller, found)
 

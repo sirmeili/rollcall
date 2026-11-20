@@ -4,7 +4,8 @@
 Each is sent only to a person with an address, the matching Account switch on, and an
 account that isn't disabled. Links use PUBLIC_URL only, never the incoming request's Host
 header; without it, emails have no link. The Done email shows the photos saved with the
-move, as inline images in the HTML part, from each photo's email copy.
+move, and a photo added later emails the requester "New photo of your print"; each shows
+the photos as inline images in the HTML part, from their email copies.
 """
 
 from collections.abc import Iterable, Sequence
@@ -49,6 +50,8 @@ MOVE_WORDING: dict[RequestStatus, tuple[str, str]] = {
         'Your print request "{title}" was cancelled.',
     ),
 }
+NEW_PHOTO_SUBJECT = "New photo of your print: {title}"
+NEW_PHOTO_SENTENCE = 'A new photo of your print "{title}" was added.'
 NEW_REQUEST_SUBJECT = "New print request from {requester}: {title}"
 NEW_REQUEST_SENTENCE = '{requester} submitted a new print request: "{title}".'
 OPEN = "Open the request"
@@ -77,6 +80,30 @@ def move_emails(moved: Moved, public_url: str | None, photos: Sequence[bytes] = 
             subject.format(title=_one_line(request.title)),
             sentence.format(title=request.title),
             [(label, moved.note)] if moved.note else [],
+            _link(request, public_url),
+            FOOTER,
+            photos,
+        )
+    ]
+
+
+def new_photo_emails(
+    request: PrintRequest, user: User | None, photos: Sequence[bytes], public_url: str | None
+) -> list[Email]:
+    """The requester's email about photos `user` added after the Done move, showing their
+    email copies, unless the requester added them or doesn't want it."""
+    requester = request.requester
+    if not photos or (user is not None and user.id == requester.id):
+        return []
+    to = _address(requester, requester.email_on_request_change)
+    if to is None:
+        return []
+    return [
+        _compose(
+            to,
+            NEW_PHOTO_SUBJECT.format(title=_one_line(request.title)),
+            NEW_PHOTO_SENTENCE.format(title=request.title),
+            [],
             _link(request, public_url),
             FOOTER,
             photos,

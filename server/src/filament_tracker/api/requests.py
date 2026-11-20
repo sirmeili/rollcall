@@ -124,7 +124,7 @@ def _public_url(http: Request) -> str | None:
     return http.app.state.settings_store.text("public_url")
 
 
-def _send(http: Request, build: Callable[[str | None], list[Email]]) -> None:
+def send_after_commit(http: Request, build: Callable[[str | None], list[Email]]) -> None:
     """Build the emails once the change has committed, from the public URL, and hand them to
     the background sender; nothing is built while email is off."""
     mail = _mail(http)
@@ -172,7 +172,9 @@ def submit(
     except (Problems, service.NotAllowed) as error:
         raise _refused(error) from None
     session.commit()
-    _send(http, lambda public_url: emails.new_request_emails(session, created, public_url))
+    send_after_commit(
+        http, lambda public_url: emails.new_request_emails(session, created, public_url)
+    )
     session.refresh(created)
     return request_out(http, session, caller, created)
 
@@ -252,7 +254,7 @@ def make_move(
     except Problems as error:
         raise problems(error.problems) from None
     session.commit()
-    _send(
+    send_after_commit(
         http,
         lambda public_url: emails.move_emails(
             moved, public_url, photos.Photos(model_files(http)).email_copies(added)
