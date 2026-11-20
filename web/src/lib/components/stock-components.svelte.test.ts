@@ -381,21 +381,15 @@ describe("spool detail", () => {
     expect(screen.getByText("No events.")).toBeInTheDocument();
   });
 
-  it("shows what is left, and grams when the weight is known", () => {
+  it("shows the AMS's remaining %", () => {
     const { rerender } = render(LeftOnSpool, { spool: spoolDetail({ remaining_pct: 62 }) });
     expect(screen.getByText("62%")).toBeInTheDocument();
-    expect(screen.getByText("about 620 g of 1000 g")).toBeInTheDocument();
 
-    rerender({ spool: spoolDetail({ remaining_pct: 12, grams_left: null }) });
+    rerender({ spool: spoolDetail({ remaining_pct: 12 }) });
     expect(screen.getByText(/Nearly out \(at or below 15%\)/)).toBeInTheDocument();
-    expect(screen.queryByText(/about/)).toBeNull();
 
-    rerender({ spool: spoolDetail({ remaining_pct: null, grams_left: null }) });
+    rerender({ spool: spoolDetail({ remaining_pct: null }) });
     expect(screen.getByText(/Not seen by the AMS yet/)).toBeInTheDocument();
-    expect(screen.getByText("Full spool: 1000 g")).toBeInTheDocument();
-
-    rerender({ spool: spoolDetail({ remaining_pct: null, spool_weight_g: null }) });
-    expect(screen.queryByText(/Full spool/)).toBeNull();
   });
 
   it("saves location and notes", async () => {

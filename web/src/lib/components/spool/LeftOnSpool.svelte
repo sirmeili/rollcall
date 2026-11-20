@@ -2,7 +2,7 @@
   import type { SpoolDetail } from "#lib/api/types.ts";
   import { nearlyOut } from "#lib/spools.ts";
 
-  /** The AMS remaining % and grams left. Empty until the AMS reports (M5). */
+  /** The AMS remaining %. Empty until the AMS reports (M5); grams are on the Grams card. */
   let { spool }: { spool: SpoolDetail } = $props();
 
   const low = $derived(nearlyOut(spool));
@@ -11,16 +11,10 @@
 <section class="card" aria-labelledby="ams-h">
   <h2 id="ams-h" class="label">Left on spool</h2>
   {#if spool.remaining_pct === null}
-    <p class="muted">
-      Not seen by the AMS yet. The % and grams left appear once a printer reports this spool.
-    </p>
-    {#if spool.spool_weight_g}<p class="muted">Full spool: {spool.spool_weight_g} g</p>{/if}
+    <p class="muted">Not seen by the AMS yet. The % appears once a printer reports this spool.</p>
   {:else}
     <div class="big">
       <span class="pct" class:low>{spool.remaining_pct}%</span>
-      {#if spool.grams_left !== null}
-        <span class="muted">about {spool.grams_left} g of {spool.spool_weight_g} g</span>
-      {/if}
     </div>
     <div class="track" aria-hidden="true">
       <span class:low style:width="{Math.max(0, Math.min(100, spool.remaining_pct))}%"></span>

@@ -62,6 +62,8 @@ export function spoolRow(overrides: Partial<SpoolRow> = {}): SpoolRow {
     placeholder: false,
     location: "Shelf A",
     remaining_pct: 62,
+    net_weight_g: 1000,
+    grams_left_g: 620,
     received_at: "2026-10-12T16:05:00Z",
     opened_at: "2026-10-20T18:41:00Z",
     emptied_at: null,
@@ -115,8 +117,6 @@ export function spoolDetail(overrides: Partial<SpoolDetail> = {}): SpoolDetail {
   return {
     ...spoolRow(),
     notes: "Dried 8 h",
-    spool_weight_g: 1000,
-    grams_left: 620,
     tags: [tag()],
     events: [
       event({ id: "e2", type: "opened", occurred_at: "2026-10-20T18:41:00Z" }),

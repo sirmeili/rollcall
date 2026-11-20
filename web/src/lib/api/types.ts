@@ -110,6 +110,10 @@ export interface SpoolRow {
   placeholder: boolean;
   location: string | null;
   remaining_pct: number | null;
+  /** Grams of filament when full */
+  net_weight_g: number | null;
+  /** About how many grams are left; null when unknown */
+  grams_left_g: number | null;
   received_at: string | null;
   opened_at: string | null;
   emptied_at: string | null;
@@ -145,8 +149,6 @@ export interface EventOut {
 
 export interface SpoolDetail extends SpoolRow {
   notes: string | null;
-  spool_weight_g: number | null;
-  grams_left: number | null;
   tags: TagOut[];
   /** Newest first */
   events: EventOut[];
