@@ -632,8 +632,8 @@ describe("Holds on the filament choices", () => {
             grams: 900,
             short_g: 0,
             holds: [
-              { spool_id: 12, product_id: 7, product_name: "Blue PLA", grams: 300 },
-              { spool_id: 15, product_id: 7, product_name: "Blue PLA", grams: 600 },
+              { id: 5, spool_id: 12, product_id: 7, product_name: "Blue PLA", grams: 300 },
+              { id: 6, spool_id: 15, product_id: 7, product_name: "Blue PLA", grams: 600 },
             ],
           }),
           pink({ held: false, grams: 250, short_g: 250, holds: [] }),

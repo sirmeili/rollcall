@@ -60,8 +60,9 @@ export interface ModelFile {
   missing: boolean;
 }
 
-/** Grams held on one spool for a filament choice. */
+/** Grams held on one spool for a filament choice. Its `id` names it when changing holds. */
 export interface Hold {
+  id: number;
   spool_id: number;
   product_id: number;
   product_name: string;
@@ -104,7 +105,13 @@ export interface Choice {
 }
 
 export type HistoryKind =
-  "submitted" | "edited" | "priority_changed" | "status_changed" | "photo_added" | "photo_removed";
+  | "submitted"
+  | "edited"
+  | "priority_changed"
+  | "status_changed"
+  | "photo_added"
+  | "photo_removed"
+  | "holds_changed";
 
 export interface HistoryEntry {
   kind: HistoryKind;
@@ -165,6 +172,9 @@ export interface PrintRequest {
   can_change_priority: boolean;
   /** Add and remove photos: a signed-in Admin, while the request is Done or Picked Up. */
   can_change_photos: boolean;
+  /** Change its holds: a signed-in Admin, while it is Approved, Waiting on Filament or
+   * Queued. */
+  can_change_holds: boolean;
   /** The moves the caller may make, the main next step first. */
   moves: Move[];
   /** Which try at printing it this is: 1, plus 1 for each Reprint. */
@@ -253,6 +263,58 @@ export function moveRequest(
   return api<PrintRequest>(`/requests/${id}/moves`, {
     method: "POST",
     body: grams ? { ...body, grams } : body,
+  });
+}
+
+/** A change to a request's holds, given the status the caller saw it in. */
+export type HoldChange = (from: RequestStatus) => Promise<PrintRequest>;
+
+/** Give a filament choice new grams, holding them again. Like every hold change, `from` is the
+ * status the caller saw the request in: if it has moved since, this fails with 409. */
+export function setChoiceGrams(
+  id: number,
+  from: RequestStatus,
+  choiceId: number,
+  grams: number,
+): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/choices/${choiceId}/grams`, {
+    method: "PUT",
+    body: { from_status: from, grams },
+  });
+}
+
+/** Hold grams of a Sealed or Open spool, of any product, for a filament choice. */
+export function addHold(
+  id: number,
+  from: RequestStatus,
+  choiceId: number,
+  spoolId: number,
+  grams: number,
+): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/choices/${choiceId}/holds`, {
+    method: "POST",
+    body: { from_status: from, spool_id: spoolId, grams },
+  });
+}
+
+/** Replace a hold with grams of a spool, the same one or another. */
+export function changeHold(
+  id: number,
+  from: RequestStatus,
+  holdId: number,
+  spoolId: number,
+  grams: number,
+): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/holds/${holdId}`, {
+    method: "PUT",
+    body: { from_status: from, spool_id: spoolId, grams },
+  });
+}
+
+/** Release a hold. */
+export function removeHold(id: number, from: RequestStatus, holdId: number): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/holds/${holdId}?from_status=${from}`, {
+    method: "DELETE",
   });
 }
 

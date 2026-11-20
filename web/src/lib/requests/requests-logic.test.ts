@@ -150,6 +150,14 @@ describe("request words", () => {
     expect(historyDetail(entry({}))).toBeNull();
   });
 
+  it("calls a hold change Holds changed to staff and Filament updated to anyone else", () => {
+    const changed = entry({ kind: "holds_changed", username: "frank" });
+    expect(historyTitle(changed)).toBe("Holds changed by frank");
+    expect(historyTitle(changed, false)).toBe("Filament updated by frank");
+    expect(historyTitle(entry({}), false)).toBe("Submitted by sam");
+    expect(historyDetail(changed)).toBeNull();
+  });
+
   it("describes a move between statuses", () => {
     const approved = entry({
       kind: "status_changed",

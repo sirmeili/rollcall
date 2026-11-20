@@ -1,11 +1,12 @@
 <script lang="ts">
   /** A request's history, newest first: submitted, edited, priority and status changes,
-   * each with its note or reason, and photos added or removed, with their names. */
+   * each with its note or reason, photos added or removed, with their names, and hold
+   * changes, which read "Filament updated" to anyone but `staff`. */
   import type { HistoryEntry } from "#lib/api/requests.ts";
   import { dateTime } from "#lib/format.ts";
   import { historyDetail, historyTitle, relativeTime } from "#lib/requests/labels.ts";
 
-  let { history }: { history: HistoryEntry[] } = $props();
+  let { history, staff = true }: { history: HistoryEntry[]; staff?: boolean } = $props();
 
   const ICONS: Record<HistoryEntry["kind"], string> = {
     submitted: "M12 5v14M5 12h14",
@@ -14,6 +15,7 @@
     status_changed: "M5 12h14M13 6l6 6-6 6",
     photo_added: "M4 8h3l2-3h6l2 3h3v11H4zM12 10v6M9 13h6",
     photo_removed: "M4 8h3l2-3h6l2 3h3v11H4zM9 13h6",
+    holds_changed: "M4 7h16M4 12h16M4 17h10",
   };
 </script>
 
@@ -32,7 +34,7 @@
         >
       </span>
       <span>
-        <span class="what">{historyTitle(entry)}</span>
+        <span class="what">{historyTitle(entry, staff)}</span>
         {#if detail}<span class="detail">{detail}</span>{/if}
         {#if entry.note}<span class="detail">{entry.note}</span>{/if}
       </span>

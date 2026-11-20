@@ -129,6 +129,7 @@ export function request(fields: Partial<PrintRequest> = {}): PrintRequest {
     can_edit: false,
     can_change_priority: false,
     can_change_photos: false,
+    can_change_holds: false,
     moves: [],
     attempt: 1,
     store_address: "https://store.example",
