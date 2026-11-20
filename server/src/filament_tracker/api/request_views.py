@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.api.request_schemas import (
     ChoiceOut,
     HistoryOut,
+    HoldOut,
     ModelFileOut,
     MoveOut,
     PhotoOut,
@@ -17,7 +18,8 @@ from filament_tracker.api.request_schemas import (
 )
 from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import Principal
-from filament_tracker.db.request_models import PrintRequest
+from filament_tracker.db.request_models import FilamentChoice, PrintRequest
+from filament_tracker.print_requests import holding
 from filament_tracker.print_requests.access import may_change_photos, movers, sees_every_request
 from filament_tracker.print_requests.choices import ChoiceReader, swatch
 from filament_tracker.print_requests.files import ModelFiles
@@ -71,16 +73,30 @@ def can_edit(principal: Principal, item: PrintRequest) -> bool:
     return user is not None and why_not_editable(item, user) is None
 
 
+def _holds_out(session: Session, choice: FilamentChoice) -> list[HoldOut]:
+    return [
+        HoldOut(
+            spool_id=hold.spool_id,
+            product_id=hold.spool.product_id,
+            product_name=hold.spool.product.display_name,
+            grams=hold.grams,
+        )
+        for hold in holding.holds.active_holds(session, holding.holder(choice))
+    ]
+
+
 def request_out(
     http: Request, session: Session, principal: Principal, item: PrintRequest
 ) -> RequestOut:
     store = _store(http)
     reader = ChoiceReader(session, store.similarity_cutoff(), store.store_address())
+    staff = sees_every_request(principal)
     choices = []
     for choice in item.choices:
         shown = reader.show(choice)
         choices.append(
             ChoiceOut(
+                id=choice.id,
                 kind=shown.kind,
                 note=shown.note,
                 name=shown.name,
@@ -96,6 +112,10 @@ def request_out(
                 in_catalog=shown.in_catalog,
                 multi_color=shown.multi_color,
                 similar=[SimilarOut.model_validate(s, from_attributes=True) for s in shown.similar],
+                grams=choice.grams,
+                short_g=holding.shortfall(session, item, choice),
+                holds=_holds_out(session, choice) if staff else None,
+                available_g=holding.available(session, choice),
             )
         )
     history = [
@@ -107,6 +127,7 @@ def request_out(
             from_value=entry.from_value,
             to_value=entry.to_value,
             note=entry.note,
+            automatic=entry.automatic,
         )
         for entry in reversed(item.history)
     ]
@@ -130,7 +151,7 @@ def request_out(
         created_at=item.created_at,
         updated_at=item.updated_at,
         can_edit=can_edit(principal, item),
-        can_change_priority=sees_every_request(principal) and not item.status.closed,
+        can_change_priority=staff and not item.status.closed,
         can_change_photos=may_change_photos(principal, item),
         moves=[
             MoveOut(to_status=m.to_status, reason_required=m.needs_reason, photos=m.photos)

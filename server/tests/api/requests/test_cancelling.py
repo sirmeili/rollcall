@@ -6,9 +6,8 @@ import pytest
 from api_helpers import admin
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from request_helpers import REQUESTS, edit, person, submitted
+from request_helpers import REQUESTS, edit, move, person, submitted
 from sqlalchemy.orm import Session
-from test_moves import move
 
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import RequestStatus, Role

@@ -69,6 +69,8 @@ class MoveIn(Strict):
     note: str = ""
     # Photo uploads to save with a move that takes photos (Done).
     photo_ids: Annotated[list[UUID], Field(max_length=MAX_PHOTOS)] = []
+    # Approve: the grams for each filament choice, by choice ID; checked by the move.
+    grams: Annotated[dict[int, int], Field(max_length=MAX_CHOICES)] = {}
 
 
 class MoveOut(BaseModel):
@@ -131,7 +133,18 @@ class SimilarOut(BaseModel):
     different_material: bool
 
 
+class HoldOut(BaseModel):
+    """Grams held on one spool."""
+
+    spool_id: int
+    product_id: int
+    product_name: str
+    grams: int
+
+
 class ChoiceOut(BaseModel):
+    # Names the choice in Approve's grams.
+    id: int
     kind: ChoiceKind
     note: str
     # The product's name, or the catalog color's name and line.
@@ -154,6 +167,14 @@ class ChoiceOut(BaseModel):
     multi_color: bool
     # Similar in-stock colors; empty for a multi-color one.
     similar: list[SimilarOut]
+    # The grams for the whole quantity, from Approve; None until then.
+    grams: int | None
+    # Grams not yet held, while the request is Approved, Waiting on Filament or Queued.
+    short_g: int | None
+    # Its holds, for Editors and Admins only; None for anyone else.
+    holds: list[HoldOut] | None
+    # Grams not held of the product it would be held on (0 with none).
+    available_g: int
 
 
 class SwatchOut(BaseModel):
@@ -172,6 +193,8 @@ class HistoryOut(BaseModel):
     from_value: str | None
     to_value: str | None
     note: str | None
+    # Made by RollCall itself, with no user, such as the move on after Approve.
+    automatic: bool
 
 
 class RequestRowOut(BaseModel):

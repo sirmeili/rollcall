@@ -7,7 +7,7 @@ from api_helpers import CSRF, admin
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import Response
-from request_helpers import REQUESTS, edit, person, submitted
+from request_helpers import REQUESTS, edit, move, person, submitted
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.request_models import PrintRequest
@@ -24,16 +24,6 @@ def frank(app: FastAPI, client: TestClient) -> TestClient:
     return person(app, "frank", Role.ADMIN, requester=False)
 
 
-def move(
-    user: TestClient, request_id: int, from_status: str, to_status: str, note: str = ""
-) -> Response:
-    return user.post(
-        f"{REQUESTS}/{request_id}/moves",
-        json={"from_status": from_status, "to_status": to_status, "note": note},
-        headers=CSRF,
-    )
-
-
 def _read(user: TestClient, request_id: int) -> dict[str, Any]:
     return user.get(f"{REQUESTS}/{request_id}").json()
 
@@ -44,8 +34,9 @@ def test_an_admin_approves_a_submitted_request(sam: TestClient, frank: TestClien
     response = move(frank, created["id"], "submitted", "approved")
 
     assert response.status_code == 200, response.text
-    assert response.json()["status"] == "approved"
-    assert _read(sam, created["id"])["status"] == "approved"
+    # Nothing is in stock, so it moves on by itself.
+    assert response.json()["status"] == "waiting_on_filament"
+    assert _read(sam, created["id"])["status"] == "waiting_on_filament"
 
 
 def test_an_approval_writes_a_history_entry_with_its_optional_note(
@@ -55,7 +46,8 @@ def test_an_approval_writes_a_history_entry_with_its_optional_note(
 
     move(frank, created["id"], "submitted", "approved", "  Next week, probably.  ")
 
-    entry = _read(sam, created["id"])["history"][0]
+    # Under the automatic move on.
+    entry = _read(sam, created["id"])["history"][1]
     assert entry["at"]
     assert (
         entry["kind"],
@@ -71,7 +63,7 @@ def test_an_approval_needs_no_note(sam: TestClient, frank: TestClient) -> None:
 
     move(frank, created["id"], "submitted", "approved", "   ")
 
-    assert _read(sam, created["id"])["history"][0]["note"] is None
+    assert _read(sam, created["id"])["history"][1]["note"] is None
 
 
 def test_an_admin_rejects_a_submitted_request_with_a_reason(
@@ -220,12 +212,21 @@ def test_an_admin_machine_token_moves_a_request_as_no_one(
 
     response = client.post(
         f"{REQUESTS}/{created['id']}/moves",
-        json={"from_status": "submitted", "to_status": "approved"},
+        json={
+            "from_status": "submitted",
+            "to_status": "approved",
+            "grams": {str(created["choices"][0]["id"]): 10},
+        },
         headers=admin(),
     )
 
     assert response.status_code == 200
-    assert _read(sam, created["id"])["history"][0]["username"] is None
+    approved = _read(sam, created["id"])["history"][1]
+    assert (approved["to_value"], approved["username"], approved["automatic"]) == (
+        "approved",
+        None,
+        False,
+    )
 
 
 # --- Editing and priority once it moves ----------------------------------------------------

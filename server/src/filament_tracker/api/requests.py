@@ -31,7 +31,7 @@ from filament_tracker.db.request_models import PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus
 from filament_tracker.mail.message import Email
-from filament_tracker.print_requests import emails, photos, pipeline, service
+from filament_tracker.print_requests import emails, holding, photos, pipeline, service
 from filament_tracker.print_requests.access import is_admin, may_open_requests, may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
 from filament_tracker.print_requests.read import ListFilter, Tab, visible_requests
@@ -224,21 +224,37 @@ def make_move(
     request_id: int, body: MoveIn, caller: MovingCaller, session: DbSession, http: Request
 ) -> RequestOut:
     """Move the request to another status, saving any photo uploads with a move that takes
-    them (Done). It answers 409 when the request is no longer in `from_status`, and 403 when
-    the pipeline has no such move for the caller. Nothing is saved when it is refused."""
+    them (Done). Approve takes grams for every filament choice, holds them and moves on by
+    itself to Queued or Waiting on Filament. It answers 409 when the request is no longer in
+    `from_status`, and 403 when the pipeline has no such move for the caller. Nothing is
+    saved when it is refused."""
     found = find_request(session, caller, request_id)
     now = utcnow()
     added: list[RequestPhoto] = []
     try:
-        moved = pipeline.make_move(
-            found,
-            expected=body.from_status,
-            to_status=body.to_status,
-            movers=movers(caller, found),
-            user=caller.user,
-            note=body.note,
-            now=now,
-        )
+        if body.to_status is RequestStatus.APPROVED:
+            moved = holding.approve(
+                session,
+                found,
+                expected=body.from_status,
+                grams=body.grams,
+                movers=movers(caller, found),
+                user=caller.user,
+                note=body.note,
+                now=now,
+            )
+        else:
+            moved = pipeline.make_move(
+                found,
+                expected=body.from_status,
+                to_status=body.to_status,
+                movers=movers(caller, found),
+                user=caller.user,
+                note=body.note,
+                now=now,
+            )
+            if body.grams:
+                raise Problems({holding.GRAMS: holding.ONLY_ON_APPROVE})
         if body.photo_ids:
             if not moved.move.photos:
                 raise Problems({photos.PHOTOS: NO_PHOTOS})

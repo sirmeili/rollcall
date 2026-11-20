@@ -25,6 +25,9 @@ from filament_tracker.print_requests.photos import Photos
 
 PHOTO_UPLOADS = f"{REQUESTS}/photo-uploads"
 TO_PRINTING = ["approved", "queued", "printing"]
+# Where each of those moves lands: Approve moves on by itself with nothing in stock.
+LANDS = {"approved": "waiting_on_filament"}
+GRAMS = 10
 
 
 def _exif(orientation: int = 1) -> Image.Exif:
@@ -76,6 +79,9 @@ def uploaded_photo(user: TestClient, content: bytes, name: str = "print.jpg") ->
 def move(
     user: TestClient, request_id: int, from_status: str, to_status: str, **extra: Any
 ) -> Response:
+    if to_status == "approved":
+        choices = user.get(f"{REQUESTS}/{request_id}").json()["choices"]
+        extra["grams"] = {str(choice["id"]): GRAMS for choice in choices}
     return user.post(
         f"{REQUESTS}/{request_id}/moves",
         json={"from_status": from_status, "to_status": to_status, **extra},
@@ -88,8 +94,9 @@ def printing(sam: TestClient, frank: TestClient) -> int:
     request_id = submitted(sam)["id"]
     at = "submitted"
     for to_status in TO_PRINTING:
-        assert move(frank, request_id, at, to_status).status_code == 200
-        at = to_status
+        response = move(frank, request_id, at, to_status)
+        assert response.status_code == 200
+        at = response.json()["status"]
     return request_id
 
 
@@ -241,15 +248,17 @@ def test_an_admin_adds_photos_later_while_done_and_after_pick_up(
     assert after.json()["can_change_photos"] is True
 
 
-@pytest.mark.parametrize("status", ["submitted", "approved", "queued", "printing"])
+@pytest.mark.parametrize("status", ["submitted", "waiting_on_filament", "queued", "printing"])
 def test_photos_are_not_added_outside_done_and_picked_up(
     sam: TestClient, frank: TestClient, status: str
 ) -> None:
     request_id = submitted(sam)["id"]
     at = "submitted"
-    for to_status in TO_PRINTING[: ["submitted", *TO_PRINTING].index(status)]:
-        assert move(frank, request_id, at, to_status).status_code == 200
-        at = to_status
+    landed = ["submitted", *(LANDS.get(s, s) for s in TO_PRINTING)]
+    for to_status in TO_PRINTING[: landed.index(status)]:
+        response = move(frank, request_id, at, to_status)
+        assert response.status_code == 200
+        at = response.json()["status"]
 
     response = add_photos(frank, request_id, uploaded_photo(frank, jpeg()))
 

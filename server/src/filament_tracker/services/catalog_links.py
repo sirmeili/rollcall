@@ -171,6 +171,16 @@ def linked_products(session: Session, uuid: str) -> list[Product]:
     return [p for p in session.scalars(query) if effective_uuid(p, index) == uuid]
 
 
+def linked_product(session: Session, uuid: str) -> Product | None:
+    """The product a catalog color is linked to, following OFDB's merge of the color as
+    manual links do. Should automatic links give it several, the oldest."""
+    index = _session_index(session)
+    moved = index.moved.get(uuid, [])
+    if uuid not in index.colors and len(moved) == 1:
+        uuid = moved[0]
+    return next(iter(linked_products(session, uuid)), None)
+
+
 def set_manual(
     session: Session, product: Product, uuid: str | None, user_id: int | None, now: datetime
 ) -> None:

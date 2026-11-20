@@ -36,6 +36,9 @@ class Mover(StrEnum):
     ADMIN = "admin"
     # The request's own requester, whether or not they still hold Requester (ADR-0017).
     REQUESTER = "requester"
+    # RollCall itself, with no user, such as the move on after Approve. Never one of a
+    # caller's movers, so its moves are never offered to anyone.
+    AUTOMATIC = "automatic"
 
 
 class Note(StrEnum):
@@ -72,6 +75,9 @@ PIPELINE: tuple[Move, ...] = (
     Move(S.SUBMITTED, S.REJECTED, Mover.ADMIN, Note.REASON, emails_requester=True),
     Move(S.APPROVED, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
     Move(S.APPROVED, S.WAITING_ON_FILAMENT, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
+    # On after Approve, by where its holds left it; the Approved email already says which.
+    Move(S.APPROVED, S.QUEUED, Mover.AUTOMATIC, Note.OPTIONAL, emails_requester=False),
+    Move(S.APPROVED, S.WAITING_ON_FILAMENT, Mover.AUTOMATIC, Note.OPTIONAL, emails_requester=False),
     Move(S.WAITING_ON_FILAMENT, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
     Move(S.QUEUED, S.PRINTING, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
     Move(S.PRINTING, S.DONE, Mover.ADMIN, Note.OPTIONAL, emails_requester=True, photos=True),
@@ -109,13 +115,15 @@ class NotAMove(Exception):
 
 @dataclass(frozen=True)
 class Moved:
-    """A move that was made: which one, by whom (None for a later automatic move), and its
-    note or reason, trimmed ("" for none)."""
+    """A move that was made: which one, by whom (None for a token or an automatic move), its
+    note or reason, trimmed ("" for none), and where an automatic move took the request
+    straight after it, if anywhere."""
 
     request: PrintRequest
     move: Move
     user: User | None
     note: str = ""
+    then: RequestStatus | None = None
 
 
 def attempt(request: PrintRequest) -> int:
@@ -187,6 +195,7 @@ def make_move(
             from_value=request.status.value,
             to_value=to_status.value,
             note=cleaned or None,
+            automatic=rule.by is Mover.AUTOMATIC,
         )
     )
     request.status = to_status

@@ -13,7 +13,7 @@ from api_helpers import CSRF, admin, bearer, register
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image
-from request_helpers import REQUESTS, person, request_body, submitted
+from request_helpers import REQUESTS, move, person, request_body, submitted
 
 from filament_tracker.domain.enums import Role
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES
@@ -226,12 +226,13 @@ def test_a_photo_is_served_as_an_image_and_never_sniffed(app: FastAPI, client: T
     sam = person(app, "sam")
     frank = person(app, "frank", Role.ADMIN)
     request_id = submitted(sam)["id"]
-    for at, to in [("submitted", "approved"), ("approved", "queued"), ("queued", "printing")]:
-        frank.post(
-            f"{REQUESTS}/{request_id}/moves",
-            json={"from_status": at, "to_status": to},
-            headers=CSRF,
-        )
+    # Approve lands on Waiting on Filament with nothing in stock.
+    for at, to in [
+        ("submitted", "approved"),
+        ("waiting_on_filament", "queued"),
+        ("queued", "printing"),
+    ]:
+        move(frank, request_id, at, to)
     buffer = io.BytesIO()
     Image.new("RGB", (8, 8)).save(buffer, "JPEG")
     photo = _photo_upload(frank, buffer.getvalue()).json()
