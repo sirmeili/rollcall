@@ -193,6 +193,38 @@ def test_no_email_when_an_admin_cancels_their_own_request(
     assert sent(app, outbox) == []
 
 
+@pytest.mark.parametrize(
+    ("from_status", "to_status", "note"),
+    [
+        ("submitted", "approved", ""),
+        ("submitted", "rejected", "Not worth the filament."),
+        ("approved", "waiting_on_filament", ""),
+        ("queued", "printing", ""),
+        ("printing", "done", "Came out well."),
+        ("printing", "failed", "Spaghetti at layer 40."),
+    ],
+)
+def test_no_email_for_an_admins_moves_on_their_own_request(
+    app: FastAPI,
+    client: TestClient,
+    outbox: FakeOutbox,
+    db: Session,
+    from_status: str,
+    to_status: str,
+    note: str,
+) -> None:
+    email_on(client)
+    boss = person(app, "boss", Role.ADMIN)
+    boss.patch("/api/v1/auth/me", json={"email": "boss@example.com"}, headers=CSRF)
+    request_id = submitted(boss)["id"]
+    sent(app, outbox)
+    _in(db, request_id, from_status)
+
+    assert move(boss, request_id, from_status, to_status, note).status_code == 200
+
+    assert sent(app, outbox) == []
+
+
 def test_no_email_for_edits_or_priority_changes(
     app: FastAPI, sam: TestClient, frank: TestClient, outbox: FakeOutbox, request_id: int
 ) -> None:

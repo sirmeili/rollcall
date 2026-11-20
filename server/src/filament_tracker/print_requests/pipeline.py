@@ -54,7 +54,7 @@ class Move:
     by: Mover
     note: Note
     emails_requester: bool
-    # What an Admin moving their own request is asked for instead; no one is emailed then.
+    # What an Admin moving their own request is asked for instead.
     owner_note: Note | None = None
     # Up to 4 photos of the finished print may be saved with it.
     photos: bool = False
@@ -148,7 +148,7 @@ def allowed_moves(request: PrintRequest, movers: set[Mover]) -> list[Move]:
 def _as_owner(rule: Move) -> Move:
     if rule.by is not Mover.ADMIN or rule.owner_note is None:
         return rule
-    return replace(rule, note=rule.owner_note, emails_requester=False)
+    return replace(rule, note=rule.owner_note)
 
 
 def clean_note(note: str, rule: Move) -> str:

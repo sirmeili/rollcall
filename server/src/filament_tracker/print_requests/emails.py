@@ -1,5 +1,6 @@
 """The emails print requests send: to the requester when a move emails them (the pipeline's
-`emails_requester`), and to every other Admin when a request is submitted.
+`emails_requester`), and to every other Admin when a request is submitted. No one is
+emailed about a move they made, or photos they added, themselves.
 
 Each is sent only to a person with an address, the matching Account switch on, and an
 account that isn't disabled. Links use PUBLIC_URL only, never the incoming request's Host
@@ -64,11 +65,11 @@ PRIORITY_LABELS = {
 
 
 def move_emails(moved: Moved, public_url: str | None, photos: Sequence[bytes] = ()) -> list[Email]:
-    """The requester's email about a move, if the move emails them and they want it, showing
-    `photos` (the email copies of those saved with the move)."""
-    if not moved.move.emails_requester:
-        return []
+    """The requester's email about a move, if the move emails them, they didn't make it and
+    they want it, showing `photos` (the email copies of those saved with the move)."""
     request = moved.request
+    if not moved.move.emails_requester or _by_requester(request, moved.user):
+        return []
     to = _address(request.requester, request.requester.email_on_request_change)
     if to is None:
         return []
@@ -93,7 +94,7 @@ def new_photo_emails(
     """The requester's email about photos `user` added after the Done move, showing their
     email copies, unless the requester added them or doesn't want it."""
     requester = request.requester
-    if not photos or (user is not None and user.id == requester.id):
+    if not photos or _by_requester(request, user):
         return []
     to = _address(requester, requester.email_on_request_change)
     if to is None:
@@ -138,6 +139,11 @@ def new_request_emails(
             )
         )
     return emails
+
+
+def _by_requester(request: PrintRequest, user: User | None) -> bool:
+    """Whether the request's own requester did it; no one is emailed about what they did."""
+    return user is not None and user.id == request.requester_id
 
 
 def _address(user: User, wants_it: bool) -> str | None:
