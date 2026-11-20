@@ -1,6 +1,12 @@
 /** Words for print requests on the Requests pages. */
 
-import type { HistoryEntry, ModelSource, Priority, RequestStatus } from "#lib/api/requests.ts";
+import type {
+  Choice,
+  HistoryEntry,
+  ModelSource,
+  Priority,
+  RequestStatus,
+} from "#lib/api/requests.ts";
 import { calendarDay } from "#lib/format.ts";
 
 /** In the order the form offers them. */
@@ -205,4 +211,12 @@ export function similarText(names: string[] | null, most = names?.length ?? 0): 
   if (names.length === 0) return "No similar color in stock";
   const more = names.length - most;
   return `Similar in stock: ${names.slice(0, most).join(", ")}${more > 0 ? ` +${more}` : ""}`;
+}
+
+/** The warning beside a request's status, "Short 550 g": the grams its choices still need
+ * held, in all. Null when nothing is short, or for anyone not shown shortfalls; the server
+ * gives none while a request is Printing. */
+export function shortWarning(choices: Choice[]): string | null {
+  const short = choices.reduce((sum, choice) => sum + (choice.short_g ?? 0), 0);
+  return short > 0 ? `Short ${short} g` : null;
 }

@@ -23,13 +23,20 @@
   import StatusChip from "#lib/components/requests/StatusChip.svelte";
   import { calendarDay, shortDate } from "#lib/format.ts";
   import { whyNoEdit } from "#lib/requests/access.ts";
-  import { neededByDate, relativeDay, relativeTime, sizeText } from "#lib/requests/labels.ts";
+  import {
+    neededByDate,
+    relativeDay,
+    relativeTime,
+    shortWarning,
+    sizeText,
+  } from "#lib/requests/labels.ts";
   import { uploadPhotos } from "#lib/requests/photos.ts";
   import "#lib/requests/requests.css";
 
   const id = $derived(Number(page.params.id));
 
   let request = $state<PrintRequest | null>(null);
+  const short = $derived(request ? shortWarning(request.choices) : null);
   let failure = $state<string | null>(null);
 
   // The move being confirmed, and how it went.
@@ -158,6 +165,7 @@
           <span class="reqid">#{request.id}</span>
           <StatusChip status={request.status} />
           <PriorityChip priority={request.priority} />
+          {#if short}<span class="tagchip short">{short}</span>{/if}
         </div>
         {#if request.attempt >= 2}
           <p class="attempt">Attempt {request.attempt}</p>
@@ -361,6 +369,11 @@
     align-items: center;
     gap: 8px;
     margin-top: 10px;
+  }
+
+  .short {
+    background: var(--lowbg);
+    color: var(--lowtext);
   }
 
   .attempt {

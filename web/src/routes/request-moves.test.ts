@@ -677,6 +677,36 @@ describe("Holds on the filament choices", () => {
     expect(screen.queryByText(/Spool #/)).toBeNull();
   });
 
+  it("warns beside the status what a Queued request is short, in all", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(
+      request({
+        status: "queued",
+        choices: [
+          blue({ held: false, grams: 900, short_g: 300, holds: [] }),
+          pink({ held: false, grams: 250, short_g: 250, holds: [] }),
+        ],
+      }),
+    );
+    render(DetailPage);
+
+    expect(await screen.findByText("Short 550 g")).toBeVisible();
+  });
+
+  it("warns of no shortfall when every choice is held", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(
+      request({
+        status: "queued",
+        choices: [blue({ held: true, grams: 900, short_g: 0, holds: [] })],
+      }),
+    );
+    render(DetailPage);
+
+    await screen.findByText("About 900 g");
+    expect(screen.queryByText(/^Short/)).toBeNull();
+  });
+
   it("shows nothing before Approve", async () => {
     signIn(FRANK);
     api.getRequest.mockResolvedValue(request());
