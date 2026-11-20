@@ -160,13 +160,14 @@ function statusLabel(value: string | null): string {
   return STATUS_LABELS[value as RequestStatus];
 }
 
-/** "Edited by sam", "Approved by frank"; an entry by a token, or a later automatic move,
- * has no one to name. */
+/** "Edited by sam", "Approved by frank", "Queued automatically"; an entry by a token has no
+ * one to name. */
 export function historyTitle(entry: HistoryEntry): string {
   const verb =
     entry.kind === "status_changed"
       ? moveWords(entry.to_value as RequestStatus, entry.from_value as RequestStatus).done
       : HISTORY_VERBS[entry.kind];
+  if (entry.automatic) return `${verb} automatically`;
   return entry.username ? `${verb} by ${entry.username}` : verb;
 }
 

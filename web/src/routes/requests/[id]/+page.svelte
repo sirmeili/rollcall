@@ -38,6 +38,7 @@
   let moveProblem = $state<string | null>(null);
   let moveFailure = $state<string | null>(null);
   let photoProblem = $state<string | null>(null);
+  let gramsProblems = $state<Record<string, string>>({});
   // Said when someone else moved the request first.
   let changed = $state<string | null>(null);
 
@@ -64,6 +65,7 @@
     moveProblem = null;
     moveFailure = null;
     photoProblem = null;
+    gramsProblems = {};
   }
 
   /** Upload the photos chosen in the dialog; their upload IDs, or null if one was refused. */
@@ -81,15 +83,18 @@
     move: Move,
     note: string,
     photos: File[],
+    grams?: Record<number, number>,
   ): Promise<void> {
     busy = true;
     moveProblem = null;
     moveFailure = null;
     photoProblem = null;
+    gramsProblems = {};
     try {
       const photoIds = await uploaded(photos);
       if (photoIds === null) return;
-      request = await moveRequest(id, shown.status, move.to_status, note, photoIds);
+      const args = [id, shown.status, move.to_status, note, photoIds] as const;
+      request = await (grams ? moveRequest(...args, grams) : moveRequest(...args));
       moving = null;
       changed = null;
     } catch (error) {
@@ -100,8 +105,11 @@
         load();
       } else {
         const problems = problemsOf(error);
+        const forGrams = Object.entries(problems ?? {}).filter(([key]) => key.startsWith("grams."));
         if (problems?.note) moveProblem = problems.note;
         else if (problems?.photos) photoProblem = problems.photos;
+        else if (forGrams.length) gramsProblems = Object.fromEntries(forGrams);
+        else if (problems?.grams) moveFailure = problems.grams;
         else moveFailure = describeError(error);
       }
     } finally {
@@ -191,7 +199,9 @@
         problem={moveProblem}
         failure={moveFailure}
         {photoProblem}
-        onconfirm={(note, photos) => confirmMove(shown, move, note, photos)}
+        choices={shown.choices}
+        {gramsProblems}
+        onconfirm={(note, photos, grams) => confirmMove(shown, move, note, photos, grams)}
         onclose={() => (moving = null)}
       />
     {/if}

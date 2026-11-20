@@ -40,6 +40,7 @@ function entry(fields: Partial<HistoryEntry>): HistoryEntry {
     from_value: null,
     to_value: null,
     note: null,
+    automatic: false,
     ...fields,
   };
 }
@@ -75,6 +76,7 @@ function catalog(colors: CatalogColor[]): Catalog {
 
 function choice(fields: Partial<Choice>): Choice {
   return {
+    id: 1,
     kind: "catalog_color",
     note: "",
     name: "Hot Pink PLA Basic",
@@ -90,6 +92,10 @@ function choice(fields: Partial<Choice>): Choice {
     in_catalog: true,
     multi_color: false,
     similar: [],
+    grams: null,
+    short_g: null,
+    holds: null,
+    available_g: 0,
     ...fields,
   };
 }

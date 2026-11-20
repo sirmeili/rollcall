@@ -1,8 +1,9 @@
 <script lang="ts">
   /** Confirms a move to another status, with an optional note or a required reason, as the
    * other dialogs do (the Catalog color dialog's frame), and "Add photos" for a move that
-   * takes them (Done). Cancel, Escape or the dimmed page close it without moving. */
-  import type { Move, RequestStatus } from "#lib/api/requests.ts";
+   * takes them (Done). Approve asks for the grams of each filament choice, with its product's
+   * available grams beside it. Cancel, Escape or the dimmed page close it without moving. */
+  import type { Choice, Move, RequestStatus } from "#lib/api/requests.ts";
   import PhotoInput from "#lib/components/requests/PhotoInput.svelte";
   import { moveWords, NOTE_MAX } from "#lib/requests/labels.ts";
   import { MAX_PHOTOS, pickPhotos } from "#lib/requests/photos.ts";
@@ -20,7 +21,11 @@
     failure: string | null;
     /** Why a photo was refused. */
     photoProblem?: string | null;
-    onconfirm: (note: string, photos: File[]) => void;
+    /** The request's filament choices, which Approve asks grams for. */
+    choices?: Choice[];
+    /** The server's problems with the grams, by `grams.<choice ID>`. */
+    gramsProblems?: Record<string, string>;
+    onconfirm: (note: string, photos: File[], grams?: Record<number, number>) => void;
     onclose: () => void;
   }
 
@@ -32,6 +37,8 @@
     problem,
     failure,
     photoProblem = null,
+    choices = [],
+    gramsProblems = {},
     onconfirm,
     onclose,
   }: Props = $props();
@@ -61,12 +68,15 @@
     photos = photos.filter((_, i) => i !== index);
     picked = null;
   }
-  const blank = $derived(move.reason_required && !note.trim());
+  const asksGrams = $derived(move.to_status === "approved");
+  let grams = $state<Record<number, number | null>>({});
+  const noGrams = $derived(asksGrams && choices.some((choice) => grams[choice.id] == null));
+  const blank = $derived((move.reason_required && !note.trim()) || noGrams);
 
   let box: HTMLDivElement;
 
   $effect(() => {
-    box.querySelector<HTMLElement>("textarea")?.focus();
+    box.querySelector<HTMLElement>("input, textarea")?.focus();
   });
 
   /** Escape cancels; Tab stays inside the dialog. */
@@ -78,7 +88,7 @@
     }
     if (event.key !== "Tab") return;
     const all = [
-      ...box.querySelectorAll<HTMLElement>("textarea, input:not(:disabled), button:not(:disabled)"),
+      ...box.querySelectorAll<HTMLElement>("input:not(:disabled), textarea, button:not(:disabled)"),
     ];
     const first = all[0];
     const last = all[all.length - 1];
@@ -93,7 +103,11 @@
 
   function submit(event: SubmitEvent): void {
     event.preventDefault();
-    onconfirm(note, photos);
+    if (!asksGrams) {
+      onconfirm(note, photos);
+      return;
+    }
+    onconfirm(note, photos, Object.fromEntries(choices.map((c) => [c.id, grams[c.id] ?? 0])));
   }
 </script>
 
@@ -112,6 +126,34 @@
       <h2 id="move-title">{words.question}</h2>
     </div>
     <div class="body">
+      {#if asksGrams}
+        <fieldset class="grams">
+          <legend>Grams for the whole quantity</legend>
+          {#each choices as choice (choice.id)}
+            {@const problem = gramsProblems[`grams.${choice.id}`]}
+            <div class="gram">
+              <label for="grams-{choice.id}">{choice.name}</label>
+              <span class="gramrow">
+                <input
+                  id="grams-{choice.id}"
+                  type="number"
+                  min="1"
+                  max="100000"
+                  step="1"
+                  required
+                  aria-describedby="avail-{choice.id}"
+                  aria-invalid={problem ? "true" : undefined}
+                  bind:value={grams[choice.id]}
+                />
+                <span class="hint" id="avail-{choice.id}"
+                  >about {choice.available_g} g available</span
+                >
+              </span>
+              {#if problem}<p class="error">{problem}</p>{/if}
+            </div>
+          {/each}
+        </fieldset>
+      {/if}
       <label for="move-note">{label}</label>
       <textarea
         id="move-note"
@@ -225,6 +267,42 @@
 
   .error {
     margin: 0;
+  }
+
+  .grams {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 0 8px;
+    padding: 0;
+    border: 0;
+  }
+
+  legend {
+    padding: 0;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .gram {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .gram label {
+    font-weight: 400;
+  }
+
+  .gramrow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .gramrow input {
+    width: 120px;
   }
 
   .photos {

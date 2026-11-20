@@ -2,12 +2,12 @@ import { render, screen, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
-import type { HistoryEntry, Move, RequestStatus } from "#lib/api/requests.ts";
+import type { Choice, HistoryEntry, Move, RequestStatus } from "#lib/api/requests.ts";
 import type { Me } from "#lib/api/types.ts";
 import { setTimeZone } from "#lib/format.ts";
 import { viewport } from "#lib/viewport.svelte.ts";
 import { me } from "../test/fixtures.ts";
-import { request, row } from "../test/request-fixtures.ts";
+import { choice, request, row } from "../test/request-fixtures.ts";
 
 const nav = vi.hoisted(() => ({
   page: { params: { id: "41" } as Record<string, string>, url: new URL("https://localhost/") },
@@ -54,6 +54,7 @@ function moved(to: string, note: string | null): HistoryEntry {
     from_value: "submitted",
     to_value: to,
     note,
+    automatic: false,
   };
 }
 
@@ -67,6 +68,14 @@ afterEach(() => {
   vi.useRealTimers();
   vi.resetAllMocks();
 });
+
+/** Fill in every grams field and confirm Approve. */
+async function approveWith(dialog: HTMLElement): Promise<void> {
+  for (const field of within(dialog).getAllByRole("spinbutton")) {
+    await userEvent.type(field, "50");
+  }
+  await userEvent.click(within(dialog).getByRole("button", { name: "Approve" }));
+}
 
 function statusChip(): HTMLElement {
   return screen.getByText("Status:").parentElement!;
@@ -104,25 +113,79 @@ describe("Moving a request", () => {
     expect(screen.queryByRole("button", { name: "Reject" })).toBeNull();
   });
 
-  it("approves with an optional note", async () => {
+  it("approves with the grams of each filament choice and an optional note", async () => {
     signIn(FRANK);
     api.getRequest.mockResolvedValue(request({ moves: APPROVE_OR_REJECT }));
     api.moveRequest.mockResolvedValue(
-      request({ status: "approved", history: [moved("approved", "Next week")] }),
+      request({
+        status: "queued",
+        history: [
+          { ...moved("queued", null), from_value: "approved", username: null, automatic: true },
+          moved("approved", "Next week"),
+        ],
+      }),
     );
     render(DetailPage);
 
     await userEvent.click(await screen.findByRole("button", { name: "Approve" }));
     const dialog = screen.getByRole("dialog", { name: "Approve this request?" });
-    const note = within(dialog).getByLabelText("Note (optional)");
-    await userEvent.type(note, "Next week");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Approve" }));
+    const confirm = within(dialog).getByRole("button", { name: "Approve" });
+    const blue = within(dialog).getByLabelText("Blue PLA");
+    const pink = within(dialog).getByLabelText("Hot Pink PLA Basic");
+    expect(blue).toHaveFocus();
+    expect(blue).toHaveAccessibleDescription("about 2620 g available");
+    expect(pink).toHaveAccessibleDescription("about 0 g available");
+    expect(confirm).toBeDisabled();
+    await userEvent.type(blue, "120");
+    expect(confirm).toBeDisabled();
+    await userEvent.type(pink, "35");
+    await userEvent.type(within(dialog).getByLabelText("Note (optional)"), "Next week");
+    await userEvent.click(confirm);
 
-    expect(api.moveRequest).toHaveBeenCalledWith(41, "submitted", "approved", "Next week", []);
+    expect(api.moveRequest).toHaveBeenCalledWith(41, "submitted", "approved", "Next week", [], {
+      1: 120,
+      2: 35,
+    });
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(statusChip()).toHaveTextContent("Status: Approved");
+    expect(statusChip()).toHaveTextContent("Status: Queued");
     expect(await screen.findByText("Approved by frank")).toBeVisible();
+    expect(screen.getByText("Queued automatically")).toBeVisible();
     expect(screen.getByText("Next week")).toBeVisible();
+  });
+
+  it("shows the server's problem with a choice's grams beside it", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request({ moves: APPROVE_OR_REJECT }));
+    api.moveRequest.mockRejectedValue(
+      new ApiError(422, "refused", { problems: { "grams.2": "Grams must be 1 to 100,000." } }),
+    );
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    const dialog = screen.getByRole("dialog");
+    await approveWith(dialog);
+
+    const pink = within(dialog).getByLabelText("Hot Pink PLA Basic");
+    expect(await within(dialog).findByText("Grams must be 1 to 100,000.")).toBeVisible();
+    expect(pink).toHaveAttribute("aria-invalid", "true");
+    expect(within(dialog).getByLabelText("Blue PLA")).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("explains a problem with the grams as a whole in the dialog", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request({ moves: APPROVE_OR_REJECT }));
+    api.moveRequest.mockRejectedValue(
+      new ApiError(422, "refused", { problems: { grams: "Give grams only for its filaments." } }),
+    );
+    render(DetailPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    const dialog = screen.getByRole("dialog");
+    await approveWith(dialog);
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Give grams only for its filaments.",
+    );
   });
 
   it("asks for a reason before rejecting", async () => {
@@ -182,15 +245,16 @@ describe("Moving a request", () => {
     api.getRequest.mockResolvedValue(request({ moves: APPROVE_OR_REJECT }));
     render(DetailPage);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Reject" }));
     const dialog = screen.getByRole("dialog");
-    const note = within(dialog).getByLabelText("Note (optional)");
-    const confirm = within(dialog).getByRole("button", { name: "Approve" });
-    expect(note).toHaveFocus();
+    const reason = within(dialog).getByLabelText("Reason");
+    await userEvent.type(reason, "No.");
+    const confirm = within(dialog).getByRole("button", { name: "Reject" });
+    expect(reason).toHaveFocus();
     await userEvent.tab({ shift: true });
     expect(confirm).toHaveFocus();
     await userEvent.tab();
-    expect(note).toHaveFocus();
+    expect(reason).toHaveFocus();
     await userEvent.tab();
     expect(within(dialog).getByRole("button", { name: "Cancel" })).toHaveFocus();
   });
@@ -219,7 +283,7 @@ describe("Moving a request", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Approve" }));
     const dialog = screen.getByRole("dialog");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Approve" }));
+    await approveWith(dialog);
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Your role cannot do that.");
   });
@@ -235,9 +299,7 @@ describe("Moving a request", () => {
     render(DetailPage);
 
     await userEvent.click(await screen.findByRole("button", { name: "Approve" }));
-    await userEvent.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Approve" }),
-    );
+    await approveWith(screen.getByRole("dialog"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "This request has changed. Reload to see it.",
@@ -485,5 +547,85 @@ describe("Status badge", () => {
     await screen.findByRole("heading", { name: "Wingspan insert" });
     expect(statusChip()).toHaveTextContent("Status: Rejected");
     expect(statusChip()).toHaveClass("tagchip", "st-rejected");
+  });
+});
+
+describe("Holds on the filament choices", () => {
+  const blue = (fields: Partial<Choice>) =>
+    choice({
+      id: 1,
+      kind: "product",
+      name: "Blue PLA",
+      product_id: 7,
+      sealed: 2,
+      open: 1,
+      ...fields,
+    });
+  const pink = (fields: Partial<Choice>) => choice({ id: 2, ...fields });
+
+  it("shows Editors and Admins each choice's grams, holds and what is short", async () => {
+    signIn(DANA);
+    api.getRequest.mockResolvedValue(
+      request({
+        status: "waiting_on_filament",
+        choices: [
+          blue({
+            grams: 900,
+            short_g: 0,
+            holds: [
+              { spool_id: 12, product_id: 7, product_name: "Blue PLA", grams: 300 },
+              { spool_id: 15, product_id: 7, product_name: "Blue PLA", grams: 600 },
+            ],
+          }),
+          pink({ grams: 250, short_g: 250, holds: [] }),
+        ],
+      }),
+    );
+    render(DetailPage);
+
+    const holds = await screen.findByRole("list", { name: "Holds for Blue PLA" });
+    expect(
+      within(holds)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent?.trim()),
+    ).toEqual(["Spool #12 Blue PLA · about 300 g", "Spool #15 Blue PLA · about 600 g"]);
+    expect(within(holds).getByRole("link", { name: "Spool #12" })).toHaveAttribute(
+      "href",
+      "/spools/12",
+    );
+    expect(screen.getByText("About 900 g")).toBeVisible();
+    expect(screen.getByText("About 250 g · short 250 g")).toBeVisible();
+    expect(screen.getByText("Nothing held")).toBeVisible();
+    expect(screen.queryByText("short 0 g")).toBeNull();
+  });
+
+  it("shows the requester only whether each choice is held or waiting", async () => {
+    signIn(SAM);
+    api.getRequest.mockResolvedValue(
+      request({
+        status: "waiting_on_filament",
+        choices: [
+          blue({ grams: 900, short_g: 0, holds: null }),
+          pink({ grams: 250, short_g: 100, holds: null }),
+        ],
+      }),
+    );
+    render(DetailPage);
+
+    expect(await screen.findByText("Held")).toBeVisible();
+    expect(screen.getByText("Waiting on filament")).toBeVisible();
+    expect(screen.queryByText(/short/)).toBeNull();
+    expect(screen.queryByText(/Spool #/)).toBeNull();
+  });
+
+  it("shows nothing before Approve", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(request());
+    render(DetailPage);
+
+    await screen.findByRole("heading", { name: "Wingspan insert" });
+    expect(screen.queryByText("Held")).toBeNull();
+    expect(screen.queryByText("Nothing held")).toBeNull();
+    expect(screen.queryByText(/About \d+ g/)).toBeNull();
   });
 });

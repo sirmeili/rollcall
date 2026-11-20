@@ -1,10 +1,12 @@
 <script lang="ts">
   /** A request's filament choices in order, with the stock and catalog as they are now. A
    * catalog color shows the similar colors in stock and Find in store; a multi-color one
-   * gets no comparison, and one the catalog has dropped says so. */
+   * gets no comparison, and one the catalog has dropped says so. Once approved, each shows
+   * its grams and holds (ChoiceHolds). */
   import type { Choice } from "#lib/api/requests.ts";
   import { stockText, storeSearchUrl } from "#lib/catalog.ts";
   import FindInStore from "#lib/components/catalog/FindInStore.svelte";
+  import ChoiceHolds from "#lib/components/requests/ChoiceHolds.svelte";
   import HexRing from "#lib/components/catalog/HexRing.svelte";
   import { similarText } from "#lib/requests/labels.ts";
   import "#lib/requests/requests.css";
@@ -56,6 +58,7 @@
             )}</span
           >
         {/if}
+        <ChoiceHolds {choice} />
       </span>
       <span class="end">
         {#if choice.note}

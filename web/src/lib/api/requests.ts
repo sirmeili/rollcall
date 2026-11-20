@@ -60,8 +60,18 @@ export interface ModelFile {
   missing: boolean;
 }
 
+/** Grams held on one spool for a filament choice. */
+export interface Hold {
+  spool_id: number;
+  product_id: number;
+  product_name: string;
+  grams: number;
+}
+
 /** One filament choice, with the stock and catalog as they are now. */
 export interface Choice {
+  /** Names the choice in Approve's grams. */
+  id: number;
   kind: "product" | "catalog_color";
   note: string;
   /** The product's name, or the catalog color's name and line. */
@@ -80,6 +90,14 @@ export interface Choice {
   in_catalog: boolean;
   multi_color: boolean;
   similar: SimilarColor[];
+  /** The grams for the whole quantity, from Approve; null until then. */
+  grams: number | null;
+  /** Grams not yet held, while the request is Approved, Waiting on Filament or Queued. */
+  short_g: number | null;
+  /** Its holds, for Editors and Admins; null for anyone else. */
+  holds: Hold[] | null;
+  /** Grams not held of the product it would be held on (0 with none). */
+  available_g: number;
 }
 
 export type HistoryKind =
@@ -96,6 +114,8 @@ export interface HistoryEntry {
   to_value: string | null;
   /** The note or reason, or the name of a photo added or removed. */
   note: string | null;
+  /** Made by RollCall itself, with no one, such as the move on after Approve. */
+  automatic: boolean;
 }
 
 /** A move the caller may make now. */
@@ -224,10 +244,12 @@ export function moveRequest(
   to: RequestStatus,
   note: string,
   photoIds: string[] = [],
+  grams?: Record<number, number>,
 ): Promise<PrintRequest> {
+  const body = { from_status: from, to_status: to, note, photo_ids: photoIds };
   return api<PrintRequest>(`/requests/${id}/moves`, {
     method: "POST",
-    body: { from_status: from, to_status: to, note, photo_ids: photoIds },
+    body: grams ? { ...body, grams } : body,
   });
 }
 
