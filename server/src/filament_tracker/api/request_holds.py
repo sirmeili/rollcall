@@ -103,7 +103,7 @@ def add_hold(
     http: Request,
 ) -> RequestOut:
     """Hold grams of a Sealed or Open spool, of any product, for a filament choice: no more
-    than the spool has free."""
+    than the spool has available."""
     found = find_request(session, caller, request_id)
     return _change(
         http,

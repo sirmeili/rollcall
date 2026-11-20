@@ -23,7 +23,7 @@ moved back; one that becomes short shows its shortfall.
 A signed-in Admin changes a request's holds by hand while it is Approved, Waiting on
 Filament or Queued: a choice's grams (holding them again), a hold's spool or grams, a hold
 on any Sealed or Open spool (of another product, say, for a similar color), or no hold. A
-hold by hand takes no more than the spool has free, unless its grams are unknown. Each
+hold by hand takes no more than the spool has available, unless its grams are unknown. Each
 change names the status it expects, releases what it replaces as `changed`, writes one
 `holds_changed` entry, sends no email, and checks the request again: it moves to Queued
 once covered, but takes no more holds until a later retry, so the change isn't undone.
@@ -367,15 +367,15 @@ def _hold_of(session: Session, request: PrintRequest, hold_id: int) -> SpoolHold
 def _hold_by_hand(
     session: Session, choice: FilamentChoice, spool_id: int, grams: int, now: datetime
 ) -> None:
-    """Hold grams of a Sealed or Open spool for the choice, no more than it has free (any
-    amount when its grams are unknown)."""
+    """Hold grams of a Sealed or Open spool for the choice, no more than it has available
+    (any amount when its grams are unknown)."""
     _grams(grams)
     spool = session.get(Spool, spool_id)
     if spool is None or spool.state not in holds.IN_STOCK:
         raise Problems({SPOOL: NOT_ON_THE_SHELF})
-    free = holds.spool_available(session, spool)
-    if free is not None and grams > free:
-        raise Problems({GRAMS: f"This spool has about {free:,} g free."})
+    available = holds.spool_available(session, spool)
+    if available is not None and grams > available:
+        raise Problems({GRAMS: f"This spool has about {available:,} g available."})
     holds.hold(session, holder(choice), spool, grams, now)
 
 

@@ -74,7 +74,7 @@ def _walk(frank: TestClient, request_id: int, *steps: str) -> dict[str, Any]:
 @pytest.mark.parametrize(
     "steps", [("printing", "done"), ("printing", "failed"), ("cancelled",)], ids=lambda s: s[-1]
 )
-def test_done_failed_and_cancelled_release_the_holds_and_free_the_grams(
+def test_done_failed_and_cancelled_release_the_holds_and_make_the_grams_available(
     client: TestClient, token: str, sam: TestClient, frank: TestClient, steps: tuple[str, ...]
 ) -> None:
     pla = stock(client, token, BLACK_PLA, "PLA", "received")

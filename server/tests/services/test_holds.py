@@ -244,7 +244,7 @@ def test_a_held_spool_with_unknown_grams_has_none_available_and_is_not_over_held
     )
 
 
-def test_releasing_keeps_the_holds_with_when_and_why_and_frees_their_grams(
+def test_releasing_keeps_the_holds_with_when_and_why_and_makes_their_grams_available(
     session: Session, black: Product
 ) -> None:
     opened = spool(session, black, SpoolState.OPEN, 300)

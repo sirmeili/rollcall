@@ -204,7 +204,7 @@ def test_a_queued_request_left_short_stays_queued_and_shows_what_it_is_short(
     assert [e["kind"] for e in read["history"][:2]] == ["holds_changed", "holds_changed"]
 
 
-def test_a_hold_by_hand_takes_no_more_than_the_spool_has_free_and_only_a_spool_on_the_shelf(
+def test_a_hold_by_hand_takes_no_more_than_the_spool_has_available_and_only_a_spool_on_the_shelf(
     client: TestClient, token: str, sam: TestClient, frank: TestClient
 ) -> None:
     pla = stock(client, token, BLACK_PLA, "PLA", "received")
@@ -218,7 +218,7 @@ def test_a_hold_by_hand_takes_no_more_than_the_spool_has_free_and_only_a_spool_o
 
     assert (too_much.status_code, too_much.json()["detail"]["problems"]) == (
         422,
-        {"grams": "This spool has about 700 g free."},
+        {"grams": "This spool has about 700 g available."},
     )
     assert (empty.status_code, empty.json()["detail"]["problems"]) == (
         422,
@@ -355,7 +355,7 @@ def test_a_hold_removed_from_a_waiting_request_is_not_held_again_for_it_until_st
         [],
         1500,
     )
-    # The freed grams go to the next waiting request instead.
+    # The released grams go to the next waiting request instead.
     spool_id = _spool(client, pla)
     assert _holds(_read(frank, second["id"])) == [(spool_id, 400)]
     assert _read(frank, second["id"])["status"] == "queued"
