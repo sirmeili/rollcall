@@ -262,3 +262,39 @@ def test_releasing_keeps_the_holds_with_when_and_why_and_frees_their_grams(
     assert held(session, SECOND) == [(sealed.id, 100)]
     assert holds.product_available(session, black.id) == 1200
     assert holds.release(session, FIRST, ReleaseReason.DONE, LATER) == []
+
+
+def test_a_hand_hold_takes_the_given_spool_of_any_product_and_adds_to_the_holders_hold(
+    session: Session, black: Product
+) -> None:
+    white = Product(
+        material_id="GFA00",
+        variant_id="A00-W00",
+        filament_type="PLA",
+        color_rgba="FFFFFFFF",
+        display_name="White PLA Basic",
+    )
+    session.add(white)
+    sealed = spool(session, black, SpoolState.SEALED, 1000)
+    other = spool(session, white, SpoolState.SEALED, 1000)
+    holds.place(session, FIRST, black.id, 200, NOW)
+
+    holds.hold(session, FIRST, other, 300, NOW)
+    holds.hold(session, FIRST, sealed, 50, NOW)
+
+    assert held(session, FIRST) == [(sealed.id, 250), (other.id, 300)]
+
+
+def test_releasing_one_hold_keeps_it_with_when_and_why_and_leaves_the_others(
+    session: Session, black: Product
+) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 300)
+    sealed = spool(session, black, SpoolState.SEALED, 1000)
+    holds.place(session, FIRST, black.id, 500, NOW)
+    first, _ = holds.active_holds(session, FIRST)
+
+    holds.release_hold(session, first, ReleaseReason.CHANGED, LATER)
+
+    assert (first.released_at, first.release_reason) == (LATER, ReleaseReason.CHANGED)
+    assert held(session, FIRST) == [(sealed.id, 200)]
+    assert holds.spool_available(session, opened) == 300

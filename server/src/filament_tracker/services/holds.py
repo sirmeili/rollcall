@@ -7,6 +7,7 @@ This is the one place holds are placed and read. A holder is named only by its t
 - Available grams are grams left less active holds, never below 0, and unknown when grams
   left is unknown and nothing is held. A spool is over-held when its holds exceed its grams
   left; the caller names holders that don't count toward that.
+- Holding by hand takes a given spool of any product.
 - Placing holds for a product takes Open spools with known grams first, least grams left
   first, then Sealed ones, least first. It splits across spools and keeps a partial cover.
   More for a spool the holder already holds is added to that hold: one hold per spool.
@@ -168,21 +169,41 @@ def place(
         if wanted == 0:
             break
         take = min(available, wanted)
-        if spool.id in own:
-            own[spool.id].grams += take
-        else:
-            session.add(
-                SpoolHold(
-                    spool_id=spool.id,
-                    grams=take,
-                    holder_type=holder.type,
-                    holder_id=holder.id,
-                    created_at=now,
-                )
-            )
+        _add(session, holder, spool, take, own.get(spool.id), now)
         wanted -= take
     session.flush()
     return Placed(held=grams - wanted, short=wanted)
+
+
+def _add(
+    session: Session,
+    holder: Holder,
+    spool: Spool,
+    grams: int,
+    own: SpoolHold | None,
+    now: datetime,
+) -> None:
+    """Add the grams to the holder's hold on the spool, or hold them anew."""
+    if own is not None:
+        own.grams += grams
+        return
+    session.add(
+        SpoolHold(
+            spool_id=spool.id,
+            grams=grams,
+            holder_type=holder.type,
+            holder_id=holder.id,
+            created_at=now,
+        )
+    )
+
+
+def hold(session: Session, holder: Holder, spool: Spool, grams: int, now: datetime) -> None:
+    """Hold `grams` of this spool for the holder by hand, whatever its product: added to the
+    holder's hold on the spool if it has one. The caller checks the spool and the grams."""
+    own = next((h for h in active_holds(session, holder) if h.spool_id == spool.id), None)
+    _add(session, holder, spool, grams, own, now)
+    session.flush()
 
 
 def active_holds(session: Session, holder: Holder) -> list[SpoolHold]:
@@ -217,6 +238,11 @@ def release(
     """Release the holder's active holds, keeping them with the time and reason; the holds
     released, oldest first."""
     return _release(session, active_holds(session, holder), reason, now)
+
+
+def release_hold(session: Session, hold: SpoolHold, reason: ReleaseReason, now: datetime) -> None:
+    """Release one active hold, keeping it with the time and reason."""
+    _release(session, [hold], reason, now)
 
 
 def release_gone(session: Session, spool: Spool, now: datetime) -> list[SpoolHold]:
