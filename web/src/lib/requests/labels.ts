@@ -152,6 +152,8 @@ const HISTORY_VERBS: Record<Exclude<HistoryEntry["kind"], "status_changed">, str
   submitted: "Submitted",
   edited: "Edited",
   priority_changed: "Priority changed",
+  photo_added: "Photo added",
+  photo_removed: "Photo removed",
 };
 
 function statusLabel(value: string | null): string {

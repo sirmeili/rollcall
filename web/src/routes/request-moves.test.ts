@@ -36,8 +36,8 @@ const SAM = me("viewer", { id: 2, username: "sam", requester: true, has_requests
 const VIC = me("viewer", { id: 4, username: "vic" });
 
 const APPROVE_OR_REJECT: Move[] = [
-  { to_status: "approved", reason_required: false },
-  { to_status: "rejected", reason_required: true },
+  { to_status: "approved", reason_required: false, photos: false },
+  { to_status: "rejected", reason_required: true, photos: false },
 ];
 
 function signIn(user: Me): void {
@@ -244,7 +244,7 @@ describe("Moving a request", () => {
 });
 
 const OPTIONAL = (...to: RequestStatus[]): Move[] =>
-  to.map((to_status) => ({ to_status, reason_required: false }));
+  to.map((to_status) => ({ to_status, reason_required: false, photos: false }));
 
 describe("Moving a request along", () => {
   it.each([
@@ -350,8 +350,8 @@ describe("Attempt", () => {
 });
 
 describe("Cancelling a request", () => {
-  const CANCEL_FREELY: Move = { to_status: "cancelled", reason_required: false };
-  const CANCEL_WITH_REASON: Move = { to_status: "cancelled", reason_required: true };
+  const CANCEL_FREELY: Move = { to_status: "cancelled", reason_required: false, photos: false };
+  const CANCEL_WITH_REASON: Move = { to_status: "cancelled", reason_required: true, photos: false };
 
   it.each([
     ["the requester", "queued", SAM, [CANCEL_FREELY], ["Cancel request"]],

@@ -54,6 +54,7 @@ export function request(fields: Partial<PrintRequest> = {}): PrintRequest {
     status: "submitted",
     requester: { id: 2, username: "sam" },
     file: { name: "wingspan.3mf", size: 19_503_513, kind: "3mf", missing: false },
+    photos: [],
     choices: [
       choice({
         kind: "product",
@@ -115,6 +116,7 @@ export function request(fields: Partial<PrintRequest> = {}): PrintRequest {
     updated_at: "2026-11-17T15:00:00Z",
     can_edit: false,
     can_change_priority: false,
+    can_change_photos: false,
     moves: [],
     attempt: 1,
     store_address: "https://store.example",

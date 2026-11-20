@@ -1,9 +1,11 @@
 <script lang="ts">
   /** Confirms a move to another status, with an optional note or a required reason, as the
-   * other dialogs do (the Catalog color dialog's frame). Cancel, Escape or the dimmed page
-   * close it without moving. */
+   * other dialogs do (the Catalog color dialog's frame), and "Add photos" for a move that
+   * takes them (Done). Cancel, Escape or the dimmed page close it without moving. */
   import type { Move, RequestStatus } from "#lib/api/requests.ts";
+  import PhotoInput from "#lib/components/requests/PhotoInput.svelte";
   import { moveWords, NOTE_MAX } from "#lib/requests/labels.ts";
+  import { MAX_PHOTOS, pickPhotos } from "#lib/requests/photos.ts";
 
   interface Props {
     /** The status the request is in now. */
@@ -16,11 +18,23 @@
     problem: string | null;
     /** Why the move failed otherwise. */
     failure: string | null;
-    onconfirm: (note: string) => void;
+    /** Why a photo was refused. */
+    photoProblem?: string | null;
+    onconfirm: (note: string, photos: File[]) => void;
     onclose: () => void;
   }
 
-  let { status, move, mine, busy, problem, failure, onconfirm, onclose }: Props = $props();
+  let {
+    status,
+    move,
+    mine,
+    busy,
+    problem,
+    failure,
+    photoProblem = null,
+    onconfirm,
+    onclose,
+  }: Props = $props();
 
   const words = $derived(moveWords(move.to_status, status));
   const label = $derived(move.reason_required ? "Reason" : "Note (optional)");
@@ -33,6 +47,20 @@
         : "The requester sees the note.",
   );
   let note = $state("");
+  let photos = $state<File[]>([]);
+  let picked = $state<string | null>(null);
+  const photoSaid = $derived(picked ?? photoProblem);
+
+  function pick(chosen: File[]): void {
+    const found = pickPhotos(chosen, photos.length);
+    photos = [...photos, ...found.files];
+    picked = found.problem;
+  }
+
+  function unpick(index: number): void {
+    photos = photos.filter((_, i) => i !== index);
+    picked = null;
+  }
   const blank = $derived(move.reason_required && !note.trim());
 
   let box: HTMLDivElement;
@@ -49,7 +77,9 @@
       return;
     }
     if (event.key !== "Tab") return;
-    const all = [...box.querySelectorAll<HTMLElement>("textarea, button:not(:disabled)")];
+    const all = [
+      ...box.querySelectorAll<HTMLElement>("textarea, input:not(:disabled), button:not(:disabled)"),
+    ];
     const first = all[0];
     const last = all[all.length - 1];
     if (event.shiftKey && document.activeElement === first) {
@@ -63,7 +93,7 @@
 
   function submit(event: SubmitEvent): void {
     event.preventDefault();
-    onconfirm(note);
+    onconfirm(note, photos);
   }
 </script>
 
@@ -96,6 +126,25 @@
         <span class="hint mono" id="move-count">{note.length}/{NOTE_MAX}</span>
       </div>
       {#if problem}<p class="error">{problem}</p>{/if}
+      {#if move.photos}
+        <div class="photos">
+          {#if photos.length}
+            <ul>
+              {#each photos as photo, i (i)}
+                <li>
+                  <span class="pname">{photo.name}</span>
+                  <button type="button" aria-label="Remove {photo.name}" onclick={() => unpick(i)}
+                    >Remove</button
+                  >
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          <PhotoInput disabled={busy || photos.length >= MAX_PHOTOS} onpick={pick} />
+          <span class="hint">Up to {MAX_PHOTOS} JPEG or PNG photos, 20 MB each.</span>
+          {#if photoSaid}<p class="error">{photoSaid}</p>{/if}
+        </div>
+      {/if}
       {#if failure}<p role="alert" class="error">{failure}</p>{/if}
     </div>
     <div class="foot">
@@ -176,6 +225,34 @@
 
   .error {
     margin: 0;
+  }
+
+  .photos {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .photos ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .photos li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .pname {
+    overflow-wrap: anywhere;
+    font-size: 14px;
   }
 
   .foot {

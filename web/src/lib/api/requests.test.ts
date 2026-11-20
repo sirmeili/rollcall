@@ -1,15 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
 import {
+  addPhotos,
   changePriority,
   editRequest,
   fileUrl,
   getRequest,
   listRequests,
+  moveRequest,
+  photoUrl,
   problemsOf,
+  removePhoto,
   submitRequest,
   submittedCount,
   uploadModel,
+  uploadPhoto,
   type RequestEdit,
 } from "#lib/api/requests.ts";
 import { fakeFetch } from "../../test/fixtures.ts";
@@ -180,5 +185,47 @@ describe("problemsOf", () => {
     expect(problemsOf(new ApiError(422, "x", "plain"))).toBeNull();
     expect(problemsOf(new ApiError(400, "x", { problems }))).toBeNull();
     expect(problemsOf(new Error("x"))).toBeNull();
+  });
+});
+
+describe("the photo calls", () => {
+  it("move to Done with photos, add them later, remove one, and show one", async () => {
+    const fetch = fakeFetch({
+      "POST /requests/41/moves": { id: 41 },
+      "POST /requests/41/photos": { id: 41 },
+      "DELETE /requests/41/photos/p1": { id: 41 },
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await moveRequest(41, "printing", "done", "", ["p1"]);
+    await addPhotos(41, ["p2"]);
+    await removePhoto(41, "p1");
+
+    expect(fetch.calls.map((c) => [c.method, c.path, c.body])).toEqual([
+      [
+        "POST",
+        "/requests/41/moves",
+        { from_status: "printing", to_status: "done", note: "", photo_ids: ["p1"] },
+      ],
+      ["POST", "/requests/41/photos", { photo_ids: ["p2"] }],
+      ["DELETE", "/requests/41/photos/p1", undefined],
+    ]);
+    expect(photoUrl(41, "p1")).toMatch(/\/api\/v1\/requests\/41\/photos\/p1$/);
+  });
+
+  it("uploads a photo as the body, and rejects with the server's message about it", async () => {
+    const file = new File(["jpeg"], "front.jpg", { type: "image/jpeg" });
+    const done = uploadPhoto(file, Xhr);
+    const xhr = FakeXhr.last;
+    expect(xhr.url).toMatch(/\/requests\/photo-uploads\?name=front\.jpg$/);
+    expect(xhr.body).toBe(file);
+    xhr.answer(201, { id: "p1", name: "front.jpg" });
+    await expect(done).resolves.toEqual({ id: "p1", name: "front.jpg" });
+
+    const refused = uploadPhoto(file, Xhr);
+    FakeXhr.last.answer(422, {
+      detail: { problems: { photo: "That isn't a JPEG or PNG photo." } },
+    });
+    await expect(refused).rejects.toMatchObject({ message: "That isn't a JPEG or PNG photo." });
   });
 });

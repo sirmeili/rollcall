@@ -16,6 +16,7 @@
   import ChoiceList from "#lib/components/requests/ChoiceList.svelte";
   import MoveButtons from "#lib/components/requests/MoveButtons.svelte";
   import MoveDialog from "#lib/components/requests/MoveDialog.svelte";
+  import RequestPhotos from "#lib/components/requests/RequestPhotos.svelte";
   import PriorityChip from "#lib/components/requests/PriorityChip.svelte";
   import PriorityControl from "#lib/components/requests/PriorityControl.svelte";
   import RequestHistory from "#lib/components/requests/RequestHistory.svelte";
@@ -23,6 +24,7 @@
   import { calendarDay, shortDate } from "#lib/format.ts";
   import { whyNoEdit } from "#lib/requests/access.ts";
   import { neededByDate, relativeDay, relativeTime, sizeText } from "#lib/requests/labels.ts";
+  import { uploadPhotos } from "#lib/requests/photos.ts";
   import "#lib/requests/requests.css";
 
   const id = $derived(Number(page.params.id));
@@ -35,6 +37,7 @@
   let busy = $state(false);
   let moveProblem = $state<string | null>(null);
   let moveFailure = $state<string | null>(null);
+  let photoProblem = $state<string | null>(null);
   // Said when someone else moved the request first.
   let changed = $state<string | null>(null);
 
@@ -60,14 +63,35 @@
     moving = move;
     moveProblem = null;
     moveFailure = null;
+    photoProblem = null;
   }
 
-  async function confirmMove(shown: PrintRequest, move: Move, note: string): Promise<void> {
+  /** Upload the photos chosen in the dialog; their upload IDs, or null if one was refused. */
+  async function uploaded(photos: File[]): Promise<string[] | null> {
+    try {
+      return await uploadPhotos(photos);
+    } catch (error) {
+      photoProblem = (error as Error).message;
+      return null;
+    }
+  }
+
+  async function confirmMove(
+    shown: PrintRequest,
+    move: Move,
+    note: string,
+    photos: File[],
+  ): Promise<void> {
     busy = true;
     moveProblem = null;
     moveFailure = null;
+    photoProblem = null;
     try {
-      request = await moveRequest(id, shown.status, move.to_status, note);
+      const photoIds = await uploaded(photos);
+      if (photoIds === null) return;
+      request = photoIds.length
+        ? await moveRequest(id, shown.status, move.to_status, note, photoIds)
+        : await moveRequest(id, shown.status, move.to_status, note);
       moving = null;
       changed = null;
     } catch (error) {
@@ -79,6 +103,7 @@
       } else {
         const problems = problemsOf(error);
         if (problems?.note) moveProblem = problems.note;
+        else if (problems?.photos) photoProblem = problems.photos;
         else moveFailure = describeError(error);
       }
     } finally {
@@ -167,7 +192,8 @@
         {busy}
         problem={moveProblem}
         failure={moveFailure}
-        onconfirm={(note) => confirmMove(shown, move, note)}
+        {photoProblem}
+        onconfirm={(note, photos) => confirmMove(shown, move, note, photos)}
         onclose={() => (moving = null)}
       />
     {/if}
@@ -241,6 +267,10 @@
             <p class="nomodel">No file or link. The notes say where the model is.</p>
           {/if}
         </section>
+
+        {#if request.photos.length || request.can_change_photos}
+          <RequestPhotos {request} onchange={(changed) => (request = changed)} />
+        {/if}
 
         <section class="card sect" aria-labelledby="h-fil">
           <h2 id="h-fil">Filament</h2>
