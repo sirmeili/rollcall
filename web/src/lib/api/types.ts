@@ -91,6 +91,11 @@ export interface ProductSummary {
   counts: Counts;
   low_stock: boolean;
   open_spools: OpenSpool[];
+  /** About how many grams of its Sealed and Open spools are not held, leaving out spools
+   * whose grams are unknown. */
+  available_g: number;
+  /** An Open spool's grams are unknown. */
+  available_unknown: boolean;
 }
 
 export type SpoolState = "sealed" | "open" | "empty" | "unknown";
@@ -147,7 +152,21 @@ export interface EventOut {
   reviewed_by: string | null;
 }
 
+/** A request holding a spool. */
+export interface HoldingRequest {
+  id: number;
+  title: string;
+}
+
 export interface SpoolDetail extends SpoolRow {
+  /** Grams held for requests. */
+  held_g: number;
+  /** About how many grams are not held, never below 0; null if unknown. */
+  available_g: number | null;
+  /** Held beyond its grams left, leaving out holds of Printing requests. */
+  over_held: boolean;
+  /** The requests holding it; Editors and Admins only, else null. */
+  holding_requests: HoldingRequest[] | null;
   notes: string | null;
   tags: TagOut[];
   /** Newest first */

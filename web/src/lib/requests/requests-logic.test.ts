@@ -220,6 +220,7 @@ describe("the filament picker", () => {
     summary({
       product: product({ id: 7, display_name: "Blue PLA", color_rgba: "0a2ca5ff" }),
       counts: { sealed: 2, open: 1, empty: 0, unknown: 0 },
+      available_g: 1120,
     }),
     summary({
       product: product({ id: 8, display_name: "Used up PLA" }),
@@ -238,7 +239,7 @@ describe("the filament picker", () => {
 
   it("offers in-stock products, then catalog colors no one has in stock", () => {
     expect(options.products.map((o) => [o.key, o.name, o.hexes, o.sub])).toEqual([
-      ["p:7", "Blue PLA", ["0A2CA5"], "PLA · 2 sealed · 1 open"],
+      ["p:7", "Blue PLA", ["0A2CA5"], "PLA · 2 sealed · 1 open · about 1120 g"],
     ]);
     expect(options.colors.map((o) => [o.key, o.name, o.sub])).toEqual([
       ["c:hot pink", "Hot Pink PLA Basic", "PLA · 10203 · not in stock"],
@@ -251,6 +252,12 @@ describe("the filament picker", () => {
       uuid: "hot pink",
       storeHref: "https://store.example/search?q=10203",
     });
+  });
+
+  it("says when a product's grams are unknown", () => {
+    const [option] = pickerOptions([summary({ available_unknown: true })], null).products;
+
+    expect(option.sub).toBe("PLA · 1 sealed · 1 open · grams unknown");
   });
 
   it("works before the catalog is downloaded", () => {

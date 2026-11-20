@@ -3,7 +3,7 @@
   import OpenSpools from "#lib/components/inventory/OpenSpools.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
   import { hexText } from "#lib/format.ts";
-  import { statusText, type Totals } from "#lib/inventory.ts";
+  import { availableGrams, statusText, type Totals } from "#lib/inventory.ts";
 
   interface Props {
     items: ProductSummary[];
@@ -24,6 +24,7 @@
         <th scope="col" class="num">Sealed</th>
         <th scope="col" class="num">Open</th>
         <th scope="col" class="num">Used up</th>
+        <th scope="col" class="num">Available</th>
         <th scope="col" class="spools">Open spools · left</th>
         <th scope="col">Status</th>
       </tr>
@@ -33,6 +34,7 @@
         <td class="num" aria-label="{totals.sealed} sealed in all">{totals.sealed}</td>
         <td class="num" aria-label="{totals.open} open in all">{totals.open}</td>
         <td class="num muted" aria-label="{totals.empty} used up in all">{totals.empty}</td>
+        <td></td>
         <td></td>
         <td></td>
       </tr>
@@ -54,6 +56,7 @@
           <td class="num">{item.counts.sealed}</td>
           <td class="num">{item.counts.open}</td>
           <td class="num muted">{item.counts.empty}</td>
+          <td class="num">{availableGrams(item)}</td>
           <td>
             {#if item.open_spools.length}
               <OpenSpools spools={item.open_spools} />
