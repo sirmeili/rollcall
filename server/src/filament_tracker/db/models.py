@@ -18,6 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     false,
+    true,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -198,6 +199,12 @@ class User(Base):
     requester: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Optional and never verified: checked for shape only (mail/address.py).
     email: Mapped[str | None] = mapped_column(String(254))
+    # The Account switches: emails about the user's own requests, and (for Admins) about
+    # each new request. Both on by default; only the user changes them.
+    email_on_request_change: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=true()
+    )
+    email_on_new_request: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     disabled_at: Mapped[datetime | None]
     last_login_at: Mapped[datetime | None]
     password_changed_at: Mapped[datetime] = mapped_column(default=utcnow)

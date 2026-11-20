@@ -4,7 +4,7 @@ Adds the request_photo table for photos of finished prints, and widens the reque
 kind check for adding and removing them (#156).
 
 Revision ID: 29efdaa213bf
-Revises: 0a1c80d1b4f2
+Revises: 3f6b9d2e1c57
 Create Date: 2026-11-20 01:24:39.048598
 """
 
@@ -16,7 +16,7 @@ from alembic import op
 import filament_tracker.db.types
 
 revision: str = "29efdaa213bf"
-down_revision: str | None = "0a1c80d1b4f2"
+down_revision: str | None = "3f6b9d2e1c57"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

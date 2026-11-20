@@ -40,6 +40,9 @@ def test_login_sets_a_strict_session_cookie_and_returns_the_user(
         "email": None,
         "has_requests": False,
         "time_zone": "UTC",
+        "email_on_request_change": True,
+        "email_on_new_request": True,
+        "email_set_up": False,
     }
     cookie = response.headers["set-cookie"].lower()
     for attribute in ("ft_session=", "httponly", "secure", "samesite=strict", "path=/"):

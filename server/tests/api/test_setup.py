@@ -161,6 +161,9 @@ def test_setup_creates_the_admin_signs_them_in_and_closes(start: Any) -> None:
         "email": None,
         "has_requests": False,
         "time_zone": "America/Chicago",
+        "email_on_request_change": True,
+        "email_on_new_request": True,
+        "email_set_up": False,
     }
     assert started.client.get("/api/v1/auth/me").json()["username"] == "frank"
     assert started.client.get("/api/v1/setup").json()["open"] is False

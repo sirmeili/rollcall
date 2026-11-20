@@ -54,6 +54,9 @@ def me_out(request: Request, session: Session, user: User) -> Me:
         requester=user.requester,
         email=user.email,
         has_requests=has_requests(session, user),
+        email_on_request_change=user.email_on_request_change,
+        email_on_new_request=user.email_on_new_request,
+        email_set_up=request.app.state.mail.on,
         time_zone=_store(request).time_zone(),
     )
 
@@ -105,7 +108,7 @@ def me(caller: SignedInUser, request: Request, session: DbSession) -> Me:
 def update_account(
     body: AccountUpdate, caller: SignedInUser, request: Request, session: DbSession
 ) -> Me:
-    """Change one's own account: the email address."""
+    """Change one's own account: the email address and the email switches."""
     user = caller.user
     assert user is not None  # noqa: S101 - guaranteed by SignedInUser
     try:
@@ -113,6 +116,10 @@ def update_account(
             user.email = email_address(body.email)
     except AccountError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    if body.email_on_request_change is not None:
+        user.email_on_request_change = body.email_on_request_change
+    if body.email_on_new_request is not None:
+        user.email_on_new_request = body.email_on_new_request
     session.commit()
     return me_out(request, session, user)
 
