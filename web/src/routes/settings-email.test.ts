@@ -161,6 +161,21 @@ describe("Settings page, Email", () => {
     expect(within(results).getByRole("listitem")).not.toHaveClass("ok");
   });
 
+  it("shows any other error from Send test email as the card's message", async () => {
+    serve({
+      "POST /settings/email/test": new Response(JSON.stringify({ detail: "Forbidden" }), {
+        status: 403,
+      }),
+    });
+    render(SettingsPage);
+
+    await screen.findByLabelText("SMTP host");
+    await userEvent.click(form().getByRole("button", { name: "Send test email" }));
+
+    expect(await form().findByRole("status")).toHaveTextContent("Your role cannot do that.");
+    expect(form().queryByRole("list", { name: "Test results" })).toBeNull();
+  });
+
   it("shows the last success and the last failure", async () => {
     serve({
       "GET /settings/email/status": {
