@@ -10,7 +10,17 @@ color is kept by its OFDB UUID, as catalog links are (ADR-0016).
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import JSON, CheckConstraint, Date, ForeignKey, Integer, String, Uuid
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Integer,
+    String,
+    Uuid,
+    false,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from filament_tracker.db.models import Base, Product, User
@@ -87,6 +97,8 @@ class FilamentChoice(Base):
     catalog_name: Mapped[str | None] = mapped_column(String(200))
     catalog_hexes: Mapped[list[str] | None] = mapped_column(JSON)
     note: Mapped[str] = mapped_column(String(CHOICE_NOTE_MAX), default="")
+    # The grams for the whole quantity, held when approved; None until then.
+    grams: Mapped[int | None]
 
     request: Mapped[PrintRequest] = relationship(back_populates="choices")
     product: Mapped[Product | None] = relationship()
@@ -100,7 +112,8 @@ class RequestHistory(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     request_id: Mapped[int] = mapped_column(ForeignKey("print_request.id"), index=True)
     kind: Mapped[HistoryKind] = mapped_column(str_enum(HistoryKind, "request_history_kind"))
-    # None for the admin token or a machine token, which act for no user.
+    # None for the admin token or a machine token, which act for no user, and for an
+    # automatic move.
     user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
     at: Mapped[datetime] = mapped_column(default=utcnow)
     # An edit's changed fields.
@@ -109,6 +122,8 @@ class RequestHistory(Base):
     from_value: Mapped[str | None] = mapped_column(String(32))
     to_value: Mapped[str | None] = mapped_column(String(32))
     note: Mapped[str | None] = mapped_column(String(500))
+    # Made by RollCall itself, with no user, such as the move on after Approve.
+    automatic: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     request: Mapped[PrintRequest] = relationship(back_populates="history")
     user: Mapped[User | None] = relationship()
