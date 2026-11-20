@@ -1,11 +1,13 @@
 <script lang="ts">
   /** Confirms a move to another status, with an optional note or a required reason, as the
    * other dialogs do (the Catalog color dialog's frame), and "Add photos" for a move that
-   * takes them (Done). Approve asks for the grams of each filament choice, with its product's
-   * available grams beside it. Cancel, Escape or the dimmed page close it without moving. */
+   * takes them (Done). Approve and Reprint ask for the grams of each filament choice, with its
+   * product's available grams beside it; Reprint fills in the last attempt's grams. Cancel,
+   * Escape or the dimmed page close it without moving. */
+  import { untrack } from "svelte";
   import type { Choice, Move, RequestStatus } from "#lib/api/requests.ts";
   import PhotoInput from "#lib/components/requests/PhotoInput.svelte";
-  import { moveWords, NOTE_MAX } from "#lib/requests/labels.ts";
+  import { isReprint, moveWords, NOTE_MAX } from "#lib/requests/labels.ts";
   import { MAX_PHOTOS, pickPhotos } from "#lib/requests/photos.ts";
 
   interface Props {
@@ -21,7 +23,7 @@
     failure: string | null;
     /** Why a photo was refused. */
     photoProblem?: string | null;
-    /** The request's filament choices, which Approve asks grams for. */
+    /** The request's filament choices, which Approve and Reprint ask grams for. */
     choices?: Choice[];
     /** The server's problems with the grams, by `grams.<choice ID>`. */
     gramsProblems?: Record<string, string>;
@@ -68,8 +70,13 @@
     photos = photos.filter((_, i) => i !== index);
     picked = null;
   }
-  const asksGrams = $derived(move.to_status === "approved");
-  let grams = $state<Record<number, number | null>>({});
+  const reprint = $derived(isReprint(status, move.to_status));
+  const asksGrams = $derived(move.to_status === "approved" || reprint);
+  let grams = $state<Record<number, number | null>>(
+    untrack(() =>
+      reprint ? Object.fromEntries(choices.map((choice) => [choice.id, choice.grams])) : {},
+    ),
+  );
   const noGrams = $derived(asksGrams && choices.some((choice) => grams[choice.id] == null));
   const blank = $derived((move.reason_required && !note.trim()) || noGrams);
 

@@ -28,8 +28,8 @@ ADMIN_MOVES = [
     ("queued", "printing"),
     ("printing", "done"),
     ("printing", "failed"),
-    ("failed", "queued"),
 ]
+# Reprint, which holds filament and picks its landing, is in test_releasing_and_reprinting.
 
 
 @pytest.fixture
@@ -181,14 +181,15 @@ def test_a_reprint_keeps_the_request_and_counts_another_attempt(
 
     response = move(frank, request_id, "failed", "queued", "Bed adhesion.")
 
+    # With nothing in stock, it waits for filament.
     assert response.status_code == 200
     read = response.json()
-    assert (read["id"], read["status"], read["attempt"]) == (request_id, "queued", 2)
+    assert (read["id"], read["status"], read["attempt"]) == (request_id, "waiting_on_filament", 2)
     entry = read["history"][0]
     assert (entry["kind"], entry["from_value"], entry["to_value"], entry["note"]) == (
         "status_changed",
         "failed",
-        "queued",
+        "waiting_on_filament",
         "Bed adhesion.",
     )
 
@@ -196,7 +197,7 @@ def test_a_reprint_keeps_the_request_and_counts_another_attempt(
 def test_two_reprints_make_attempt_three(sam: TestClient, frank: TestClient) -> None:
     request_id = _in(sam, frank, "failed")
     move(frank, request_id, "failed", "queued")
-    for to_status in ("printing", "failed", "queued"):
+    for to_status in ("queued", "printing", "failed", "queued"):
         assert _read(sam, request_id)["attempt"] == 2
         at = _read(sam, request_id)["status"]
         assert move(frank, request_id, at, to_status).status_code == 200

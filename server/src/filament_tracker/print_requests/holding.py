@@ -8,6 +8,12 @@ covered when its shortfall is 0.
 Approve takes grams for every choice, from 1 to 100,000, for the whole quantity. In one
 transaction it records Approved by the Admin, places holds, and moves on automatically, with
 no user: to Queued when every choice is covered, otherwise to Waiting on Filament.
+
+Reprint takes grams for every choice in the same way, pre-filled on the page from the last
+attempt's. It places holds and lands on Queued when every choice is covered, otherwise on
+Waiting on Filament: one move by the Admin either way, with no email.
+
+The moves to Done, Failed and Cancelled release the request's holds, with that reason.
 """
 
 from datetime import datetime
@@ -16,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import FilamentChoice, PrintRequest
-from filament_tracker.domain.enums import RequestStatus
+from filament_tracker.domain.enums import ReleaseReason, RequestStatus
 from filament_tracker.print_requests import pipeline
 from filament_tracker.print_requests.pipeline import Moved, Mover
 from filament_tracker.print_requests.rules import Problems
@@ -30,7 +36,17 @@ GRAMS = "grams"
 GRAMS_NEEDED = "Give the grams for this filament."
 GRAMS_RANGE = f"Grams must be {GRAMS_MIN} to {GRAMS_MAX:,}."
 NOT_ITS_CHOICES = "Give grams only for its filaments."
-ONLY_ON_APPROVE = "Grams are given only when approving."
+ONLY_ON_APPROVE = "Grams are given only when approving or reprinting."
+
+# The moves that release a request's holds, and why.
+RELEASES = {
+    RequestStatus.DONE: ReleaseReason.DONE,
+    RequestStatus.FAILED: ReleaseReason.FAILED,
+    RequestStatus.CANCELLED: ReleaseReason.CANCELLED,
+}
+
+# The move offered as Reprint.
+REPRINT = (RequestStatus.FAILED, RequestStatus.QUEUED)
 
 # Where a request's choices are held and may be short.
 HOLDING = (RequestStatus.APPROVED, RequestStatus.WAITING_ON_FILAMENT, RequestStatus.QUEUED)
@@ -67,6 +83,20 @@ def _checked(request: PrintRequest, grams: dict[int, int]) -> None:
         raise Problems(found)
 
 
+def _hold(session: Session, request: PrintRequest, grams: dict[int, int], now: datetime) -> bool:
+    """Check the grams, give each choice its grams and hold them; whether every choice is
+    covered."""
+    _checked(request, grams)
+    covered = True
+    for choice in request.choices:
+        choice.grams = grams[choice.id]
+        placed = holds.place(
+            session, holder(choice), product_id(session, choice), choice.grams, now
+        )
+        covered = covered and placed.short == 0
+    return covered
+
+
 def approve(
     session: Session,
     request: PrintRequest,
@@ -89,14 +119,7 @@ def approve(
         note=note,
         now=now,
     )
-    _checked(request, grams)
-    covered = True
-    for choice in request.choices:
-        choice.grams = grams[choice.id]
-        placed = holds.place(
-            session, holder(choice), product_id(session, choice), choice.grams, now
-        )
-        covered = covered and placed.short == 0
+    covered = _hold(session, request, grams, now)
     landing = RequestStatus.QUEUED if covered else RequestStatus.WAITING_ON_FILAMENT
     pipeline.make_move(
         request,
@@ -108,6 +131,72 @@ def approve(
         now=now,
     )
     return Moved(approved.request, approved.move, approved.user, approved.note, then=landing)
+
+
+def reprint(
+    session: Session,
+    request: PrintRequest,
+    *,
+    grams: dict[int, int],
+    movers: set[Mover],
+    user: User | None,
+    note: str,
+    now: datetime,
+) -> Moved:
+    """Reprint a Failed request with grams per choice ID, hold them, and land on Queued when
+    covered or on Waiting on Filament when not. Refused as `approve` is."""
+    rule, cleaned = pipeline.check_move(
+        request, expected=REPRINT[0], to_status=REPRINT[1], movers=movers, note=note
+    )
+    if not _hold(session, request, grams, now):
+        rule = pipeline.landing(rule, RequestStatus.WAITING_ON_FILAMENT)
+    return pipeline.record(request, rule, user=user, note=cleaned, now=now)
+
+
+def make_move(
+    session: Session,
+    request: PrintRequest,
+    *,
+    expected: RequestStatus,
+    to_status: RequestStatus,
+    grams: dict[int, int],
+    movers: set[Mover],
+    user: User | None,
+    note: str,
+    now: datetime,
+) -> Moved:
+    """Move the request on as `pipeline.make_move` does, holding or releasing its filament
+    as the move needs: Approve and Reprint hold `grams`, and Done, Failed and Cancelled
+    release."""
+    if to_status is RequestStatus.APPROVED:
+        return approve(
+            session,
+            request,
+            expected=expected,
+            grams=grams,
+            movers=movers,
+            user=user,
+            note=note,
+            now=now,
+        )
+    if (expected, to_status) == REPRINT:
+        return reprint(session, request, grams=grams, movers=movers, user=user, note=note, now=now)
+    moved = pipeline.make_move(
+        request,
+        expected=expected,
+        to_status=to_status,
+        movers=movers,
+        user=user,
+        note=note,
+        now=now,
+    )
+    if grams:
+        raise Problems({GRAMS: ONLY_ON_APPROVE})
+    reason = RELEASES.get(to_status)
+    if reason is not None:
+        for choice in request.choices:
+            holds.release(session, holder(choice), reason, now)
+    return moved
 
 
 def shortfall(session: Session, request: PrintRequest, choice: FilamentChoice) -> int | None:

@@ -92,9 +92,10 @@ def approve(user: TestClient, request: dict[str, Any], grams: int = 10, note: st
 def move(
     user: TestClient, request_id: int, from_status: str, to_status: str, note: str = ""
 ) -> Response:
-    """Move the request; Approve gives 10 g for every choice the user can see."""
+    """Move the request; Approve and Reprint give 10 g for every choice the user can see.
+    With nothing in stock, Reprint lands on Waiting on Filament."""
     body: dict[str, Any] = {"from_status": from_status, "to_status": to_status, "note": note}
-    if to_status == "approved":
+    if to_status == "approved" or (from_status, to_status) == ("failed", "queued"):
         choices = user.get(f"{REQUESTS}/{request_id}").json().get("choices", [])
         body["grams"] = {str(choice["id"]): 10 for choice in choices}
     return user.post(f"{REQUESTS}/{request_id}/moves", json=body, headers=CSRF)
