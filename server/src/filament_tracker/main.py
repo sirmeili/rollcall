@@ -17,6 +17,7 @@ from filament_tracker.api import (
     printers,
     request_files,
     request_holders,
+    request_holds,
     request_photos,
     requests,
     review,
@@ -160,6 +161,7 @@ def create_app(
         email_settings,
         catalog,
         request_files,
+        request_holds,
         request_photos,
         requests,
     ):

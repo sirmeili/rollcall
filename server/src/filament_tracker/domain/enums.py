@@ -91,6 +91,8 @@ class HistoryKind(StrEnum):
     STATUS_CHANGED = "status_changed"
     PHOTO_ADDED = "photo_added"
     PHOTO_REMOVED = "photo_removed"
+    # An Admin changed its holds by hand.
+    HOLDS_CHANGED = "holds_changed"
 
 
 class ModelFileKind(StrEnum):

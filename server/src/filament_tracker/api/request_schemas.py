@@ -73,6 +73,21 @@ class MoveIn(Strict):
     grams: Annotated[dict[int, int], Field(max_length=MAX_CHOICES)] = {}
 
 
+class ChoiceGramsIn(Strict):
+    """A filament choice's new grams, naming the status the caller saw the request in."""
+
+    from_status: RequestStatus
+    grams: int
+
+
+class HoldIn(Strict):
+    """Grams of one spool to hold, naming the status the caller saw the request in."""
+
+    from_status: RequestStatus
+    spool_id: int
+    grams: int
+
+
 class MoveOut(BaseModel):
     """A move the caller may make now."""
 
@@ -134,8 +149,9 @@ class SimilarOut(BaseModel):
 
 
 class HoldOut(BaseModel):
-    """Grams held on one spool."""
+    """Grams held on one spool. Its `id` names it when changing holds."""
 
+    id: int
     spool_id: int
     product_id: int
     product_name: str
@@ -238,6 +254,8 @@ class RequestOut(BaseModel):
     can_change_priority: bool
     # Add and remove photos: a signed-in Admin, while the request is Done or Picked Up.
     can_change_photos: bool
+    # Change its holds: a signed-in Admin, while it is Approved, Waiting on Filament or Queued.
+    can_change_holds: bool
     # The moves the caller may make, the main next step first.
     moves: list[MoveOut]
     # Which try at printing it this is: 1, plus 1 for each Reprint.

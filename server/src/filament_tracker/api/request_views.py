@@ -76,6 +76,7 @@ def can_edit(principal: Principal, item: PrintRequest) -> bool:
 def _holds_out(session: Session, choice: FilamentChoice) -> list[HoldOut]:
     return [
         HoldOut(
+            id=hold.id,
             spool_id=hold.spool_id,
             product_id=hold.spool.product_id,
             product_name=hold.spool.product.display_name,
@@ -155,6 +156,7 @@ def request_out(
         can_edit=can_edit(principal, item),
         can_change_priority=staff and not item.status.closed,
         can_change_photos=may_change_photos(principal, item),
+        can_change_holds=holding.may_change(principal, item),
         moves=[
             MoveOut(to_status=m.to_status, reason_required=m.needs_reason, photos=m.photos)
             for m in allowed_moves(item, movers(principal, item))

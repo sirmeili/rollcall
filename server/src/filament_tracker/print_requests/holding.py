@@ -19,6 +19,13 @@ When stock changes (ADR-0020), Approved and Waiting on Filament requests are ret
 Active-tab order: each short choice takes more holds, and a request with every choice
 covered moves to Queued automatically, with no user and no email. A Queued request is never
 moved back; one that becomes short shows its shortfall.
+
+A signed-in Admin changes a request's holds by hand while it is Approved, Waiting on
+Filament or Queued: a choice's grams (holding them again), a hold's spool or grams, a hold
+on any Sealed or Open spool (of another product, say, for a similar color), or no hold. A
+hold by hand takes no more than the spool has free, unless its grams are unknown. Each
+change names the status it expects, releases what it replaces as `changed`, writes one
+`holds_changed` entry, sends no email, and checks the request again as a retry does.
 """
 
 from datetime import datetime
@@ -26,11 +33,13 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from filament_tracker.db.models import User
-from filament_tracker.db.request_models import FilamentChoice, PrintRequest
+from filament_tracker.auth import Principal
+from filament_tracker.db.models import Spool, SpoolHold, User
+from filament_tracker.db.request_models import FilamentChoice, PrintRequest, RequestHistory
 from filament_tracker.db.types import utcnow
-from filament_tracker.domain.enums import ReleaseReason, RequestStatus
+from filament_tracker.domain.enums import HistoryKind, ReleaseReason, RequestStatus
 from filament_tracker.print_requests import pipeline
+from filament_tracker.print_requests.access import is_admin
 from filament_tracker.print_requests.pipeline import Moved, Mover
 from filament_tracker.print_requests.read import sort_key
 from filament_tracker.print_requests.rules import Problems
@@ -45,6 +54,11 @@ GRAMS_NEEDED = "Give the grams for this filament."
 GRAMS_RANGE = f"Grams must be {GRAMS_MIN} to {GRAMS_MAX:,}."
 NOT_ITS_CHOICES = "Give grams only for its filaments."
 ONLY_ON_APPROVE = "Grams are given only when approving or reprinting."
+SPOOL = "spool_id"
+NOT_ON_THE_SHELF = "Choose a Sealed or Open spool."
+NOT_NOW = "Holds can be changed only while a request is Approved, Waiting on Filament or Queued."
+NO_SUCH_CHOICE = "no such filament choice"
+NO_SUCH_HOLD = "no such hold"
 
 # The moves that release a request's holds, and why.
 RELEASES = {
@@ -61,6 +75,10 @@ HOLDING = (RequestStatus.APPROVED, RequestStatus.WAITING_ON_FILAMENT, RequestSta
 
 # Where a request waits for filament, and is retried when stock changes.
 WAITING = (RequestStatus.APPROVED, RequestStatus.WAITING_ON_FILAMENT)
+
+
+class NotFound(Exception):
+    """No such choice or hold on this request."""
 
 
 def holder(choice: FilamentChoice) -> holds.Holder:
@@ -241,17 +259,159 @@ def retry(session: Session) -> None:
     now = utcnow()
     waiting = session.scalars(select(PrintRequest).where(PrintRequest.status.in_(WAITING)))
     for request in sorted(waiting, key=sort_key):
-        wanted = {c: c.grams for c in request.choices if c.grams is not None}
-        if len(wanted) < len(request.choices):
-            continue
-        if _hold_more(session, wanted, now):
-            pipeline.make_move(
-                request,
-                expected=request.status,
-                to_status=RequestStatus.QUEUED,
-                movers={Mover.AUTOMATIC},
-                user=None,
-                note="",
-                now=now,
-            )
+        _retry_one(session, request, now)
     session.flush()
+
+
+def _retry_one(session: Session, request: PrintRequest, now: datetime) -> None:
+    """Hold more for a request waiting for filament, and queue it once every choice is
+    covered; nothing for any other request."""
+    if request.status not in WAITING:
+        return
+    wanted = {c: c.grams for c in request.choices if c.grams is not None}
+    if len(wanted) < len(request.choices):
+        return
+    if _hold_more(session, wanted, now):
+        pipeline.make_move(
+            request,
+            expected=request.status,
+            to_status=RequestStatus.QUEUED,
+            movers={Mover.AUTOMATIC},
+            user=None,
+            note="",
+            now=now,
+        )
+
+
+# --- Changing holds by hand -------------------------------------------------------------------
+
+
+def may_change(principal: Principal, request: PrintRequest) -> bool:
+    """A signed-in Admin changes a request's holds while it is Approved, Waiting on Filament
+    or Queued. Tokens act for no one, and a change records who made it."""
+    return principal.user is not None and is_admin(principal) and request.status in HOLDING
+
+
+def _changing(request: PrintRequest, expected: RequestStatus) -> None:
+    if request.status != expected:
+        raise pipeline.Stale(pipeline.STALE)
+    if request.status not in HOLDING:
+        raise pipeline.NotAMove(NOT_NOW)
+
+
+def _changed(session: Session, request: PrintRequest, user: User, now: datetime) -> None:
+    """Record the change and check the request again."""
+    request.history.append(RequestHistory(kind=HistoryKind.HOLDS_CHANGED, user=user, at=now))
+    request.updated_at = now
+    session.flush()
+    _retry_one(session, request, now)
+    session.flush()
+
+
+def _grams(grams: int) -> None:
+    if not GRAMS_MIN <= grams <= GRAMS_MAX:
+        raise Problems({GRAMS: GRAMS_RANGE})
+
+
+def choice_of(request: PrintRequest, choice_id: int) -> FilamentChoice:
+    found = next((c for c in request.choices if c.id == choice_id), None)
+    if found is None:
+        raise NotFound(NO_SUCH_CHOICE)
+    return found
+
+
+def set_grams(
+    session: Session,
+    request: PrintRequest,
+    choice: FilamentChoice,
+    *,
+    expected: RequestStatus,
+    grams: int,
+    user: User,
+    now: datetime,
+) -> None:
+    """Give the choice new grams and hold them again, as Approve does."""
+    _changing(request, expected)
+    _grams(grams)
+    holds.release(session, holder(choice), ReleaseReason.CHANGED, now)
+    choice.grams = grams
+    holds.place(session, holder(choice), product_id(session, choice), grams, now)
+    _changed(session, request, user, now)
+
+
+def _hold_of(session: Session, request: PrintRequest, hold_id: int) -> SpoolHold:
+    """The request's hold; Stale when it was released since (changed by someone else)."""
+    found = session.get(SpoolHold, hold_id)
+    choices = {holder(c) for c in request.choices}
+    if found is None or holds.Holder(found.holder_type, found.holder_id) not in choices:
+        raise NotFound(NO_SUCH_HOLD)
+    if found.released_at is not None:
+        raise pipeline.Stale(pipeline.STALE)
+    return found
+
+
+def _hold_by_hand(
+    session: Session, choice: FilamentChoice, spool_id: int, grams: int, now: datetime
+) -> None:
+    """Hold grams of a Sealed or Open spool for the choice, no more than it has free (any
+    amount when its grams are unknown)."""
+    _grams(grams)
+    spool = session.get(Spool, spool_id)
+    if spool is None or spool.state not in holds.IN_STOCK:
+        raise Problems({SPOOL: NOT_ON_THE_SHELF})
+    free = holds.spool_available(session, spool)
+    if free is not None and grams > free:
+        raise Problems({GRAMS: f"This spool has about {free:,} g free."})
+    holds.hold(session, holder(choice), spool, grams, now)
+
+
+def add_hold(
+    session: Session,
+    request: PrintRequest,
+    choice: FilamentChoice,
+    *,
+    expected: RequestStatus,
+    spool_id: int,
+    grams: int,
+    user: User,
+    now: datetime,
+) -> None:
+    """Hold grams of a spool, of any product, for the choice."""
+    _changing(request, expected)
+    _hold_by_hand(session, choice, spool_id, grams, now)
+    _changed(session, request, user, now)
+
+
+def change_hold(
+    session: Session,
+    request: PrintRequest,
+    hold_id: int,
+    *,
+    expected: RequestStatus,
+    spool_id: int,
+    grams: int,
+    user: User,
+    now: datetime,
+) -> None:
+    """Replace one of the request's holds with grams of a spool: the same spool or another."""
+    _changing(request, expected)
+    found = _hold_of(session, request, hold_id)
+    choice = next(c for c in request.choices if c.id == found.holder_id)
+    holds.release_hold(session, found, ReleaseReason.CHANGED, now)
+    _hold_by_hand(session, choice, spool_id, grams, now)
+    _changed(session, request, user, now)
+
+
+def remove_hold(
+    session: Session,
+    request: PrintRequest,
+    hold_id: int,
+    *,
+    expected: RequestStatus,
+    user: User,
+    now: datetime,
+) -> None:
+    """Release one of the request's holds."""
+    _changing(request, expected)
+    holds.release_hold(session, _hold_of(session, request, hold_id), ReleaseReason.CHANGED, now)
+    _changed(session, request, user, now)

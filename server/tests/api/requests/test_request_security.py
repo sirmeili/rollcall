@@ -1,8 +1,9 @@
 """Security suite for print requests (see docs/testing.md): every route refuses no
 credentials, scanners and machine tokens below its role; uploads stop at 95 MB without the
 whole body being read, on their route only (20 MB for photos); a model file is never served
-as something a browser would run, and a photo only as an image; a request's grams, holds and
-available grams, and the requests holding a spool, are shown only to Editors and Admins."""
+as something a browser would run, and a photo only as an image; holds are changed only by a
+signed-in Admin; a request's grams, holds and available grams, and the requests holding a
+spool, are shown only to Editors and Admins."""
 
 import io
 from collections.abc import Iterator
@@ -37,11 +38,15 @@ ROUTES = [
     ("post", f"{REQUESTS}/1/photos", None),
     ("delete", A_PHOTO, None),
     ("get", A_PHOTO, Role.EDITOR),
+    ("put", f"{REQUESTS}/1/choices/1/grams", None),
+    ("post", f"{REQUESTS}/1/choices/1/holds", None),
+    ("put", f"{REQUESTS}/1/holds/1", None),
+    ("delete", f"{REQUESTS}/1/holds/1?from_status=queued", None),
 ]
 
 
 def _call(client: TestClient, method: str, path: str, headers: dict[str, str] | None = None) -> Any:
-    if method in ("post", "patch", "delete"):
+    if method in ("post", "put", "patch", "delete"):
         return client.request(method.upper(), path, json={}, headers=headers)
     return client.request(method.upper(), path, headers=headers)
 
