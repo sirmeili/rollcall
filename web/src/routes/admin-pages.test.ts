@@ -27,6 +27,7 @@ const admin = vi.hoisted(() => ({
   createUser: vi.fn(),
   updateUser: vi.fn(),
   changePassword: vi.fn(),
+  updateAccount: vi.fn(),
   dismissLikelyEmpty: vi.fn(),
   restoreLikelyEmpty: vi.fn(),
   listPrinters: vi.fn(),
@@ -543,6 +544,7 @@ function user(overrides: Partial<UserOut> = {}): UserOut {
     username: "jordan",
     role: "editor",
     requester: false,
+    email: null,
     disabled: false,
     created_at: "2026-11-01T00:00:00Z",
     last_login_at: "2026-11-05T14:15:00Z",
@@ -564,7 +566,11 @@ describe("Users page", () => {
     const rows = await screen.findAllByRole("row");
     expect(within(rows[1]).getByText("You")).toBeInTheDocument();
     expect(within(rows[1]).getByLabelText("Role for frank")).toBeDisabled();
-    expect(within(rows[1]).queryByRole("button")).toBeNull();
+    expect(
+      within(rows[1])
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["Set email"]);
     expect(within(rows[3]).getByText("Disabled")).toBeInTheDocument();
     expect(within(rows[3]).getByText("Never")).toBeInTheDocument();
     const roles = screen.getByRole("list", { name: "What each role can do" });
@@ -633,6 +639,51 @@ describe("Users page", () => {
     await userEvent.click(within(row).getByRole("button", { name: "Reset password" }));
     await userEvent.click(within(row).getByRole("button", { name: "Cancel" }));
     expect(within(row).queryByLabelText("New password for jordan")).toBeNull();
+  });
+
+  it("shows each address and sets one", async () => {
+    admin.listUsers.mockResolvedValue([
+      people[0],
+      user({ email: "jordan@example.com" }),
+      user({ id: 4, username: "sam", role: "viewer" }),
+    ]);
+    admin.updateUser.mockResolvedValue(user());
+    render(UsersPage);
+
+    const rows = await screen.findAllByRole("row");
+    expect(within(rows[2]).getByText("jordan@example.com")).toBeInTheDocument();
+    expect(within(rows[3]).getByText("No email address")).toBeInTheDocument();
+    await userEvent.click(within(rows[3]).getByRole("button", { name: "Set email" }));
+    await userEvent.type(
+      within(rows[3]).getByLabelText("Email address for sam"),
+      "sam@example.com",
+    );
+    await userEvent.click(within(rows[3]).getByRole("button", { name: "Save" }));
+
+    expect(admin.updateUser).toHaveBeenCalledWith(4, { email: "sam@example.com" });
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved the email address for sam.");
+  });
+
+  it("changes and removes an address", async () => {
+    admin.listUsers.mockResolvedValue([people[0], user({ email: "jordan@example.com" })]);
+    admin.updateUser.mockResolvedValue(user());
+    render(UsersPage);
+
+    const row = (await screen.findAllByRole("row"))[2];
+    await userEvent.click(within(row).getByRole("button", { name: "Change email" }));
+    const box = within(row).getByLabelText("Email address for jordan");
+    expect(box).toHaveValue("jordan@example.com");
+    await userEvent.clear(box);
+    await userEvent.click(within(row).getByRole("button", { name: "Save" }));
+
+    expect(admin.updateUser).toHaveBeenCalledWith(2, { email: "" });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Removed the email address for jordan.",
+    );
+
+    await userEvent.click(within(row).getByRole("button", { name: "Change email" }));
+    await userEvent.click(within(row).getByRole("button", { name: "Cancel" }));
+    expect(within(row).queryByLabelText("Email address for jordan")).toBeNull();
   });
 
   it("shows a refused change", async () => {
@@ -762,6 +813,46 @@ describe("Account page", () => {
     await fill("old password", "a new password");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(message);
+  });
+
+  it("shows the email address and saves a new one", async () => {
+    session.user = me("viewer", { email: "frank@example.com" });
+    admin.updateAccount.mockResolvedValue(me("viewer", { email: "frank@home.example" }));
+    render(AccountPage);
+
+    const box = screen.getByLabelText("Email address");
+    expect(box).toHaveValue("frank@example.com");
+    await userEvent.clear(box);
+    await userEvent.type(box, "frank@home.example");
+    await userEvent.click(screen.getByRole("button", { name: "Save email address" }));
+
+    expect(admin.updateAccount).toHaveBeenCalledWith({ email: "frank@home.example" });
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved your email address.");
+    expect(session.user?.email).toBe("frank@home.example");
+  });
+
+  it("removes the email address", async () => {
+    session.user = me("viewer", { email: "frank@example.com" });
+    admin.updateAccount.mockResolvedValue(me("viewer"));
+    render(AccountPage);
+
+    await userEvent.clear(screen.getByLabelText("Email address"));
+    await userEvent.click(screen.getByRole("button", { name: "Save email address" }));
+
+    expect(admin.updateAccount).toHaveBeenCalledWith({ email: "" });
+    expect(await screen.findByRole("status")).toHaveTextContent("Removed your email address.");
+  });
+
+  it("explains a refused email address", async () => {
+    admin.updateAccount.mockRejectedValue(
+      new ApiError(422, "use an email address like name@example.com, at most 254 characters"),
+    );
+    render(AccountPage);
+
+    await userEvent.type(screen.getByLabelText("Email address"), "nope");
+    await userEvent.click(screen.getByRole("button", { name: "Save email address" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("use an email address like");
   });
 
   it("shows the meter's progress", async () => {

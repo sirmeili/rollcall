@@ -16,6 +16,7 @@ from filament_tracker.services.accounts import (
     UsernameTaken,
     count_active_admins,
     create_user,
+    email_address,
     end_sessions,
     set_password,
 )
@@ -29,6 +30,7 @@ def user_out(user: User) -> UserOut:
         username=user.username,
         role=user.role,
         requester=user.requester,
+        email=user.email,
         disabled=user.disabled_at is not None,
         created_at=user.created_at,
         last_login_at=user.last_login_at,
@@ -60,8 +62,8 @@ def add_user(body: UserCreate, _: Admin, session: DbSession) -> UserOut:
 
 @router.patch("/users/{user_id}", response_model=UserOut)
 def update_user(user_id: int, body: UserUpdate, _: Admin, session: DbSession) -> UserOut:
-    """Change role or Requester, disable or enable, or reset the password. Disabling or a password
-    reset signs the user out everywhere."""
+    """Change role, Requester or the email address, disable or enable, or reset the password.
+    Disabling or a password reset signs the user out everywhere."""
     user = session.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such user")
@@ -70,6 +72,8 @@ def update_user(user_id: int, body: UserUpdate, _: Admin, session: DbSession) ->
     if was_active_admin and loses_admin and count_active_admins(session) <= 1:
         raise HTTPException(status.HTTP_409_CONFLICT, "cannot remove the last active admin")
     try:
+        if "email" in body.model_fields_set:
+            user.email = email_address(body.email)
         if body.password is not None:
             set_password(session, user, body.password)
     except AccountError as exc:

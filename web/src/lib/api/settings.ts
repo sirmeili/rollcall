@@ -3,7 +3,7 @@
 
 import { api, ApiError } from "#lib/api/client.ts";
 
-export type SettingsGroup = "general" | "scanners" | "home-assistant" | "catalog";
+export type SettingsGroup = "general" | "scanners" | "home-assistant" | "catalog" | "email";
 export type SettingSource = "app" | "env" | "default";
 export type CheckResult = "ok" | "off" | "unreachable" | "refused" | "error";
 
@@ -29,6 +29,20 @@ export interface TestOut {
   events: CheckResult;
 }
 
+/** The email sender's last success and failure since the server started. */
+export interface EmailStatus {
+  /** Whether email is set up: an SMTP host is saved. */
+  on: boolean;
+  last_success: string | null;
+  /** Never the password or the mail server's own text. */
+  last_failure: { at: string; message: string } | null;
+}
+
+export interface TestEmailOut {
+  ok: boolean;
+  message: string;
+}
+
 export function getSettings(group: SettingsGroup): Promise<GroupOut> {
   return api<GroupOut>(`/settings/${group}`);
 }
@@ -50,6 +64,15 @@ export function useEnvValue(group: SettingsGroup, key: string): Promise<void> {
 /** Try the entered values (on top of the saved ones) without saving them. */
 export function testHomeAssistant(values: Record<string, string>): Promise<TestOut> {
   return api<TestOut>("/settings/home-assistant/test", { method: "POST", body: { values } });
+}
+
+export function getEmailStatus(): Promise<EmailStatus> {
+  return api<EmailStatus>("/settings/email/status");
+}
+
+/** Send a test email to the signed-in Admin's address with the saved settings. */
+export function sendTestEmail(): Promise<TestEmailOut> {
+  return api<TestEmailOut>("/settings/email/test", { method: "POST" });
 }
 
 /** The server's problems by setting, from a refused save. */

@@ -72,6 +72,8 @@ function serve(routes: Parameters<typeof fakeFetch>[0]) {
     "GET /settings/scanners": SCANNERS,
     "GET /settings/home-assistant": group(),
     "GET /tokens": [],
+    "GET /settings/email": { group: "email", settings: [] },
+    "GET /settings/email/status": { on: false, last_success: null, last_failure: null },
     "GET /settings/catalog": { group: "catalog", settings: [] },
     "GET /catalog/sync": { colors: 0, ofdb: NEVER_SYNCED, bambustudio: NEVER_SYNCED },
     ...routes,
@@ -219,13 +221,15 @@ describe("Settings page", () => {
         "GET /settings/catalog": refused,
         "GET /tokens": refused,
         "GET /catalog/sync": refused,
+        "GET /settings/email": refused,
+        "GET /settings/email/status": refused,
       }),
     );
     render(SettingsPage);
-    const alerts = await screen.findAllByRole("alert");
-    // One for each settings group, the catalog sync status and the machine tokens.
-    expect(alerts).toHaveLength(6);
-    expect(alerts[0]).toHaveTextContent("Your role cannot do that.");
+    // One for each settings group, the catalog sync status, the email status and the
+    // machine tokens.
+    await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(8));
+    expect(screen.getAllByRole("alert")[0]).toHaveTextContent("Your role cannot do that.");
   });
 
   it("reports a failed save that is not about one setting", async () => {

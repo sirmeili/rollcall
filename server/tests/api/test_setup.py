@@ -158,6 +158,7 @@ def test_setup_creates_the_admin_signs_them_in_and_closes(start: Any) -> None:
         "username": "frank",
         "role": "admin",
         "requester": False,
+        "email": None,
         "has_requests": False,
         "time_zone": "America/Chicago",
     }

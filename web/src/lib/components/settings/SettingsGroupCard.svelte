@@ -6,6 +6,7 @@
 </script>
 
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { describeError } from "#lib/api/errors.ts";
   import {
     getSettings,
@@ -28,11 +29,25 @@
     savedText: string;
     /** Try the changed values without saving; one line per result. */
     test?: (changed: Record<string, string>) => Promise<TestLine[]>;
+    /** The test button's name. */
+    testLabel?: string;
+    /** More of the card, after the form. */
+    children?: Snippet;
     /** Called with the settings as saved. */
     onsaved?: (settings: SettingOut[]) => void;
   }
 
-  let { group, title, intro, fields, savedText, test, onsaved }: Props = $props();
+  let {
+    group,
+    title,
+    intro,
+    fields,
+    savedText,
+    test,
+    testLabel = "Test",
+    children,
+    onsaved,
+  }: Props = $props();
 
   let settings = $state<SettingOut[] | null>(null);
   let draft = $state<Record<string, string>>({});
@@ -145,7 +160,7 @@
       </div>
       <div class="buttons">
         <button type="submit" class="primary" disabled={busy || !dirty}>Save</button>
-        {#if test}<button type="button" disabled={busy} onclick={runTest}>Test</button>{/if}
+        {#if test}<button type="button" disabled={busy} onclick={runTest}>{testLabel}</button>{/if}
       </div>
       {#if message}<p role="status" class="muted">{message}</p>{/if}
       {#if tested}
@@ -157,6 +172,7 @@
       {/if}
     </form>
   {/if}
+  {@render children?.()}
 </section>
 
 <style>

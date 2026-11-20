@@ -196,6 +196,8 @@ class User(Base):
     role: Mapped[Role] = mapped_column(str_enum(Role, "user_role"))
     # May submit print requests, whatever the role (ADR-0017). It never passes a role check.
     requester: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Optional and never verified: checked for shape only (mail/address.py).
+    email: Mapped[str | None] = mapped_column(String(254))
     disabled_at: Mapped[datetime | None]
     last_login_at: Mapped[datetime | None]
     password_changed_at: Mapped[datetime] = mapped_column(default=utcnow)
