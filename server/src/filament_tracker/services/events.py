@@ -92,10 +92,15 @@ def append_event(
     session.add(event)
     step = reproject(spool).steps[event.id]
     event.flagged = flag or step.outcome is Outcome.FLAGGED
-    # Received, or Opened on a spool never received (both in one step): the spool is full.
+    # Received, or a scan or hand Opened on a spool never received (both in one step): the
+    # spool is full. A spool the AMS sees first takes grams left from its remaining % only.
     if step.outcome is Outcome.APPLIED and (
         event_type is EventType.RECEIVED
-        or (event_type is EventType.OPENED and step.implicit_receive)
+        or (
+            event_type is EventType.OPENED
+            and step.implicit_receive
+            and source is not EventSource.AMS
+        )
     ):
         grams.received(spool)
     session.flush()

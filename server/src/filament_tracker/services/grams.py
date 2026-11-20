@@ -2,9 +2,10 @@
 
 - Net weight comes from the tag's filament weight. A spool with none takes its product's
   catalog color's size weight when all that color's sizes weigh the same, otherwise 1000 g.
-- Grams left is the net weight on Received, including a spool first seen as Opened (received
-  and opened in one step); opening a received spool keeps it. It is net weight x remaining %
-  whenever the AMS writes a new remaining %. An Admin can set either by hand.
+- Grams left is the net weight on Received, including a spool first scanned or marked Opened
+  (received and opened in one step); opening a received spool keeps it. A spool the AMS sees
+  first takes it from the remaining % only, and stays unknown without one. It is net weight
+  x remaining % whenever the AMS writes a new remaining %. An Admin can set either by hand.
 
 Callers own the transaction: nothing here commits.
 """

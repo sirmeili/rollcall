@@ -250,7 +250,7 @@ def test_an_editor_still_edits_location(app: FastAPI, client: TestClient, spool_
 UID = "A1B2C3D4E5F60718293A4B5C6D7E8F90"
 
 
-def _ams_reports(db: Session, pct: int, when: datetime = T0) -> None:
+def _ams_reports(db: Session, pct: int | None, when: datetime = T0) -> None:
     printer = db.scalar(select(Printer)) or Printer(
         name="P1S", serial="01P00A000000001", host="192.168.1.40"
     )
@@ -294,3 +294,12 @@ def test_a_spool_the_ams_sees_first_takes_the_fallback_net_weight(
 
     [row] = viewer.get("/api/v1/spools").json()["items"]
     assert (row["net_weight_g"], row["grams_left_g"]) == (1000, 500)
+
+
+def test_a_spool_the_ams_sees_first_without_a_remaining_pct_has_unknown_grams_left(
+    viewer: TestClient, db: Session
+) -> None:
+    _ams_reports(db, None)
+
+    [row] = viewer.get("/api/v1/spools").json()["items"]
+    assert (row["state"], row["net_weight_g"], row["grams_left_g"]) == ("open", 1000, None)
