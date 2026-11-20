@@ -1,5 +1,6 @@
 """The Print Requests module's tables: print requests, their filament choices, their request
-history, and model files uploaded but not yet saved with a request.
+history, photos of finished prints, and model files uploaded but not yet saved with a
+request.
 
 Print Requests depends on Inventory and the catalog, never the reverse (ADR-0014): these
 tables refer to users and products, and nothing in Inventory refers to them. A catalog
@@ -59,6 +60,9 @@ class PrintRequest(Base):
     )
     history: Mapped[list["RequestHistory"]] = relationship(
         back_populates="request", order_by="RequestHistory.id"
+    )
+    photos: Mapped[list["RequestPhoto"]] = relationship(
+        back_populates="request", order_by="(RequestPhoto.uploaded_at, RequestPhoto.id)"
     )
 
 
@@ -124,3 +128,24 @@ class RequestUpload(Base):
     sha256: Mapped[str] = mapped_column(String(64))
     kind: Mapped[ModelFileKind] = mapped_column(str_enum(ModelFileKind, "upload_file_kind"))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class RequestPhoto(Base):
+    """A photo of a finished print, re-encoded on upload so no metadata survives.
+
+    Both copies live in the request-files directory under random names: the full photo,
+    whose name ends in its format (`.jpg` or `.png`), and the email copy, a JPEG. A photo
+    with no request is an Admin's upload waiting to be saved with one; saving it sets the
+    request, and uploads never saved are removed after a day."""
+
+    __tablename__ = "request_photo"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    request_id: Mapped[int | None] = mapped_column(ForeignKey("print_request.id"), index=True)
+    stored_name: Mapped[str] = mapped_column(String(64), unique=True)
+    email_stored_name: Mapped[str] = mapped_column(String(64), unique=True)
+    uploaded_by: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
+    uploaded_at: Mapped[datetime] = mapped_column(default=utcnow)
+    file_name: Mapped[str] = mapped_column(String(FILE_NAME_MAX))
+
+    request: Mapped[PrintRequest | None] = relationship(back_populates="photos")

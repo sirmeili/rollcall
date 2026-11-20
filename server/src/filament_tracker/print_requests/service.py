@@ -2,9 +2,9 @@
 request history entry.
 
 Only a Requester submits. Only the request's own requester edits it, while it is Submitted
-and while they still hold Requester; Editors and Admins change the priority of any request
-at any time, and nothing else. A replaced or removed model file is deleted once the change
-is saved (by the caller, after its commit).
+and while they still hold Requester; Editors and Admins change the priority of any open
+request, and nothing else. Status changes are the pipeline's (pipeline.py). A replaced or
+removed model file is deleted once the change is saved (by the caller, after its commit).
 """
 
 from dataclasses import dataclass
@@ -43,6 +43,7 @@ NOT_A_REQUESTER = "You can no longer submit or edit print requests."
 NOT_SUBMITTED = "Only a Submitted request can be edited."
 NOT_YOURS = "Only the requester can edit a request."
 UPLOAD_GONE = "That file's upload wasn't found. Upload it again."
+CLOSED = "A closed request's priority can't be changed."
 
 
 class NotAllowed(Exception):
@@ -220,7 +221,10 @@ def edit(
 def change_priority(
     request: PrintRequest, user: User | None, priority: Priority, *, now: datetime
 ) -> None:
-    """An Editor's or Admin's triage. The same priority again changes nothing."""
+    """An Editor's or Admin's triage, while the request is open. The same priority again
+    changes nothing."""
+    if request.status.closed:
+        raise NotAllowed(CLOSED)
     if priority == request.priority:
         return
     request.history.append(

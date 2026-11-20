@@ -96,7 +96,7 @@ The session cookie is marked Secure. Browsers accept it over plain HTTP on `loca
 
 With `BACKUP_DIR` set, the server copies its database there every night at 03:00 in its time zone (the one saved on the Settings page, else `TZ`), using SQLite's online backup, and keeps the newest 14. Files are named by their UTC time, like `filament-20261110T090000Z.db`. The settings key is never copied into them. `uv run ft-admin backup` makes one at once. The Docker image sets `BACKUP_DIR=/backups`; see [docs/deploy.md](../docs/deploy.md) for restoring one.
 
-Backups hold the database only. The model files uploaded with print requests are kept beside the database, in a `request-files` folder next to the database file (`/data/request-files` in the Docker image), each under a random name; [docs/deploy.md](../docs/deploy.md) shows how to copy them. A file uploaded on the request form but never saved with a request is deleted once it is a day old, the next time anyone uploads a file.
+Backups hold the database only. The model files and photos uploaded with print requests are kept beside the database, in a `request-files` folder next to the database file (`/data/request-files` in the Docker image), each under a random name ([ADR 0018](../docs/adr/0018-request-photos-are-files-beside-model-files.md)); [docs/deploy.md](../docs/deploy.md) shows how to copy them. A file or photo uploaded but never saved with a request is deleted once it is a day old, the next time anyone uploads one of the same kind.
 
 ## Catalog
 
@@ -279,6 +279,15 @@ Checklist before a release that changes the Home Assistant link:
 6. Developer tools → Events, listening to `filament_tracker_spool_opened` (and the others; the listener takes an exact event name, or `*` for every event, not a pattern such as `filament_tracker_*`): each action fires one event with the spool, product, color and source. `ft-ha check --event` fires `filament_tracker_check`.
 7. Set a product's low-stock threshold to its sealed count: `filament_tracker_low_stock` fires once, Low filament turns on and lists it, and the example automation adds it to the shopping list and notifies the phone. Put the threshold back.
 8. On the Settings page, **Test** reports both links working; with a wrong password typed in, it reports the broker refused it. **Save** a change and the link reconnects without a restart.
+
+## Email
+
+RollCall emails users through your mail provider's SMTP server. Set it in the **Email** group of the Settings page (Admin), or in `server/.env` (see [docs/configuration.md](../docs/configuration.md)): the host, port, security (`starttls`, `tls` or `none`), user, password and from address, and the Public URL that links in emails use. With no host, email is off.
+
+- **Addresses**: each user adds their own address on the Account page, and an Admin can set anyone's on the Users page. Addresses are optional and never verified.
+- **Send test email** sends to the signed-in Admin's own address with the saved settings and shows the result. The server allows one test every 30 seconds.
+- **In the background**: emails are handed to a background sender, so nothing waits for the mail server. A failed send is retried 3 times over about 15 minutes, then logged and dropped. Emails still waiting are lost on a restart. The Email group shows the last success and the last failure.
+- The password is stored encrypted, and never shown or logged. Errors are short descriptions such as "The mail server refused the user name or password", never the mail server's own text.
 
 ## Fake printer
 

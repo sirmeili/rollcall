@@ -60,13 +60,14 @@ def files_dir(database_url: str) -> Path:
 _UNSAFE = re.compile(r"[^\w .()+,=@-]")
 
 
-def clean_name(name: str, kind: ModelFileKind) -> str:
-    """The uploader's file name without path parts or unsafe characters."""
+def clean_name(name: str, fallback: str) -> str:
+    """The uploader's file name without path parts or unsafe characters; `fallback` when
+    nothing is left."""
     base = re.split(r"[\\/]", name)[-1]
     base = unicodedata.normalize("NFC", base)
     base = _UNSAFE.sub("_", "".join(ch for ch in base if ch.isprintable()))
     base = base.strip(" .")[:FILE_NAME_MAX]
-    return base or f"model.{kind.value}"
+    return base or fallback
 
 
 def kind_of(path: Path, size: int) -> ModelFileKind:
@@ -130,7 +131,7 @@ class ModelFiles:
         upload = RequestUpload(
             user_id=user.id,
             stored_name=stored,
-            file_name=clean_name(name, kind),
+            file_name=clean_name(name, f"model.{kind.value}"),
             size=size,
             sha256=digest.hexdigest(),
             kind=kind,

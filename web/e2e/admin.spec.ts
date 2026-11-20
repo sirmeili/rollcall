@@ -169,8 +169,8 @@ test("admins save a Home Assistant setting, test it and go back to the default",
   await expect(page.getByRole("status")).toHaveText(/Saved\./);
   await expect(page.getByText("Saved here", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Test" }).click();
-  const results = page.getByRole("list", { name: "Test results" });
+  await ha.getByRole("button", { name: "Test", exact: true }).click();
+  const results = ha.getByRole("list", { name: "Test results" });
   await expect(results).toContainText("No broker set");
   await expect(results).toContainText("No address and token set");
 

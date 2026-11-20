@@ -8,12 +8,15 @@ Printers are not here: they have their own table and page.
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from email.utils import parseaddr
 from functools import cache
 from urllib.parse import urlsplit
 from zoneinfo import available_timezones
 
 from filament_tracker.ha.broker import parse_mqtt_url
 from filament_tracker.ha.rest import parse_ha_url
+from filament_tracker.mail.address import clean_address
+from filament_tracker.mail.transport import SECURITIES
 
 MAX_VALUE = 1024
 PREFIX_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}(/[A-Za-z0-9_-]{1,64}){0,3}$")
@@ -25,6 +28,7 @@ ACCESS_SECRET_PATTERN = re.compile(r"cfast_[A-Za-z0-9]{48}|[A-Za-z0-9]{32,128}")
 MIN_SESSION_DAYS, MAX_SESSION_DAYS = 1, 365
 CATALOG_SYNCS = ("off", "daily", "weekly")
 MIN_CUTOFF, MAX_CUTOFF = 0.5, 50.0
+HOST_PATTERN = re.compile(r"[A-Za-z0-9.-]{1,253}|\[[0-9A-Fa-f:.]{2,45}\]")
 
 
 def _mqtt_url(value: str) -> str:
@@ -110,6 +114,55 @@ def store_address(value: str) -> str:
     return value
 
 
+PUBLIC_URL_PROBLEM = "Enter an https address with no path, like https://rollcall.example.com"
+
+
+def public_url(value: str) -> str:
+    """The address the family opens RollCall at, checked like the store address."""
+    try:
+        return store_address(value)
+    except ValueError:
+        raise ValueError(PUBLIC_URL_PROBLEM) from None
+
+
+def smtp_host(value: str) -> str:
+    """A host name or an IP address, with no port or scheme."""
+    if not HOST_PATTERN.fullmatch(value):
+        raise ValueError("use the mail server's host name, like smtp.example.com")
+    return value
+
+
+def smtp_port(value: str) -> str:
+    problem = "use a port from 1 to 65535"
+    try:
+        port = int(value)
+    except ValueError:
+        raise ValueError(problem) from None
+    if not 0 < port < 65536:
+        raise ValueError(problem)
+    return str(port)
+
+
+def smtp_security(value: str) -> str:
+    if value not in SECURITIES:
+        *first, last = SECURITIES
+        raise ValueError(f"use {', '.join(first)} or {last}")
+    return value
+
+
+def smtp_from(value: str) -> str:
+    """An address, optionally with a name: rollcall@example.com or
+    RollCall <rollcall@example.com>. The error never repeats it."""
+    problem = "use an address like rollcall@example.com or RollCall <rollcall@example.com>"
+    name, address = parseaddr(value, strict=True)
+    try:
+        if not address or clean_address(address) is None:
+            raise ValueError(problem)
+    except ValueError:
+        raise ValueError(problem) from None
+    return value
+
+
 def kdf_salt(value: str) -> str:
     """The key-derivation constant as upper-case hex. The error never repeats it."""
     if not SALT_PATTERN.fullmatch(value):
@@ -162,6 +215,7 @@ GENERAL = "general"
 HOME_ASSISTANT = "home-assistant"
 SCANNERS = "scanners"
 CATALOG = "catalog"
+EMAIL = "email"
 
 DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("tz", GENERAL, "tz", optional=False, check=time_zone),
@@ -188,6 +242,13 @@ DEFINITIONS: tuple[SettingDef, ...] = (
         "similarity_cutoff", CATALOG, "similarity_cutoff", optional=False, check=similarity_cutoff
     ),
     SettingDef("store_address", CATALOG, "store_address", optional=False, check=store_address),
+    SettingDef("smtp_host", EMAIL, "smtp_host", check=smtp_host),
+    SettingDef("smtp_port", EMAIL, "smtp_port", optional=False, check=smtp_port),
+    SettingDef("smtp_security", EMAIL, "smtp_security", optional=False, check=smtp_security),
+    SettingDef("smtp_user", EMAIL, "smtp_user"),
+    SettingDef("smtp_password", EMAIL, "smtp_password", secret=True),
+    SettingDef("smtp_from", EMAIL, "smtp_from", check=smtp_from),
+    SettingDef("public_url", EMAIL, "public_url", check=public_url),
 )
 
 BY_KEY = {d.key: d for d in DEFINITIONS}

@@ -13,10 +13,19 @@ from filament_tracker.auth import Principal
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import Role
+from filament_tracker.print_requests.photos import PHOTO_STATUSES
+from filament_tracker.print_requests.pipeline import Mover
 
 
 def has_requests(session: Session, user: User) -> bool:
     return bool(session.scalar(select(exists().where(PrintRequest.requester_id == user.id))))
+
+
+def is_admin(principal: Principal) -> bool:
+    """Whether the caller acts as an Admin: a signed-in Admin, an Admin machine token or the
+    admin token. Scanners have no role. Where only a person will do, check `user` too."""
+    role = principal.role
+    return role is not None and role.allows(Role.ADMIN)
 
 
 def sees_every_request(principal: Principal) -> bool:
@@ -37,3 +46,24 @@ def may_see(principal: Principal, request: PrintRequest) -> bool:
     if sees_every_request(principal):
         return True
     return principal.user is not None and request.requester_id == principal.user.id
+
+
+def movers(principal: Principal, request: PrintRequest) -> set[Mover]:
+    """Who the caller moves a request as: an Admin, its requester, both or neither. Owning
+    the request is what counts, not holding Requester (ADR-0017)."""
+    found = set()
+    if is_admin(principal):
+        found.add(Mover.ADMIN)
+    if principal.user is not None and request.requester_id == principal.user.id:
+        found.add(Mover.REQUESTER)
+    return found
+
+
+def may_change_photos(principal: Principal, request: PrintRequest) -> bool:
+    """A signed-in Admin adds and removes photos while the request is Done or Picked Up.
+    Tokens act for no one, and a photo records who uploaded it."""
+    return (
+        principal.user is not None
+        and Mover.ADMIN in movers(principal, request)
+        and request.status in PHOTO_STATUSES
+    )

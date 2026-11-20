@@ -1,8 +1,9 @@
 """Security suite for print requests (see docs/testing.md): every route refuses no
 credentials, scanners and machine tokens below its role; uploads stop at 95 MB without the
-whole body being read, on their route only; a model file is never served as something a
-browser would run."""
+whole body being read, on their route only (20 MB for photos); a model file is never served
+as something a browser would run, and a photo only as an image."""
 
+import io
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -11,12 +12,16 @@ import pytest
 from api_helpers import CSRF, admin, bearer, register
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from PIL import Image
 from request_helpers import REQUESTS, person, request_body, submitted
 
 from filament_tracker.domain.enums import Role
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES
+from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
 
 UPLOADS = f"{REQUESTS}/uploads"
+PHOTO_UPLOADS = f"{REQUESTS}/photo-uploads"
+A_PHOTO = f"{REQUESTS}/1/photos/00000000-0000-0000-0000-000000000001"
 ROUTES = [
     ("get", REQUESTS, Role.EDITOR),
     ("post", REQUESTS, None),
@@ -24,13 +29,18 @@ ROUTES = [
     ("get", f"{REQUESTS}/1", Role.EDITOR),
     ("patch", f"{REQUESTS}/1", None),
     ("post", f"{REQUESTS}/1/priority", Role.EDITOR),
+    ("post", f"{REQUESTS}/1/moves", Role.ADMIN),
     ("post", UPLOADS, None),
     ("get", f"{REQUESTS}/1/file", Role.EDITOR),
+    ("post", PHOTO_UPLOADS, None),
+    ("post", f"{REQUESTS}/1/photos", None),
+    ("delete", A_PHOTO, None),
+    ("get", A_PHOTO, Role.EDITOR),
 ]
 
 
 def _call(client: TestClient, method: str, path: str, headers: dict[str, str] | None = None) -> Any:
-    if method in ("post", "patch"):
+    if method in ("post", "patch", "delete"):
         return client.request(method.upper(), path, json={}, headers=headers)
     return client.request(method.upper(), path, headers=headers)
 
@@ -87,6 +97,12 @@ def test_another_users_request_reads_as_not_found_on_every_route(
     assert sam.get(f"{REQUESTS}/{theirs}/file").status_code == 404
     edit = sam.patch(f"{REQUESTS}/{theirs}", json=request_body(), headers=CSRF)
     assert edit.status_code == 404
+    moved = sam.post(
+        f"{REQUESTS}/{theirs}/moves",
+        json={"from_status": "submitted", "to_status": "approved"},
+        headers=CSRF,
+    )
+    assert moved.status_code == 404
 
 
 # --- Uploads -------------------------------------------------------------------------------
@@ -169,3 +185,68 @@ def test_a_file_is_never_served_as_a_page(app: FastAPI, client: TestClient) -> N
 @pytest.fixture
 def token(client: TestClient) -> str:
     return register(client)
+
+
+# --- Photos --------------------------------------------------------------------------------
+
+
+def _photo_upload(user: TestClient, content: Any, **headers: str) -> Any:
+    return user.post(
+        PHOTO_UPLOADS,
+        params={"name": "big.jpg"},
+        content=content,
+        headers={**CSRF, "Content-Type": "application/octet-stream", **headers},
+    )
+
+
+def test_a_photo_upload_declared_over_20_mb_is_refused_before_it_is_read(
+    app: FastAPI, client: TestClient
+) -> None:
+    frank = person(app, "frank", Role.ADMIN)
+    body = CountingBody(MAX_PHOTO_BYTES + 1)
+
+    response = _photo_upload(frank, body, **{"Content-Length": str(MAX_PHOTO_BYTES + 1)})
+
+    assert response.status_code == 413
+    assert body.sent < body.total
+
+
+def test_a_streamed_photo_upload_over_20_mb_is_cut_off_and_not_kept(
+    app: FastAPI, client: TestClient, files_dir: Path
+) -> None:
+    frank = person(app, "frank", Role.ADMIN)
+
+    response = _photo_upload(frank, iter(CountingBody(MAX_PHOTO_BYTES + 3 * 1024 * 1024)))
+
+    assert response.status_code == 413
+    assert not files_dir.exists() or list(files_dir.iterdir()) == []
+
+
+def test_a_photo_is_served_as_an_image_and_never_sniffed(app: FastAPI, client: TestClient) -> None:
+    sam = person(app, "sam")
+    frank = person(app, "frank", Role.ADMIN)
+    request_id = submitted(sam)["id"]
+    for at, to in [("submitted", "approved"), ("approved", "queued"), ("queued", "printing")]:
+        frank.post(
+            f"{REQUESTS}/{request_id}/moves",
+            json={"from_status": at, "to_status": to},
+            headers=CSRF,
+        )
+    buffer = io.BytesIO()
+    Image.new("RGB", (8, 8)).save(buffer, "JPEG")
+    photo = _photo_upload(frank, buffer.getvalue()).json()
+    frank.post(
+        f"{REQUESTS}/{request_id}/moves",
+        json={"from_status": "printing", "to_status": "done", "photo_ids": [photo["id"]]},
+        headers=CSRF,
+    )
+
+    response = sam.get(f"{REQUESTS}/{request_id}/photos/{photo['id']}")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/jpeg"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["content-disposition"].startswith("inline;")
+    # Another user's request reads as not found, photos included.
+    maya = person(app, "maya")
+    assert maya.get(f"{REQUESTS}/{request_id}/photos/{photo['id']}").status_code == 404

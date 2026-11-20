@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.models import User, UserSession
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import Role
+from filament_tracker.mail.address import clean_address
 
 MIN_PASSWORD = 12
 MAX_PASSWORD = 256
@@ -44,6 +45,14 @@ def normalize_username(username: str) -> str:
 def check_password_rules(password: str) -> None:
     if not MIN_PASSWORD <= len(password) <= MAX_PASSWORD:
         raise AccountError(f"passwords must be {MIN_PASSWORD} to {MAX_PASSWORD} characters")
+
+
+def email_address(value: str | None) -> str | None:
+    """A user's email address to store: trimmed, or None to clear it."""
+    try:
+        return clean_address(value)
+    except ValueError as exc:
+        raise AccountError(str(exc)) from None
 
 
 def hash_password(password: str) -> str:

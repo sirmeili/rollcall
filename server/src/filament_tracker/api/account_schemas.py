@@ -13,6 +13,8 @@ from filament_tracker.services.accounts import MAX_PASSWORD
 # so they give one clear message.
 Username = Annotated[str, StringConstraints(min_length=1, max_length=64)]
 Password = Annotated[str, StringConstraints(min_length=1, max_length=MAX_PASSWORD)]
+# Checked by mail/address.py; this limit only stops absurd input. Empty clears it.
+EmailText = Annotated[str, StringConstraints(max_length=1024)]
 
 
 class LoginRequest(Strict):
@@ -31,6 +33,8 @@ class UserBase(BaseModel):
     role: Role
     # May submit print requests, alongside the role (ADR-0017).
     requester: bool
+    # Optional and never verified.
+    email: str | None
 
 
 class Me(UserBase):
@@ -38,6 +42,11 @@ class Me(UserBase):
     time_zone: str
     # Has made a print request, so keeps the Requests page even when no longer a Requester.
     has_requests: bool
+    # The Account switches: emails about one's own requests, and (Admins) about new ones.
+    email_on_request_change: bool
+    email_on_new_request: bool
+    # Whether this server can send email at all (an SMTP host is saved).
+    email_set_up: bool
 
 
 class UserOut(UserBase):
@@ -58,3 +67,14 @@ class UserUpdate(Strict):
     requester: bool | None = None
     disabled: bool | None = None
     password: Password | None = None
+    # An empty value (or null) clears it; left out, it stays as it is.
+    email: EmailText | None = None
+
+
+class AccountUpdate(Strict):
+    """What a user changes on their own Account page. Each field left out stays as it is."""
+
+    # An empty value (or null) clears it.
+    email: EmailText | None = None
+    email_on_request_change: bool | None = None
+    email_on_new_request: bool | None = None

@@ -17,8 +17,12 @@ export function me(role: Me["role"], overrides: Partial<Me> = {}): Me {
     username: "frank",
     role,
     requester: false,
+    email: null,
     has_requests: false,
     time_zone: "UTC",
+    email_on_request_change: true,
+    email_on_new_request: true,
+    email_set_up: true,
     ...overrides,
   };
 }

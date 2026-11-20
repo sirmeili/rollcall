@@ -1,15 +1,22 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import { ApiError } from "#lib/api/client.ts";
   import { describeError } from "#lib/api/errors.ts";
   import {
     changePriority,
     fileUrl,
     getRequest,
+    type Move,
+    moveRequest,
     type Priority,
     type PrintRequest,
+    problemsOf,
   } from "#lib/api/requests.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import ChoiceList from "#lib/components/requests/ChoiceList.svelte";
+  import MoveButtons from "#lib/components/requests/MoveButtons.svelte";
+  import MoveDialog from "#lib/components/requests/MoveDialog.svelte";
+  import RequestPhotos from "#lib/components/requests/RequestPhotos.svelte";
   import PriorityChip from "#lib/components/requests/PriorityChip.svelte";
   import PriorityControl from "#lib/components/requests/PriorityControl.svelte";
   import RequestHistory from "#lib/components/requests/RequestHistory.svelte";
@@ -17,6 +24,7 @@
   import { calendarDay, shortDate } from "#lib/format.ts";
   import { whyNoEdit } from "#lib/requests/access.ts";
   import { neededByDate, relativeDay, relativeTime, sizeText } from "#lib/requests/labels.ts";
+  import { uploadPhotos } from "#lib/requests/photos.ts";
   import "#lib/requests/requests.css";
 
   const id = $derived(Number(page.params.id));
@@ -24,18 +32,82 @@
   let request = $state<PrintRequest | null>(null);
   let failure = $state<string | null>(null);
 
-  $effect(() => {
-    request = null;
-    failure = null;
-    if (!Number.isInteger(id) || id <= 0) {
-      failure = "Not found. It may have been removed.";
-      return;
-    }
+  // The move being confirmed, and how it went.
+  let moving = $state<Move | null>(null);
+  let busy = $state(false);
+  let moveProblem = $state<string | null>(null);
+  let moveFailure = $state<string | null>(null);
+  let photoProblem = $state<string | null>(null);
+  // Said when someone else moved the request first.
+  let changed = $state<string | null>(null);
+
+  function load(): void {
     getRequest(id).then(
       (found) => (request = found),
       (error) => (failure = describeError(error)),
     );
+  }
+
+  $effect(() => {
+    request = null;
+    failure = null;
+    changed = null;
+    if (!Number.isInteger(id) || id <= 0) {
+      failure = "Not found. It may have been removed.";
+      return;
+    }
+    load();
   });
+
+  function pick(move: Move): void {
+    moving = move;
+    moveProblem = null;
+    moveFailure = null;
+    photoProblem = null;
+  }
+
+  /** Upload the photos chosen in the dialog; their upload IDs, or null if one was refused. */
+  async function uploaded(photos: File[]): Promise<string[] | null> {
+    try {
+      return await uploadPhotos(photos);
+    } catch (error) {
+      photoProblem = (error as Error).message;
+      return null;
+    }
+  }
+
+  async function confirmMove(
+    shown: PrintRequest,
+    move: Move,
+    note: string,
+    photos: File[],
+  ): Promise<void> {
+    busy = true;
+    moveProblem = null;
+    moveFailure = null;
+    photoProblem = null;
+    try {
+      const photoIds = await uploaded(photos);
+      if (photoIds === null) return;
+      request = await moveRequest(id, shown.status, move.to_status, note, photoIds);
+      moving = null;
+      changed = null;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        // Someone else moved it first: say so, and show it as it is now.
+        moving = null;
+        changed = describeError(error);
+        load();
+      } else {
+        const problems = problemsOf(error);
+        if (problems?.note) moveProblem = problems.note;
+        else if (problems?.photos) photoProblem = problems.photos;
+        else moveFailure = describeError(error);
+      }
+    } finally {
+      busy = false;
+    }
+  }
 
   async function setPriority(priority: Priority): Promise<void> {
     try {
@@ -64,6 +136,8 @@
     Requests
   </a>
 
+  {#if changed}<p role="alert" class="error">{changed}</p>{/if}
+
   {#if failure}
     <p role="alert" class="error">{failure}</p>
   {:else if !request}
@@ -77,6 +151,9 @@
           <StatusChip status={request.status} />
           <PriorityChip priority={request.priority} />
         </div>
+        {#if request.attempt >= 2}
+          <p class="attempt">Attempt {request.attempt}</p>
+        {/if}
         <p class="byline">
           Requested by {request.requester.username} · submitted {relativeTime(request.created_at)}
         </p>
@@ -84,21 +161,40 @@
           <p class="noedit">{whyNoEdit(session.user, request)}</p>
         {/if}
       </div>
-      {#if request.can_edit}
-        <a class="button" href="/requests/{request.id}/edit">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            aria-hidden="true"
-            ><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg
-          >Edit
-        </a>
-      {/if}
+      <div class="acts">
+        <MoveButtons status={request.status} moves={request.moves} {busy} onpick={pick} />
+        {#if request.can_edit}
+          <a class="button" href="/requests/{request.id}/edit">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              aria-hidden="true"
+              ><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg
+            >Edit
+          </a>
+        {/if}
+      </div>
     </div>
+
+    {#if moving}
+      {@const shown = request}
+      {@const move = moving}
+      <MoveDialog
+        status={shown.status}
+        {move}
+        mine={session.user?.id === request.requester.id}
+        {busy}
+        problem={moveProblem}
+        failure={moveFailure}
+        {photoProblem}
+        onconfirm={(note, photos) => confirmMove(shown, move, note, photos)}
+        onclose={() => (moving = null)}
+      />
+    {/if}
 
     <div class="grid">
       <div class="col">
@@ -170,6 +266,10 @@
           {/if}
         </section>
 
+        {#if request.photos.length || request.can_change_photos}
+          <RequestPhotos {request} onchange={(changed) => (request = changed)} />
+        {/if}
+
         <section class="card sect" aria-labelledby="h-fil">
           <h2 id="h-fil">Filament</h2>
           <ChoiceList choices={request.choices} storeAddress={request.store_address} />
@@ -234,6 +334,12 @@
     gap: 16px;
   }
 
+  .acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   h1 {
     margin: 0;
     overflow-wrap: anywhere;
@@ -245,6 +351,12 @@
     align-items: center;
     gap: 8px;
     margin-top: 10px;
+  }
+
+  .attempt {
+    margin: 6px 0 0;
+    font-size: 14px;
+    font-weight: 600;
   }
 
   .byline {

@@ -2,17 +2,21 @@
 
 The Requests pages are for Editors and Admins (every request), Requesters, and anyone who
 has made a request (their own). Submitting and editing need Requester; changing priority
-needs Editor. Another user's request answers 404, so its existence isn't revealed.
+needs Editor; moving a request is for the people the pipeline names. Another user's request
+answers 404, so its existence isn't revealed.
 """
 
+from collections.abc import Callable
 from datetime import date, datetime
 from typing import Annotated
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
+from filament_tracker.api.deps import mail_sender
 from filament_tracker.api.request_schemas import (
+    MoveIn,
     PriorityIn,
     RequestEdit,
     RequestIn,
@@ -20,20 +24,24 @@ from filament_tracker.api.request_schemas import (
     RequestRowOut,
     SubmittedCountOut,
 )
-from filament_tracker.api.request_views import model_files, request_out, row_out
+from filament_tracker.api.request_views import model_files, request_out, row_out, stored_photos
 from filament_tracker.auth import AnyPrincipal, DbSession, Editor, Principal, forbidden, problems
 from filament_tracker.db.models import User
-from filament_tracker.db.request_models import PrintRequest
+from filament_tracker.db.request_models import PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
-from filament_tracker.print_requests import service
-from filament_tracker.print_requests.access import may_open_requests, may_see
+from filament_tracker.domain.enums import RequestStatus
+from filament_tracker.mail.message import Email
+from filament_tracker.print_requests import emails, photos, pipeline, service
+from filament_tracker.print_requests.access import is_admin, may_open_requests, may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
-from filament_tracker.print_requests.read import visible_requests
+from filament_tracker.print_requests.read import ListFilter, Tab, visible_requests
 from filament_tracker.print_requests.rules import Problems, RequestFields
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
 NO_ACCESS = "requires Requester or the editor role"
+NOT_OPEN = "Filter by open statuses only."
+NO_PHOTOS = "Photos can be added only when moving a request to Done."
 
 
 def requests_user(principal: AnyPrincipal, session: DbSession) -> Principal:
@@ -67,7 +75,16 @@ def requests_person(principal: RequestsCaller) -> Principal:
     return principal
 
 
+def mover(principal: RequestsCaller) -> Principal:
+    """A caller who might move a request: an Admin, or a person who might own one. Which
+    moves they may make is the pipeline's to say."""
+    if principal.user is None and not is_admin(principal):
+        raise forbidden(pipeline.NOT_YOURS_TO_MOVE)
+    return principal
+
+
 RequesterUser = Annotated[User, Depends(requester)]
+MovingCaller = Annotated[Principal, Depends(mover)]
 RequestsPerson = Annotated[Principal, Depends(requests_person)]
 
 
@@ -98,6 +115,19 @@ def _fields(body: RequestIn) -> RequestFields:
     )
 
 
+def _public_url(http: Request) -> str | None:
+    """Where emails link to: PUBLIC_URL only, never this request's Host header."""
+    return http.app.state.settings_store.text("public_url")
+
+
+def send_after_commit(http: Request, build: Callable[[str | None], list[Email]]) -> None:
+    """Build the emails once the change has committed, from the public URL, and hand them to
+    the background sender; nothing is built while email is off."""
+    mail = mail_sender(http)
+    if mail.on:
+        mail.send_later(build(_public_url(http)))
+
+
 def _refused(error: Exception) -> HTTPException:
     if isinstance(error, Problems):
         return problems(error.problems)
@@ -105,10 +135,22 @@ def _refused(error: Exception) -> HTTPException:
 
 
 @router.get("", response_model=list[RequestRowOut])
-def list_requests(caller: RequestsCaller, session: DbSession) -> list[RequestRowOut]:
-    """Every request for Editors and Admins, otherwise the caller's own: most urgent first,
-    then by needed-by date (no date last), then oldest first."""
-    return [row_out(item) for item in visible_requests(session, caller)]
+def list_requests(
+    caller: RequestsCaller,
+    session: DbSession,
+    tab: Tab = Tab.ACTIVE,
+    status_: Annotated[list[RequestStatus] | None, Query(alias="status")] = None,
+    mine: bool = False,
+) -> list[RequestRowOut]:
+    """Every request for Editors and Admins, otherwise the caller's own. The Active tab is
+    most urgent first, then by needed-by date (no date last), then oldest first; the Closed
+    tab is the latest move first. Editors and Admins may keep only some open statuses
+    (`status`, repeated) or only their own requests (`mine`)."""
+    statuses = status_ or []
+    if any(s.closed for s in statuses):
+        raise problems({"status": NOT_OPEN})
+    wanted = ListFilter(tab=tab, statuses=statuses, mine=mine)
+    return [row_out(item) for item in visible_requests(session, caller, wanted)]
 
 
 @router.get("/count", response_model=SubmittedCountOut)
@@ -126,6 +168,9 @@ def submit(
     except (Problems, service.NotAllowed) as error:
         raise _refused(error) from None
     session.commit()
+    send_after_commit(
+        http, lambda public_url: emails.new_request_emails(session, created, public_url)
+    )
     session.refresh(created)
     return request_out(http, session, caller, created)
 
@@ -165,7 +210,51 @@ def change_priority(
     request_id: int, body: PriorityIn, caller: Editor, session: DbSession, http: Request
 ) -> RequestOut:
     found = find_request(session, caller, request_id)
-    service.change_priority(found, caller.user, body.priority, now=utcnow())
+    try:
+        service.change_priority(found, caller.user, body.priority, now=utcnow())
+    except service.NotAllowed as error:
+        raise forbidden(str(error)) from None
     session.commit()
+    session.refresh(found)
+    return request_out(http, session, caller, found)
+
+
+@router.post("/{request_id}/moves", response_model=RequestOut)
+def make_move(
+    request_id: int, body: MoveIn, caller: MovingCaller, session: DbSession, http: Request
+) -> RequestOut:
+    """Move the request to another status, saving any photo uploads with a move that takes
+    them (Done). It answers 409 when the request is no longer in `from_status`, and 403 when
+    the pipeline has no such move for the caller. Nothing is saved when it is refused."""
+    found = find_request(session, caller, request_id)
+    now = utcnow()
+    added: list[RequestPhoto] = []
+    try:
+        moved = pipeline.make_move(
+            found,
+            expected=body.from_status,
+            to_status=body.to_status,
+            movers=movers(caller, found),
+            user=caller.user,
+            note=body.note,
+            now=now,
+        )
+        if body.photo_ids:
+            if not moved.move.photos:
+                raise Problems({photos.PHOTOS: NO_PHOTOS})
+            added = photos.add(session, found, body.photo_ids, caller.user, now)
+    except pipeline.Stale as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
+    except pipeline.NotAMove as error:
+        raise forbidden(str(error)) from None
+    except Problems as error:
+        raise problems(error.problems) from None
+    session.commit()
+    send_after_commit(
+        http,
+        lambda public_url: emails.move_emails(
+            moved, public_url, stored_photos(http).email_copies(added)
+        ),
+    )
     session.refresh(found)
     return request_out(http, session, caller, found)

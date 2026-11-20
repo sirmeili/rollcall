@@ -12,7 +12,17 @@ import {
 import type { SimilarColor } from "#lib/api/catalog.ts";
 
 export type Priority = "urgent" | "normal" | "no_rush";
-export type RequestStatus = "submitted";
+export type RequestStatus =
+  | "submitted"
+  | "approved"
+  | "waiting_on_filament"
+  | "queued"
+  | "printing"
+  | "done"
+  | "picked_up"
+  | "rejected"
+  | "cancelled"
+  | "failed";
 export type ModelKind = "3mf" | "stl";
 /** What a request has for its model; "notes" when only its notes say where it is. */
 export type ModelSource = "file" | "link" | "both" | "notes";
@@ -72,7 +82,8 @@ export interface Choice {
   similar: SimilarColor[];
 }
 
-export type HistoryKind = "submitted" | "edited" | "priority_changed";
+export type HistoryKind =
+  "submitted" | "edited" | "priority_changed" | "status_changed" | "photo_added" | "photo_removed";
 
 export interface HistoryEntry {
   kind: HistoryKind;
@@ -80,9 +91,33 @@ export interface HistoryEntry {
   at: string;
   /** An edit's changed fields. */
   fields: string[] | null;
+  /** A priority change's old and new priority, or a status change's old and new status. */
   from_value: string | null;
   to_value: string | null;
+  /** The note or reason, or the name of a photo added or removed. */
   note: string | null;
+}
+
+/** A move the caller may make now. */
+export interface Move {
+  to_status: RequestStatus;
+  /** Its note is a reason, which may not be left empty. */
+  reason_required: boolean;
+  /** Up to 4 photos of the finished print may be saved with it. */
+  photos: boolean;
+}
+
+/** A photo of the finished print. */
+export interface Photo {
+  id: string;
+  name: string;
+  uploaded_at: string;
+}
+
+/** A photo uploaded and waiting to be saved with a request. */
+export interface PhotoUpload {
+  id: string;
+  name: string;
 }
 
 export interface PrintRequest {
@@ -96,6 +131,8 @@ export interface PrintRequest {
   status: RequestStatus;
   requester: Requester;
   file: ModelFile | null;
+  /** Oldest first. */
+  photos: Photo[];
   choices: Choice[];
   /** Newest first. */
   history: HistoryEntry[];
@@ -103,6 +140,12 @@ export interface PrintRequest {
   updated_at: string;
   can_edit: boolean;
   can_change_priority: boolean;
+  /** Add and remove photos: a signed-in Admin, while the request is Done or Picked Up. */
+  can_change_photos: boolean;
+  /** The moves the caller may make, the main next step first. */
+  moves: Move[];
+  /** Which try at printing it this is: 1, plus 1 for each Reprint. */
+  attempt: number;
   /** The store Find in store searches. */
   store_address: string;
 }
@@ -134,8 +177,27 @@ export interface Upload {
   kind: ModelKind;
 }
 
-export function listRequests(): Promise<RequestRow[]> {
-  return api<RequestRow[]>("/requests");
+/** Active holds every open status; Closed holds Picked Up, Rejected and Cancelled. */
+export type RequestTab = "active" | "closed";
+
+export interface RequestQuery {
+  tab: RequestTab;
+  /** Open statuses to keep; none keeps them all. Only Editors and Admins filter. */
+  statuses: RequestStatus[];
+  /** Only the caller's own requests. */
+  mine: boolean;
+}
+
+/** The query string for `GET /requests`, leaving out filters that are off. */
+export function requestQuery(query: RequestQuery): string {
+  const params = new URLSearchParams({ tab: query.tab });
+  for (const status of query.statuses) params.append("status", status);
+  if (query.mine) params.set("mine", "true");
+  return `?${params.toString()}`;
+}
+
+export function listRequests(query?: RequestQuery, signal?: AbortSignal): Promise<RequestRow[]> {
+  return api<RequestRow[]>(`/requests${query ? requestQuery(query) : ""}`, { signal });
 }
 
 export function getRequest(id: number): Promise<PrintRequest> {
@@ -152,6 +214,39 @@ export function editRequest(id: number, body: RequestEdit): Promise<PrintRequest
 
 export function changePriority(id: number, priority: Priority): Promise<PrintRequest> {
   return api<PrintRequest>(`/requests/${id}/priority`, { method: "POST", body: { priority } });
+}
+
+/** Move a request to another status, with any photo uploads for a move that takes them.
+ * `from` is the status the caller saw it in: if it has moved since, this fails with 409. */
+export function moveRequest(
+  id: number,
+  from: RequestStatus,
+  to: RequestStatus,
+  note: string,
+  photoIds: string[] = [],
+): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/moves`, {
+    method: "POST",
+    body: { from_status: from, to_status: to, note, photo_ids: photoIds },
+  });
+}
+
+/** Save photo uploads with a Done or Picked Up request. */
+export function addPhotos(id: number, photoIds: string[]): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/photos`, {
+    method: "POST",
+    body: { photo_ids: photoIds },
+  });
+}
+
+/** Remove a photo from a Done or Picked Up request. */
+export function removePhoto(id: number, photoId: string): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/photos/${photoId}`, { method: "DELETE" });
+}
+
+/** Where a request's photo is shown from, full size. */
+export function photoUrl(id: number, photoId: string): string {
+  return apiUrl(`/requests/${id}/photos/${photoId}`);
 }
 
 /** Submitted requests, for the Requests link (Editors and Admins). */
@@ -174,34 +269,37 @@ export function problemsOf(error: unknown): Record<string, string> | null {
   return null;
 }
 
-export interface UploadHandle {
-  done: Promise<Upload>;
+export interface UploadHandle<T = Upload> {
+  done: Promise<T>;
   cancel: () => void;
 }
 
-/** Upload a model file as the request body, reporting progress (0 to 100). XMLHttpRequest
- * rather than fetch, because only it reports upload progress. */
-export function uploadModel(
+/** Send a file as the request body to `path`, reporting progress (0 to 100). XMLHttpRequest
+ * rather than fetch, because only it reports upload progress. A refusal's message is the
+ * problem named `field`, if there is one. */
+function sendFile<T>(
+  path: string,
   file: File,
+  field: string,
   onprogress: (percent: number) => void,
-  Xhr: typeof XMLHttpRequest = XMLHttpRequest,
-): UploadHandle {
+  Xhr: typeof XMLHttpRequest,
+): UploadHandle<T> {
   const xhr = new Xhr();
-  const url = apiUrl(`/requests/uploads?name=${encodeURIComponent(file.name)}`);
-  const done = new Promise<Upload>((resolve, reject) => {
+  const url = apiUrl(`${path}?name=${encodeURIComponent(file.name)}`);
+  const done = new Promise<T>((resolve, reject) => {
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) onprogress(Math.round((event.loaded / event.total) * 100));
     };
     xhr.onload = () => {
       const body = parseAnswer(xhr.responseText);
-      if (xhr.status >= 200 && xhr.status < 300) return resolve(body as Upload);
+      if (xhr.status >= 200 && xhr.status < 300) return resolve(body as T);
       const detail =
         body && typeof body === "object" ? (body as { detail?: unknown }).detail : undefined;
       const problems =
         detail && typeof detail === "object" && "problems" in detail
           ? (detail as { problems: Record<string, string> }).problems
           : null;
-      const message = problems?.file ?? errorMessage(body, `Upload failed (${xhr.status})`);
+      const message = problems?.[field] ?? errorMessage(body, `Upload failed (${xhr.status})`);
       reject(new ApiError(xhr.status, message, detail));
     };
     xhr.onerror = () => reject(new ApiError(0, "The connection dropped"));
@@ -218,4 +316,22 @@ export function uploadModel(
   for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value);
   xhr.send(file);
   return { done, cancel: () => xhr.abort() };
+}
+
+/** Upload a model file as the request body, reporting progress (0 to 100). */
+export function uploadModel(
+  file: File,
+  onprogress: (percent: number) => void,
+  Xhr: typeof XMLHttpRequest = XMLHttpRequest,
+): UploadHandle {
+  return sendFile<Upload>("/requests/uploads", file, "file", onprogress, Xhr);
+}
+
+/** Upload a photo of the finished print (an Admin), to save with the Done move or with a
+ * Done or Picked Up request. */
+export function uploadPhoto(
+  file: File,
+  Xhr: typeof XMLHttpRequest = XMLHttpRequest,
+): Promise<PhotoUpload> {
+  return sendFile<PhotoUpload>("/requests/photo-uploads", file, "photo", () => {}, Xhr).done;
 }

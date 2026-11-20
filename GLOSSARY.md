@@ -220,7 +220,7 @@ One filament a print request asks for: an in-stock product or a catalog color, w
 How soon a print request is wanted: Urgent, Normal or No rush.
 
 **Request history**:
-The record of what happened to a print request: submitted, edited, priority or status changed, by whom and when. It is never edited.
+The record of what happened to a print request: submitted, edited, priority or status changed, photo added or removed, by whom and when. It is never edited.
 _Avoid_: Event (that word is for a spool's event log)
 
 **Requests**:
@@ -241,6 +241,10 @@ Decline a Submitted print request, with a reason.
 **Reprint**:
 Send a Failed print request back to Queued for another attempt. It stays the same request.
 _Avoid_: Retry, resubmit
+
+**Photo**:
+A picture of a finished print, added by an Admin when moving a print request to Done or later while it is Done or Picked Up. A request has up to 4.
+_Avoid_: Image, attachment
 
 **Attempt**:
 One try at printing a print request. A reprint starts the next one.

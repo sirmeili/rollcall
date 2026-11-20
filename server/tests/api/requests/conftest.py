@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from fake_outbox import FakeOutbox
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -28,7 +29,13 @@ def ofdb() -> FakeSource:
 
 
 @pytest.fixture
-def app(db_url: str, ofdb: FakeSource) -> FastAPI:
+def outbox() -> FakeOutbox:
+    """Where the server's emails go instead of a mail server."""
+    return FakeOutbox()
+
+
+@pytest.fixture
+def app(db_url: str, ofdb: FakeSource, outbox: FakeOutbox) -> FastAPI:
     settings = Settings(database_url=db_url, admin_token=ADMIN_TOKEN, _env_file=None)
     bambustudio = FakeSource(ok(body(color_codes()), etag=BAMBUSTUDIO_ETAG))
 
@@ -36,7 +43,7 @@ def app(db_url: str, ofdb: FakeSource) -> FastAPI:
         source = bambustudio if request.url.host == "raw.githubusercontent.com" else ofdb
         return source.handle(request)
 
-    return create_app(settings, catalog_transport=httpx.MockTransport(route))
+    return create_app(settings, catalog_transport=httpx.MockTransport(route), mail_transport=outbox)
 
 
 @pytest.fixture
