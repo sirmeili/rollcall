@@ -139,8 +139,9 @@ class Moved:
     then: RequestStatus | None = None
 
 
-# A Reprint's moves, wherever it lands.
-REPRINTS = {(S.FAILED.value, S.QUEUED.value), (S.FAILED.value, S.WAITING_ON_FILAMENT.value)}
+# Reprint: the move offered out of Failed, to Queued. Its moves, wherever it lands.
+REPRINT = (S.FAILED, S.QUEUED)
+REPRINTS = {REPRINT, (S.FAILED, S.WAITING_ON_FILAMENT)}
 
 
 def attempt(request: PrintRequest) -> int:

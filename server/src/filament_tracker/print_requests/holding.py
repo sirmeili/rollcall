@@ -68,9 +68,6 @@ RELEASES = {
     RequestStatus.CANCELLED: ReleaseReason.CANCELLED,
 }
 
-# The move offered as Reprint.
-REPRINT = (RequestStatus.FAILED, RequestStatus.QUEUED)
-
 # Where a request's choices are held and may be short.
 HOLDING = (RequestStatus.APPROVED, RequestStatus.WAITING_ON_FILAMENT, RequestStatus.QUEUED)
 
@@ -178,8 +175,9 @@ def reprint(
 ) -> Moved:
     """Reprint a Failed request with grams per choice ID, hold them, and land on Queued when
     covered or on Waiting on Filament when not. Refused as `approve` is."""
+    from_status, to_status = pipeline.REPRINT
     rule, cleaned = pipeline.check_move(
-        request, expected=REPRINT[0], to_status=REPRINT[1], movers=movers, note=note
+        request, expected=from_status, to_status=to_status, movers=movers, note=note
     )
     if not _hold(session, request, grams, now):
         rule = pipeline.landing(rule, RequestStatus.WAITING_ON_FILAMENT)
@@ -212,7 +210,7 @@ def make_move(
             note=note,
             now=now,
         )
-    if (expected, to_status) == REPRINT:
+    if (expected, to_status) == pipeline.REPRINT:
         return reprint(session, request, grams=grams, movers=movers, user=user, note=note, now=now)
     moved = pipeline.make_move(
         request,
