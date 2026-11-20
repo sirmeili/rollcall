@@ -289,6 +289,23 @@ describe("Changing holds", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("keeps Tab inside the editor", async () => {
+    signIn(FRANK);
+    api.getRequest.mockResolvedValue(queued());
+    render(DetailPage);
+
+    const dialog = await openEditor();
+    const grams = within(dialog).getByLabelText("Grams for the whole quantity");
+    const close = within(dialog).getByRole("button", { name: "Close" });
+    expect(grams).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(close).toHaveFocus();
+    await userEvent.tab();
+    expect(grams).toHaveFocus();
+    await userEvent.tab();
+    expect(within(dialog).getByRole("button", { name: "Hold again" })).toHaveFocus();
+  });
+
   it("closes once the request no longer holds filament", async () => {
     signIn(FRANK);
     api.getRequest.mockResolvedValue(queued());

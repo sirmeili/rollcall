@@ -7,6 +7,7 @@
   import { untrack } from "svelte";
   import type { Choice, Move, RequestStatus } from "#lib/api/requests.ts";
   import PhotoInput from "#lib/components/requests/PhotoInput.svelte";
+  import { keepTabInside } from "#lib/focus-trap.ts";
   import { isReprint, moveWords, NOTE_MAX } from "#lib/requests/labels.ts";
   import { MAX_PHOTOS, pickPhotos } from "#lib/requests/photos.ts";
 
@@ -93,19 +94,7 @@
       onclose();
       return;
     }
-    if (event.key !== "Tab") return;
-    const all = [
-      ...box.querySelectorAll<HTMLElement>("input:not(:disabled), textarea, button:not(:disabled)"),
-    ];
-    const first = all[0];
-    const last = all[all.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
+    keepTabInside(box, event);
   }
 
   function submit(event: SubmitEvent): void {

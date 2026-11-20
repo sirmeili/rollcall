@@ -2,7 +2,8 @@
   /** The holds editor for one filament choice, in the frame of the other dialogs (MoveDialog):
    * new grams for the choice, which holds them again; each hold's spool and grams, or its
    * removal; and a hold on any Sealed or Open spool, of another product too. Each change is
-   * made straight away through `onchange`; Close, Escape or the dimmed page close it. */
+   * made straight away through `onchange`; Close, Escape or the dimmed page close it, and
+   * Tab stays inside it. */
   import { untrack } from "svelte";
   import {
     addHold,
@@ -15,6 +16,7 @@
   import { listSpools } from "#lib/api/stock.ts";
   import type { SpoolRow } from "#lib/api/types.ts";
   import HoldRow from "#lib/components/requests/HoldRow.svelte";
+  import { keepTabInside } from "#lib/focus-trap.ts";
   import { spoolText } from "#lib/requests/labels.ts";
 
   interface Props {
@@ -49,11 +51,14 @@
     box.querySelector<HTMLElement>("input")?.focus();
   });
 
+  /** Escape closes; Tab stays inside the dialog. */
   function keydown(event: KeyboardEvent): void {
     if (event.key === "Escape") {
       event.preventDefault();
       onclose();
+      return;
     }
+    keepTabInside(box, event);
   }
 
   function holdAgain(event: SubmitEvent): void {
