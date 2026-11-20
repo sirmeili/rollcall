@@ -12,7 +12,9 @@ automatic link; names are never compared.
 
 A manual link is never replaced automatically, except to follow an OFDB merge (`moved_from`).
 One whose color has left the catalog is kept, and reads as no longer in the catalog. Only
-link columns are written here: never other product fields, spools, tags or events.
+link columns are written here: never other product fields, spools, tags or events. Working
+out or setting links is a stock change (ADR-0020): what a catalog color choice is held on
+may move.
 """
 
 from collections import defaultdict
@@ -29,6 +31,7 @@ from filament_tracker.db.catalog_models import (
     CatalogVariant,
 )
 from filament_tracker.db.models import Product, User
+from filament_tracker.services import stock_changes
 
 TAG = "tag"
 HAND = "hand"
@@ -124,15 +127,23 @@ def _automatic(
     return colors[0] if len(colors) == 1 else None
 
 
+def _relinked(session: Session) -> None:
+    """Links were worked out or set: drop the loaded index, and note a stock change."""
+    forget_index(session)
+    stock_changes.changed(session)
+
+
 def link_product(session: Session, product: Product) -> None:
     """Work out one product's automatic link, when a scan creates or fills it in."""
     product.catalog_auto_uuid = _automatic(product, _tag_codes(session), load_index(session))
-    forget_index(session)
+    _relinked(session)
 
 
 def update_links(session: Session) -> None:
     """After a sync: work out every automatic link, move manual links along OFDB's merges,
-    and note each manual link's line and color name while it is in the catalog."""
+    and note each manual link's line and color name while it is in the catalog. A sync can
+    change any product's effective link, even one whose stored link stays (its color left the
+    catalog), so it is always a stock change."""
     index = load_index(session)
     tag_codes = _tag_codes(session)
     for product in session.scalars(select(Product)):
@@ -145,7 +156,7 @@ def update_links(session: Session) -> None:
         color = index.colors.get(manual)
         if color is not None:
             product.catalog_manual_line, product.catalog_manual_name = color.line, color.name
-    forget_index(session)
+    _relinked(session)
 
 
 # --- Manual links ------------------------------------------------------------------------
@@ -201,7 +212,7 @@ def set_manual(
         product.catalog_manual_by = user_id
         product.catalog_manual_at = now
         product.catalog_manual_line, product.catalog_manual_name = color.line, color.name
-    forget_index(session)
+    _relinked(session)
 
 
 # --- Reading a link ----------------------------------------------------------------------

@@ -6,6 +6,7 @@
   (received and opened in one step); opening a received spool keeps it. A spool the AMS sees
   first takes it from the remaining % only, and stays unknown without one. It is net weight
   x remaining % whenever the AMS writes a new remaining %. An Admin can set either by hand.
+- A hand edit or a new figure from the AMS is a stock change (ADR-0020).
 
 Callers own the transaction: nothing here commits.
 """
@@ -13,11 +14,12 @@ Callers own the transaction: nothing here commits.
 from collections.abc import Iterable
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from filament_tracker.db.catalog_models import CatalogSize
 from filament_tracker.db.models import Product, Spool, Tag
 from filament_tracker.domain.enums import SpoolState
+from filament_tracker.services import stock_changes
 
 FALLBACK_NET_WEIGHT_G = 1000
 MAX_NET_WEIGHT_G = 10_000
@@ -74,6 +76,7 @@ def set_by_hand(spool: Spool, net_weight_g: int | None, grams_left_g: int | None
     if not problems:
         spool.net_weight_g = net_weight_g
         spool.grams_left_g = grams_left_g
+        _changed(spool)
     return problems
 
 
@@ -86,3 +89,10 @@ def from_remaining_pct(spool: Spool) -> None:
     """The AMS wrote a new remaining %: grams left follows it, over any hand figure."""
     if spool.net_weight_g is not None and spool.remaining_pct is not None:
         spool.grams_left_g = round(spool.net_weight_g * spool.remaining_pct / 100)
+        _changed(spool)
+
+
+def _changed(spool: Spool) -> None:
+    session = object_session(spool)
+    if session is not None:
+        stock_changes.changed(session)

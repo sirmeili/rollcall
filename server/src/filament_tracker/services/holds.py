@@ -8,10 +8,12 @@ This is the one place holds are placed and read. A holder is named only by its t
   left is unknown and nothing is held.
 - Placing holds for a product takes Open spools with known grams first, least grams left
   first, then Sealed ones, least first. It splits across spools and keeps a partial cover.
+  More for a spool the holder already holds is added to that hold: one hold per spool.
 - A holder's shortfall is its target less its active held grams, where its grams on a spool
   count only up to that spool's grams left.
 - Releasing a holder's holds keeps them, with when and why they were released; their grams
-  are then available again.
+  are then available again. A spool that becomes Empty or Unknown has its holds released as
+  `spool_gone`. A release is a stock change (ADR-0020).
 
 Callers own the transaction: nothing here commits.
 """
@@ -25,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Spool, SpoolHold
 from filament_tracker.domain.enums import ReleaseReason, SpoolState
+from filament_tracker.services import stock_changes
 
 IN_STOCK = (SpoolState.SEALED, SpoolState.OPEN)
 
@@ -97,20 +100,24 @@ def place(
         if (available := _available(spool, held.get(spool.id, 0)))
     ]
     candidates.sort(key=lambda c: (c[0].state is not SpoolState.OPEN, c[0].grams_left_g, c[0].id))
+    own = {hold.spool_id: hold for hold in active_holds(session, holder)}
     wanted = grams
     for spool, available in candidates:
         if wanted == 0:
             break
         take = min(available, wanted)
-        session.add(
-            SpoolHold(
-                spool_id=spool.id,
-                grams=take,
-                holder_type=holder.type,
-                holder_id=holder.id,
-                created_at=now,
+        if spool.id in own:
+            own[spool.id].grams += take
+        else:
+            session.add(
+                SpoolHold(
+                    spool_id=spool.id,
+                    grams=take,
+                    holder_type=holder.type,
+                    holder_id=holder.id,
+                    created_at=now,
+                )
             )
-        )
         wanted -= take
     session.flush()
     return Placed(held=grams - wanted, short=wanted)
@@ -130,17 +137,37 @@ def active_holds(session: Session, holder: Holder) -> list[SpoolHold]:
     return list(session.scalars(query))
 
 
+def _release(
+    session: Session, released: list[SpoolHold], reason: ReleaseReason, now: datetime
+) -> list[SpoolHold]:
+    for hold in released:
+        hold.released_at = now
+        hold.release_reason = reason
+    session.flush()
+    if released:
+        stock_changes.changed(session)
+    return released
+
+
 def release(
     session: Session, holder: Holder, reason: ReleaseReason, now: datetime
 ) -> list[SpoolHold]:
     """Release the holder's active holds, keeping them with the time and reason; the holds
     released, oldest first."""
-    released = active_holds(session, holder)
-    for hold in released:
-        hold.released_at = now
-        hold.release_reason = reason
-    session.flush()
-    return released
+    return _release(session, active_holds(session, holder), reason, now)
+
+
+def release_gone(session: Session, spool: Spool, now: datetime) -> list[SpoolHold]:
+    """Release the active holds on a spool that is no longer Sealed or Open, as `spool_gone`;
+    the holds released, oldest first."""
+    if spool.state in IN_STOCK:
+        return []
+    query = (
+        select(SpoolHold)
+        .where(SpoolHold.spool_id == spool.id, SpoolHold.released_at.is_(None))
+        .order_by(SpoolHold.id)
+    )
+    return _release(session, list(session.scalars(query)), ReleaseReason.SPOOL_GONE, now)
 
 
 def shortfall(session: Session, holder: Holder, target: int) -> int:

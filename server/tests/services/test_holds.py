@@ -115,6 +115,20 @@ def test_a_second_holder_sees_only_what_the_first_left(session: Session, black: 
     assert holds.spool_available(session, sealed) == 700
 
 
+def test_holding_more_on_a_spool_the_holder_already_holds_adds_to_that_hold(
+    session: Session, black: Product
+) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 300)
+    holds.place(session, FIRST, black.id, 500, NOW)
+    # An Admin finds more on the spool than was thought.
+    opened.grams_left_g = 800
+    session.flush()
+
+    assert holds.place(session, FIRST, black.id, 200, LATER) == holds.Placed(held=200, short=0)
+    assert held(session, FIRST) == [(opened.id, 500)]
+    assert holds.shortfall(session, FIRST, 500) == 0
+
+
 def test_available_grams_are_grams_left_less_active_holds(session: Session, black: Product) -> None:
     opened = spool(session, black, SpoolState.OPEN, 600)
     sealed = spool(session, black, SpoolState.SEALED, 1000)

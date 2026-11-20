@@ -1,7 +1,9 @@
 """The event log: append actions, undo them, and keep each spool's row in sync.
 
 Events are never edited, apart from `reverted_by`, which an undo sets on the event it
-undoes. After every write the spool's state and dates are rebuilt from its events.
+undoes. After every write the spool's state and dates are rebuilt from its events, a spool
+that became Empty or Unknown has its holds released, and the write is a stock change
+(ADR-0020).
 Callers own the transaction: these functions flush but do not commit.
 """
 
@@ -23,7 +25,7 @@ from filament_tracker.domain.state import (
     Step,
     replay,
 )
-from filament_tracker.services import grams
+from filament_tracker.services import grams, holds, stock_changes
 
 
 class RevertError(ValueError):
@@ -104,6 +106,7 @@ def append_event(
     ):
         grams.received(spool)
     session.flush()
+    _changed(session, spool)
     return AppendResult(event, step)
 
 
@@ -140,7 +143,13 @@ def revert_event(
     target.reverted_by = revert.id
     reproject(spool)
     session.flush()
+    _changed(session, spool)
     return revert
+
+
+def _changed(session: Session, spool: Spool) -> None:
+    holds.release_gone(session, spool, utcnow())
+    stock_changes.changed(session)
 
 
 def _next_recorded_at(spool: Spool) -> datetime:
