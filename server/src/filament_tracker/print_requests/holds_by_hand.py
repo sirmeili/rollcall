@@ -61,7 +61,7 @@ def _changed(session: Session, request: PrintRequest, user: User, now: datetime)
     request.updated_at = now
     retrying.changed_by_hand(session, request)
     session.flush()
-    retrying.retry_one(session, request, now, top_up=False)
+    retrying.check(session, request, now)
     session.flush()
 
 

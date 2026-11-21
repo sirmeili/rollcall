@@ -36,19 +36,41 @@ def changed_by_hand(session: Session, request: PrintRequest) -> None:
     session.info.setdefault(_CHANGED_BY_HAND, set()).add(request.id)
 
 
-def _hold_more(
-    session: Session, wanted: dict[FilamentChoice, int], now: datetime, *, top_up: bool = True
-) -> bool:
-    """Hold more for each short choice, toward its grams (only check them, without
-    `top_up`); whether every choice is covered."""
+def _wanted(request: PrintRequest) -> dict[FilamentChoice, int] | None:
+    """Each choice's grams, for a request waiting for filament whose choices all have grams;
+    else None (approved before grams were asked, or not waiting)."""
+    if request.status not in WAITING:
+        return None
+    wanted = {c: c.grams for c in request.choices if c.grams is not None}
+    return wanted if len(wanted) == len(request.choices) else None
+
+
+def _covered(session: Session, wanted: dict[FilamentChoice, int]) -> bool:
+    return all(holds.shortfall(session, holder(c), grams) == 0 for c, grams in wanted.items())
+
+
+def _hold_more(session: Session, wanted: dict[FilamentChoice, int], now: datetime) -> bool:
+    """Hold more for each short choice, toward its grams; whether every choice is covered."""
     covered = True
     for choice, grams in wanted.items():
         short = holds.shortfall(session, holder(choice), grams)
-        if short and top_up:
+        if short:
             found = product_id(session, choice)
             short = holds.place(session, holder(choice), found, short, now).short
         covered = covered and short == 0
     return covered
+
+
+def _queue(request: PrintRequest, now: datetime) -> None:
+    pipeline.make_move(
+        request,
+        expected=request.status,
+        to_status=RequestStatus.QUEUED,
+        movers={Mover.AUTOMATIC},
+        user=None,
+        note="",
+        now=now,
+    )
 
 
 def retry(session: Session) -> None:
@@ -60,27 +82,24 @@ def retry(session: Session) -> None:
     by_hand: set[int] = session.info.pop(_CHANGED_BY_HAND, set())
     waiting = session.scalars(select(PrintRequest).where(PrintRequest.status.in_(WAITING)))
     for request in sorted(waiting, key=sort_key):
-        retry_one(session, request, now, top_up=request.id not in by_hand)
+        if request.id in by_hand:
+            check(session, request, now)
+        else:
+            _retry_one(session, request, now)
     session.flush()
 
 
-def retry_one(
-    session: Session, request: PrintRequest, now: datetime, *, top_up: bool = True
-) -> None:
-    """Hold more for a request waiting for filament (unless not `top_up`), and queue it once
-    every choice is covered; nothing for any other request."""
-    if request.status not in WAITING:
-        return
-    wanted = {c: c.grams for c in request.choices if c.grams is not None}
-    if len(wanted) < len(request.choices):
-        return
-    if _hold_more(session, wanted, now, top_up=top_up):
-        pipeline.make_move(
-            request,
-            expected=request.status,
-            to_status=RequestStatus.QUEUED,
-            movers={Mover.AUTOMATIC},
-            user=None,
-            note="",
-            now=now,
-        )
+def _retry_one(session: Session, request: PrintRequest, now: datetime) -> None:
+    """Hold more for a request waiting for filament, and queue it once every choice is
+    covered."""
+    wanted = _wanted(request)
+    if wanted is not None and _hold_more(session, wanted, now):
+        _queue(request, now)
+
+
+def check(session: Session, request: PrintRequest, now: datetime) -> None:
+    """Queue a request waiting for filament once every choice is covered, without holding
+    more for it; nothing for any other request."""
+    wanted = _wanted(request)
+    if wanted is not None and _covered(session, wanted):
+        _queue(request, now)
