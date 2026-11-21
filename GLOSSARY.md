@@ -108,6 +108,10 @@ A product not yet identified from a tag, added by hand or first seen by the AMS.
 **Placeholder**:
 A spool with no tray UID, added by hand. The first scan of its product, if any, links it.
 
+**Location**:
+Where a spool is kept, written by hand, such as Shelf B or Dry box 2. Moving spools sets their location. While a spool is loaded in an AMS, its slot is shown as its location; the written one is kept and shows again when the spool leaves the AMS.
+_Avoid_: Storage, place
+
 **Low stock**:
 A product whose count of Sealed spools is at or below its threshold. A threshold of 0 turns it off.
 _Avoid_: Low filament (Home Assistant's name for it)
