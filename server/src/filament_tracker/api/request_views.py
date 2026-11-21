@@ -19,6 +19,7 @@ from filament_tracker.api.request_schemas import (
 from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import Principal
 from filament_tracker.db.request_models import FilamentChoice, PrintRequest
+from filament_tracker.domain.enums import RequestStatus
 from filament_tracker.print_requests import holding
 from filament_tracker.print_requests.access import (
     may_change_holds,
@@ -92,6 +93,13 @@ def _holds_out(session: Session, choice: FilamentChoice) -> list[HoldOut]:
     ]
 
 
+def _held(item: PrintRequest, short: int | None, staff: bool) -> bool | None:
+    """Whether the choice is held in full; anyone but staff sees a Queued request as held."""
+    if short is None:
+        return None
+    return short == 0 or (not staff and item.status is RequestStatus.QUEUED)
+
+
 def request_out(
     http: Request, session: Session, principal: Principal, item: PrintRequest
 ) -> RequestOut:
@@ -120,7 +128,7 @@ def request_out(
                 in_catalog=shown.in_catalog,
                 multi_color=shown.multi_color,
                 similar=[SimilarOut.model_validate(s, from_attributes=True) for s in shown.similar],
-                held=None if short is None else short == 0,
+                held=_held(item, short, staff),
                 grams=choice.grams if staff else None,
                 short_g=short if staff else None,
                 holds=_holds_out(session, choice) if staff else None,

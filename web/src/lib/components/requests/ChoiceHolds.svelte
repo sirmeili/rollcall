@@ -1,7 +1,8 @@
 <script lang="ts">
   /** A filament choice's grams and holds, once approved. Editors and Admins see its grams,
    * each hold (spool and grams) and what is short; anyone else gets only whether it is held
-   * (`held`) and sees "Held" or "Waiting on filament". Nothing shows before Approve, or once
+   * (`held`) and sees "Held" or "Waiting on filament"; a Queued request always reads as held
+   * to them, since one left short stays Queued. Nothing shows before Approve, or once
    * the request has left the statuses that hold filament. With `onedit` (a signed-in Admin
    * who may change the holds), "Edit holds" opens the holds editor. */
   import type { Choice } from "#lib/api/requests.ts";

@@ -291,6 +291,19 @@ def test_emptying_a_held_spool_leaves_a_queued_request_queued_and_short(
     assert (read["status"], _short(read), _holds(read)) == ("queued", 400, [])
 
 
+def test_a_short_queued_request_shows_the_requester_held_and_staff_what_is_short(
+    client: TestClient, token: str, sam: TestClient, frank: TestClient
+) -> None:
+    tag, _, queued = _queued_on_one_spool(client, token, sam, frank)
+
+    scan(client, token, tag, "empty")
+
+    [mine] = _read(sam, queued["id"])["choices"]
+    [staffs] = _read(frank, queued["id"])["choices"]
+    assert (mine["held"], mine["short_g"]) == (True, None)
+    assert (staffs["held"], staffs["short_g"]) == (False, 400)
+
+
 def test_undoing_a_held_spools_received_leaves_a_queued_request_queued_and_short(
     client: TestClient, token: str, sam: TestClient, frank: TestClient
 ) -> None:

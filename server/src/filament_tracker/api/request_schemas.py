@@ -184,7 +184,8 @@ class ChoiceOut(BaseModel):
     # Similar in-stock colors; empty for a multi-color one.
     similar: list[SimilarOut]
     # Held in full, while the request is Approved, Waiting on Filament or Queued; else None.
-    # The only word on holds a requester gets.
+    # The only word on holds a requester gets, and for them a Queued request is always held:
+    # one left short stays Queued, and only Editors and Admins see what it is short.
     held: bool | None
     # For Editors and Admins only; None for anyone else:
     # the grams for the whole quantity, from Approve (None until then),

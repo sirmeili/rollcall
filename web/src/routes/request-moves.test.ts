@@ -693,6 +693,19 @@ describe("Holds on the filament choices", () => {
     expect(await screen.findByText("Short 550 g")).toBeVisible();
   });
 
+  it("shows the requester a short Queued request as Held, with no shortfall", async () => {
+    signIn(SAM);
+    // A Queued request reads as held to the requester, however short it is.
+    api.getRequest.mockResolvedValue(
+      request({ status: "queued", choices: [blue({ held: true, available_g: null })] }),
+    );
+    render(DetailPage);
+
+    expect(await screen.findByText("Held")).toBeVisible();
+    expect(screen.queryByText("Waiting on filament")).toBeNull();
+    expect(screen.queryByText(/short/i)).toBeNull();
+  });
+
   it("warns of no shortfall when every choice is held", async () => {
     signIn(FRANK);
     api.getRequest.mockResolvedValue(
