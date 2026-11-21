@@ -112,18 +112,18 @@ export function phoneCentre(user: Me, pathname: string, scan: boolean): PhoneCen
 }
 
 /** A tile in the phone menu's first row, above the pages. */
-export interface MenuAction {
+export interface MenuShortcut {
   href: string;
   label: string;
 }
 
 /** The phone menu's first row: Scanner when Scan is available, and Add spool for Editors and
  * above. */
-export function menuActions(user: Me, scan: boolean): MenuAction[] {
-  const actions: MenuAction[] = [];
-  if (scan) actions.push({ href: "/scan", label: "Scanner" });
-  if (allows(user.role, "editor")) actions.push({ href: NEW_SPOOL_PATH, label: "Add spool" });
-  return actions;
+export function menuShortcuts(user: Me, scan: boolean): MenuShortcut[] {
+  const shortcuts: MenuShortcut[] = [];
+  if (scan) shortcuts.push({ href: "/scan", label: "Scanner" });
+  if (allows(user.role, "editor")) shortcuts.push({ href: NEW_SPOOL_PATH, label: "Add spool" });
+  return shortcuts;
 }
 
 /** The pages anyone may open, and the Admin ones, as the phone menu groups them. */

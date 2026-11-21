@@ -282,22 +282,22 @@ describe("the bottom bar", () => {
     render(PhoneNav, { user: me("editor"), pathname: "/review", reviewCount: 0, scan: true });
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
 
-    const actions = screen.getByRole("navigation", { name: "Actions" });
-    const links = within(actions).getAllByRole("link");
+    const shortcuts = screen.getByRole("navigation", { name: "Shortcuts" });
+    const links = within(shortcuts).getAllByRole("link");
     expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["Scanner", "/scan"],
       ["Add spool", "/spools/new"],
     ]);
     // The row comes before the pages.
     const menu = screen.getByRole("dialog", { name: "Menu" });
-    expect(within(menu).getAllByRole("navigation")[0]).toBe(actions);
+    expect(within(menu).getAllByRole("navigation")[0]).toBe(shortcuts);
   });
 
-  it("shows only the actions that apply in the menu, and no row when none do", async () => {
-    const actions = async (user: Me, scan: boolean): Promise<string[]> => {
+  it("shows only the shortcuts that apply in the menu, and no row when none do", async () => {
+    const shortcuts = async (user: Me, scan: boolean): Promise<string[]> => {
       const bar = render(PhoneNav, { user, pathname: "/review", reviewCount: 0, scan });
       await userEvent.click(screen.getByRole("button", { name: "Menu" }));
-      const row = screen.queryByRole("navigation", { name: "Actions" });
+      const row = screen.queryByRole("navigation", { name: "Shortcuts" });
       const labels = row
         ? within(row)
             .getAllByRole("link")
@@ -307,9 +307,9 @@ describe("the bottom bar", () => {
       return labels;
     };
 
-    expect(await actions(VIEWER, true)).toEqual(["Scanner"]);
-    expect(await actions(ADMIN, false)).toEqual(["Add spool"]);
-    expect(await actions(VIEWER, false)).toEqual([]);
+    expect(await shortcuts(VIEWER, true)).toEqual(["Scanner"]);
+    expect(await shortcuts(ADMIN, false)).toEqual(["Add spool"]);
+    expect(await shortcuts(VIEWER, false)).toEqual([]);
   });
 
   it("shows Requests in the menu to a Viewer who is a Requester", async () => {

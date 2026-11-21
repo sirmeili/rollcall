@@ -7,7 +7,7 @@
   import { newUserForm } from "#lib/new-user-form.svelte.ts";
   import {
     ACCOUNT_PATH,
-    menuActions,
+    menuShortcuts,
     menuGroups,
     NEW_REQUEST_PATH,
     NEW_SPOOL_PATH,
@@ -30,7 +30,7 @@
   let open = $state(false);
   let menuButton: HTMLButtonElement;
   const groups = $derived(menuGroups(user));
-  const actions = $derived(menuActions(user, scan));
+  const shortcuts = $derived(menuShortcuts(user, scan));
   const centre = $derived(phoneCentre(user, pathname, scan));
 
   /** Close the menu and give the focus back to the Menu button. */
@@ -62,7 +62,7 @@
 
 {#if open}
   <MenuSheet
-    {actions}
+    {shortcuts}
     main={groups.main}
     admin={groups.admin}
     current={navItemFor(pathname)}
