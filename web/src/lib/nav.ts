@@ -1,5 +1,5 @@
 import type { Me } from "#lib/api/types.ts";
-import { canOpenRequests } from "#lib/requests/access.ts";
+import { canOpenRequests, canSubmit } from "#lib/requests/access.ts";
 import { allows, type Role } from "#lib/roles.ts";
 
 export interface NavItem {
@@ -15,6 +15,9 @@ export interface NavItem {
 /** Reached from the account button in the header rather than the nav links. Any signed-in
  * user may open it. */
 export const ACCOUNT_PATH = "/account";
+
+/** The request form. */
+export const NEW_REQUEST_PATH = "/requests/new";
 
 const WAITING = "waiting";
 
@@ -74,12 +77,28 @@ export function mayOpen(user: Me | null | undefined, pathname: string): boolean 
 const TITLES: Record<string, string> = {
   "/account": "Account",
   "/spools/new": "Add a spool",
-  "/requests/new": "New request",
+  [NEW_REQUEST_PATH]: "New request",
 };
 
 /** The title the phone layout's top bar shows for a path. */
 export function pageTitle(pathname: string): string {
   return TITLES[pathname] ?? navItemFor(pathname)?.label ?? "RollCall";
+}
+
+/** What the phone layout's bottom bar shows in its centre. */
+export type PhoneCentre = "scan" | "new-request" | null;
+
+/** The inventory screens, and their sub-pages: the only pages where Scan shows. */
+const INVENTORY_PAGES: ReadonlySet<string> = new Set(["/", "/spools", "/products", "/catalog"]);
+
+/** The bottom bar's centre for a path: New request on the Requests list and a request for
+ * someone who can submit, Scan on the inventory screens in the Android app, and nothing
+ * anywhere else (the request form's own buttons take the place there). */
+export function phoneCentre(user: Me, pathname: string, app: boolean): PhoneCentre {
+  if (pathname === NEW_REQUEST_PATH) return null;
+  const section = navItemFor(pathname)?.href;
+  if (section === "/requests") return canSubmit(user) ? "new-request" : null;
+  return app && section !== undefined && INVENTORY_PAGES.has(section) ? "scan" : null;
 }
 
 /** The pages anyone may open, and the Admin ones, as the phone menu groups them. */

@@ -92,8 +92,81 @@ describe("the bottom bar", () => {
     expect(within(nav).getByRole("link", { name: "frank" })).toHaveAttribute("href", "/account");
     expect(within(nav).queryByRole("link", { name: "Scan" })).toBeNull();
 
-    await bar.rerender({ scan: true });
+    await bar.rerender({ app: true });
     expect(within(nav).getByRole("link", { name: "Scan" })).toHaveAttribute("href", "/scan");
+  });
+
+  it("offers a Requester New request on the Requests list and a request, never Scan", async () => {
+    const bar = render(PhoneNav, {
+      user: me("viewer", { requester: true }),
+      pathname: "/requests",
+      reviewCount: 0,
+      app: true,
+    });
+    const nav = screen.getByRole("navigation", { name: "App" });
+
+    expect(within(nav).getByRole("link", { name: "New request" })).toHaveAttribute(
+      "href",
+      "/requests/new",
+    );
+    expect(within(nav).queryByRole("link", { name: "Scan" })).toBeNull();
+
+    await bar.rerender({ pathname: "/requests/12" });
+    expect(within(nav).getByRole("link", { name: "New request" })).toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Scan" })).toBeNull();
+  });
+
+  it("has no centre button on the Requests pages for someone who can't submit", async () => {
+    const bar = render(PhoneNav, { user: ADMIN, pathname: "/requests", reviewCount: 0, app: true });
+    const nav = screen.getByRole("navigation", { name: "App" });
+    const centreless = () => {
+      const links = within(nav).getAllByRole("link");
+      expect(links).toHaveLength(1);
+      expect(links[0]).toHaveAccessibleName("frank");
+    };
+
+    centreless();
+    await bar.rerender({ pathname: "/requests/12" });
+    centreless();
+    // Menu and the user keep their places around the empty centre.
+    expect(nav.children).toHaveLength(3);
+  });
+
+  it("shows Scan in the app on the inventory screens and nowhere else", async () => {
+    const bar = render(PhoneNav, { user: ADMIN, pathname: "/", reviewCount: 0, app: true });
+    const nav = screen.getByRole("navigation", { name: "App" });
+    const scan = () => within(nav).queryByRole("link", { name: "Scan" });
+
+    for (const pathname of ["/", "/spools", "/spools/7", "/spools/new", "/products", "/catalog"]) {
+      await bar.rerender({ pathname });
+      expect(scan(), pathname).toHaveAttribute("href", "/scan");
+    }
+    for (const pathname of ["/account", "/activity", "/review", "/users", "/settings"]) {
+      await bar.rerender({ pathname });
+      expect(scan(), pathname).toBeNull();
+      expect(nav.children).toHaveLength(3);
+    }
+  });
+
+  it("never shows Scan outside the app", async () => {
+    const bar = render(PhoneNav, { user: ADMIN, pathname: "/spools", reviewCount: 0 });
+    expect(screen.queryByRole("link", { name: "Scan" })).toBeNull();
+    await bar.rerender({ pathname: "/catalog" });
+    expect(screen.queryByRole("link", { name: "Scan" })).toBeNull();
+  });
+
+  it("has no centre button on the request form, whose own buttons take its place", () => {
+    render(PhoneNav, {
+      user: me("viewer", { requester: true }),
+      pathname: "/requests/new",
+      reviewCount: 0,
+      app: true,
+    });
+    const nav = screen.getByRole("navigation", { name: "App" });
+
+    expect(within(nav).queryByRole("link", { name: "New request" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Scan" })).toBeNull();
+    expect(nav.children).toHaveLength(3);
   });
 
   it("marks the user on Account", () => {
