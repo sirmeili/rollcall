@@ -10,9 +10,8 @@ from email_helpers import email_on, sent
 from fake_outbox import FakeOutbox, html_of, text_of
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from request_helpers import REQUESTS, edit, person, submitted
+from request_helpers import REQUESTS, approve_body, edit, move, person, submitted
 from sqlalchemy.orm import Session
-from test_moves import move
 
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import RequestStatus, Role
@@ -70,7 +69,7 @@ def test_the_requester_is_emailed_when_their_request_is_approved(
     assert message["Subject"] == f"Your print request was approved: {TITLE}"
     link = f"https://rollcall.example.com/requests/{request_id}"
     assert text_of(message) == (
-        f'Your print request "{TITLE}" was approved.\n'
+        f'Your print request "{TITLE}" was approved. It\'s waiting on filament.\n'
         "\n"
         "Note: Next week.\n"
         "\n"
@@ -291,7 +290,7 @@ def test_no_link_without_a_public_url(
 
     response = frank.post(
         f"{REQUESTS}/{request_id}/moves",
-        json={"from_status": "submitted", "to_status": "approved", "note": ""},
+        json=approve_body(frank.get(f"{REQUESTS}/{request_id}").json()),
         headers={**CSRF, "Host": "evil.example.com"},
     )
 
@@ -302,7 +301,9 @@ def test_no_link_without_a_public_url(
         assert "Open the request" not in body
         assert "http" not in body
         assert "evil.example.com" not in body
-    assert text_of(message) == f'Your print request "{TITLE}" was approved.\n\n{FOOTER}\n'
+    assert text_of(message) == (
+        f'Your print request "{TITLE}" was approved. It\'s waiting on filament.\n\n{FOOTER}\n'
+    )
 
 
 def test_the_title_and_note_are_escaped_in_the_html(
@@ -326,7 +327,7 @@ def test_a_failing_transport_never_fails_a_move(
     response = move(frank, request_id, "submitted", "approved")
 
     assert response.status_code == 200, response.text
-    assert response.json()["status"] == "approved"
+    assert response.json()["status"] == "waiting_on_filament"
     deadline = time.monotonic() + 5
     while outbox.attempts == 0:
         assert time.monotonic() < deadline, "the email was never tried"

@@ -48,6 +48,11 @@ export function rangeText(offset: number, shown: number, total: number): string 
   return `Showing ${offset + 1}–${offset + shown} of ${total}`;
 }
 
+/** A grams figure as an estimate: "about 620 g", or "unknown". */
+export function aboutGrams(grams: number | null): string {
+  return grams === null ? "unknown" : `about ${grams} g`;
+}
+
 /** Open, reported by the AMS, and at or below the product's nearly-out %. */
 export function nearlyOut(spool: SpoolRow): boolean {
   return (

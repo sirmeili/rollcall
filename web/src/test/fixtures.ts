@@ -50,6 +50,8 @@ export function summary(overrides: Partial<ProductSummary> = {}): ProductSummary
     counts: { sealed: 1, open: 1, empty: 3, unknown: 0 },
     low_stock: true,
     open_spools: [{ id: 3, remaining_pct: 12, nearly_out: true }],
+    available_g: 1120,
+    available_unknown: false,
     ...overrides,
   };
 }
@@ -62,6 +64,8 @@ export function spoolRow(overrides: Partial<SpoolRow> = {}): SpoolRow {
     placeholder: false,
     location: "Shelf A",
     remaining_pct: 62,
+    net_weight_g: 1000,
+    grams_left_g: 620,
     received_at: "2026-10-12T16:05:00Z",
     opened_at: "2026-10-20T18:41:00Z",
     emptied_at: null,
@@ -114,9 +118,11 @@ export function tag(overrides: Partial<TagOut> = {}): TagOut {
 export function spoolDetail(overrides: Partial<SpoolDetail> = {}): SpoolDetail {
   return {
     ...spoolRow(),
+    held_g: 0,
+    available_g: 620,
+    over_held: false,
+    holding_requests: [],
     notes: "Dried 8 h",
-    spool_weight_g: 1000,
-    grams_left: 620,
     tags: [tag()],
     events: [
       event({ id: "e2", type: "opened", occurred_at: "2026-10-20T18:41:00Z" }),

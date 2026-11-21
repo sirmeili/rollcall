@@ -1,6 +1,13 @@
 /** Words for print requests on the Requests pages. */
 
-import type { HistoryEntry, ModelSource, Priority, RequestStatus } from "#lib/api/requests.ts";
+import type {
+  Choice,
+  HistoryEntry,
+  ModelSource,
+  Priority,
+  RequestStatus,
+} from "#lib/api/requests.ts";
+import type { SpoolRow } from "#lib/api/types.ts";
 import { calendarDay } from "#lib/format.ts";
 
 /** In the order the form offers them. */
@@ -14,6 +21,9 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
 
 /** The longest note or reason a move takes, once trimmed. */
 export const NOTE_MAX = 500;
+
+/** The most grams a filament choice or a hold takes, as the server allows. */
+export const GRAMS_MAX = 100_000;
 
 export const STATUS_LABELS: Record<RequestStatus, string> = {
   submitted: "Submitted",
@@ -64,16 +74,22 @@ const MOVE_WORDS: Partial<Record<RequestStatus, MoveWords>> = {
   },
 };
 
-/** A move from Failed back to Queued: another attempt of the same request. */
+/** A move out of Failed to Queued, or to Waiting on Filament when its filament is short:
+ * another attempt of the same request. */
 const REPRINT: MoveWords = {
   action: "Reprint",
   question: "Reprint this request?",
   done: "Reprinted",
 };
 
+/** Whether a move from one status to another is a Reprint, wherever it lands. */
+export function isReprint(from: RequestStatus | undefined, to: RequestStatus): boolean {
+  return from === "failed" && (to === "queued" || to === "waiting_on_filament");
+}
+
 /** A move's words, by the status it leads to and, for a Reprint, the one it leaves. */
 export function moveWords(to: RequestStatus, from?: RequestStatus): MoveWords {
-  if (from === "failed" && to === "queued") return REPRINT;
+  if (isReprint(from, to)) return REPRINT;
   return (
     MOVE_WORDS[to] ?? {
       action: `Move to ${STATUS_LABELS[to]}`,
@@ -154,19 +170,27 @@ const HISTORY_VERBS: Record<Exclude<HistoryEntry["kind"], "status_changed">, str
   priority_changed: "Priority changed",
   photo_added: "Photo added",
   photo_removed: "Photo removed",
+  holds_changed: "Holds changed",
 };
+
+/** A hold change, as a requester (anyone but Editors and Admins) reads it. */
+const FILAMENT_UPDATED = "Filament updated";
 
 function statusLabel(value: string | null): string {
   return STATUS_LABELS[value as RequestStatus];
 }
 
-/** "Edited by sam", "Approved by frank"; an entry by a token, or a later automatic move,
- * has no one to name. */
-export function historyTitle(entry: HistoryEntry): string {
+/** "Edited by sam", "Approved by frank", "Queued automatically"; an entry by a token has no
+ * one to name. A hold change reads "Holds changed" to `staff` (Editors and Admins) and
+ * "Filament updated" to anyone else. */
+export function historyTitle(entry: HistoryEntry, staff = true): string {
   const verb =
     entry.kind === "status_changed"
       ? moveWords(entry.to_value as RequestStatus, entry.from_value as RequestStatus).done
-      : HISTORY_VERBS[entry.kind];
+      : entry.kind === "holds_changed" && !staff
+        ? FILAMENT_UPDATED
+        : HISTORY_VERBS[entry.kind];
+  if (entry.automatic) return `${verb} automatically`;
   return entry.username ? `${verb} by ${entry.username}` : verb;
 }
 
@@ -198,4 +222,18 @@ export function similarText(names: string[] | null, most = names?.length ?? 0): 
   if (names.length === 0) return "No similar color in stock";
   const more = names.length - most;
   return `Similar in stock: ${names.slice(0, most).join(", ")}${more > 0 ? ` +${more}` : ""}`;
+}
+
+/** A spool to hold, "#12 Black PLA Basic · about 700 g left" or "· grams unknown". */
+export function spoolText(spool: SpoolRow): string {
+  const left = spool.grams_left_g === null ? "grams unknown" : `about ${spool.grams_left_g} g left`;
+  return `#${spool.id} ${spool.product.display_name} · ${left}`;
+}
+
+/** The warning beside a request's status, "Short 550 g": the grams its choices still need
+ * held, in all. Null when nothing is short, or for anyone not shown shortfalls; the server
+ * gives none while a request is Printing. */
+export function shortWarning(choices: Choice[]): string | null {
+  const short = choices.reduce((sum, choice) => sum + (choice.short_g ?? 0), 0);
+  return short > 0 ? `Short ${short} g` : null;
 }

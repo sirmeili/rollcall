@@ -6,6 +6,7 @@
     changePriority,
     fileUrl,
     getRequest,
+    type HoldChange,
     type Move,
     moveRequest,
     type Priority,
@@ -14,6 +15,7 @@
   } from "#lib/api/requests.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import ChoiceList from "#lib/components/requests/ChoiceList.svelte";
+  import HoldsDialog from "#lib/components/requests/HoldsDialog.svelte";
   import MoveButtons from "#lib/components/requests/MoveButtons.svelte";
   import MoveDialog from "#lib/components/requests/MoveDialog.svelte";
   import RequestPhotos from "#lib/components/requests/RequestPhotos.svelte";
@@ -23,13 +25,20 @@
   import StatusChip from "#lib/components/requests/StatusChip.svelte";
   import { calendarDay, shortDate } from "#lib/format.ts";
   import { whyNoEdit } from "#lib/requests/access.ts";
-  import { neededByDate, relativeDay, relativeTime, sizeText } from "#lib/requests/labels.ts";
+  import {
+    neededByDate,
+    relativeDay,
+    relativeTime,
+    shortWarning,
+    sizeText,
+  } from "#lib/requests/labels.ts";
   import { uploadPhotos } from "#lib/requests/photos.ts";
   import "#lib/requests/requests.css";
 
   const id = $derived(Number(page.params.id));
 
   let request = $state<PrintRequest | null>(null);
+  const short = $derived(request ? shortWarning(request.choices) : null);
   let failure = $state<string | null>(null);
 
   // The move being confirmed, and how it went.
@@ -38,8 +47,13 @@
   let moveProblem = $state<string | null>(null);
   let moveFailure = $state<string | null>(null);
   let photoProblem = $state<string | null>(null);
+  let gramsProblems = $state<Record<string, string>>({});
   // Said when someone else moved the request first.
   let changed = $state<string | null>(null);
+  // The choice whose holds are being changed (by ID), and why the last change was refused.
+  let editing = $state<number | null>(null);
+  let holdsFailure = $state<string | null>(null);
+  const editingChoice = $derived(request?.choices.find((choice) => choice.id === editing));
 
   function load(): void {
     getRequest(id).then(
@@ -64,6 +78,7 @@
     moveProblem = null;
     moveFailure = null;
     photoProblem = null;
+    gramsProblems = {};
   }
 
   /** Upload the photos chosen in the dialog; their upload IDs, or null if one was refused. */
@@ -81,15 +96,18 @@
     move: Move,
     note: string,
     photos: File[],
+    grams?: Record<number, number>,
   ): Promise<void> {
     busy = true;
     moveProblem = null;
     moveFailure = null;
     photoProblem = null;
+    gramsProblems = {};
     try {
       const photoIds = await uploaded(photos);
       if (photoIds === null) return;
-      request = await moveRequest(id, shown.status, move.to_status, note, photoIds);
+      const args = [id, shown.status, move.to_status, note, photoIds] as const;
+      request = await (grams ? moveRequest(...args, grams) : moveRequest(...args));
       moving = null;
       changed = null;
     } catch (error) {
@@ -100,9 +118,34 @@
         load();
       } else {
         const problems = problemsOf(error);
+        const forGrams = Object.entries(problems ?? {}).filter(([key]) => key.startsWith("grams."));
         if (problems?.note) moveProblem = problems.note;
         else if (problems?.photos) photoProblem = problems.photos;
+        else if (forGrams.length) gramsProblems = Object.fromEntries(forGrams);
+        else if (problems?.grams) moveFailure = problems.grams;
         else moveFailure = describeError(error);
+      }
+    } finally {
+      busy = false;
+    }
+  }
+
+  /** Make a hold change; on a 409, close the editor, say so and show the request as it is. */
+  async function changeHolds(shown: PrintRequest, change: HoldChange): Promise<void> {
+    busy = true;
+    holdsFailure = null;
+    try {
+      request = await change(shown.status);
+      changed = null;
+      if (!request.can_change_holds) editing = null;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        editing = null;
+        changed = describeError(error);
+        load();
+      } else {
+        const problems = problemsOf(error);
+        holdsFailure = problems ? Object.values(problems).join(" ") : describeError(error);
       }
     } finally {
       busy = false;
@@ -150,6 +193,7 @@
           <span class="reqid">#{request.id}</span>
           <StatusChip status={request.status} />
           <PriorityChip priority={request.priority} />
+          {#if short}<span class="tagchip short">{short}</span>{/if}
         </div>
         {#if request.attempt >= 2}
           <p class="attempt">Attempt {request.attempt}</p>
@@ -191,8 +235,22 @@
         problem={moveProblem}
         failure={moveFailure}
         {photoProblem}
-        onconfirm={(note, photos) => confirmMove(shown, move, note, photos)}
+        choices={shown.choices}
+        {gramsProblems}
+        onconfirm={(note, photos, grams) => confirmMove(shown, move, note, photos, grams)}
         onclose={() => (moving = null)}
+      />
+    {/if}
+
+    {#if editingChoice}
+      {@const shown = request}
+      <HoldsDialog
+        requestId={shown.id}
+        choice={editingChoice}
+        {busy}
+        failure={holdsFailure}
+        onchange={(change) => changeHolds(shown, change)}
+        onclose={() => (editing = null)}
       />
     {/if}
 
@@ -272,7 +330,16 @@
 
         <section class="card sect" aria-labelledby="h-fil">
           <h2 id="h-fil">Filament</h2>
-          <ChoiceList choices={request.choices} storeAddress={request.store_address} />
+          <ChoiceList
+            choices={request.choices}
+            storeAddress={request.store_address}
+            onedit={request.can_change_holds
+              ? (choice) => {
+                  editing = choice.id;
+                  holdsFailure = null;
+                }
+              : undefined}
+          />
         </section>
 
         <section class="card sect" aria-labelledby="h-notes">
@@ -289,7 +356,7 @@
             <h2 id="h-hist">History</h2>
             <p class="muted">Newest first.</p>
           </div>
-          <RequestHistory history={request.history} />
+          <RequestHistory history={request.history} staff={session.can("editor")} />
         </section>
       </div>
 
@@ -351,6 +418,11 @@
     align-items: center;
     gap: 8px;
     margin-top: 10px;
+  }
+
+  .short {
+    background: var(--lowbg);
+    color: var(--lowtext);
   }
 
   .attempt {

@@ -23,6 +23,7 @@ export function row(fields: Partial<RequestRow> = {}): RequestRow {
 
 export function choice(fields: Partial<Choice> = {}): Choice {
   return {
+    id: 1,
     kind: "catalog_color",
     note: "",
     name: "Hot Pink PLA Basic",
@@ -38,6 +39,11 @@ export function choice(fields: Partial<Choice> = {}): Choice {
     in_catalog: true,
     multi_color: false,
     similar: [],
+    held: null,
+    grams: null,
+    short_g: null,
+    holds: null,
+    available_g: 0,
     ...fields,
   };
 }
@@ -60,15 +66,18 @@ export function request(fields: Partial<PrintRequest> = {}): PrintRequest {
         kind: "product",
         name: "Blue PLA",
         hexes: ["0A2CA5"],
+        id: 1,
         product_id: 7,
         sealed: 2,
         open: 1,
+        available_g: 2620,
         catalog_color: null,
         color_name: null,
         line: null,
         note: "main body",
       }),
       choice({
+        id: 2,
         similar: [
           {
             product_id: 9,
@@ -92,6 +101,7 @@ export function request(fields: Partial<PrintRequest> = {}): PrintRequest {
         from_value: "urgent",
         to_value: "normal",
         note: null,
+        automatic: false,
       },
       {
         kind: "edited",
@@ -101,6 +111,7 @@ export function request(fields: Partial<PrintRequest> = {}): PrintRequest {
         from_value: null,
         to_value: null,
         note: null,
+        automatic: false,
       },
       {
         kind: "submitted",
@@ -110,6 +121,7 @@ export function request(fields: Partial<PrintRequest> = {}): PrintRequest {
         from_value: null,
         to_value: null,
         note: "From the shared folder",
+        automatic: false,
       },
     ],
     created_at: "2026-11-16T15:00:00Z",
@@ -117,6 +129,7 @@ export function request(fields: Partial<PrintRequest> = {}): PrintRequest {
     can_edit: false,
     can_change_priority: false,
     can_change_photos: false,
+    can_change_holds: false,
     moves: [],
     attempt: 1,
     store_address: "https://store.example",

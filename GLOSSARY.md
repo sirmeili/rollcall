@@ -112,6 +112,22 @@ A spool with no tray UID, added by hand. The first scan of its product, if any, 
 A product whose count of Sealed spools is at or below its threshold. A threshold of 0 turns it off.
 _Avoid_: Low filament (Home Assistant's name for it)
 
+**Net weight**:
+The grams of filament a spool holds when full, such as 1000 g. It comes from the tag, or is set by hand for a placeholder.
+_Avoid_: Spool weight (that suggests the empty spool), total
+
+**Grams left**:
+How much filament a spool has, in grams. The AMS's remaining % sets it, and an Admin can set it by hand for a spool the AMS doesn't see. It is unknown for an Open spool with neither.
+_Avoid_: Remaining grams, weight (that word is for the spool's full amount)
+
+**Hold**:
+Grams of a spool set aside for something, such as an approved print request, so they aren't promised twice. A filament choice can be held across several spools of its product. A hold is released, and kept with when and why, when the request is Done, Failed or Cancelled, or when its spool becomes Empty or Unknown.
+_Avoid_: Reservation, allocation
+
+**Available grams**:
+A spool's grams minus its holds, or the sum of that over a product's spools. An estimate, so shown as "about".
+_Avoid_: Free grams, stock (that word is for spool counts)
+
 **Nearly out**:
 An Open spool whose remaining % is at or below its product's cutoff. It applies only to spools in an AMS.
 
@@ -239,7 +255,7 @@ _Avoid_: Accepted (for Approved), state (that word is for a spool), stage
 Decline a Submitted print request, with a reason.
 
 **Reprint**:
-Send a Failed print request back to Queued for another attempt. It stays the same request.
+Send a Failed print request on for another attempt, holding its filament again: to Queued, or to Waiting on Filament when a choice is short. It stays the same request.
 _Avoid_: Retry, resubmit
 
 **Photo**:

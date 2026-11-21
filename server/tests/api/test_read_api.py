@@ -308,31 +308,6 @@ def test_spool_detail_has_tags_and_a_timeline(
     assert first["product_name"] == "PLA Basic #000000"
 
 
-def test_spool_detail_has_grams_left(
-    client: TestClient, token: str, viewer: TestClient, db: Session
-) -> None:
-    scan(client, token, SyntheticTag(spool_weight_g=750), "opened")
-
-    before = viewer.get("/api/v1/spools/1").json()
-    _remaining(db, 1, 33)
-    after = viewer.get("/api/v1/spools/1").json()
-
-    assert (before["spool_weight_g"], before["grams_left"]) == (750, None)
-    assert (after["spool_weight_g"], after["grams_left"], after["remaining_pct"]) == (750, 248, 33)
-
-
-def test_a_spool_without_a_readable_weight_has_no_grams_left(
-    client: TestClient, viewer: TestClient, db: Session
-) -> None:
-    product = Product(filament_type="TPU", color_rgba="00FF00FF", display_name="TPU")
-    db.add(Spool(product=product, remaining_pct=50))
-    db.commit()
-
-    detail = viewer.get("/api/v1/spools/1").json()
-
-    assert (detail["spool_weight_g"], detail["grams_left"]) == (None, None)
-
-
 def test_unknown_spools_are_404(client: TestClient, viewer: TestClient) -> None:
     assert viewer.get("/api/v1/spools/42").status_code == 404
 

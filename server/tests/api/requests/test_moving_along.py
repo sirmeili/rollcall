@@ -4,18 +4,17 @@ Done or Failed, Reprint, and Picked Up."""
 from typing import Any
 
 import pytest
-from api_helpers import CSRF, admin
+from api_helpers import admin
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from httpx import Response
-from request_helpers import REQUESTS, person, submitted
+from request_helpers import REQUESTS, move, person, put_in, submitted
 
 from filament_tracker.domain.enums import Role
 
-# The moves from Submitted that reach each status, by hand, one way.
+# The moves from Submitted that reach each status, one way. Approve with nothing in stock
+# moves on by itself to Waiting on Filament.
 ROUTE = {
-    "approved": ["approved"],
-    "waiting_on_filament": ["approved", "waiting_on_filament"],
+    "waiting_on_filament": ["approved"],
     "queued": ["approved", "queued"],
     "printing": ["approved", "queued", "printing"],
     "done": ["approved", "queued", "printing", "done"],
@@ -29,8 +28,8 @@ ADMIN_MOVES = [
     ("queued", "printing"),
     ("printing", "done"),
     ("printing", "failed"),
-    ("failed", "queued"),
 ]
+# Reprint, which holds filament and picks its landing, is in test_releasing_and_reprinting.
 
 
 @pytest.fixture
@@ -43,27 +42,21 @@ def frank(app: FastAPI, client: TestClient) -> TestClient:
     return person(app, "frank", Role.ADMIN, requester=False)
 
 
-def move(
-    user: TestClient, request_id: int, from_status: str, to_status: str, note: str = ""
-) -> Response:
-    return user.post(
-        f"{REQUESTS}/{request_id}/moves",
-        json={"from_status": from_status, "to_status": to_status, "note": note},
-        headers=CSRF,
-    )
-
-
 def _read(user: TestClient, request_id: int) -> dict[str, Any]:
     return user.get(f"{REQUESTS}/{request_id}").json()
 
 
 def _moved_to(admin_user: TestClient, request_id: int, status: str) -> None:
-    """Move a Submitted request to `status` by its route."""
+    """Move a Submitted request to `status` by its route. A request only passes through
+    Approved now, so it is put there straight."""
+    if status == "approved":
+        put_in(admin_user, request_id, status)
+        return
     at = "submitted"
     for to_status in ROUTE[status]:
         response = move(admin_user, request_id, at, to_status)
         assert response.status_code == 200, response.text
-        at = to_status
+        at = response.json()["status"]
 
 
 def _in(sam: TestClient, frank: TestClient, status: str) -> int:
@@ -188,14 +181,15 @@ def test_a_reprint_keeps_the_request_and_counts_another_attempt(
 
     response = move(frank, request_id, "failed", "queued", "Bed adhesion.")
 
+    # With nothing in stock, it waits for filament.
     assert response.status_code == 200
     read = response.json()
-    assert (read["id"], read["status"], read["attempt"]) == (request_id, "queued", 2)
+    assert (read["id"], read["status"], read["attempt"]) == (request_id, "waiting_on_filament", 2)
     entry = read["history"][0]
     assert (entry["kind"], entry["from_value"], entry["to_value"], entry["note"]) == (
         "status_changed",
         "failed",
-        "queued",
+        "waiting_on_filament",
         "Bed adhesion.",
     )
 
@@ -203,7 +197,7 @@ def test_a_reprint_keeps_the_request_and_counts_another_attempt(
 def test_two_reprints_make_attempt_three(sam: TestClient, frank: TestClient) -> None:
     request_id = _in(sam, frank, "failed")
     move(frank, request_id, "failed", "queued")
-    for to_status in ("printing", "failed", "queued"):
+    for to_status in ("queued", "printing", "failed", "queued"):
         assert _read(sam, request_id)["attempt"] == 2
         at = _read(sam, request_id)["status"]
         assert move(frank, request_id, at, to_status).status_code == 200

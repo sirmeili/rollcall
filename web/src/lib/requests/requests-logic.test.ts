@@ -40,6 +40,7 @@ function entry(fields: Partial<HistoryEntry>): HistoryEntry {
     from_value: null,
     to_value: null,
     note: null,
+    automatic: false,
     ...fields,
   };
 }
@@ -75,6 +76,7 @@ function catalog(colors: CatalogColor[]): Catalog {
 
 function choice(fields: Partial<Choice>): Choice {
   return {
+    id: 1,
     kind: "catalog_color",
     note: "",
     name: "Hot Pink PLA Basic",
@@ -90,6 +92,11 @@ function choice(fields: Partial<Choice>): Choice {
     in_catalog: true,
     multi_color: false,
     similar: [],
+    held: null,
+    grams: null,
+    short_g: null,
+    holds: null,
+    available_g: 0,
     ...fields,
   };
 }
@@ -141,6 +148,14 @@ describe("request words", () => {
     expect(historyTitle(changed)).toBe("Priority changed");
     expect(historyDetail(changed)).toBe("Normal → Urgent");
     expect(historyDetail(entry({}))).toBeNull();
+  });
+
+  it("calls a hold change Holds changed to staff and Filament updated to anyone else", () => {
+    const changed = entry({ kind: "holds_changed", username: "frank" });
+    expect(historyTitle(changed)).toBe("Holds changed by frank");
+    expect(historyTitle(changed, false)).toBe("Filament updated by frank");
+    expect(historyTitle(entry({}), false)).toBe("Submitted by sam");
+    expect(historyDetail(changed)).toBeNull();
   });
 
   it("describes a move between statuses", () => {
@@ -213,6 +228,7 @@ describe("the filament picker", () => {
     summary({
       product: product({ id: 7, display_name: "Blue PLA", color_rgba: "0a2ca5ff" }),
       counts: { sealed: 2, open: 1, empty: 0, unknown: 0 },
+      available_g: 1120,
     }),
     summary({
       product: product({ id: 8, display_name: "Used up PLA" }),
@@ -231,7 +247,7 @@ describe("the filament picker", () => {
 
   it("offers in-stock products, then catalog colors no one has in stock", () => {
     expect(options.products.map((o) => [o.key, o.name, o.hexes, o.sub])).toEqual([
-      ["p:7", "Blue PLA", ["0A2CA5"], "PLA · 2 sealed · 1 open"],
+      ["p:7", "Blue PLA", ["0A2CA5"], "PLA · 2 sealed · 1 open · about 1120 g"],
     ]);
     expect(options.colors.map((o) => [o.key, o.name, o.sub])).toEqual([
       ["c:hot pink", "Hot Pink PLA Basic", "PLA · 10203 · not in stock"],
@@ -244,6 +260,12 @@ describe("the filament picker", () => {
       uuid: "hot pink",
       storeHref: "https://store.example/search?q=10203",
     });
+  });
+
+  it("says when a product's grams are unknown", () => {
+    const [option] = pickerOptions([summary({ available_unknown: true })], null).products;
+
+    expect(option.sub).toBe("PLA · 1 sealed · 1 open · grams unknown");
   });
 
   it("works before the catalog is downloaded", () => {

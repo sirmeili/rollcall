@@ -1,10 +1,17 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { describeError } from "#lib/api/errors.ts";
-  import { getSpool, recordAction, undoEvent, updateSpool } from "#lib/api/stock.ts";
+  import {
+    getSpool,
+    recordAction,
+    undoEvent,
+    updateSpool,
+    type SpoolChanges,
+  } from "#lib/api/stock.ts";
   import type { EventOut, ManualAction, SpoolDetail } from "#lib/api/types.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import ActionCard from "#lib/components/spool/ActionCard.svelte";
+  import Grams from "#lib/components/spool/Grams.svelte";
   import History from "#lib/components/spool/History.svelte";
   import LeftOnSpool from "#lib/components/spool/LeftOnSpool.svelte";
   import TagData from "#lib/components/spool/TagData.svelte";
@@ -22,6 +29,7 @@
   let message = $state<string | null>(null);
 
   const canEdit = $derived(session.can("editor"));
+  const canEditGrams = $derived(session.can("admin"));
 
   async function load(spoolId: number): Promise<void> {
     failure = null;
@@ -67,7 +75,7 @@
     }
   }
 
-  async function save(changes: { location: string | null; notes: string | null }): Promise<void> {
+  async function save(changes: SpoolChanges): Promise<void> {
     spool = await updateSpool(id, changes);
   }
 </script>
@@ -121,6 +129,7 @@
       </div>
       <div class="side">
         <LeftOnSpool {spool} />
+        <Grams {spool} canEdit={canEditGrams} onsave={save} />
         <WhereNotes {spool} {canEdit} onsave={save} />
         <TagData tags={spool.tags} />
       </div>

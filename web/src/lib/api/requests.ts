@@ -60,8 +60,19 @@ export interface ModelFile {
   missing: boolean;
 }
 
+/** Grams held on one spool for a filament choice. Its `id` names it when changing holds. */
+export interface Hold {
+  id: number;
+  spool_id: number;
+  product_id: number;
+  product_name: string;
+  grams: number;
+}
+
 /** One filament choice, with the stock and catalog as they are now. */
 export interface Choice {
+  /** Names the choice in Approve's grams. */
+  id: number;
   kind: "product" | "catalog_color";
   note: string;
   /** The product's name, or the catalog color's name and line. */
@@ -80,10 +91,27 @@ export interface Choice {
   in_catalog: boolean;
   multi_color: boolean;
   similar: SimilarColor[];
+  /** Held in full, while the request is Approved, Waiting on Filament or Queued; else null.
+   * The only word on holds a requester gets. */
+  held: boolean | null;
+  /** The rest are for Editors and Admins only, and null for anyone else. The grams for the
+   * whole quantity, from Approve (null until then). */
+  grams: number | null;
+  /** Grams not yet held, while the request is Approved, Waiting on Filament or Queued. */
+  short_g: number | null;
+  holds: Hold[] | null;
+  /** Grams not held of the product it would be held on (0 with none). */
+  available_g: number | null;
 }
 
 export type HistoryKind =
-  "submitted" | "edited" | "priority_changed" | "status_changed" | "photo_added" | "photo_removed";
+  | "submitted"
+  | "edited"
+  | "priority_changed"
+  | "status_changed"
+  | "photo_added"
+  | "photo_removed"
+  | "holds_changed";
 
 export interface HistoryEntry {
   kind: HistoryKind;
@@ -96,6 +124,8 @@ export interface HistoryEntry {
   to_value: string | null;
   /** The note or reason, or the name of a photo added or removed. */
   note: string | null;
+  /** Made by RollCall itself, with no one, such as the move on after Approve. */
+  automatic: boolean;
 }
 
 /** A move the caller may make now. */
@@ -142,6 +172,9 @@ export interface PrintRequest {
   can_change_priority: boolean;
   /** Add and remove photos: a signed-in Admin, while the request is Done or Picked Up. */
   can_change_photos: boolean;
+  /** Change its holds: a signed-in Admin, while it is Approved, Waiting on Filament or
+   * Queued. */
+  can_change_holds: boolean;
   /** The moves the caller may make, the main next step first. */
   moves: Move[];
   /** Which try at printing it this is: 1, plus 1 for each Reprint. */
@@ -224,10 +257,64 @@ export function moveRequest(
   to: RequestStatus,
   note: string,
   photoIds: string[] = [],
+  grams?: Record<number, number>,
 ): Promise<PrintRequest> {
+  const body = { from_status: from, to_status: to, note, photo_ids: photoIds };
   return api<PrintRequest>(`/requests/${id}/moves`, {
     method: "POST",
-    body: { from_status: from, to_status: to, note, photo_ids: photoIds },
+    body: grams ? { ...body, grams } : body,
+  });
+}
+
+/** A change to a request's holds, given the status the caller saw it in. */
+export type HoldChange = (from: RequestStatus) => Promise<PrintRequest>;
+
+/** Give a filament choice new grams, holding them again. Like every hold change, `from` is the
+ * status the caller saw the request in: if it has moved since, this fails with 409. */
+export function setChoiceGrams(
+  id: number,
+  from: RequestStatus,
+  choiceId: number,
+  grams: number,
+): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/choices/${choiceId}/grams`, {
+    method: "PUT",
+    body: { from_status: from, grams },
+  });
+}
+
+/** Hold grams of a Sealed or Open spool, of any product, for a filament choice. */
+export function addHold(
+  id: number,
+  from: RequestStatus,
+  choiceId: number,
+  spoolId: number,
+  grams: number,
+): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/choices/${choiceId}/holds`, {
+    method: "POST",
+    body: { from_status: from, spool_id: spoolId, grams },
+  });
+}
+
+/** Replace a hold with grams of a spool, the same one or another. */
+export function changeHold(
+  id: number,
+  from: RequestStatus,
+  holdId: number,
+  spoolId: number,
+  grams: number,
+): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/holds/${holdId}`, {
+    method: "PUT",
+    body: { from_status: from, spool_id: spoolId, grams },
+  });
+}
+
+/** Release a hold. */
+export function removeHold(id: number, from: RequestStatus, holdId: number): Promise<PrintRequest> {
+  return api<PrintRequest>(`/requests/${id}/holds/${holdId}?from_status=${from}`, {
+    method: "DELETE",
   });
 }
 

@@ -23,7 +23,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from filament_tracker.db.types import UtcDateTime, str_enum, utcnow
-from filament_tracker.domain.enums import EventSource, EventType, Role, SpoolState
+from filament_tracker.domain.enums import EventSource, EventType, ReleaseReason, Role, SpoolState
 
 # Stable constraint names, so Alembic can alter SQLite tables in batch mode.
 NAMING_CONVENTION = {
@@ -99,6 +99,10 @@ class Spool(Base):
     opened_at: Mapped[datetime | None]
     emptied_at: Mapped[datetime | None]
     remaining_pct: Mapped[int | None]
+    # Grams of filament when full (from the tag, else a fallback) and grams left now. Both
+    # are edited in place, not events (ADR-0019); grams left is None when unknown.
+    net_weight_g: Mapped[int | None]
+    grams_left_g: Mapped[int | None]
     location: Mapped[str | None] = mapped_column(String(100))
     notes: Mapped[str | None] = mapped_column(String(2000))
     # Set when its "Likely empty" suggestion is dismissed; cleared when the AMS reports more.
@@ -110,6 +114,26 @@ class Spool(Base):
     events: Mapped[list["Event"]] = relationship(back_populates="spool")
     # The AMS slot the spool is loaded in, if any (normally at most one).
     slots: Mapped[list["PrinterSlot"]] = relationship(viewonly=True)
+
+
+class SpoolHold(Base):
+    """Grams of a spool set aside for a holder, named only by its type and ID: Inventory
+    never knows what holds them (ADR-0014). A hold is active until released."""
+
+    __tablename__ = "spool_hold"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    spool_id: Mapped[int] = mapped_column(ForeignKey("spool.id"), index=True)
+    grams: Mapped[int]
+    holder_type: Mapped[str] = mapped_column(String(32))
+    holder_id: Mapped[int] = mapped_column(index=True)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    released_at: Mapped[datetime | None]
+    release_reason: Mapped[ReleaseReason | None] = mapped_column(
+        str_enum(ReleaseReason, "hold_release_reason")
+    )
+
+    spool: Mapped[Spool] = relationship()
 
 
 class Tag(Base):

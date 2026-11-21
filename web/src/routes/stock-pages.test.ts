@@ -370,6 +370,144 @@ describe("Spool detail page", () => {
     expect(await screen.findByText("Saved")).toBeInTheDocument();
   });
 
+  it("shows net weight and grams left as estimates", async () => {
+    stock.getSpool.mockResolvedValue(spoolDetail({ net_weight_g: 1000, grams_left_g: null }));
+    render(SpoolPage);
+
+    const grams = await screen.findByRole("region", { name: "Grams" });
+    expect(within(grams).getByText("about 1000 g")).toBeInTheDocument();
+    expect(within(grams).getByText("unknown")).toBeInTheDocument();
+    expect(within(grams).queryByRole("spinbutton")).toBeNull();
+  });
+
+  it("shows held and available grams to everyone", async () => {
+    stock.getSpool.mockResolvedValue(
+      spoolDetail({ grams_left_g: 620, held_g: 200, available_g: 420, holding_requests: null }),
+    );
+    render(SpoolPage);
+
+    const grams = await screen.findByRole("region", { name: "Grams" });
+    expect(within(grams).getByText("Held").nextElementSibling).toHaveTextContent("about 200 g");
+    expect(within(grams).getByText("Available").nextElementSibling).toHaveTextContent(
+      "about 420 g",
+    );
+    expect(within(grams).queryByText(/over-held/i)).toBeNull();
+    expect(within(grams).queryByText("Held for")).toBeNull();
+  });
+
+  it("lists the requests holding the spool, linked, for Editors and Admins", async () => {
+    signedInAs("editor");
+    stock.getSpool.mockResolvedValue(
+      spoolDetail({
+        held_g: 500,
+        holding_requests: [
+          { id: 7, title: "Lamp shade" },
+          { id: 9, title: "Vase" },
+        ],
+      }),
+    );
+    render(SpoolPage);
+
+    const grams = await screen.findByRole("region", { name: "Grams" });
+    expect(within(grams).getByRole("link", { name: "Lamp shade" })).toHaveAttribute(
+      "href",
+      "/requests/7",
+    );
+    expect(within(grams).getByRole("link", { name: "Vase" })).toHaveAttribute(
+      "href",
+      "/requests/9",
+    );
+  });
+
+  it("shows an over-held spool as none available, with a note", async () => {
+    stock.getSpool.mockResolvedValue(
+      spoolDetail({ grams_left_g: 300, held_g: 500, available_g: 0, over_held: true }),
+    );
+    render(SpoolPage);
+
+    const grams = await screen.findByRole("region", { name: "Grams" });
+    expect(within(grams).getByText("Available").nextElementSibling).toHaveTextContent("about 0 g");
+    expect(within(grams).getByText("Over-held: more is held than is left.")).toBeInTheDocument();
+  });
+
+  it("lets an Admin edit net weight and grams left", async () => {
+    signedInAs("admin");
+    stock.getSpool.mockResolvedValue(spoolDetail({ net_weight_g: 1000, grams_left_g: 620 }));
+    stock.updateSpool.mockResolvedValue(spoolDetail({ net_weight_g: 750, grams_left_g: 300 }));
+    render(SpoolPage);
+
+    const net = await screen.findByLabelText("Net weight (g)");
+    const left = screen.getByLabelText("Grams left (g)");
+    expect(net).toHaveValue(1000);
+    expect(left).toHaveValue(620);
+    await userEvent.clear(net);
+    await userEvent.type(net, "750");
+    await userEvent.clear(left);
+    await userEvent.type(left, "300");
+    await userEvent.click(screen.getByRole("button", { name: "Save grams" }));
+
+    expect(stock.updateSpool).toHaveBeenCalledWith(1, { net_weight_g: 750, grams_left_g: 300 });
+    expect(await screen.findByText("Saved grams")).toBeInTheDocument();
+  });
+
+  it("leaves unknown grams left alone when an Admin saves only the net weight", async () => {
+    signedInAs("admin");
+    stock.getSpool.mockResolvedValue(spoolDetail({ net_weight_g: 1000, grams_left_g: null }));
+    stock.updateSpool.mockResolvedValue(spoolDetail({ net_weight_g: 500, grams_left_g: null }));
+    render(SpoolPage);
+
+    const net = await screen.findByLabelText("Net weight (g)");
+    expect(screen.getByLabelText("Grams left (g)")).toHaveValue(null);
+    await userEvent.clear(net);
+    await userEvent.type(net, "500");
+    await userEvent.click(screen.getByRole("button", { name: "Save grams" }));
+
+    expect(stock.updateSpool).toHaveBeenCalledWith(1, { net_weight_g: 500 });
+  });
+
+  it("shows why the server refused the grams", async () => {
+    signedInAs("admin");
+    stock.getSpool.mockResolvedValue(spoolDetail({ net_weight_g: 1000, grams_left_g: 620 }));
+    stock.updateSpool.mockRejectedValue(
+      new ApiError(422, "x", {
+        problems: { grams_left_g: "Grams left must be 0 to the net weight, 1,000 g." },
+      }),
+    );
+    render(SpoolPage);
+
+    const left = await screen.findByLabelText("Grams left (g)");
+    await userEvent.clear(left);
+    await userEvent.type(left, "2000");
+    await userEvent.click(screen.getByRole("button", { name: "Save grams" }));
+
+    expect(
+      await screen.findByText("Grams left must be 0 to the net weight, 1,000 g."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows other failures to save the grams", async () => {
+    signedInAs("admin");
+    stock.getSpool.mockResolvedValue(spoolDetail());
+    stock.updateSpool.mockRejectedValue(new ApiError(403, "requires the admin role"));
+    render(SpoolPage);
+
+    const save = await screen.findByRole("button", { name: "Save grams" });
+    expect(save).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Grams left (g)"), "0");
+    await userEvent.click(save);
+
+    expect(await screen.findByText("Your role cannot do that.")).toBeInTheDocument();
+  });
+
+  it("does not let Editors edit grams", async () => {
+    stock.getSpool.mockResolvedValue(spoolDetail());
+    render(SpoolPage);
+
+    await screen.findByRole("region", { name: "Grams" });
+    expect(screen.queryByLabelText("Net weight (g)")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save grams" })).toBeNull();
+  });
+
   it("is read-only for viewers", async () => {
     signedInAs("viewer");
     stock.getSpool.mockResolvedValue(spoolDetail());

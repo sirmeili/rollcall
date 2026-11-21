@@ -36,6 +36,9 @@ class Mover(StrEnum):
     ADMIN = "admin"
     # The request's own requester, whether or not they still hold Requester (ADR-0017).
     REQUESTER = "requester"
+    # RollCall itself, with no user, such as the move on after Approve. Never one of a
+    # caller's movers, so its moves are never offered to anyone.
+    AUTOMATIC = "automatic"
 
 
 class Note(StrEnum):
@@ -58,6 +61,8 @@ class Move:
     owner_note: Note | None = None
     # Up to 4 photos of the finished print may be saved with it.
     photos: bool = False
+    # Offered to callers. A move that isn't is made only as the landing of one that is.
+    offered: bool = True
 
     @property
     def needs_reason(self) -> bool:
@@ -72,12 +77,26 @@ PIPELINE: tuple[Move, ...] = (
     Move(S.SUBMITTED, S.REJECTED, Mover.ADMIN, Note.REASON, emails_requester=True),
     Move(S.APPROVED, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
     Move(S.APPROVED, S.WAITING_ON_FILAMENT, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
+    # On after Approve, by where its holds left it; the Approved email already says which.
+    Move(S.APPROVED, S.QUEUED, Mover.AUTOMATIC, Note.OPTIONAL, emails_requester=False),
+    Move(S.APPROVED, S.WAITING_ON_FILAMENT, Mover.AUTOMATIC, Note.OPTIONAL, emails_requester=False),
     Move(S.WAITING_ON_FILAMENT, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
+    # Retried when stock changes, once its holds cover every choice.
+    Move(S.WAITING_ON_FILAMENT, S.QUEUED, Mover.AUTOMATIC, Note.OPTIONAL, emails_requester=False),
     Move(S.QUEUED, S.PRINTING, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
     Move(S.PRINTING, S.DONE, Mover.ADMIN, Note.OPTIONAL, emails_requester=True, photos=True),
     Move(S.PRINTING, S.FAILED, Mover.ADMIN, Note.OPTIONAL, emails_requester=True),
-    # Reprint: another attempt of the same request.
+    # Reprint: another attempt of the same request. One move is offered; it lands on
+    # Waiting on Filament instead when its holds don't cover every choice.
     Move(S.FAILED, S.QUEUED, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
+    Move(
+        S.FAILED,
+        S.WAITING_ON_FILAMENT,
+        Mover.ADMIN,
+        Note.OPTIONAL,
+        emails_requester=False,
+        offered=False,
+    ),
     Move(S.DONE, S.PICKED_UP, Mover.ADMIN, Note.OPTIONAL, emails_requester=False),
     Move(S.DONE, S.PICKED_UP, Mover.REQUESTER, Note.OPTIONAL, emails_requester=False),
     # Cancel, while the request hasn't started printing; last, so the next steps come first.
@@ -109,13 +128,23 @@ class NotAMove(Exception):
 
 @dataclass(frozen=True)
 class Moved:
-    """A move that was made: which one, by whom (None for a later automatic move), and its
-    note or reason, trimmed ("" for none)."""
+    """A move that was made: which one, by whom (None for a token or an automatic move), its
+    note or reason, trimmed ("" for none), and where an automatic move took the request
+    straight after it, if anywhere."""
 
     request: PrintRequest
     move: Move
     user: User | None
     note: str = ""
+    then: RequestStatus | None = None
+
+
+# Where a request's filament choices are held, and may be short.
+HOLDING = (S.APPROVED, S.WAITING_ON_FILAMENT, S.QUEUED)
+
+# Reprint: the move offered out of Failed, to Queued. Its moves, wherever it lands.
+REPRINT = (S.FAILED, S.QUEUED)
+REPRINTS = {REPRINT, (S.FAILED, S.WAITING_ON_FILAMENT)}
 
 
 def attempt(request: PrintRequest) -> int:
@@ -125,7 +154,7 @@ def attempt(request: PrintRequest) -> int:
         1
         for entry in request.history
         if entry.kind == HistoryKind.STATUS_CHANGED
-        and (entry.from_value, entry.to_value) == (S.FAILED.value, S.QUEUED.value)
+        and (entry.from_value, entry.to_value) in REPRINTS
     )
 
 
@@ -135,7 +164,7 @@ def allowed_moves(request: PrintRequest, movers: set[Mover]) -> list[Move]:
     move's owner note where it has one."""
     found: dict[RequestStatus, Move] = {}
     for rule in PIPELINE:
-        if rule.from_status != request.status or rule.by not in movers:
+        if rule.from_status != request.status or rule.by not in movers or not rule.offered:
             continue
         held = found.get(rule.to_status)
         if held is None or (held.by is not Mover.ADMIN and rule.by is Mover.ADMIN):
@@ -161,6 +190,55 @@ def clean_note(note: str, rule: Move) -> str:
     return cleaned
 
 
+def check_move(
+    request: PrintRequest,
+    *,
+    expected: RequestStatus,
+    to_status: RequestStatus,
+    movers: set[Mover],
+    note: str,
+) -> tuple[Move, str]:
+    """The move the caller asks for and its trimmed note, or a refusal: Stale when the
+    request has left `expected`, NotAMove when the caller may not make this move, and
+    Problems for the note."""
+    if request.status != expected:
+        raise Stale(STALE)
+    rule = next((m for m in allowed_moves(request, movers) if m.to_status == to_status), None)
+    if rule is None:
+        raise NotAMove(NOT_YOURS_TO_MOVE)
+    return rule, clean_note(note, rule)
+
+
+def landing(rule: Move, to_status: RequestStatus) -> Move:
+    """The move from the same status by the same mover to `to_status` instead, offered or
+    not, such as a Reprint that lands on Waiting on Filament."""
+    return next(
+        m
+        for m in PIPELINE
+        if (m.from_status, m.to_status, m.by) == (rule.from_status, to_status, rule.by)
+    )
+
+
+def record(
+    request: PrintRequest, rule: Move, *, user: User | None, note: str, now: datetime
+) -> Moved:
+    """Make a checked move: one history entry, and the request's new status."""
+    request.history.append(
+        RequestHistory(
+            kind=HistoryKind.STATUS_CHANGED,
+            user=user,
+            at=now,
+            from_value=request.status.value,
+            to_value=rule.to_status.value,
+            note=note or None,
+            automatic=rule.by is Mover.AUTOMATIC,
+        )
+    )
+    request.status = rule.to_status
+    request.updated_at = now
+    return Moved(request, rule, user, note)
+
+
 def make_move(
     request: PrintRequest,
     *,
@@ -171,24 +249,8 @@ def make_move(
     note: str,
     now: datetime,
 ) -> Moved:
-    """Move the request on, or refuse: Stale when it has left `expected`, NotAMove when the
-    caller may not make this move, and Problems for the note."""
-    if request.status != expected:
-        raise Stale(STALE)
-    rule = next((m for m in allowed_moves(request, movers) if m.to_status == to_status), None)
-    if rule is None:
-        raise NotAMove(NOT_YOURS_TO_MOVE)
-    cleaned = clean_note(note, rule)
-    request.history.append(
-        RequestHistory(
-            kind=HistoryKind.STATUS_CHANGED,
-            user=user,
-            at=now,
-            from_value=request.status.value,
-            to_value=to_status.value,
-            note=cleaned or None,
-        )
+    """Move the request on, or refuse as `check_move` does."""
+    rule, cleaned = check_move(
+        request, expected=expected, to_status=to_status, movers=movers, note=note
     )
-    request.status = to_status
-    request.updated_at = now
-    return Moved(request, rule, user, cleaned)
+    return record(request, rule, user=user, note=cleaned, now=now)

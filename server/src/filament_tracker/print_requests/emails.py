@@ -49,6 +49,11 @@ MOVE_WORDING: dict[RequestStatus, tuple[str, str]] = {
         'Your print request "{title}" was cancelled.',
     ),
 }
+# Added to the Approved email: where the request went straight after.
+THEN_WORDING = {
+    RequestStatus.QUEUED: "It's queued.",
+    RequestStatus.WAITING_ON_FILAMENT: "It's waiting on filament.",
+}
 NEW_PHOTO_SUBJECT = "New photo of your print: {title}"
 NEW_PHOTO_SENTENCE = 'A new photo of your print "{title}" was added.'
 NEW_REQUEST_SUBJECT = "New print request from {requester}: {title}"
@@ -72,6 +77,8 @@ def move_emails(moved: Moved, public_url: str | None, photos: Sequence[bytes] = 
     if to is None:
         return []
     subject, sentence = MOVE_WORDING[moved.move.to_status]
+    if moved.then is not None:
+        sentence = f"{sentence} {THEN_WORDING[moved.then]}"
     label = "Reason" if moved.move.needs_reason else "Note"
     return [
         _compose(

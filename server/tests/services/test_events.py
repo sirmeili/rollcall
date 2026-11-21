@@ -2,11 +2,13 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from filament_tracker.db.models import Device, Event, Product, Spool
-from filament_tracker.domain.enums import EventSource, EventType, SpoolState
+from filament_tracker.db.models import Device, Event, Product, Spool, SpoolHold
+from filament_tracker.domain.enums import EventSource, EventType, ReleaseReason, SpoolState
 from filament_tracker.domain.state import Outcome
+from filament_tracker.services import holds
 from filament_tracker.services.events import RevertError, append_event, revert_event
 
 T0 = datetime(2026, 11, 1, 9, 0, tzinfo=UTC)
@@ -200,3 +202,50 @@ def test_an_undo_cannot_be_undone(session: Session, spool: Spool) -> None:
 
     with pytest.raises(RevertError, match="cannot itself be undone"):
         revert_event(session, revert, UI, T2)
+
+
+# --- Holds on a spool that is gone --------------------------------------------------------
+
+HOLDER = holds.Holder("filament_choice", 1)
+
+
+def _held(session: Session, spool: Spool) -> Event:
+    """Receive the spool and hold 300 g of it; the Received event."""
+    spool.net_weight_g = 1000
+    received = append_event(session, spool, EventType.RECEIVED, SCANNER, T0).event
+    holds.place(session, HOLDER, spool.product_id, 300, T0)
+    return received
+
+
+def _hold(session: Session) -> SpoolHold:
+    return session.scalars(select(SpoolHold)).one()
+
+
+def test_emptying_a_spool_releases_its_holds_as_spool_gone(session: Session, spool: Spool) -> None:
+    _held(session, spool)
+
+    append_event(session, spool, EventType.EMPTY, SCANNER, T1)
+
+    hold = _hold(session)
+    assert hold.released_at is not None
+    assert hold.release_reason is ReleaseReason.SPOOL_GONE
+
+
+def test_undoing_a_spools_received_releases_its_holds_as_spool_gone(
+    session: Session, spool: Spool
+) -> None:
+    received = _held(session, spool)
+
+    revert_event(session, received, UI, T1)
+
+    hold = _hold(session)
+    assert hold.released_at is not None
+    assert hold.release_reason is ReleaseReason.SPOOL_GONE
+
+
+def test_opening_a_held_spool_keeps_its_holds(session: Session, spool: Spool) -> None:
+    _held(session, spool)
+
+    append_event(session, spool, EventType.OPENED, SCANNER, T1)
+
+    assert holds.active_holds(session, HOLDER) == [_hold(session)]

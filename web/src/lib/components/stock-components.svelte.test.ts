@@ -162,6 +162,15 @@ describe("inventory", () => {
     expect(screen.getByText("Added by hand")).toBeInTheDocument();
   });
 
+  it("shows the grams available, or unknown when an open spool's grams are", () => {
+    const { unmount } = render(InventoryCard, { item: summary({ available_g: 1120 }) });
+
+    expect(screen.getByText("about 1120 g available")).toBeInTheDocument();
+    unmount();
+    render(InventoryCard, { item: summary({ available_unknown: true }) });
+    expect(screen.getByText("grams available unknown")).toBeInTheDocument();
+  });
+
   it("leaves out the open spools section when none are open", () => {
     render(InventoryCard, { item: summary({ low_stock: false, open_spools: [] }) });
 
@@ -204,6 +213,18 @@ describe("inventory", () => {
     expect(within(rows[3]).getByText("By hand")).toBeInTheDocument();
     expect(within(rows[3]).getByText("—")).toBeInTheDocument();
     expect(within(rows[4]).getByText("OK")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("about 1120 g")).toBeInTheDocument();
+  });
+
+  it("says in the table when a product's grams are unknown", () => {
+    render(InventoryTable, {
+      items: [summary({ available_unknown: true })],
+      totals: TOTALS,
+      countText: "All 1",
+    });
+
+    expect(screen.getByRole("columnheader", { name: "Available" })).toBeInTheDocument();
+    expect(within(screen.getAllByRole("row")[2]).getByText("unknown")).toBeInTheDocument();
   });
 });
 
@@ -381,21 +402,15 @@ describe("spool detail", () => {
     expect(screen.getByText("No events.")).toBeInTheDocument();
   });
 
-  it("shows what is left, and grams when the weight is known", () => {
+  it("shows the AMS's remaining %", () => {
     const { rerender } = render(LeftOnSpool, { spool: spoolDetail({ remaining_pct: 62 }) });
     expect(screen.getByText("62%")).toBeInTheDocument();
-    expect(screen.getByText("about 620 g of 1000 g")).toBeInTheDocument();
 
-    rerender({ spool: spoolDetail({ remaining_pct: 12, grams_left: null }) });
+    rerender({ spool: spoolDetail({ remaining_pct: 12 }) });
     expect(screen.getByText(/Nearly out \(at or below 15%\)/)).toBeInTheDocument();
-    expect(screen.queryByText(/about/)).toBeNull();
 
-    rerender({ spool: spoolDetail({ remaining_pct: null, grams_left: null }) });
+    rerender({ spool: spoolDetail({ remaining_pct: null }) });
     expect(screen.getByText(/Not seen by the AMS yet/)).toBeInTheDocument();
-    expect(screen.getByText("Full spool: 1000 g")).toBeInTheDocument();
-
-    rerender({ spool: spoolDetail({ remaining_pct: null, spool_weight_g: null }) });
-    expect(screen.queryByText(/Full spool/)).toBeNull();
   });
 
   it("saves location and notes", async () => {

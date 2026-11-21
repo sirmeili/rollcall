@@ -49,6 +49,18 @@ class Priority(StrEnum):
         return list(Priority).index(self)
 
 
+class ReleaseReason(StrEnum):
+    """Why a hold was released."""
+
+    DONE = "done"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    # The spool became Empty or Unknown.
+    SPOOL_GONE = "spool_gone"
+    # Replaced by a hand change or new grams.
+    CHANGED = "changed"
+
+
 class RequestStatus(StrEnum):
     """Where a print request is. While it goes ahead: Submitted to Picked Up. When it stops:
     Rejected, Cancelled or Failed. The moves between them are in print_requests/pipeline.py."""
@@ -79,6 +91,8 @@ class HistoryKind(StrEnum):
     STATUS_CHANGED = "status_changed"
     PHOTO_ADDED = "photo_added"
     PHOTO_REMOVED = "photo_removed"
+    # An Admin changed its holds by hand.
+    HOLDS_CHANGED = "holds_changed"
 
 
 class ModelFileKind(StrEnum):

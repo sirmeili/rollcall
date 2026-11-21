@@ -14,7 +14,7 @@ from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import Role
 from filament_tracker.print_requests.photos import PHOTO_STATUSES
-from filament_tracker.print_requests.pipeline import Mover
+from filament_tracker.print_requests.pipeline import HOLDING, Mover
 
 
 def has_requests(session: Session, user: User) -> bool:
@@ -57,6 +57,18 @@ def movers(principal: Principal, request: PrintRequest) -> set[Mover]:
     if principal.user is not None and request.requester_id == principal.user.id:
         found.add(Mover.REQUESTER)
     return found
+
+
+def changes_holds(principal: Principal) -> bool:
+    """A signed-in Admin changes requests' holds by hand. Tokens act for no one, and a
+    change records who made it."""
+    return principal.user is not None and is_admin(principal)
+
+
+def may_change_holds(principal: Principal, request: PrintRequest) -> bool:
+    """A signed-in Admin changes a request's holds while it is Approved, Waiting on Filament
+    or Queued."""
+    return changes_holds(principal) and request.status in HOLDING
 
 
 def may_change_photos(principal: Principal, request: PrintRequest) -> bool:

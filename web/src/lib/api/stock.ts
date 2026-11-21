@@ -45,10 +45,15 @@ export function getSpool(id: number): Promise<SpoolDetail> {
   return api<SpoolDetail>(`/spools/${id}`);
 }
 
-export function updateSpool(
-  id: number,
-  changes: { location?: string | null; notes?: string | null },
-): Promise<SpoolDetail> {
+/** A spool edit: only the fields sent change. Net weight and grams left are for Admins. */
+export interface SpoolChanges {
+  location?: string | null;
+  notes?: string | null;
+  net_weight_g?: number | null;
+  grams_left_g?: number;
+}
+
+export function updateSpool(id: number, changes: SpoolChanges): Promise<SpoolDetail> {
   return api<SpoolDetail>(`/spools/${id}`, { method: "PATCH", body: changes });
 }
 

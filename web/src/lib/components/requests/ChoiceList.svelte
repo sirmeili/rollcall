@@ -1,10 +1,12 @@
 <script lang="ts">
   /** A request's filament choices in order, with the stock and catalog as they are now. A
    * catalog color shows the similar colors in stock and Find in store; a multi-color one
-   * gets no comparison, and one the catalog has dropped says so. */
+   * gets no comparison, and one the catalog has dropped says so. Once approved, each shows
+   * its grams and holds (ChoiceHolds), which `onedit` lets an Admin change. */
   import type { Choice } from "#lib/api/requests.ts";
   import { stockText, storeSearchUrl } from "#lib/catalog.ts";
   import FindInStore from "#lib/components/catalog/FindInStore.svelte";
+  import ChoiceHolds from "#lib/components/requests/ChoiceHolds.svelte";
   import HexRing from "#lib/components/catalog/HexRing.svelte";
   import { similarText } from "#lib/requests/labels.ts";
   import "#lib/requests/requests.css";
@@ -13,9 +15,11 @@
     choices: Choice[];
     /** The store Find in store searches. */
     storeAddress: string;
+    /** Open the holds editor for a choice; only for those who may change holds. */
+    onedit?: (choice: Choice) => void;
   }
 
-  let { choices, storeAddress }: Props = $props();
+  let { choices, storeAddress, onedit }: Props = $props();
 
   function productSub(choice: Choice): string {
     const stock = stockText(choice.sealed ?? 0, choice.open ?? 0) || "none left";
@@ -56,6 +60,7 @@
             )}</span
           >
         {/if}
+        <ChoiceHolds {choice} {onedit} />
       </span>
       <span class="end">
         {#if choice.note}

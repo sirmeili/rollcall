@@ -304,6 +304,7 @@ describe("Photo history", () => {
             from_value: null,
             to_value: null,
             note: "blurry.jpg",
+            automatic: false,
           },
           {
             kind: "photo_added",
@@ -313,6 +314,7 @@ describe("Photo history", () => {
             from_value: null,
             to_value: null,
             note: "blurry.jpg",
+            automatic: false,
           },
         ],
       }),

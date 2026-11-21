@@ -3,7 +3,7 @@
   // status, where the product came from, and links to its spools and to Products.
   import type { ProductSummary } from "#lib/api/types.ts";
   import PctBar from "#lib/components/ui/PctBar.svelte";
-  import { spoolsLink, statusText, thresholdText } from "#lib/inventory.ts";
+  import { availableGrams, spoolsLink, statusText, thresholdText } from "#lib/inventory.ts";
   import { sourceText } from "#lib/products.ts";
 
   let { item }: { item: ProductSummary } = $props();
@@ -22,6 +22,10 @@
     {/each}
   </div>
   <dl>
+    <div>
+      <dt>Available</dt>
+      <dd>{availableGrams(item)}</dd>
+    </div>
     <div>
       <dt>Low-stock rule</dt>
       <dd>{thresholdText(product.low_stock_threshold)}</dd>
