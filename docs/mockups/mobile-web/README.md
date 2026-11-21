@@ -17,6 +17,7 @@ Mockups for the web app on a phone-sized screen, as the phone app shows it: the 
 | [PhoneRequestsList.html](PhoneRequestsList.html) | Requests (#75) on a phone. Plain HTML, not part of `index.html` |
 | [PhoneRequestForm.html](PhoneRequestForm.html) | New and Edit request (#75) on a phone, with the filament choice picker. Plain HTML, not part of `index.html` |
 | [PhoneRequestDetail.html](PhoneRequestDetail.html) | Request detail (#75) on a phone. Plain HTML, not part of `index.html` |
+| [PhoneSpools.html](PhoneSpools.html) | Spools (#175) on a phone: search and Filter (State and Type in a sheet), compact rows that expand one at a time, a checkbox per row for Editors, and the Move bar pinned above the bottom bar while spools are ticked. Plain HTML, not part of `index.html` |
 | [PhoneUsers.html](PhoneUsers.html) | Users on a phone, with the Requester checkbox and badge (#75). Plain HTML, not part of `index.html` |
 
 ## When this layout applies
