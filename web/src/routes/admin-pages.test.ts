@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
 import type { DeviceOut, PrinterOut, ReviewOut, UserOut } from "#lib/api/types.ts";
 import type { Role } from "#lib/roles.ts";
+import { viewport } from "#lib/viewport.svelte.ts";
 import { event, me, product, spoolDetail, spoolRow } from "../test/fixtures.ts";
 
 const nav = vi.hoisted(() => ({ goto: vi.fn() }));
@@ -56,6 +57,7 @@ const NewSpoolPage = (await import("./spools/new/+page.svelte")).default;
 const DevicesPage = (await import("./devices/+page.svelte")).default;
 const UsersPage = (await import("./users/+page.svelte")).default;
 const AccountPage = (await import("./account/+page.svelte")).default;
+const PhoneNav = (await import("#lib/components/shell/PhoneNav.svelte")).default;
 
 function signedInAs(role: Role): void {
   session.user = me(role);
@@ -704,7 +706,7 @@ describe("Users page", () => {
       .mockResolvedValueOnce(user({ id: 4, username: "sam", role: "viewer" }));
     render(UsersPage);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Create user" }));
+    await userEvent.click(await screen.findByRole("button", { name: "New user" }));
     await userEvent.click(screen.getByRole("button", { name: "Create" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Enter a username.");
     await userEvent.type(screen.getByLabelText("Username"), "Sam ");
@@ -730,7 +732,7 @@ describe("Users page", () => {
     );
     render(UsersPage);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Create user" }));
+    await userEvent.click(await screen.findByRole("button", { name: "New user" }));
     await userEvent.type(screen.getByLabelText("Username"), "nora");
     await userEvent.click(screen.getByRole("checkbox", { name: "Requester" }));
     await userEvent.type(screen.getByLabelText("First password"), "a long enough password");
@@ -745,7 +747,7 @@ describe("Users page", () => {
   it("cancels creating, and reports a load failure", async () => {
     admin.listUsers.mockResolvedValueOnce(people);
     const { unmount } = render(UsersPage);
-    await userEvent.click(await screen.findByRole("button", { name: "Create user" }));
+    await userEvent.click(await screen.findByRole("button", { name: "New user" }));
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByLabelText("Username")).toBeNull();
     unmount();
@@ -753,6 +755,41 @@ describe("Users page", () => {
     admin.listUsers.mockRejectedValue(new ApiError(0, "down"));
     render(UsersPage);
     expect(await screen.findByRole("alert")).toHaveTextContent("Cannot reach the server.");
+  });
+
+  it("leaves New user to the bottom bar on a phone, which opens the form", async () => {
+    viewport().phone = true;
+    try {
+      admin.listUsers.mockResolvedValue(people);
+      render(UsersPage);
+      render(PhoneNav, { user: me("admin"), pathname: "/users", reviewCount: 0 });
+      const bar = screen.getByRole("navigation", { name: "App" });
+      await screen.findByLabelText("Role for jordan");
+
+      expect(screen.getAllByRole("button", { name: "New user" })).toEqual([
+        within(bar).getByRole("button", { name: "New user" }),
+      ]);
+      await userEvent.click(within(bar).getByRole("button", { name: "New user" }));
+      expect(screen.getByRole("form", { name: "New user" })).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(screen.queryByRole("form", { name: "New user" })).toBeNull();
+      await userEvent.click(within(bar).getByRole("button", { name: "New user" }));
+      expect(screen.getByLabelText("Username")).toBeInTheDocument();
+    } finally {
+      viewport().phone = false;
+    }
+  });
+
+  it("starts with the new-user form closed, whatever was left open before", async () => {
+    admin.listUsers.mockResolvedValue(people);
+    const first = render(UsersPage);
+    await userEvent.click(await screen.findByRole("button", { name: "New user" }));
+    first.unmount();
+
+    render(UsersPage);
+    expect(await screen.findByRole("button", { name: "New user" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Username")).toBeNull();
   });
 });
 

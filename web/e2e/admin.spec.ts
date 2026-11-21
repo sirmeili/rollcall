@@ -128,7 +128,7 @@ test("admins register a scanner and see its token and pairing code once", async 
 
 test("admins create a user who then changes their password", async ({ page, browser }) => {
   await signInAt(page, "/users", "e2e-admin");
-  await page.getByRole("button", { name: "Create user" }).click();
+  await page.getByRole("button", { name: "New user" }).click();
   await page.getByLabel("Username").fill("e2e-new");
   await page.getByLabel("First password").fill("first password 1");
   await page.getByRole("button", { name: "Create", exact: true }).click();
