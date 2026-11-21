@@ -190,6 +190,25 @@ describe("Spools page", () => {
     }
   });
 
+  it("offers an Editor Add spool at the top on desktop, leaving it to the bar on a phone", async () => {
+    stock.listSpools.mockResolvedValue(page());
+    const desktop = render(SpoolsPage);
+    expect(await screen.findByRole("link", { name: "Add spool by hand" })).toHaveAttribute(
+      "href",
+      "/spools/new",
+    );
+    desktop.unmount();
+
+    viewport().phone = true;
+    try {
+      render(SpoolsPage);
+      expect(await screen.findByText("Showing 1–2 of 2")).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Add spool by hand" })).toBeNull();
+    } finally {
+      viewport().phone = false;
+    }
+  });
+
   it("lists spools with counts, filters and search", async () => {
     stock.listSpools.mockResolvedValue(page());
     render(SpoolsPage);
