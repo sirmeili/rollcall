@@ -1,4 +1,5 @@
 import socket
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect
@@ -8,7 +9,8 @@ from filament_tracker.db.models import Printer
 from filament_tracker.main import create_app
 
 
-def test_startup_migrates_the_database_and_opens_sessions(db_url: str) -> None:
+def test_startup_migrates_the_database_and_opens_sessions(tmp_path: Path) -> None:
+    db_url = f"sqlite:///{tmp_path / 'empty.db'}"
     app = create_app(Settings(database_url=db_url, _env_file=None))
 
     with TestClient(app) as client:

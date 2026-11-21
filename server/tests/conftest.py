@@ -34,7 +34,6 @@ def db_url(tmp_path: Path, migrated_template: Path) -> str:
 
 @pytest.fixture
 def engine(db_url: str) -> Iterator[Engine]:
-    upgrade(db_url)
     engine = create_db_engine(db_url)
     yield engine
     engine.dispose()
