@@ -14,7 +14,7 @@
 
   let { search, filter, onsearch, onopen, onclear }: Props = $props();
 
-  const on = $derived(filtersOn(filter.state, filter.type));
+  const on = $derived(filtersOn(filter));
 </script>
 
 <div class="controls">
@@ -69,9 +69,7 @@
   {#if on > 0}
     <div class="quick" role="group" aria-label="Filters on">
       <span class="sumchip">
-        <button type="button" class="label-button" onclick={onopen}
-          >{filterSummary(filter.state, filter.type)}</button
-        >
+        <button type="button" class="label-button" onclick={onopen}>{filterSummary(filter)}</button>
         <button type="button" class="x" aria-label="Clear the filters" onclick={onclear}>✕</button>
       </span>
       <button type="button" class="clear" onclick={onclear}>Clear</button>

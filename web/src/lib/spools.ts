@@ -76,8 +76,16 @@ export function knownLocations(spools: SpoolRow[]): string[] {
 
 /** Where the spool is: its AMS slot while loaded (the written location is kept for when it
  * leaves the AMS), otherwise the written location, or null when there is neither. */
-export function whereText(spool: SpoolRow): string | null {
+export function locationText(spool: SpoolRow): string | null {
   return spool.ams_slot ? slotText(spool.ams_slot) : spool.location;
+}
+
+/** The mono line under a compact row's name: "#47 · no tag yet · Shelf B". */
+export function metaLine(spool: SpoolRow): string {
+  const parts = [`#${spool.id}`];
+  if (spool.placeholder) parts.push("no tag yet");
+  parts.push(locationText(spool) ?? "—");
+  return parts.join(" · ");
 }
 
 /** The Spools page's State and Type filters. */
@@ -86,16 +94,22 @@ export interface SpoolFilter {
   type: string;
 }
 
+/** Every spool: no State or Type filter. A function, not a constant, because
+ * `inventory.ts` (where ALL_TYPES lives) imports this module too. */
+export function noFilter(): SpoolFilter {
+  return { state: "all", type: ALL_TYPES };
+}
+
 /** How many of the State and Type filters are on: 0, 1 or 2. */
-export function filtersOn(state: SpoolState | "all", type: string): number {
-  return (state === "all" ? 0 : 1) + (type === ALL_TYPES ? 0 : 1);
+export function filtersOn(filter: SpoolFilter): number {
+  return (filter.state === "all" ? 0 : 1) + (filter.type === ALL_TYPES ? 0 : 1);
 }
 
 /** The filters that are on, for the chip under the search: "Open · PLA". */
-export function filterSummary(state: SpoolState | "all", type: string): string {
+export function filterSummary(filter: SpoolFilter): string {
   const parts: string[] = [];
-  if (state !== "all") parts.push(STATE_LABELS[state]);
-  if (type !== ALL_TYPES) parts.push(type);
+  if (filter.state !== "all") parts.push(STATE_LABELS[filter.state]);
+  if (filter.type !== ALL_TYPES) parts.push(filter.type);
   return parts.join(" · ");
 }
 

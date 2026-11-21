@@ -26,12 +26,13 @@ import {
   filterSummary,
   filtersOn,
   knownLocations,
+  locationText,
+  metaLine,
   nearlyOut,
   outcomeText,
   rangeText,
   selectionText,
   statusLine,
-  whereText,
 } from "#lib/spools.ts";
 import { tagFields } from "#lib/tag-data.ts";
 import { event, product, spoolRow, summary, tag } from "../test/fixtures.ts";
@@ -133,21 +134,28 @@ describe("spools", () => {
 
   it("shows a loaded spool's AMS slot as its location, hiding the written one", () => {
     const slot = { printer_id: 1, printer_name: "P1S", ams_index: 0, tray_index: 1 };
-    expect(whereText(spoolRow({ location: "Dry box 1", ams_slot: slot }))).toBe(
+    expect(locationText(spoolRow({ location: "Dry box 1", ams_slot: slot }))).toBe(
       "AMS 1, slot 2 on P1S",
     );
-    expect(whereText(spoolRow({ location: "Shelf B" }))).toBe("Shelf B");
-    expect(whereText(spoolRow({ location: null }))).toBeNull();
+    expect(locationText(spoolRow({ location: "Shelf B" }))).toBe("Shelf B");
+    expect(locationText(spoolRow({ location: null }))).toBeNull();
+  });
+
+  it("puts the id, a missing tag and the location on the compact row's line", () => {
+    expect(metaLine(spoolRow({ id: 50, location: "Shelf B" }))).toBe("#50 · Shelf B");
+    expect(metaLine(spoolRow({ id: 47, placeholder: true, location: null }))).toBe(
+      "#47 · no tag yet · —",
+    );
   });
 
   it("sums up the filters that are on", () => {
-    expect(filtersOn("all", "All")).toBe(0);
-    expect(filtersOn("open", "All")).toBe(1);
-    expect(filtersOn("open", "PLA")).toBe(2);
-    expect(filterSummary("open", "PLA")).toBe("Open · PLA");
-    expect(filterSummary("all", "PETG")).toBe("PETG");
-    expect(filterSummary("empty", "All")).toBe("Used up");
-    expect(filterSummary("all", "All")).toBe("");
+    expect(filtersOn({ state: "all", type: "All" })).toBe(0);
+    expect(filtersOn({ state: "open", type: "All" })).toBe(1);
+    expect(filtersOn({ state: "open", type: "PLA" })).toBe(2);
+    expect(filterSummary({ state: "open", type: "PLA" })).toBe("Open · PLA");
+    expect(filterSummary({ state: "all", type: "PETG" })).toBe("PETG");
+    expect(filterSummary({ state: "empty", type: "All" })).toBe("Used up");
+    expect(filterSummary({ state: "all", type: "All" })).toBe("");
   });
 
   it("offers the scanner's next step first", () => {

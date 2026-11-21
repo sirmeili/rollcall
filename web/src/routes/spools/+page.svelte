@@ -13,6 +13,7 @@
   import {
     countText,
     knownLocations,
+    noFilter,
     PAGE_SIZE,
     rangeText,
     type SpoolFilter,
@@ -82,10 +83,7 @@
   }
 
   function clearFilters(): void {
-    filter(() => {
-      stateFilter = "all";
-      type = ALL_TYPES;
-    });
+    applySheet(noFilter());
   }
 
   // Reload whenever a filter, the page or `reloads` changes; typing waits for a pause.

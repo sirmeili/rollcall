@@ -7,7 +7,7 @@
   import Ring from "#lib/components/ui/Ring.svelte";
   import StateChip from "#lib/components/ui/StateChip.svelte";
   import { shortDate } from "#lib/format.ts";
-  import { nearlyOut, whereText } from "#lib/spools.ts";
+  import { locationText, metaLine, nearlyOut } from "#lib/spools.ts";
 
   interface Props {
     spools: SpoolRow[];
@@ -27,7 +27,7 @@
   <ul class="list" class:viewer={!selected}>
     {#each spools as spool (spool.id)}
       {@const open = expanded === spool.id}
-      {@const where = whereText(spool)}
+      {@const where = locationText(spool)}
       {@const low = nearlyOut(spool)}
       <li class:open class:sel={selected?.has(spool.id)}>
         <div class="srow">
@@ -51,11 +51,7 @@
             <Ring rgba={spool.product.color_rgba} size="sm" />
             <span class="text">
               <span class="name">{spool.product.display_name}</span>
-              <span class="meta mono"
-                >{[`#${spool.id}`, spool.placeholder && "no tag yet", where ?? "—"]
-                  .filter(Boolean)
-                  .join(" · ")}</span
-              >
+              <span class="meta mono">{metaLine(spool)}</span>
               {#if spool.state === "open"}
                 {#if spool.remaining_pct === null}
                   <span class="mini unknown">Not seen by the AMS</span>
@@ -187,6 +183,7 @@
     font-weight: 600;
     font-size: 15px;
     line-height: 1.25;
+    overflow-wrap: anywhere;
   }
 
   .meta {

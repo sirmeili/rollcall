@@ -3,8 +3,7 @@
   // State and Type, as the desktop chips and dropdown. Changes apply on "Show N spools";
   // Escape, the dimmed page or Close leave the filters as they were.
   import { keepTabInside } from "#lib/focus-trap.ts";
-  import { ALL_TYPES } from "#lib/inventory.ts";
-  import { type SpoolFilter, STATE_FILTERS } from "#lib/spools.ts";
+  import { noFilter, type SpoolFilter, STATE_FILTERS } from "#lib/spools.ts";
 
   interface Props {
     filter: SpoolFilter;
@@ -101,7 +100,7 @@
   </section>
 
   <div class="foot">
-    <button type="button" onclick={() => (draft = { state: "all", type: ALL_TYPES })}>Clear</button>
+    <button type="button" onclick={() => (draft = noFilter())}>Clear</button>
     <button type="button" class="primary" onclick={() => onapply(draft)}>
       {#if matching === null}
         Show spools
