@@ -27,7 +27,9 @@ def alembic_config(database_url: str) -> Config:
 
 
 def upgrade(database_url: str, revision: str = "head") -> None:
-    if revision == "head" and _current_heads(database_url) == _latest_heads():
+    latest = _latest_heads()
+    # With two heads, Alembic refuses "head"; the shortcut leaves that refusal to it.
+    if revision == "head" and len(latest) == 1 and _current_heads(database_url) == latest:
         return
     command.upgrade(alembic_config(database_url), revision)
 
@@ -40,11 +42,14 @@ def downgrade(database_url: str, revision: str) -> None:
 def _latest_heads() -> frozenset[str]:
     """The migration scripts' latest revisions; they ship in the package, so they can't
     change while the process runs."""
+    # The URL is unused: only the script location is read.
     return frozenset(ScriptDirectory.from_config(alembic_config("")).get_heads())
 
 
 def _current_heads(database_url: str) -> frozenset[str]:
-    """The revisions recorded in the database; reading them creates nothing."""
+    """The revisions recorded in the database. Reading them never creates the version
+    table; like any connection here, it may create an empty database file (with its
+    folder), which Alembic would create next anyway."""
     engine = create_db_engine(database_url)
     try:
         with engine.connect() as connection:

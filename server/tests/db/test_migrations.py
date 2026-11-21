@@ -31,8 +31,7 @@ def test_upgrade_is_safe_to_run_twice(engine: Engine, db_url: str) -> None:
     assert TABLES <= set(inspect(engine).get_table_names())
 
 
-def test_upgrade_leaves_a_current_database_as_it_is(db_url: str) -> None:
-    engine = create_db_engine(db_url)
+def test_upgrade_leaves_a_current_database_as_it_is(engine: Engine, db_url: str) -> None:
     with engine.begin() as connection:
         connection.execute(
             text(
@@ -42,7 +41,7 @@ def test_upgrade_leaves_a_current_database_as_it_is(db_url: str) -> None:
             {"w": "2026-11-21 12:00:00.000000"},
         )
 
-    def snapshot() -> tuple[object, ...]:
+    def revision_schema_and_rows() -> tuple[object, ...]:
         with engine.connect() as connection:
             revision = MigrationContext.configure(connection).get_current_revision()
             schema = connection.execute(
@@ -51,20 +50,18 @@ def test_upgrade_leaves_a_current_database_as_it_is(db_url: str) -> None:
             users = connection.execute(text("SELECT id, username FROM user")).all()
         return revision, schema, users
 
-    before = snapshot()
+    before = revision_schema_and_rows()
+    revision, _, _ = before
+    assert revision is not None
 
     upgrade(db_url)
 
-    assert snapshot() == before
-    assert before[0] is not None
-    engine.dispose()
+    assert revision_schema_and_rows() == before
 
 
-def test_upgrade_refuses_a_database_at_an_unknown_revision(db_url: str) -> None:
-    engine = create_db_engine(db_url)
+def test_upgrade_refuses_a_database_at_an_unknown_revision(engine: Engine, db_url: str) -> None:
     with engine.begin() as connection:
         connection.execute(text("UPDATE alembic_version SET version_num = 'notarevision'"))
-    engine.dispose()
 
     with pytest.raises(CommandError):
         upgrade(db_url)
