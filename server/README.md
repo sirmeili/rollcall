@@ -4,7 +4,7 @@ The FastAPI server for RollCall, and the Docker image it ships in. See the [repo
 
 ## Development
 
-The server needs Python 3.12 and [uv](https://docs.astral.sh/uv/). Run these from `server/` before requesting a review. CI runs the same checks on every PR. From the repo root, add `--directory server` after `uv run` (for example `uv run --directory server pytest`), or `uv sync --directory server`.
+The server needs Python 3.12 and [uv](https://docs.astral.sh/uv/). Run these from `server/` before requesting a review. CI runs the same checks on every PR that changes `server/`, and on every merge to `main`. From the repo root, add `--directory server` after `uv run` (for example `uv run --directory server pytest`), or `uv sync --directory server`.
 
 ```sh
 uv sync                        # Install dependencies
@@ -29,7 +29,7 @@ Run the server with live reload: `uv run uvicorn filament_tracker.main:create_ap
 
 ## Docker
 
-Run these from the repository root (Docker with Compose v2). CI runs the same checks on every PR, and publishes the image on merges to `main`.
+Run these from the repository root (Docker with Compose v2). CI runs the same checks on every PR that changes the image (`Dockerfile`, `.dockerignore`, `server/`, `web/` or `deploy/`), and builds, checks and publishes the image on every merge to `main`.
 
 - Build the image: `docker build -t rollcall:test .`
 - Run the end-to-end test stack against it: from `server/`, `FT_COMPOSE_STACK=1 uv run pytest tests/deploy --no-cov` (it starts `deploy/test/compose.yaml` and removes it with its volumes).

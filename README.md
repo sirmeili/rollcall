@@ -99,7 +99,7 @@ web/                          SvelteKit web app (TypeScript), built to static fi
 android/                      Android phone app: Capacitor around the web app, Kotlin NFC plugin
 Dockerfile                    The image: the web app built with Node, served by the Python server
 deploy/                       Compose file and example settings for the home server; deploy/test/ is the end-to-end test stack
-.github/workflows/            CI: lint, tests, 90% coverage gates, dependency audits, end-to-end tests, a check for links to retired docs; the image build, test and publish; phone app releases
+.github/workflows/            CI: lint, tests, 90% coverage gates, dependency audits, end-to-end tests, a check for links to retired docs; the image build, test and publish; phone app releases. On a pull request, jobs for areas it does not change are skipped; `ci-ok` and `image-ok` are the checks `main` requires
 ```
 
 ## Documentation

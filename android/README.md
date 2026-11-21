@@ -4,7 +4,7 @@ The phone app: a Capacitor wrapper around the web app in `web/`, with a Kotlin p
 
 ## Build
 
-The build needs JDK 21 (newer JDKs fail with Gradle 8.14) with `JAVA_HOME` pointing at it, and the Android SDK in `ANDROID_HOME`. Android Studio installs the SDK. Run the checks before requesting a review. CI runs the same checks on every PR.
+The build needs JDK 21 (newer JDKs fail with Gradle 8.14) with `JAVA_HOME` pointing at it, and the Android SDK in `ANDROID_HOME`. Android Studio installs the SDK. Run the checks before requesting a review. CI runs the same checks on every PR that changes `android/` or `web/`, and on every merge to `main`.
 
 ```sh
 # From web/
@@ -54,7 +54,7 @@ git push origin app-v1.2.0
 
 A dry run (**Run workflow** on the Actions page, see step 5 below) does the same with any version and publishes nothing.
 
-Make a release when a merged change affects the phone: the app holds its own copy of the web app, so a web change reaches the phones only in a new release. CI also builds a test release on every pull request, signed with a key made for that run, so a broken release setup shows up before a tag.
+Make a release when a merged change affects the phone: the app holds its own copy of the web app, so a web change reaches the phones only in a new release. CI also builds a test release on every pull request that changes `android/` or `web/`, signed with a key made for that run, so a broken release setup shows up before a tag.
 
 ### The release key (once)
 
