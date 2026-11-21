@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from alembic.util import CommandError
 from sqlalchemy import Engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 
@@ -28,6 +29,45 @@ def test_upgrade_is_safe_to_run_twice(engine: Engine, db_url: str) -> None:
     upgrade(db_url)
 
     assert TABLES <= set(inspect(engine).get_table_names())
+
+
+def test_upgrade_leaves_a_current_database_as_it_is(db_url: str) -> None:
+    engine = create_db_engine(db_url)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO user (id, username, password_hash, role, password_changed_at,"
+                " created_at) VALUES (1, 'frank', 'x', 'admin', :w, :w)"
+            ),
+            {"w": "2026-11-21 12:00:00.000000"},
+        )
+
+    def snapshot() -> tuple[object, ...]:
+        with engine.connect() as connection:
+            revision = MigrationContext.configure(connection).get_current_revision()
+            schema = connection.execute(
+                text("SELECT type, name, sql FROM sqlite_master ORDER BY name")
+            ).all()
+            users = connection.execute(text("SELECT id, username FROM user")).all()
+        return revision, schema, users
+
+    before = snapshot()
+
+    upgrade(db_url)
+
+    assert snapshot() == before
+    assert before[0] is not None
+    engine.dispose()
+
+
+def test_upgrade_refuses_a_database_at_an_unknown_revision(db_url: str) -> None:
+    engine = create_db_engine(db_url)
+    with engine.begin() as connection:
+        connection.execute(text("UPDATE alembic_version SET version_num = 'notarevision'"))
+    engine.dispose()
+
+    with pytest.raises(CommandError):
+        upgrade(db_url)
 
 
 def test_downgrade_removes_every_table(db_url: str) -> None:
