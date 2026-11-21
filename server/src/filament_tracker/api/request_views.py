@@ -27,6 +27,7 @@ from filament_tracker.print_requests.photos import Photos
 from filament_tracker.print_requests.pipeline import allowed_moves, attempt
 from filament_tracker.print_requests.read import model_source
 from filament_tracker.print_requests.service import why_not_editable
+from filament_tracker.services import holds
 
 
 def model_files(request: Request) -> ModelFiles:
@@ -82,7 +83,7 @@ def _holds_out(session: Session, choice: FilamentChoice) -> list[HoldOut]:
             product_name=hold.spool.product.display_name,
             grams=hold.grams,
         )
-        for hold in holding.holds.active_holds(session, holding.holder(choice))
+        for hold in holds.active_holds(session, holding.holder(choice))
     ]
 
 
