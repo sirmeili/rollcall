@@ -21,10 +21,9 @@ from filament_tracker.print_requests import pipeline, retrying
 from filament_tracker.print_requests.access import is_admin
 from filament_tracker.print_requests.holding import (
     GRAMS,
-    GRAMS_MAX,
-    GRAMS_MIN,
     GRAMS_RANGE,
     HOLDING,
+    grams_in_range,
     holder,
     product_id,
 )
@@ -67,7 +66,7 @@ def _changed(session: Session, request: PrintRequest, user: User, now: datetime)
 
 
 def _grams(grams: int) -> None:
-    if not GRAMS_MIN <= grams <= GRAMS_MAX:
+    if not grams_in_range(grams):
         raise Problems({GRAMS: GRAMS_RANGE})
 
 

@@ -69,6 +69,11 @@ def grams_problem(field: str) -> str:
     return f"{GRAMS}.{field}"
 
 
+def grams_in_range(grams: int) -> bool:
+    """Whether a choice's or a hold's grams are from GRAMS_MIN to GRAMS_MAX."""
+    return GRAMS_MIN <= grams <= GRAMS_MAX
+
+
 def _checked(request: PrintRequest, grams: dict[int, int]) -> None:
     if set(grams) - {choice.id for choice in request.choices}:
         raise Problems({GRAMS: NOT_ITS_CHOICES})
@@ -77,7 +82,7 @@ def _checked(request: PrintRequest, grams: dict[int, int]) -> None:
         given = grams.get(choice.id)
         if given is None:
             found[grams_problem(str(choice.id))] = GRAMS_NEEDED
-        elif not GRAMS_MIN <= given <= GRAMS_MAX:
+        elif not grams_in_range(given):
             found[grams_problem(str(choice.id))] = GRAMS_RANGE
     if found:
         raise Problems(found)
