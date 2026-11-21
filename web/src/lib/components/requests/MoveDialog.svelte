@@ -8,7 +8,7 @@
   import type { Choice, Move, RequestStatus } from "#lib/api/requests.ts";
   import PhotoInput from "#lib/components/requests/PhotoInput.svelte";
   import { keepTabInside } from "#lib/focus-trap.ts";
-  import { isReprint, moveWords, NOTE_MAX } from "#lib/requests/labels.ts";
+  import { GRAMS_MAX, isReprint, moveWords, NOTE_MAX } from "#lib/requests/labels.ts";
   import { MAX_PHOTOS, pickPhotos } from "#lib/requests/photos.ts";
 
   interface Props {
@@ -134,7 +134,7 @@
                   id="grams-{choice.id}"
                   type="number"
                   min="1"
-                  max="100000"
+                  max={GRAMS_MAX}
                   step="1"
                   required
                   aria-describedby="avail-{choice.id}"

@@ -22,6 +22,9 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
 /** The longest note or reason a move takes, once trimmed. */
 export const NOTE_MAX = 500;
 
+/** The most grams a filament choice or a hold takes, as the server allows. */
+export const GRAMS_MAX = 100_000;
+
 export const STATUS_LABELS: Record<RequestStatus, string> = {
   submitted: "Submitted",
   approved: "Approved",

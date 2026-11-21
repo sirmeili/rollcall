@@ -3,7 +3,7 @@
   import { untrack } from "svelte";
   import type { Hold } from "#lib/api/requests.ts";
   import type { SpoolRow } from "#lib/api/types.ts";
-  import { spoolText } from "#lib/requests/labels.ts";
+  import { GRAMS_MAX, spoolText } from "#lib/requests/labels.ts";
 
   interface Props {
     hold: Hold;
@@ -35,7 +35,7 @@
         <option value={option.id}>{option.text}</option>
       {/each}
     </select>
-    <input type="number" min="1" max="100000" step="1" aria-label="Grams" bind:value={grams} />
+    <input type="number" min="1" max={GRAMS_MAX} step="1" aria-label="Grams" bind:value={grams} />
   </span>
   <span class="line">
     <button type="button" disabled={busy} onclick={() => onsave(spool, Number(grams))}>Save</button>

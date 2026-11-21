@@ -17,7 +17,7 @@
   import type { SpoolRow } from "#lib/api/types.ts";
   import HoldRow from "#lib/components/requests/HoldRow.svelte";
   import { keepTabInside } from "#lib/focus-trap.ts";
-  import { spoolText } from "#lib/requests/labels.ts";
+  import { GRAMS_MAX, spoolText } from "#lib/requests/labels.ts";
 
   interface Props {
     requestId: number;
@@ -92,7 +92,7 @@
     <form class="row" onsubmit={holdAgain}>
       <label for="holds-grams">Grams for the whole quantity</label>
       <span class="line">
-        <input id="holds-grams" type="number" min="1" max="100000" step="1" bind:value={grams} />
+        <input id="holds-grams" type="number" min="1" max={GRAMS_MAX} step="1" bind:value={grams} />
         <button type="submit" disabled={busy}>Hold again</button>
       </span>
       <span class="hint">Releases its holds and holds these grams again.</span>
@@ -124,7 +124,7 @@
         <input
           type="number"
           min="1"
-          max="100000"
+          max={GRAMS_MAX}
           step="1"
           aria-label="Grams to hold"
           bind:value={addGrams}
