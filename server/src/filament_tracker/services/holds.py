@@ -123,15 +123,20 @@ class SpoolGrams:
     over_held: bool
 
 
-def holders_on(session: Session, spool: Spool) -> dict[Holder, int]:
-    """Each holder's active held grams on the spool, by first hold."""
+def _active_on(session: Session, spool: Spool) -> list[SpoolHold]:
+    """The spool's holds not yet released, oldest first."""
     query = (
         select(SpoolHold)
         .where(SpoolHold.spool_id == spool.id, SpoolHold.released_at.is_(None))
         .order_by(SpoolHold.id)
     )
+    return list(session.scalars(query))
+
+
+def holders_on(session: Session, spool: Spool) -> dict[Holder, int]:
+    """Each holder's active held grams on the spool, by first hold."""
     found: dict[Holder, int] = defaultdict(int)
-    for hold in session.scalars(query):
+    for hold in _active_on(session, spool):
         found[Holder(hold.holder_type, hold.holder_id)] += hold.grams
     return dict(found)
 
@@ -250,12 +255,7 @@ def release_gone(session: Session, spool: Spool, now: datetime) -> list[SpoolHol
     the holds released, oldest first."""
     if spool.state in IN_STOCK:
         return []
-    query = (
-        select(SpoolHold)
-        .where(SpoolHold.spool_id == spool.id, SpoolHold.released_at.is_(None))
-        .order_by(SpoolHold.id)
-    )
-    return _release(session, list(session.scalars(query)), ReleaseReason.SPOOL_GONE, now)
+    return _release(session, _active_on(session, spool), ReleaseReason.SPOOL_GONE, now)
 
 
 def shortfall(session: Session, holder: Holder, target: int) -> int:
