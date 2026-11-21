@@ -5,13 +5,19 @@
   import { session } from "#lib/auth/session.svelte.ts";
   import NewUserForm from "#lib/components/users/NewUserForm.svelte";
   import UserRow from "#lib/components/users/UserRow.svelte";
+  import { newUserForm } from "#lib/new-user-form.svelte.ts";
   import { REQUESTER_DESCRIPTION, ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES } from "#lib/roles.ts";
+  import { viewport } from "#lib/viewport.svelte.ts";
 
   let users = $state<UserOut[] | null>(null);
   let failure = $state<string | null>(null);
   let message = $state<string | null>(null);
-  let creating = $state(false);
   let busy = $state(false);
+  const screen = viewport();
+
+  // The form starts closed, and closes when the page is left.
+  newUserForm.open = false;
+  $effect(() => () => (newUserForm.open = false));
 
   async function load(): Promise<void> {
     try {
@@ -42,7 +48,7 @@
   }
 
   async function created(user: UserOut): Promise<void> {
-    creating = false;
+    newUserForm.open = false;
     const requester = user.requester ? ", Requester" : "";
     message = `Created ${user.username} (${ROLE_LABELS[user.role]}${requester}).`;
     await load();
@@ -57,13 +63,16 @@
       <h1>Users</h1>
       <p>There's no sign-up: accounts are created here. Admins only.</p>
     </div>
-    {#if !creating}
-      <button type="button" class="primary" onclick={() => (creating = true)}>Create user</button>
+    <!-- On a phone, New user is the bottom bar's centre button instead. -->
+    {#if !newUserForm.open && !screen.phone}
+      <button type="button" class="primary" onclick={() => (newUserForm.open = true)}
+        >New user</button
+      >
     {/if}
   </div>
 
-  {#if creating}
-    <NewUserForm oncreated={created} oncancel={() => (creating = false)} />
+  {#if newUserForm.open}
+    <NewUserForm oncreated={created} oncancel={() => (newUserForm.open = false)} />
   {/if}
   {#if message}<p role="status" class="muted">{message}</p>{/if}
 

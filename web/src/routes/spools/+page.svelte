@@ -8,6 +8,7 @@
   import { page } from "$app/state";
   import { ALL_TYPES, filamentTypes } from "#lib/inventory.ts";
   import { countText, knownLocations, PAGE_SIZE, rangeText, STATE_FILTERS } from "#lib/spools.ts";
+  import { viewport } from "#lib/viewport.svelte.ts";
 
   /** Wait this long after the last keystroke before searching. */
   const SEARCH_DELAY_MS = 250;
@@ -28,6 +29,7 @@
   let moving = $state(false);
 
   const canEdit = $derived(session.can("editor"));
+  const screen = viewport();
   const spools = $derived(result?.items ?? []);
 
   async function loadCounts(): Promise<void> {
@@ -105,7 +107,8 @@
       <h1>Spools</h1>
       {#if inventory.length}<p>{countText(inventory)}</p>{/if}
     </div>
-    {#if canEdit}
+    <!-- On a phone, Add spool is in the bottom bar instead. -->
+    {#if canEdit && !screen.phone}
       <a class="button primary" href="/spools/new">
         <svg
           width="18"

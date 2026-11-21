@@ -45,6 +45,10 @@ a{color:inherit;text-decoration:none}a:hover{color:inherit}
 .bbtn{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:64px;min-height:48px;justify-content:center;font-size:12px;font-weight:600;color:var(--muted)}
 .scan{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:-30px;font-size:12px;font-weight:700;color:var(--text)}
 .scan .fab{width:64px;height:64px;border-radius:50%;background:var(--accent);color:var(--onaccent);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px var(--surface),0 4px 14px rgba(0,0,0,.25)}
+.pair{display:flex;gap:10px;align-items:flex-end;margin-top:-30px}
+.pair .scan{margin-top:0}
+.side{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--muted)}
+.side .disc{width:44px;height:44px;border-radius:50%;background:var(--chip);color:var(--text);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 4px var(--surface)}
 .label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0}
 .tchip{font:inherit;font-size:15px;font-weight:600;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);display:inline-flex;align-items:center;gap:8px;cursor:pointer}
 .tchip .c{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)}
@@ -147,7 +151,11 @@ a{color:inherit;text-decoration:none}a:hover{color:inherit}
 
 <nav aria-label="App" class="bb">
 <a class="bbtn" href="PhoneMenu.dc.html" style="justify-self: start"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>Menu</a>
+<!-- Scan available, signed in as an Editor or above: Scan, with a smaller Add spool beside it (#171). -->
+<div class="pair">
 <a class="scan" href="../mobile-scanner/Scan.dc.html"><span class="fab" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><rect x="12" y="6" width="20" height="36" rx="4"></rect><path d="M19 37h6"></path><path d="M36 18a9 9 0 0 1 0 12M40 14a15 15 0 0 1 0 20"></path></svg></span>Scan</a>
+<a class="side" href="#"><span class="disc" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>Add spool</a>
+</div>
 <a class="bbtn" href="PhoneAccount.dc.html" style="justify-self: end"><span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 50%; background: var(--chip); color: var(--text); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">F</span>frank</a>
 </nav>
 

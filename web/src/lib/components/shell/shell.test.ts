@@ -81,8 +81,8 @@ describe("the top bar", () => {
 });
 
 describe("the bottom bar", () => {
-  it("has Menu and the user, with Scan only in the app", async () => {
-    const bar = render(PhoneNav, { user: ADMIN, pathname: "/", reviewCount: 0 });
+  it("has Menu and the user around the centre", () => {
+    render(PhoneNav, { user: ADMIN, pathname: "/", reviewCount: 0 });
     const nav = screen.getByRole("navigation", { name: "App" });
 
     expect(within(nav).getByRole("button", { name: "Menu" })).toHaveAttribute(
@@ -90,10 +90,61 @@ describe("the bottom bar", () => {
       "false",
     );
     expect(within(nav).getByRole("link", { name: "frank" })).toHaveAttribute("href", "/account");
-    expect(within(nav).queryByRole("link", { name: "Scan" })).toBeNull();
+    expect(nav.children).toHaveLength(3);
+  });
 
-    await bar.rerender({ app: true });
-    expect(within(nav).getByRole("link", { name: "Scan" })).toHaveAttribute("href", "/scan");
+  it("offers Scan and Add spool on Inventory and Spools to an Editor who can scan", async () => {
+    const bar = render(PhoneNav, { user: me("editor"), pathname: "/", reviewCount: 0, scan: true });
+    const nav = screen.getByRole("navigation", { name: "App" });
+
+    for (const pathname of ["/", "/spools"]) {
+      await bar.rerender({ pathname });
+      expect(within(nav).getByRole("link", { name: "Scan" }), pathname).toHaveAttribute(
+        "href",
+        "/scan",
+      );
+      expect(within(nav).getByRole("link", { name: "Add spool" }), pathname).toHaveAttribute(
+        "href",
+        "/spools/new",
+      );
+      expect(nav.children).toHaveLength(3);
+    }
+  });
+
+  it("offers a Viewer who can scan Scan alone on Inventory and Spools", async () => {
+    const bar = render(PhoneNav, { user: VIEWER, pathname: "/", reviewCount: 0, scan: true });
+    const nav = screen.getByRole("navigation", { name: "App" });
+
+    for (const pathname of ["/", "/spools"]) {
+      await bar.rerender({ pathname });
+      expect(within(nav).getByRole("link", { name: "Scan" })).toHaveAttribute("href", "/scan");
+      expect(within(nav).queryByRole("link", { name: "Add spool" })).toBeNull();
+    }
+  });
+
+  it("offers a single Add spool on Inventory and Spools when Scan isn't available", async () => {
+    const bar = render(PhoneNav, { user: ADMIN, pathname: "/", reviewCount: 0 });
+    const nav = screen.getByRole("navigation", { name: "App" });
+
+    for (const pathname of ["/", "/spools"]) {
+      await bar.rerender({ pathname });
+      expect(within(nav).getByRole("link", { name: "Add spool" })).toHaveAttribute(
+        "href",
+        "/spools/new",
+      );
+      expect(within(nav).queryByRole("link", { name: "Scan" })).toBeNull();
+    }
+  });
+
+  it("has no centre on Inventory or Spools for a Viewer when Scan isn't available", async () => {
+    const bar = render(PhoneNav, { user: VIEWER, pathname: "/", reviewCount: 0 });
+    const nav = screen.getByRole("navigation", { name: "App" });
+
+    for (const pathname of ["/", "/spools"]) {
+      await bar.rerender({ pathname });
+      expect(within(nav).getAllByRole("link")).toHaveLength(1);
+      expect(nav.children).toHaveLength(3);
+    }
   });
 
   it("offers a Requester New request on the Requests list and a request, never Scan", async () => {
@@ -101,7 +152,7 @@ describe("the bottom bar", () => {
       user: me("viewer", { requester: true }),
       pathname: "/requests",
       reviewCount: 0,
-      app: true,
+      scan: true,
     });
     const nav = screen.getByRole("navigation", { name: "App" });
 
@@ -117,7 +168,12 @@ describe("the bottom bar", () => {
   });
 
   it("has no centre button on the Requests pages for someone who can't submit", async () => {
-    const bar = render(PhoneNav, { user: ADMIN, pathname: "/requests", reviewCount: 0, app: true });
+    const bar = render(PhoneNav, {
+      user: ADMIN,
+      pathname: "/requests",
+      reviewCount: 0,
+      scan: true,
+    });
     const nav = screen.getByRole("navigation", { name: "App" });
     const centreless = () => {
       const links = within(nav).getAllByRole("link");
@@ -132,27 +188,47 @@ describe("the bottom bar", () => {
     expect(nav.children).toHaveLength(3);
   });
 
-  it("shows Scan in the app on the inventory screens and nowhere else", async () => {
-    const bar = render(PhoneNav, { user: ADMIN, pathname: "/", reviewCount: 0, app: true });
+  it("has no centre button on the other pages, with Scan available or not", async () => {
+    const bar = render(PhoneNav, { user: ADMIN, pathname: "/", reviewCount: 0 });
     const nav = screen.getByRole("navigation", { name: "App" });
-    const scan = () => within(nav).queryByRole("link", { name: "Scan" });
+    const pages = [
+      "/spools/7",
+      "/spools/new",
+      "/products",
+      "/products/3",
+      "/catalog",
+      "/review",
+      "/activity",
+      "/account",
+      "/devices",
+      "/settings",
+    ];
 
-    for (const pathname of ["/", "/spools", "/spools/7", "/spools/new", "/products", "/catalog"]) {
-      await bar.rerender({ pathname });
-      expect(scan(), pathname).toHaveAttribute("href", "/scan");
-    }
-    for (const pathname of ["/account", "/activity", "/review", "/users", "/settings"]) {
-      await bar.rerender({ pathname });
-      expect(scan(), pathname).toBeNull();
-      expect(nav.children).toHaveLength(3);
+    for (const scan of [false, true]) {
+      for (const pathname of pages) {
+        await bar.rerender({ pathname, scan });
+        expect(within(nav).getAllByRole("link"), `${pathname}, scan ${scan}`).toHaveLength(1);
+        expect(within(nav).queryByRole("button", { name: /New/ })).toBeNull();
+        expect(nav.children).toHaveLength(3);
+      }
     }
   });
 
-  it("never shows Scan outside the app", async () => {
-    const bar = render(PhoneNav, { user: ADMIN, pathname: "/spools", reviewCount: 0 });
-    expect(screen.queryByRole("link", { name: "Scan" })).toBeNull();
-    await bar.rerender({ pathname: "/catalog" });
-    expect(screen.queryByRole("link", { name: "Scan" })).toBeNull();
+  it("offers an Admin New user on Users, and only there", async () => {
+    const bar = render(PhoneNav, { user: ADMIN, pathname: "/users", reviewCount: 0, scan: true });
+    const nav = screen.getByRole("navigation", { name: "App" });
+
+    expect(within(nav).getByRole("button", { name: "New user" })).toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Scan" })).toBeNull();
+    expect(nav.children).toHaveLength(3);
+
+    await bar.rerender({ pathname: "/settings" });
+    expect(within(nav).queryByRole("button", { name: "New user" })).toBeNull();
+  });
+
+  it("offers no New user to someone who can't open Users", () => {
+    render(PhoneNav, { user: me("editor"), pathname: "/users", reviewCount: 0 });
+    expect(screen.queryByRole("button", { name: "New user" })).toBeNull();
   });
 
   it("has no centre button on the request form, whose own buttons take its place", () => {
@@ -160,7 +236,7 @@ describe("the bottom bar", () => {
       user: me("viewer", { requester: true }),
       pathname: "/requests/new",
       reviewCount: 0,
-      app: true,
+      scan: true,
     });
     const nav = screen.getByRole("navigation", { name: "App" });
 
@@ -200,6 +276,40 @@ describe("the bottom bar", () => {
         .map((link) => link.textContent),
     ).toEqual(["Devices", "Users", "Settings"]);
     expect(screen.getByRole("button", { name: "Close" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("starts the menu with Scanner and Add spool, for an Editor who can scan", async () => {
+    render(PhoneNav, { user: me("editor"), pathname: "/review", reviewCount: 0, scan: true });
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+
+    const shortcuts = screen.getByRole("navigation", { name: "Shortcuts" });
+    const links = within(shortcuts).getAllByRole("link");
+    expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["Scanner", "/scan"],
+      ["Add spool", "/spools/new"],
+    ]);
+    // The row comes before the pages.
+    const menu = screen.getByRole("dialog", { name: "Menu" });
+    expect(within(menu).getAllByRole("navigation")[0]).toBe(shortcuts);
+  });
+
+  it("shows only the shortcuts that apply in the menu, and no row when none do", async () => {
+    const shortcuts = async (user: Me, scan: boolean): Promise<string[]> => {
+      const bar = render(PhoneNav, { user, pathname: "/review", reviewCount: 0, scan });
+      await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+      const row = screen.queryByRole("navigation", { name: "Shortcuts" });
+      const labels = row
+        ? within(row)
+            .getAllByRole("link")
+            .map((link) => link.textContent!)
+        : [];
+      bar.unmount();
+      return labels;
+    };
+
+    expect(await shortcuts(VIEWER, true)).toEqual(["Scanner"]);
+    expect(await shortcuts(ADMIN, false)).toEqual(["Add spool"]);
+    expect(await shortcuts(VIEWER, false)).toEqual([]);
   });
 
   it("shows Requests in the menu to a Viewer who is a Requester", async () => {

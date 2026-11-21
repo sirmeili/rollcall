@@ -19,6 +19,9 @@ export const ACCOUNT_PATH = "/account";
 /** The request form. */
 export const NEW_REQUEST_PATH = "/requests/new";
 
+/** The Add a spool form. */
+export const NEW_SPOOL_PATH = "/spools/new";
+
 const WAITING = "waiting";
 
 /** The pages of the web app, with the lowest role that may open each. The API enforces the
@@ -76,7 +79,7 @@ export function mayOpen(user: Me | null | undefined, pathname: string): boolean 
 /** Titles for pages that are not in the nav (or are sub-pages with their own name). */
 const TITLES: Record<string, string> = {
   "/account": "Account",
-  "/spools/new": "Add a spool",
+  [NEW_SPOOL_PATH]: "Add a spool",
   [NEW_REQUEST_PATH]: "New request",
 };
 
@@ -86,19 +89,41 @@ export function pageTitle(pathname: string): string {
 }
 
 /** What the phone layout's bottom bar shows in its centre. */
-export type PhoneCentre = "scan" | "new-request" | null;
+export type PhoneCentre =
+  "scan" | "scan-and-add-spool" | "add-spool" | "new-request" | "new-user" | null;
 
-/** The inventory screens, and their sub-pages: the only pages where Scan shows. */
-const INVENTORY_PAGES: ReadonlySet<string> = new Set(["/", "/spools", "/products", "/catalog"]);
+/** The pages whose centre is Scan, Add spool or both. */
+const STOCK_PAGES: ReadonlySet<string> = new Set(["/", "/spools"]);
 
-/** The bottom bar's centre for a path: New request on the Requests list and a request for
- * someone who can submit, Scan on the inventory screens in the Android app, and nothing
- * anywhere else (the request form's own buttons take the place there). */
-export function phoneCentre(user: Me, pathname: string, app: boolean): PhoneCentre {
+/** The bottom bar's centre for a path. On Inventory and Spools: Scan when it is available
+ * (the paired Android app), and Add spool for Editors and above, beside Scan or alone. On the
+ * Requests list and a request: New request for someone who can submit. On Users: New user,
+ * for an Admin. Nothing anywhere else (the request form's own buttons take the place there). */
+export function phoneCentre(user: Me, pathname: string, scan: boolean): PhoneCentre {
+  if (STOCK_PAGES.has(pathname)) {
+    const editor = allows(user.role, "editor");
+    if (scan) return editor ? "scan-and-add-spool" : "scan";
+    return editor ? "add-spool" : null;
+  }
   if (pathname === NEW_REQUEST_PATH) return null;
-  const section = navItemFor(pathname)?.href;
-  if (section === "/requests") return canSubmit(user) ? "new-request" : null;
-  return app && section !== undefined && INVENTORY_PAGES.has(section) ? "scan" : null;
+  if (navItemFor(pathname)?.href === "/requests") return canSubmit(user) ? "new-request" : null;
+  if (pathname === "/users") return mayOpen(user, pathname) ? "new-user" : null;
+  return null;
+}
+
+/** A tile in the phone menu's first row, above the pages. */
+export interface MenuShortcut {
+  href: string;
+  label: string;
+}
+
+/** The phone menu's first row: Scanner when Scan is available, and Add spool for Editors and
+ * above. */
+export function menuShortcuts(user: Me, scan: boolean): MenuShortcut[] {
+  const shortcuts: MenuShortcut[] = [];
+  if (scan) shortcuts.push({ href: "/scan", label: "Scanner" });
+  if (allows(user.role, "editor")) shortcuts.push({ href: NEW_SPOOL_PATH, label: "Add spool" });
+  return shortcuts;
 }
 
 /** The pages anyone may open, and the Admin ones, as the phone menu groups them. */

@@ -1,5 +1,5 @@
 // The layout picks the phone layout at 600px wide or less, and the header above that.
-import { cleanup, render, screen } from "@testing-library/svelte";
+import { cleanup, render, screen, within } from "@testing-library/svelte";
 import { createRawSnippet } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { viewport } from "#lib/viewport.svelte.ts";
@@ -13,6 +13,20 @@ vi.mock("$app/state", () => ({ page: nav.page }));
 vi.mock("$app/navigation", () => ({ goto: nav.goto }));
 vi.mock("#lib/review-badge.svelte.ts", () => ({
   reviewBadge: { count: 3, refresh: vi.fn() },
+}));
+// A plain browser unless a test makes it the Android app.
+const phone = vi.hoisted(() => ({
+  app: false,
+  paired: false,
+  loaded: true,
+  server: null as string | null,
+  reach: null as string | null,
+  openOn: null,
+  load: () => Promise.resolve(),
+}));
+vi.mock("#lib/phone/phone-state.svelte.ts", async (actual) => ({
+  ...(await actual<object>()),
+  phone,
 }));
 
 const { session } = await import("#lib/auth/session.svelte.ts");
@@ -29,6 +43,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
+  Object.assign(phone, { app: false, paired: false, server: null, reach: null });
   viewport().phone = false;
   session.user = null;
   session.loaded = false;
@@ -57,5 +73,31 @@ describe("the layout's shell", () => {
     expect(screen.getByRole("heading", { name: "Spools" })).toBeInTheDocument();
     // No Scan in a plain browser.
     expect(screen.queryByRole("link", { name: "Scan" })).toBeNull();
+  });
+
+  describe("in the Android app", () => {
+    /** Render the layout on a phone in the app, past its start screen. */
+    async function renderInApp(paired: boolean): Promise<HTMLElement> {
+      vi.useFakeTimers();
+      Object.assign(phone, { app: true, paired, server: "https://rollcall.lan", reach: "online" });
+      viewport().phone = true;
+      render(Layout, { children });
+      await vi.runAllTimersAsync();
+      return screen.getByRole("navigation", { name: "App" });
+    }
+
+    it("offers Scan once the phone is paired", async () => {
+      const bar = await renderInApp(true);
+      expect(within(bar).getByRole("link", { name: "Scan" })).toHaveAttribute("href", "/scan");
+    });
+
+    it("counts an unpaired phone as Scan not available", async () => {
+      const bar = await renderInApp(false);
+      expect(within(bar).queryByRole("link", { name: "Scan" })).toBeNull();
+      expect(within(bar).getByRole("link", { name: "Add spool" })).toHaveAttribute(
+        "href",
+        "/spools/new",
+      );
+    });
   });
 });

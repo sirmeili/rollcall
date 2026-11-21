@@ -4,7 +4,16 @@
   import type { Me } from "#lib/api/types.ts";
   import ScanIcon from "#lib/components/phone/ScanIcon.svelte";
   import MenuSheet from "#lib/components/shell/MenuSheet.svelte";
-  import { ACCOUNT_PATH, menuGroups, NEW_REQUEST_PATH, navItemFor, phoneCentre } from "#lib/nav.ts";
+  import { newUserForm } from "#lib/new-user-form.svelte.ts";
+  import {
+    ACCOUNT_PATH,
+    menuShortcuts,
+    menuGroups,
+    NEW_REQUEST_PATH,
+    NEW_SPOOL_PATH,
+    navItemFor,
+    phoneCentre,
+  } from "#lib/nav.ts";
 
   interface Props {
     user: Me;
@@ -12,16 +21,17 @@
     reviewCount: number;
     /** Submitted print requests, for Editors and Admins. */
     requestCount?: number;
-    /** Running as the Android app, where Scan works. */
-    app?: boolean;
+    /** Scan is available: running as the Android app, paired. */
+    scan?: boolean;
   }
 
-  let { user, pathname, reviewCount, requestCount = 0, app = false }: Props = $props();
+  let { user, pathname, reviewCount, requestCount = 0, scan = false }: Props = $props();
 
   let open = $state(false);
   let menuButton: HTMLButtonElement;
   const groups = $derived(menuGroups(user));
-  const centre = $derived(phoneCentre(user, pathname, app));
+  const shortcuts = $derived(menuShortcuts(user, scan));
+  const centre = $derived(phoneCentre(user, pathname, scan));
 
   /** Close the menu and give the focus back to the Menu button. */
   function close(): void {
@@ -36,8 +46,23 @@
   });
 </script>
 
+<!-- The plus on the add buttons. -->
+{#snippet plus(size: number)}
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.6"
+    stroke-linecap="round"
+    aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg
+  >
+{/snippet}
+
 {#if open}
   <MenuSheet
+    {shortcuts}
     main={groups.main}
     admin={groups.admin}
     current={navItemFor(pathname)}
@@ -79,19 +104,25 @@
     <a class="scan" href="/scan"
       ><span class="fab" aria-hidden="true"><ScanIcon size={30} /></span>Scan</a
     >
+  {:else if centre === "scan-and-add-spool"}
+    <!-- Option b2 in #171's mockup: Scan stays the big button, Add spool a smaller one beside it. -->
+    <div class="pair">
+      <a class="scan" href="/scan"
+        ><span class="fab" aria-hidden="true"><ScanIcon size={30} /></span>Scan</a
+      >
+      <a class="side" href={NEW_SPOOL_PATH}><span class="disc">{@render plus(20)}</span>Add spool</a
+      >
+    </div>
+  {:else if centre === "add-spool"}
+    <a class="scan" href={NEW_SPOOL_PATH}><span class="fab">{@render plus(30)}</span>Add spool</a>
   {:else if centre === "new-request"}
     <a class="scan" href={NEW_REQUEST_PATH}
-      ><span class="fab" aria-hidden="true"
-        ><svg
-          width="30"
-          height="30"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.6"
-          stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg
-        ></span
-      >New request</a
+      ><span class="fab">{@render plus(30)}</span>New request</a
+    >
+  {:else if centre === "new-user"}
+    <!-- Opens the Users page's own new-user form. -->
+    <button type="button" class="scan" onclick={() => (newUserForm.open = true)}
+      ><span class="fab">{@render plus(30)}</span>New user</button
     >
   {:else}
     <span></span>
@@ -167,6 +198,11 @@
   }
 
   .scan {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -189,6 +225,39 @@
     box-shadow:
       0 0 0 5px var(--surface),
       0 4px 14px rgba(0, 0, 0, 0.25);
+  }
+
+  .pair {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    margin-top: -30px;
+  }
+
+  .pair .scan {
+    margin-top: 0;
+  }
+
+  .side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .disc {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--chip);
+    color: var(--text);
+    box-shadow: 0 0 0 4px var(--surface);
   }
 
   .initial {

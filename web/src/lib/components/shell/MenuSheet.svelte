@@ -2,9 +2,11 @@
   // The phone layout's menu (docs/mockups/mobile-web/PhoneMenu.dc.html): a sheet that rises
   // from the bottom over a dimmed page. Escape, the dimmed page or a page link closes it.
   import NavIcon from "#lib/components/shell/NavIcon.svelte";
-  import type { NavItem } from "#lib/nav.ts";
+  import type { MenuShortcut, NavItem } from "#lib/nav.ts";
 
   interface Props {
+    /** The first row's tiles, above the pages; none hides the row. */
+    shortcuts?: MenuShortcut[];
     main: NavItem[];
     admin: NavItem[];
     current: NavItem | undefined;
@@ -13,7 +15,7 @@
     onclose: () => void;
   }
 
-  let { main, admin, current, badges = {}, onclose }: Props = $props();
+  let { shortcuts = [], main, admin, current, badges = {}, onclose }: Props = $props();
 
   let sheet: HTMLDivElement;
 
@@ -76,6 +78,15 @@
   onkeydown={keydown}
 >
   <span class="grip" aria-hidden="true"></span>
+  {#if shortcuts.length > 0}
+    <nav aria-label="Shortcuts" class="pages">
+      {#each shortcuts as shortcut (shortcut.href)}
+        <a class="item" href={shortcut.href} onclick={onclose}
+          ><NavIcon href={shortcut.href} />{shortcut.label}</a
+        >
+      {/each}
+    </nav>
+  {/if}
   <nav aria-label="Pages" class="pages">
     {#each main as item (item.href)}{@render link(item, false)}{/each}
   </nav>
@@ -130,7 +141,7 @@
     gap: 8px;
   }
 
-  /* An odd last page (Activity) spans both columns. */
+  /* An odd last tile (Activity, or a lone shortcut) spans both columns. */
   .pages :global(.item:last-child:nth-child(odd)) {
     grid-column: span 2;
   }
