@@ -159,7 +159,7 @@
       pathname={page.url.pathname}
       reviewCount={reviewBadge.count}
       requestCount={requestsBadge.count}
-      scan={phone.app}
+      app={phone.app}
     />
   {/if}
 {:else if loadError}

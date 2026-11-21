@@ -1,10 +1,10 @@
 <script lang="ts">
-  // The phone layout's bottom bar (docs/mockups/mobile-web/): Menu at the left, Scan in the
-  // centre (only in the Android app) and the signed-in user at the right, who opens Account.
+  // The phone layout's bottom bar (docs/mockups/mobile-web/): Menu at the left, the page's
+  // action in the centre (see phoneCentre) and the signed-in user at the right, who opens Account.
   import type { Me } from "#lib/api/types.ts";
   import ScanIcon from "#lib/components/phone/ScanIcon.svelte";
   import MenuSheet from "#lib/components/shell/MenuSheet.svelte";
-  import { ACCOUNT_PATH, menuGroups, navItemFor } from "#lib/nav.ts";
+  import { ACCOUNT_PATH, menuGroups, NEW_REQUEST_PATH, navItemFor, phoneCentre } from "#lib/nav.ts";
 
   interface Props {
     user: Me;
@@ -12,15 +12,16 @@
     reviewCount: number;
     /** Submitted print requests, for Editors and Admins. */
     requestCount?: number;
-    /** In the phone app: show the Scan button. */
-    scan?: boolean;
+    /** Running as the Android app, where Scan works. */
+    app?: boolean;
   }
 
-  let { user, pathname, reviewCount, requestCount = 0, scan = false }: Props = $props();
+  let { user, pathname, reviewCount, requestCount = 0, app = false }: Props = $props();
 
   let open = $state(false);
   let menuButton: HTMLButtonElement;
   const groups = $derived(menuGroups(user));
+  const centre = $derived(phoneCentre(user, pathname, app));
 
   /** Close the menu and give the focus back to the Menu button. */
   function close(): void {
@@ -74,9 +75,23 @@
     {#if reviewCount + requestCount > 0 && !open}<span class="dot" aria-hidden="true"></span>{/if}
   </button>
 
-  {#if scan}
+  {#if centre === "scan"}
     <a class="scan" href="/scan"
       ><span class="fab" aria-hidden="true"><ScanIcon size={30} /></span>Scan</a
+    >
+  {:else if centre === "new-request"}
+    <a class="scan" href={NEW_REQUEST_PATH}
+      ><span class="fab" aria-hidden="true"
+        ><svg
+          width="30"
+          height="30"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.6"
+          stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg
+        ></span
+      >New request</a
     >
   {:else}
     <span></span>
