@@ -183,6 +183,15 @@ describe("Requests list", () => {
     expect(card).toHaveTextContent("+2");
   });
 
+  it("leaves New request to the bottom bar on a Requester's phone", async () => {
+    viewport().phone = true;
+    api.listRequests.mockResolvedValue([row()]);
+    render(ListPage);
+
+    expect(await screen.findByRole("link", { name: "Wingspan insert" })).toBeVisible();
+    expect(screen.queryByRole("link", { name: "New request" })).toBeNull();
+  });
+
   it("leaves out who asked on a Requester's phone", async () => {
     viewport().phone = true;
     api.listRequests.mockResolvedValue([row()]);

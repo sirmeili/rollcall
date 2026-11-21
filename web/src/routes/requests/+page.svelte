@@ -98,7 +98,8 @@
       <h1>Requests</h1>
       <p>{intro}</p>
     </div>
-    {#if canNew}{@render newButton()}{/if}
+    <!-- On a phone, New request is the bottom bar's centre button instead. -->
+    {#if canNew && !screen.phone}{@render newButton()}{/if}
   </div>
 
   <div class="toolbar">
