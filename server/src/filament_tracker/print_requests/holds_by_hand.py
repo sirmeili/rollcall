@@ -153,7 +153,7 @@ def change_hold(
     """Replace one of the request's holds with grams of a spool: the same spool or another."""
     _changing(request, expected)
     found = _hold_of(session, request, hold_id)
-    choice = next(c for c in request.choices if c.id == found.holder_id)
+    choice = choice_of(request, found.holder_id)
     holds.release_hold(session, found, ReleaseReason.CHANGED, now)
     _hold_by_hand(session, choice, spool_id, grams, now)
     _changed(session, request, user, now)
