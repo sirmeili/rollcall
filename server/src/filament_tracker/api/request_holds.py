@@ -3,7 +3,7 @@ hold's spool or grams, or removing a hold.
 
 For signed-in Admins only; tokens are refused, since a change records who made it. Each
 change names the status the caller saw the request in, and answers 409 when it has moved on,
-403 when the request isn't Approved, Waiting on Filament or Queued, and 404 for a choice or
+403 when the request isn't Approved, Waiting on Filament or Queued, and then 404 for a choice or
 hold that isn't the request's. Nothing is saved when it is refused, and no email is sent.
 """
 
@@ -83,7 +83,7 @@ def set_grams(
         lambda: holds_by_hand.set_grams(
             session,
             found,
-            holds_by_hand.choice_of(found, choice_id),
+            choice_id,
             expected=body.from_status,
             grams=body.grams,
             user=user,
@@ -113,7 +113,7 @@ def add_hold(
         lambda: holds_by_hand.add_hold(
             session,
             found,
-            holds_by_hand.choice_of(found, choice_id),
+            choice_id,
             expected=body.from_status,
             spool_id=body.spool_id,
             grams=body.grams,

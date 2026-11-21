@@ -286,6 +286,23 @@ def test_another_requests_choice_or_hold_is_not_found(
     assert remove_hold(frank, mine, 9999).status_code == 404
 
 
+def test_a_stale_status_answers_409_before_an_unknown_choice_or_hold_answers_404(
+    client: TestClient, token: str, sam: TestClient, frank: TestClient
+) -> None:
+    pla = stock(client, token, BLACK_PLA, "PLA", "received")
+    mine, theirs = _approved(sam, frank, pla, 100), _approved(sam, frank, pla, 100)
+    stale = {**mine, "status": "waiting_on_filament", "choices": theirs["choices"]}
+    spool_id = _spool(client, pla)
+
+    for response in (
+        set_grams(frank, stale, 50),
+        add_hold(frank, stale, spool_id, 50),
+        change_hold(frank, stale, 9999, spool_id, 50),
+        remove_hold(frank, stale, 9999),
+    ):
+        assert (response.status_code, response.json()["detail"]) == (409, STALE)
+
+
 def test_hold_changes_send_no_email(
     app: FastAPI,
     client: TestClient,

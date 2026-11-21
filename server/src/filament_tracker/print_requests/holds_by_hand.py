@@ -71,7 +71,7 @@ def choice_of(request: PrintRequest, choice_id: int) -> FilamentChoice:
 def set_grams(
     session: Session,
     request: PrintRequest,
-    choice: FilamentChoice,
+    choice_id: int,
     *,
     expected: RequestStatus,
     grams: int,
@@ -80,6 +80,7 @@ def set_grams(
 ) -> None:
     """Give the choice new grams and hold them again, as Approve does."""
     _changing(request, expected)
+    choice = choice_of(request, choice_id)
     _grams(grams)
     holds.release(session, holder(choice), ReleaseReason.CHANGED, now)
     choice.grams = grams
@@ -116,7 +117,7 @@ def _hold_by_hand(
 def add_hold(
     session: Session,
     request: PrintRequest,
-    choice: FilamentChoice,
+    choice_id: int,
     *,
     expected: RequestStatus,
     spool_id: int,
@@ -126,7 +127,7 @@ def add_hold(
 ) -> None:
     """Hold grams of a spool, of any product, for the choice."""
     _changing(request, expected)
-    _hold_by_hand(session, choice, spool_id, grams, now)
+    _hold_by_hand(session, choice_of(request, choice_id), spool_id, grams, now)
     _changed(session, request, user, now)
 
 
