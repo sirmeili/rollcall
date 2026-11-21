@@ -21,7 +21,7 @@ from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.print_requests import holding, pipeline
+from filament_tracker.print_requests import holds_by_hand, pipeline
 from filament_tracker.print_requests.access import is_admin
 from filament_tracker.print_requests.rules import Problems
 
@@ -54,7 +54,7 @@ def _change(
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
     except pipeline.NotAMove as error:
         raise forbidden(str(error)) from None
-    except holding.NotFound as error:
+    except holds_by_hand.NotFound as error:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from None
     except Problems as error:
         raise problems(error.problems) from None
@@ -80,10 +80,10 @@ def set_grams(
         session,
         caller,
         found,
-        lambda: holding.set_grams(
+        lambda: holds_by_hand.set_grams(
             session,
             found,
-            holding.choice_of(found, choice_id),
+            holds_by_hand.choice_of(found, choice_id),
             expected=body.from_status,
             grams=body.grams,
             user=user,
@@ -110,10 +110,10 @@ def add_hold(
         session,
         caller,
         found,
-        lambda: holding.add_hold(
+        lambda: holds_by_hand.add_hold(
             session,
             found,
-            holding.choice_of(found, choice_id),
+            holds_by_hand.choice_of(found, choice_id),
             expected=body.from_status,
             spool_id=body.spool_id,
             grams=body.grams,
@@ -140,7 +140,7 @@ def change_hold(
         session,
         caller,
         found,
-        lambda: holding.change_hold(
+        lambda: holds_by_hand.change_hold(
             session,
             found,
             hold_id,
@@ -170,7 +170,7 @@ def remove_hold(
         session,
         caller,
         found,
-        lambda: holding.remove_hold(
+        lambda: holds_by_hand.remove_hold(
             session, found, hold_id, expected=from_status, user=user, now=utcnow()
         ),
     )
