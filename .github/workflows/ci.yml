@@ -8,7 +8,44 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request cancels the run it replaces. Runs on main are grouped by
+# commit, so each merge runs in full and none is cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # On a pull request, works out which areas it changes, so the jobs for the others are
+  # skipped. On main every job runs. A skipped job counts as passed, and ci-ok at the end is
+  # the one check the main ruleset requires.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # list the pull request's files
+    outputs:
+      server: ${{ github.event_name == 'push' || steps.filter.outputs.server == 'true' }}
+      web: ${{ github.event_name == 'push' || steps.filter.outputs.web == 'true' }}
+      e2e: ${{ github.event_name == 'push' || steps.filter.outputs.server == 'true' || steps.filter.outputs.web == 'true' }}
+      android: ${{ github.event_name == 'push' || steps.filter.outputs.android == 'true' }}
+    steps:
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            server:
+              - "server/**"
+              - ".github/workflows/ci.yml"
+            web:
+              - "web/**"
+              - ".github/workflows/ci.yml"
+            # The app holds its own copy of the web app.
+            android:
+              - "android/**"
+              - "web/**"
+              - ".github/workflows/ci.yml"
+
   docs:
     runs-on: ubuntu-latest
     steps:
@@ -23,6 +60,8 @@ jobs:
           fi
 
   server:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -55,6 +94,8 @@ jobs:
           uv run pip-audit --disable-pip --no-deps -r "$RUNNER_TEMP/requirements.txt"
 
   web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -79,9 +120,12 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Runs when either side changes, once neither server nor web has failed (one of them may
+  # have been skipped).
   e2e:
+    needs: [changes, server, web]
+    if: ${{ !cancelled() && !failure() && needs.changes.outputs.e2e == 'true' }}
     runs-on: ubuntu-latest
-    needs: [server, web]
     defaults:
       run:
         working-directory: web
@@ -110,6 +154,8 @@ jobs:
         run: npm run test:e2e
 
   android:
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,3 +188,14 @@ jobs:
           keytool -genkeypair -keystore "$ANDROID_KEYSTORE_FILE" -storetype PKCS12             -alias rollcall -keyalg RSA -keysize 2048 -validity 1 -dname "CN=CI test"             -storepass "$ANDROID_KEYSTORE_PASSWORD"
           ./gradlew --no-daemon assembleRelease -PappVersion=1.2.3
           scripts/verify-release.sh app/build/outputs/apk/release/app-release.apk 1.2.3
+
+  # The check the main ruleset requires. It passes when every job above passed or was skipped
+  # because its area did not change, so adding a job means adding it here, not to the ruleset.
+  ci-ok:
+    if: always()
+    needs: [changes, docs, server, web, e2e, android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1

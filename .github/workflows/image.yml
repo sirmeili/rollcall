@@ -1,8 +1,9 @@
 name: Image
 
-# Builds the Docker image on every pull request and runs it end to end in the Compose test
-# stack. On a merge to main, the same image is pushed to the private
-# ghcr.io/sirmeili/rollcall, tagged latest and with the commit (docs/deploy.md).
+# Builds the Docker image on every pull request that changes what goes into it, and runs it
+# end to end in the Compose test stack. On every merge to main, the image is built and tested
+# and the same image is pushed to the private ghcr.io/sirmeili/rollcall, tagged latest and
+# with the commit (docs/deploy.md).
 
 on:
   pull_request:
@@ -12,8 +13,39 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request cancels the run it replaces. Runs on main are grouped by
+# commit, so every merge publishes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # On a pull request, checks whether it changes anything that goes into the image or its test
+  # stack; if not, build is skipped. On main the image is always built and published.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # list the pull request's files
+    outputs:
+      image: ${{ github.event_name == 'push' || steps.filter.outputs.image == 'true' }}
+    steps:
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            image:
+              - "Dockerfile"
+              - ".dockerignore"
+              - "server/**"
+              - "web/**"
+              - "deploy/**"
+              - ".github/workflows/image.yml"
+
   build:
+    needs: changes
+    if: needs.changes.outputs.image == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -78,3 +110,14 @@ jobs:
       - name: Log out
         if: always()
         run: docker logout ghcr.io
+
+  # The check the main ruleset requires: it passes when the build passed or was skipped
+  # because the pull request changes nothing in the image.
+  image-ok:
+    if: always()
+    needs: [changes, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
