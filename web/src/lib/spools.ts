@@ -8,6 +8,8 @@ import type {
   SpoolState,
 } from "#lib/api/types.ts";
 import { shortDate, STATE_LABELS } from "#lib/format.ts";
+import { ALL_TYPES } from "#lib/inventory.ts";
+import { slotText } from "#lib/printers.ts";
 
 export const PAGE_SIZE = 50;
 
@@ -70,6 +72,31 @@ export function knownLocations(spools: SpoolRow[]): string[] {
     if (location && !seen.has(location.toLowerCase())) seen.set(location.toLowerCase(), location);
   }
   return [...seen.values()].sort((a, b) => a.localeCompare(b));
+}
+
+/** Where the spool is: its AMS slot while loaded (the written location is kept for when it
+ * leaves the AMS), otherwise the written location, or null when there is neither. */
+export function whereText(spool: SpoolRow): string | null {
+  return spool.ams_slot ? slotText(spool.ams_slot) : spool.location;
+}
+
+/** The Spools page's State and Type filters. */
+export interface SpoolFilter {
+  state: SpoolState | "all";
+  type: string;
+}
+
+/** How many of the State and Type filters are on: 0, 1 or 2. */
+export function filtersOn(state: SpoolState | "all", type: string): number {
+  return (state === "all" ? 0 : 1) + (type === ALL_TYPES ? 0 : 1);
+}
+
+/** The filters that are on, for the chip under the search: "Open · PLA". */
+export function filterSummary(state: SpoolState | "all", type: string): string {
+  const parts: string[] = [];
+  if (state !== "all") parts.push(STATE_LABELS[state]);
+  if (type !== ALL_TYPES) parts.push(type);
+  return parts.join(" · ");
 }
 
 export function selectionText(count: number): string {

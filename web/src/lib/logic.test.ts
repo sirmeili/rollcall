@@ -23,12 +23,15 @@ import {
 import {
   actionsFor,
   countText,
+  filterSummary,
+  filtersOn,
   knownLocations,
   nearlyOut,
   outcomeText,
   rangeText,
   selectionText,
   statusLine,
+  whereText,
 } from "#lib/spools.ts";
 import { tagFields } from "#lib/tag-data.ts";
 import { event, product, spoolRow, summary, tag } from "../test/fixtures.ts";
@@ -126,6 +129,25 @@ describe("spools", () => {
       spoolRow({ location: "  " }),
     ];
     expect(knownLocations(rows)).toEqual(["Dry box", "Shelf B"]);
+  });
+
+  it("shows a loaded spool's AMS slot as its location, hiding the written one", () => {
+    const slot = { printer_id: 1, printer_name: "P1S", ams_index: 0, tray_index: 1 };
+    expect(whereText(spoolRow({ location: "Dry box 1", ams_slot: slot }))).toBe(
+      "AMS 1, slot 2 on P1S",
+    );
+    expect(whereText(spoolRow({ location: "Shelf B" }))).toBe("Shelf B");
+    expect(whereText(spoolRow({ location: null }))).toBeNull();
+  });
+
+  it("sums up the filters that are on", () => {
+    expect(filtersOn("all", "All")).toBe(0);
+    expect(filtersOn("open", "All")).toBe(1);
+    expect(filtersOn("open", "PLA")).toBe(2);
+    expect(filterSummary("open", "PLA")).toBe("Open · PLA");
+    expect(filterSummary("all", "PETG")).toBe("PETG");
+    expect(filterSummary("empty", "All")).toBe("Used up");
+    expect(filterSummary("all", "All")).toBe("");
   });
 
   it("offers the scanner's next step first", () => {
