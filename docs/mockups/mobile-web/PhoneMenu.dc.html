@@ -25,6 +25,10 @@ a{color:inherit;text-decoration:none}a:hover{color:inherit}
 .bbtn.on{color:var(--text)}
 .scan{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:-30px;font-size:12px;font-weight:700;color:var(--text)}
 .scan .fab{width:64px;height:64px;border-radius:50%;background:var(--accent);color:var(--onaccent);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px var(--surface),0 4px 14px rgba(0,0,0,.25)}
+.pair{display:flex;gap:10px;align-items:flex-end;margin-top:-30px}
+.pair .scan{margin-top:0}
+.side{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--muted)}
+.side .disc{width:44px;height:44px;border-radius:50%;background:var(--chip);color:var(--text);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 4px var(--surface)}
 </style>
 </helmet>
 <div class="{{theme}}" style="width: 390px; height: 844px; box-sizing: border-box; background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden; position: relative">
@@ -35,6 +39,11 @@ a{color:inherit;text-decoration:none}a:hover{color:inherit}
 
 <section aria-label="Menu" style="background: var(--surface); border-radius: 24px 24px 0 0; padding: 10px 16px 18px; display: flex; flex-direction: column; gap: 14px; margin-top: -24px; position: relative">
 <span aria-hidden="true" style="align-self: center; width: 40px; height: 5px; border-radius: 999px; background: var(--line)"></span>
+<!-- Actions (#171): Scanner when Scan is available (the paired Android app), Add spool for Editors and above. A lone tile spans the row; with neither, there is no row. -->
+<nav aria-label="Actions" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<a class="item" href="../mobile-scanner/Scan.dc.html"><svg width="20" height="20" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" aria-hidden="true"><rect x="14" y="6" width="20" height="36" rx="4"></rect><path d="M21 37h6"></path><path d="M38 18a9 9 0 0 1 0 12M42 14a15 15 0 0 1 0 20"></path></svg>Scanner</a>
+<a class="item" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add spool</a>
+</nav>
 <nav aria-label="Pages" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
 <a class="item on" href="PhoneInventory-Filter.dc.html" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle></svg>Inventory</a>
 <a class="item" href="../web/Spools.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path></svg>Spools</a>
@@ -52,7 +61,11 @@ a{color:inherit;text-decoration:none}a:hover{color:inherit}
 
 <nav aria-label="App" class="bb">
 <a class="bbtn on" href="PhoneInventory-Filter.dc.html" aria-expanded="true" style="justify-self: start"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>Close</a>
+<!-- Scan available, signed in as an Editor or above: Scan, with a smaller Add spool beside it (#171). -->
+<div class="pair">
 <a class="scan" href="../mobile-scanner/Scan.dc.html"><span class="fab" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><rect x="12" y="6" width="20" height="36" rx="4"></rect><path d="M19 37h6"></path><path d="M36 18a9 9 0 0 1 0 12M40 14a15 15 0 0 1 0 20"></path></svg></span>Scan</a>
+<a class="side" href="#"><span class="disc" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>Add spool</a>
+</div>
 <a class="bbtn" href="PhoneAccount.dc.html" style="justify-self: end"><span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 50%; background: var(--chip); color: var(--text); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">F</span>frank</a>
 </nav>
 </div>
