@@ -299,7 +299,7 @@ The server upgrades the database on start. To go back to an earlier image, set `
 
 - `Dockerfile` at the repository root: Node 24 builds the web app (with npm 11.21.2, whose bundled packages have no known advisories), `uv` installs the server's locked dependencies, and the final image is `python:3.12-slim` with Debian's security updates applied when it is built.
 - Base images are pinned by digest. To update one, pull the new tag, scan it (for example `docker scout cves --only-severity critical,high <image>`), and change the digest in `Dockerfile`.
-- `deploy/test/compose.yaml` is the end-to-end test stack: the image with a Mosquitto broker. GitHub Actions runs `server/tests/deploy/test_compose_stack.py` against it on every pull request (first-start setup, the scan simulator driving Received, Opened and Empty, Home Assistant totals updating on the broker, a backup, and a restart). To run it locally from the repository root:
+- `deploy/test/compose.yaml` is the end-to-end test stack: the image with a Mosquitto broker. GitHub Actions runs `server/tests/deploy/test_compose_stack.py` against it on every pull request that changes the image and on every merge to `main` (first-start setup, the scan simulator driving Received, Opened and Empty, Home Assistant totals updating on the broker, a backup, and a restart). To run it locally from the repository root:
 
   ```sh
   docker build -t rollcall:test .
