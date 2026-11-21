@@ -48,9 +48,6 @@ RELEASES = {
     RequestStatus.CANCELLED: ReleaseReason.CANCELLED,
 }
 
-# Where a request's choices are held and may be short.
-HOLDING = (RequestStatus.APPROVED, RequestStatus.WAITING_ON_FILAMENT, RequestStatus.QUEUED)
-
 
 def holder(choice: FilamentChoice) -> holds.Holder:
     return holds.Holder(HOLDER_TYPE, choice.id)
@@ -207,7 +204,7 @@ def make_move(
 
 def shortfall(session: Session, request: PrintRequest, choice: FilamentChoice) -> int | None:
     """The choice's grams not yet held, while the request holds filament; else None."""
-    if choice.grams is None or request.status not in HOLDING:
+    if choice.grams is None or request.status not in pipeline.HOLDING:
         return None
     return holds.shortfall(session, holder(choice), choice.grams)
 

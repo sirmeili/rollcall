@@ -139,6 +139,9 @@ class Moved:
     then: RequestStatus | None = None
 
 
+# Where a request's filament choices are held, and may be short.
+HOLDING = (S.APPROVED, S.WAITING_ON_FILAMENT, S.QUEUED)
+
 # Reprint: the move offered out of Failed, to Queued. Its moves, wherever it lands.
 REPRINT = (S.FAILED, S.QUEUED)
 REPRINTS = {REPRINT, (S.FAILED, S.WAITING_ON_FILAMENT)}

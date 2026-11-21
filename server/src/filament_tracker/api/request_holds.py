@@ -22,7 +22,7 @@ from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus
 from filament_tracker.print_requests import holds_by_hand, pipeline
-from filament_tracker.print_requests.access import is_admin
+from filament_tracker.print_requests.access import changes_holds
 from filament_tracker.print_requests.rules import Problems
 
 ADMINS_ONLY = "Only a signed-in Admin changes holds."
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/requests", tags=["requests"])
 
 def holds_admin(principal: AnyPrincipal) -> User:
     """A signed-in Admin, checked before the body is read."""
-    if principal.user is None or not is_admin(principal):
+    if not changes_holds(principal) or principal.user is None:
         raise forbidden(ADMINS_ONLY)
     return principal.user
 

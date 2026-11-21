@@ -19,8 +19,13 @@ from filament_tracker.api.request_schemas import (
 from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import Principal
 from filament_tracker.db.request_models import FilamentChoice, PrintRequest
-from filament_tracker.print_requests import holding, holds_by_hand
-from filament_tracker.print_requests.access import may_change_photos, movers, sees_every_request
+from filament_tracker.print_requests import holding
+from filament_tracker.print_requests.access import (
+    may_change_holds,
+    may_change_photos,
+    movers,
+    sees_every_request,
+)
 from filament_tracker.print_requests.choices import ChoiceReader, swatch
 from filament_tracker.print_requests.files import ModelFiles
 from filament_tracker.print_requests.photos import Photos
@@ -157,7 +162,7 @@ def request_out(
         can_edit=can_edit(principal, item),
         can_change_priority=staff and not item.status.closed,
         can_change_photos=may_change_photos(principal, item),
-        can_change_holds=holds_by_hand.may_change(principal, item),
+        can_change_holds=may_change_holds(principal, item),
         moves=[
             MoveOut(to_status=m.to_status, reason_required=m.needs_reason, photos=m.photos)
             for m in allowed_moves(item, movers(principal, item))

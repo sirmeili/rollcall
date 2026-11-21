@@ -13,16 +13,13 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from filament_tracker.auth import Principal
 from filament_tracker.db.models import Spool, SpoolHold, User
 from filament_tracker.db.request_models import FilamentChoice, PrintRequest, RequestHistory
 from filament_tracker.domain.enums import HistoryKind, ReleaseReason, RequestStatus
 from filament_tracker.print_requests import pipeline, retrying
-from filament_tracker.print_requests.access import is_admin
 from filament_tracker.print_requests.holding import (
     GRAMS,
     GRAMS_RANGE,
-    HOLDING,
     grams_in_range,
     holder,
     product_id,
@@ -41,16 +38,10 @@ class NotFound(Exception):
     """No such choice or hold on this request."""
 
 
-def may_change(principal: Principal, request: PrintRequest) -> bool:
-    """A signed-in Admin changes a request's holds while it is Approved, Waiting on Filament
-    or Queued. Tokens act for no one, and a change records who made it."""
-    return principal.user is not None and is_admin(principal) and request.status in HOLDING
-
-
 def _changing(request: PrintRequest, expected: RequestStatus) -> None:
     if request.status != expected:
         raise pipeline.Stale(pipeline.STALE)
-    if request.status not in HOLDING:
+    if request.status not in pipeline.HOLDING:
         raise pipeline.NotAMove(NOT_NOW)
 
 
