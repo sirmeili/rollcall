@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The menu's page icons (docs/mockups/mobile-web/PhoneMenu.dc.html), by page.
+  // The menu's page and action icons (docs/mockups/mobile-web/PhoneMenu.dc.html), by link.
   let { href }: { href: string } = $props();
 </script>
 
@@ -12,7 +12,15 @@
   stroke-width="2"
   aria-hidden="true"
 >
-  {#if href === "/"}
+  {#if href === "/scan"}
+    <!-- The Scan button's phone with NFC waves, drawn on a 48 grid. -->
+    <g transform="scale(0.5)" stroke-width="5" stroke-linecap="round">
+      <rect x="14" y="6" width="20" height="36" rx="4"></rect><path d="M21 37h6"></path>
+      <path d="M38 18a9 9 0 0 1 0 12M42 14a15 15 0 0 1 0 20"></path>
+    </g>
+  {:else if href === "/spools/new"}
+    <path d="M12 5v14M5 12h14" stroke-width="2.4" stroke-linecap="round"></path>
+  {:else if href === "/"}
     <circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle>
   {:else if href === "/spools"}
     <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path>
