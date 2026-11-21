@@ -313,6 +313,190 @@ describe("Spools page", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("boom.");
   });
+
+  describe("on a phone", () => {
+    beforeEach(() => (viewport().phone = true));
+    afterEach(() => (viewport().phone = false));
+
+    it("filters from a sheet behind a Filter button, in place of the chips and Type", async () => {
+      // The server's total follows the state asked for, so Show N can be checked.
+      stock.listSpools.mockImplementation(async (query: { states: string[] }) =>
+        page([spoolRow()], query.states.includes("open") ? 1 : 2),
+      );
+      render(SpoolsPage);
+      await screen.findByText("Showing 1–1 of 2");
+
+      expect(screen.queryByRole("group", { name: "Filter by state" })).toBeNull();
+      expect(screen.queryByLabelText("Type")).toBeNull();
+      const filterButton = screen.getByRole("button", { name: "Filter" });
+      await userEvent.click(filterButton);
+
+      const sheet = screen.getByRole("dialog", { name: "Filter" });
+      await userEvent.click(within(sheet).getByRole("button", { name: "Open" }));
+      await userEvent.click(within(sheet).getByRole("button", { name: "PETG" }));
+      await userEvent.click(await within(sheet).findByRole("button", { name: "Show 1 spool" }));
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+      await waitFor(() =>
+        expect(stock.listSpools).toHaveBeenLastCalledWith(
+          { states: ["open"], type: "PETG", q: "", limit: 50, offset: 0 },
+          expect.any(AbortSignal),
+        ),
+      );
+      expect(screen.getByRole("button", { name: "Filter, 2 on" })).toBeInTheDocument();
+
+      // The chip's label reopens the sheet; Escape leaves the filters as they were.
+      await userEvent.click(screen.getByRole("button", { name: "Open · PETG" }));
+      expect(screen.getByRole("dialog", { name: "Filter" })).toBeInTheDocument();
+      await userEvent.keyboard("{Escape}");
+      expect(screen.queryByRole("dialog")).toBeNull();
+
+      await userEvent.click(screen.getByRole("button", { name: "Clear the filters" }));
+      expect(screen.getByRole("button", { name: "Filter" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Open · PETG" })).toBeNull();
+    });
+
+    it("lists each spool as a compact row, with a loaded spool's slot as its location", async () => {
+      const slot = { printer_id: 1, printer_name: "P1S", ams_index: 0, tray_index: 1 };
+      stock.listSpools.mockResolvedValue(
+        page(
+          [
+            spoolRow({ location: "Dry box 1", ams_slot: slot, remaining_pct: 8 }),
+            spoolRow({ id: 2, state: "sealed", location: null, placeholder: true }),
+            spoolRow({ id: 3, remaining_pct: null }),
+          ],
+          3,
+        ),
+      );
+      render(SpoolsPage);
+      await screen.findByText("Showing 1–3 of 3");
+
+      expect(screen.queryByRole("table")).toBeNull();
+      const loaded = screen.getByRole("button", { name: /#1/ });
+      expect(loaded).toHaveTextContent("#1 · AMS 1, slot 2 on P1S");
+      expect(loaded).not.toHaveTextContent("Dry box 1");
+      expect(loaded).toHaveTextContent("8%");
+      expect(loaded).toHaveTextContent("Open");
+      expect(screen.getByRole("button", { name: /#2/ })).toHaveTextContent("#2 · no tag yet · —");
+      expect(screen.getByRole("button", { name: /#3/ })).toHaveTextContent("Not seen by the AMS");
+
+      // Expanded, the loaded spool's slot is its location; a sealed spool has nothing left to show.
+      await userEvent.click(loaded);
+      expect(document.getElementById("spool-detail-1")).toHaveTextContent(
+        "Location AMS 1, slot 2 on P1S Left 8%",
+      );
+      await userEvent.click(screen.getByRole("button", { name: /#2/ }));
+      expect(document.getElementById("spool-detail-2")).toHaveTextContent("Location — Left —");
+    });
+
+    it("says when nothing matches, and offers Show spools when the count fails", async () => {
+      stock.listSpools.mockResolvedValueOnce(page([], 0)).mockRejectedValue(new Error("down"));
+      render(SpoolsPage);
+      expect(await screen.findByText("No spools match.")).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Filter" }));
+      expect(
+        await within(screen.getByRole("dialog")).findByRole("button", { name: "Show spools" }),
+      ).toBeInTheDocument();
+    });
+
+    it("expands one row at a time, but not when its checkbox is ticked", async () => {
+      stock.listSpools.mockResolvedValue(page());
+      render(SpoolsPage);
+      await screen.findByText("Showing 1–2 of 2");
+      const first = screen.getByRole("button", { name: /#1/ });
+      const second = screen.getByRole("button", { name: /#2/ });
+
+      await userEvent.click(first);
+      expect(first).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("link", { name: "View spool" })).toHaveAttribute("href", "/spools/1");
+      expect(screen.getByText("Received")).toBeInTheDocument();
+
+      await userEvent.click(second);
+      expect(first).toHaveAttribute("aria-expanded", "false");
+      expect(second).toHaveAttribute("aria-expanded", "true");
+      await userEvent.click(second);
+      expect(second).toHaveAttribute("aria-expanded", "false");
+
+      await userEvent.click(screen.getByRole("checkbox", { name: "Select spool 1" }));
+      expect(first).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("moves the ticked spools from a bar pinned above the bottom bar", async () => {
+      stock.listSpools.mockResolvedValue(page());
+      stock.moveSpools.mockResolvedValue([spoolRow(), spoolRow({ id: 2 })]);
+      render(SpoolsPage);
+      await screen.findByText("Showing 1–2 of 2");
+
+      await userEvent.click(screen.getByRole("checkbox", { name: "Select spool 1" }));
+      await userEvent.click(screen.getByRole("checkbox", { name: "Select spool 2" }));
+      const bar = screen.getByRole("form", { name: "Move selected spools" });
+      expect(bar).toHaveTextContent("2 selected");
+      await userEvent.click(within(bar).getByRole("button", { name: "Clear" }));
+      expect(screen.queryByRole("form")).toBeNull();
+
+      await userEvent.click(screen.getByRole("checkbox", { name: "Select spool 2" }));
+      await userEvent.type(screen.getByLabelText("Move to"), "Shelf C");
+      await userEvent.click(screen.getByRole("button", { name: "Move" }));
+      expect(stock.moveSpools).toHaveBeenCalledWith([2], "Shelf C");
+      expect(await screen.findByRole("status")).toHaveTextContent("Moved 2 to Shelf C.");
+    });
+
+    it("unticks everything and goes back to the first page when the search changes", async () => {
+      stock.listSpools.mockResolvedValue(page([spoolRow()], 120));
+      render(SpoolsPage);
+      await screen.findByText("Showing 1–1 of 120");
+
+      await userEvent.click(screen.getByRole("button", { name: "Next" }));
+      await userEvent.click(screen.getByRole("checkbox", { name: "Select spool 1" }));
+      expect(screen.getByRole("form", { name: "Move selected spools" })).toBeInTheDocument();
+      await userEvent.type(screen.getByLabelText("Search spools"), "x");
+
+      expect(screen.queryByRole("form")).toBeNull();
+      await waitFor(() =>
+        expect(stock.listSpools).toHaveBeenLastCalledWith(
+          expect.objectContaining({ q: "x", offset: 0 }),
+          expect.any(AbortSignal),
+        ),
+      );
+    });
+
+    it("gives Viewers no checkboxes", async () => {
+      signedInAs("viewer");
+      stock.listSpools.mockResolvedValue(page());
+      render(SpoolsPage);
+      await screen.findByText("Showing 1–2 of 2");
+
+      expect(screen.queryByRole("checkbox")).toBeNull();
+      expect(screen.getByRole("button", { name: /#1/ })).toBeInTheDocument();
+    });
+
+    it("clears the filters from the sheet or with Clear under the search", async () => {
+      stock.listSpools.mockResolvedValue(page());
+      render(SpoolsPage);
+      await screen.findByText("Showing 1–2 of 2");
+
+      await userEvent.click(screen.getByRole("button", { name: "Filter" }));
+      let sheet = screen.getByRole("dialog", { name: "Filter" });
+      await userEvent.click(within(sheet).getByRole("button", { name: "Used up" }));
+      await userEvent.click(within(sheet).getByRole("button", { name: "Clear" }));
+      const states = within(sheet).getByRole("group", { name: "State" });
+      expect(within(states).getByRole("button", { name: "All" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      await userEvent.click(within(sheet).getByRole("button", { name: "Close" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Filter" }));
+      sheet = screen.getByRole("dialog", { name: "Filter" });
+      await userEvent.click(within(sheet).getByRole("button", { name: "Sealed" }));
+      await userEvent.click(await within(sheet).findByRole("button", { name: "Show 2 spools" }));
+      expect(screen.getByRole("button", { name: "Filter, 1 on" })).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+      expect(screen.getByRole("button", { name: "Filter" })).toBeInTheDocument();
+    });
+  });
 });
 
 describe("Spool detail page", () => {

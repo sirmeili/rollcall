@@ -8,6 +8,8 @@ import type {
   SpoolState,
 } from "#lib/api/types.ts";
 import { shortDate, STATE_LABELS } from "#lib/format.ts";
+import { ALL_TYPES } from "#lib/inventory.ts";
+import { slotText } from "#lib/printers.ts";
 
 export const PAGE_SIZE = 50;
 
@@ -70,6 +72,45 @@ export function knownLocations(spools: SpoolRow[]): string[] {
     if (location && !seen.has(location.toLowerCase())) seen.set(location.toLowerCase(), location);
   }
   return [...seen.values()].sort((a, b) => a.localeCompare(b));
+}
+
+/** Where the spool is: its AMS slot while loaded (the written location is kept for when it
+ * leaves the AMS), otherwise the written location, or null when there is neither. */
+export function locationText(spool: SpoolRow): string | null {
+  return spool.ams_slot ? slotText(spool.ams_slot) : spool.location;
+}
+
+/** The mono line under a compact row's name: "#47 · no tag yet · Shelf B". */
+export function metaLine(spool: SpoolRow): string {
+  const parts = [`#${spool.id}`];
+  if (spool.placeholder) parts.push("no tag yet");
+  parts.push(locationText(spool) ?? "—");
+  return parts.join(" · ");
+}
+
+/** The Spools page's State and Type filters. */
+export interface SpoolFilter {
+  state: SpoolState | "all";
+  type: string;
+}
+
+/** Every spool: no State or Type filter. A function, not a constant, because
+ * `inventory.ts` (where ALL_TYPES lives) imports this module too. */
+export function noFilter(): SpoolFilter {
+  return { state: "all", type: ALL_TYPES };
+}
+
+/** How many of the State and Type filters are on: 0, 1 or 2. */
+export function filtersOn(filter: SpoolFilter): number {
+  return (filter.state === "all" ? 0 : 1) + (filter.type === ALL_TYPES ? 0 : 1);
+}
+
+/** The filters that are on, for the chip under the search: "Open · PLA". */
+export function filterSummary(filter: SpoolFilter): string {
+  const parts: string[] = [];
+  if (filter.state !== "all") parts.push(STATE_LABELS[filter.state]);
+  if (filter.type !== ALL_TYPES) parts.push(filter.type);
+  return parts.join(" · ");
 }
 
 export function selectionText(count: number): string {

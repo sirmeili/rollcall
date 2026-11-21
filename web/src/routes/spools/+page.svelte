@@ -4,10 +4,21 @@
   import type { Page, ProductSummary, SpoolRow, SpoolState } from "#lib/api/types.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import MoveBar from "#lib/components/spools/MoveBar.svelte";
+  import PhoneControls from "#lib/components/spools/PhoneControls.svelte";
+  import SpoolFilterSheet from "#lib/components/spools/SpoolFilterSheet.svelte";
+  import SpoolList from "#lib/components/spools/SpoolList.svelte";
   import SpoolTable from "#lib/components/spools/SpoolTable.svelte";
   import { page } from "$app/state";
   import { ALL_TYPES, filamentTypes } from "#lib/inventory.ts";
-  import { countText, knownLocations, PAGE_SIZE, rangeText, STATE_FILTERS } from "#lib/spools.ts";
+  import {
+    countText,
+    knownLocations,
+    noFilter,
+    PAGE_SIZE,
+    rangeText,
+    type SpoolFilter,
+    STATE_FILTERS,
+  } from "#lib/spools.ts";
   import { viewport } from "#lib/viewport.svelte.ts";
 
   /** Wait this long after the last keystroke before searching. */
@@ -27,6 +38,7 @@
 
   let selected = $state(new Set<number>());
   let moving = $state(false);
+  let sheetOpen = $state(false);
 
   const canEdit = $derived(session.can("editor"));
   const screen = viewport();
@@ -44,15 +56,39 @@
     void loadCounts();
   });
 
+  /** The query for a set of filters and the current search. */
+  function queryFor(state: SpoolState | "all", chosen: string) {
+    return {
+      states: state === "all" ? [] : [state],
+      type: chosen === ALL_TYPES ? undefined : chosen,
+      q: search,
+    };
+  }
+
+  /** How many spools match a filter, for the sheet's Show button. */
+  async function countMatching(next: SpoolFilter, signal: AbortSignal): Promise<number> {
+    const found = await listSpools(
+      { ...queryFor(next.state, next.type), limit: 1, offset: 0 },
+      signal,
+    );
+    return found.total;
+  }
+
+  function applySheet(next: SpoolFilter): void {
+    sheetOpen = false;
+    filter(() => {
+      stateFilter = next.state;
+      type = next.type;
+    });
+  }
+
+  function clearFilters(): void {
+    applySheet(noFilter());
+  }
+
   // Reload whenever a filter, the page or `reloads` changes; typing waits for a pause.
   $effect(() => {
-    const query = {
-      states: stateFilter === "all" ? [] : [stateFilter],
-      type: type === ALL_TYPES ? undefined : type,
-      q: search,
-      limit: PAGE_SIZE,
-      offset,
-    };
+    const query = { ...queryFor(stateFilter, type), limit: PAGE_SIZE, offset };
     void reloads;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
@@ -101,7 +137,8 @@
 
 <svelte:head><title>Spools · RollCall</title></svelte:head>
 
-<div class="page">
+<!-- On a phone the Move bar is pinned over the end of the page, so the page leaves room. -->
+<div class="page" class:moving={screen.phone && canEdit && selected.size > 0}>
   <div class="pagehead">
     <div>
       <h1>Spools</h1>
@@ -126,48 +163,58 @@
     {/if}
   </div>
 
-  <div class="toolbar">
-    <label class="search">
-      <span class="sr-only">Search spools</span>
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        aria-hidden="true"
-      >
-        <circle cx="11" cy="11" r="7"></circle>
-        <path d="m20 20-3.5-3.5"></path>
-      </svg>
-      <input
-        type="search"
-        placeholder="Product, type, location or notes"
-        maxlength="100"
-        value={search}
-        oninput={(event) => filter(() => (search = event.currentTarget.value))}
-      />
-    </label>
-    <div class="toolbar chips" role="group" aria-label="Filter by state">
-      {#each STATE_FILTERS as option (option.value)}
-        <button
-          type="button"
-          class="chip"
-          aria-pressed={stateFilter === option.value}
-          onclick={() => filter(() => (stateFilter = option.value))}>{option.label}</button
+  {#if screen.phone}
+    <PhoneControls
+      {search}
+      filter={{ state: stateFilter, type }}
+      onsearch={(text) => filter(() => (search = text))}
+      onopen={() => (sheetOpen = true)}
+      onclear={clearFilters}
+    />
+  {:else}
+    <div class="toolbar">
+      <label class="search">
+        <span class="sr-only">Search spools</span>
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
         >
-      {/each}
-    </div>
-    <label class="type">
-      Type
-      <select value={type} onchange={(event) => filter(() => (type = event.currentTarget.value))}>
-        {#each filamentTypes(inventory) as option (option)}
-          <option value={option}>{option}</option>
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m20 20-3.5-3.5"></path>
+        </svg>
+        <input
+          type="search"
+          placeholder="Product, type, location or notes"
+          maxlength="100"
+          value={search}
+          oninput={(event) => filter(() => (search = event.currentTarget.value))}
+        />
+      </label>
+      <div class="toolbar chips" role="group" aria-label="Filter by state">
+        {#each STATE_FILTERS as option (option.value)}
+          <button
+            type="button"
+            class="chip"
+            aria-pressed={stateFilter === option.value}
+            onclick={() => filter(() => (stateFilter = option.value))}>{option.label}</button
+          >
         {/each}
-      </select>
-    </label>
-  </div>
+      </div>
+      <label class="type">
+        Type
+        <select value={type} onchange={(event) => filter(() => (type = event.currentTarget.value))}>
+          {#each filamentTypes(inventory) as option (option)}
+            <option value={option}>{option}</option>
+          {/each}
+        </select>
+      </label>
+    </div>
+  {/if}
 
   {#if notice}<p role="status" class="muted">{notice}</p>{/if}
 
@@ -176,6 +223,7 @@
       count={selected.size}
       locations={knownLocations(spools)}
       busy={moving}
+      pinned={screen.phone}
       onmove={move}
       onclear={() => (selected = new Set())}
     />
@@ -186,8 +234,12 @@
   {:else if !result}
     <p class="muted">Loading…</p>
   {:else}
-    <SpoolTable {spools} selected={canEdit ? selected : null} ontoggle={toggle} />
-    <div class="pager">
+    {#if screen.phone}
+      <SpoolList {spools} selected={canEdit ? selected : null} ontoggle={toggle} />
+    {:else}
+      <SpoolTable {spools} selected={canEdit ? selected : null} ontoggle={toggle} />
+    {/if}
+    <div class="pager" class:phone={screen.phone}>
       <span>{rangeText(result.offset, spools.length, result.total)}</span>
       <div class="toolbar">
         <button
@@ -204,6 +256,16 @@
     </div>
   {/if}
 </div>
+
+{#if sheetOpen}
+  <SpoolFilterSheet
+    filter={{ state: stateFilter, type }}
+    types={filamentTypes(inventory)}
+    count={countMatching}
+    onapply={applySheet}
+    onclose={() => (sheetOpen = false)}
+  />
+{/if}
 
 <style>
   .search {
@@ -255,5 +317,21 @@
 
   .pager .toolbar {
     gap: 8px;
+  }
+
+  /* On a phone: the range above two even buttons. */
+  .pager.phone {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .pager.phone .toolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .moving {
+    padding-bottom: 140px;
   }
 </style>
