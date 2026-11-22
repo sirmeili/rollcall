@@ -9,6 +9,8 @@ from filament_tracker.services.shopping_list.hand import (
     remove_hand_reason,
 )
 from filament_tracker.services.shopping_list.history import HistoryEntry
+from filament_tracker.services.shopping_list.needs import RequestNeedsReader, RequestShort
+from filament_tracker.services.shopping_list.net_weight import NetWeight, SizeFrom
 from filament_tracker.services.shopping_list.read import (
     HandAdded,
     Line,
@@ -17,17 +19,23 @@ from filament_tracker.services.shopping_list.read import (
     ShoppingListItem,
     read,
 )
+from filament_tracker.services.shopping_list.size import set_size
 
 __all__ = [
     "HandAdded",
     "HistoryEntry",
     "Line",
     "LowStock",
+    "NetWeight",
     "NoSuchReason",
+    "RequestNeedsReader",
+    "RequestShort",
     "ShoppingList",
     "ShoppingListItem",
+    "SizeFrom",
     "add_by_hand",
     "product_for_color",
     "read",
     "remove_hand_reason",
+    "set_size",
 ]
