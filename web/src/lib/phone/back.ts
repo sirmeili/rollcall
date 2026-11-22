@@ -32,7 +32,7 @@ export function backAction(press: BackPress, context: BackContext): BackAction {
 }
 
 /** The open layers, oldest first. Each is a box so the same close can be open twice. */
-const layers: { close: () => void }[] = [];
+const layers = new Set<{ close: () => void }>();
 
 /** Register a layer as open, with how to close it, until the returned function is called.
  *
@@ -40,11 +40,8 @@ const layers: { close: () => void }[] = [];
  * unregisters, so a close that keeps the layer open (or opens another on top) is fine. */
 export function openLayer(close: () => void): () => void {
   const layer = { close };
-  layers.push(layer);
-  return () => {
-    const at = layers.indexOf(layer);
-    if (at >= 0) layers.splice(at, 1);
-  };
+  layers.add(layer);
+  return () => void layers.delete(layer);
 }
 
 /** Handle every Back press the phone bridge reports, until the returned function is called.
@@ -52,8 +49,8 @@ export function openLayer(close: () => void): () => void {
 export function listenForBack(context: () => Pick<BackContext, "starting">): () => void {
   const phoneBridge = bridge();
   return phoneBridge.onBack((press) => {
-    const action = backAction(press, { ...context(), layerOpen: layers.length > 0 });
-    if (action === "layer") layers[layers.length - 1].close();
+    const action = backAction(press, { ...context(), layerOpen: layers.size > 0 });
+    if (action === "layer") [...layers].at(-1)!.close();
     else if (action === "page") history.back();
     else if (action === "background") void phoneBridge.background();
   });
