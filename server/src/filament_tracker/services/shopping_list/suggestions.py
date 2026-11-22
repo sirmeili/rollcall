@@ -24,6 +24,7 @@ from filament_tracker.services.catalog_links import (
 )
 from filament_tracker.services.shopping_list import shopping_history
 from filament_tracker.services.shopping_list.catalog_products import product_for_color
+from filament_tracker.services.shopping_list.hand import new_reason
 
 
 class NoSuchSuggestion(LookupError):
@@ -135,8 +136,7 @@ def add_suggestion(
         product = product_for_color(session, suggestion.catalog_uuid, user_id, now)
     else:
         product = session.get_one(Product, suggestion.product_id)
-    reason = HandReason(product_id=product.id, spools=suggestion.spools, user_id=user_id, at=now)
-    session.add(reason)
+    reason = new_reason(session, product, suggestion.spools, user_id, now)
     _decide(session, suggestion, SuggestionStatus.ADDED, product, user_id, now)
     return reason
 

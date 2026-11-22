@@ -20,11 +20,19 @@ def add_by_hand(
 ) -> HandReason:
     """Add spools to the product's item, as a reason of their own. A product already on the
     list gets another reason, never a second item."""
-    reason = HandReason(product_id=product.id, spools=spools, user_id=user_id, at=now)
-    session.add(reason)
+    reason = new_reason(session, product, spools, user_id, now)
     shopping_history.record(
         session, product.id, ShoppingAction.ADDED_BY_HAND, user_id, now, spools=spools
     )
+    return reason
+
+
+def new_reason(
+    session: Session, product: Product, spools: int, user_id: int | None, now: datetime
+) -> HandReason:
+    """The hand-added reason alone, for a caller that records its own shopping list history."""
+    reason = HandReason(product_id=product.id, spools=spools, user_id=user_id, at=now)
+    session.add(reason)
     return reason
 
 
