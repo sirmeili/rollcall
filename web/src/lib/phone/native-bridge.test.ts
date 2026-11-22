@@ -207,6 +207,14 @@ describe("installing the bridge", () => {
     expect(bridge().appVersion).toBe("app-1.0");
   });
 
+  it("uses Capacitor's App plugin for Back by default", async () => {
+    const fake = fakePlugin();
+    expect(await installNativeBridge({ isNativePlatform: () => true }, () => fake.plugin)).toBe(
+      true,
+    );
+    expect(bridge().app).toBe(true);
+  });
+
   it("uses Capacitor by default, which is not native under test", async () => {
     expect(await installNativeBridge()).toBe(false);
   });
