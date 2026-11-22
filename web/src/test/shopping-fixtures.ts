@@ -44,11 +44,20 @@ export function lowItem(
     on_order: 0,
     reasons: [{ kind: "low_stock", spools, sealed, threshold }],
     history: [],
+    dismissed_need: null,
+    new_since_dismissal: null,
   };
 }
 
 export function shoppingList(overrides: Partial<ShoppingList> = {}): ShoppingList {
-  return { suggestions: [], lines: [], not_in_catalog: [], store_address: STORE, ...overrides };
+  return {
+    suggestions: [],
+    lines: [],
+    not_in_catalog: [],
+    store_address: STORE,
+    dismissed: [],
+    ...overrides,
+  };
 }
 
 export function handReason(id: number, spools: number, by: string | null = "frank"): HandReason {
@@ -70,6 +79,8 @@ export function handItem(
     on_order: 0,
     reasons,
     history: reasons.map((reason) => added(reason.spools, reason.by)),
+    dismissed_need: null,
+    new_since_dismissal: null,
   };
 }
 

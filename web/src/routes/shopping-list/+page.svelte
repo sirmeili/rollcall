@@ -1,11 +1,14 @@
 <script lang="ts">
   /** The Shopping list page: each product to buy, as one item with its reasons, grouped by
-   * filament line, then Not in the catalog (every role), with Viewers' suggestions at the top.
-   * Editors and Admins add spools by hand and remove them, mark items Ordered and set what is
-   * on order, and add or dismiss suggestions; Viewers suggest. */
+   * filament line, then Not in the catalog (every role), with Viewers' suggestions at the top
+   * and a Dismissed filter. Editors and Admins add spools by hand and remove them, mark items
+   * Ordered and set what is on order, dismiss items and bring them back, and add or dismiss
+   * suggestions; Viewers suggest. */
   import { describeError } from "#lib/api/errors.ts";
   import {
     addSuggestion,
+    bringBack,
+    dismissItem,
     dismissSuggestion,
     getShoppingList,
     removeHandReason,
@@ -13,6 +16,7 @@
   } from "#lib/api/shopping.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import AddToShoppingList from "#lib/components/shopping/AddToShoppingList.svelte";
+  import DismissedItems from "#lib/components/shopping/DismissedItems.svelte";
   import ShoppingGroup from "#lib/components/shopping/ShoppingGroup.svelte";
   import SuggestionsSection from "#lib/components/shopping/SuggestionsSection.svelte";
   import { shoppingBadge } from "#lib/shopping-badge.svelte.ts";
@@ -28,6 +32,8 @@
   let expanded = $state<number | null>(null);
   // A suggestion is being added or dismissed.
   let deciding = $state(false);
+  // The Dismissed filter: the dismissed items instead of the list.
+  let showDismissed = $state(false);
 
   const screen = viewport();
   const groups = $derived(list ? shoppingGroups(list) : []);
@@ -41,14 +47,18 @@
     }
   }
 
-  async function remove(id: number): Promise<void> {
+  async function change(made: Promise<ShoppingList>): Promise<void> {
     changeFailure = null;
     try {
-      list = await removeHandReason(id);
+      list = await made;
     } catch (error) {
       changeFailure = describeError(error);
     }
   }
+
+  const remove = (id: number) => change(removeHandReason(id));
+  const dismiss = (productId: number) => change(dismissItem(productId));
+  const restore = (productId: number) => change(bringBack(productId));
 
   async function decide(change: (id: number) => Promise<ShoppingList>, id: number): Promise<void> {
     changeFailure = null;
@@ -86,6 +96,14 @@
       <h1>Shopping list</h1>
       <p>What to buy, and why.</p>
     </div>
+    {#if list}
+      <button
+        type="button"
+        class="chip"
+        aria-pressed={showDismissed}
+        onclick={() => (showDismissed = !showDismissed)}>Dismissed ({list.dismissed.length})</button
+      >
+    {/if}
   </div>
 
   {#if list && session.user}
@@ -108,7 +126,9 @@
         ondismiss={(id) => decide(dismissSuggestion, id)}
       />
     {/if}
-    {#if groups.length === 0}
+    {#if showDismissed}
+      <DismissedItems items={list.dismissed} onbringback={restore} />
+    {:else if groups.length === 0}
       <p class="muted">Nothing to buy.</p>
     {:else}
       <div class="groups">
@@ -122,6 +142,7 @@
             {expanded}
             onexpand={(id) => (expanded = expanded === id ? null : id)}
             onremove={remove}
+            ondismiss={dismiss}
             onchanged={(next) => (list = next)}
           />
         {/each}

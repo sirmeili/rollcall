@@ -1,6 +1,6 @@
-"""The shopping list: what to buy and why (every role reads it), adding to it by hand and
-what is on order (Editors and Admins), and suggestions (every role suggests; Editors and
-Admins decide)."""
+"""The shopping list: what to buy and why (every role reads it), adding to it by hand, what
+is on order, and dismissing and bringing back its items (Editors and Admins), and
+suggestions (every role suggests; Editors and Admins decide)."""
 
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -31,6 +31,7 @@ from filament_tracker.services.shopping_list import (
     LowStock,
     NoSuchReason,
     NoSuchSuggestion,
+    NotDismissed,
     OpenSuggestion,
     ShoppingListItem,
     SuggestionDecided,
@@ -65,6 +66,8 @@ def _item_out(item: ShoppingListItem) -> ShoppingListItemOut:
             )
             for e in item.history
         ],
+        dismissed_need=item.dismissed_need,
+        new_since_dismissal=item.new_since_dismissal,
     )
 
 
@@ -99,6 +102,7 @@ def _list_out(session: DbSession, request: Request) -> ShoppingListOut:
         ],
         not_in_catalog=[_item_out(i) for i in listed.not_in_catalog],
         store_address=store.store_address(),
+        dismissed=[_item_out(i) for i in listed.dismissed],
     )
 
 
@@ -110,8 +114,12 @@ def _user_id(caller: Principal) -> int | None:
 def read(_: Viewer, session: DbSession, request: Request) -> ShoppingListOut:
     """Each product to buy, as one item with its reasons and recent history, grouped by the
     filament line of its catalog link, then the products not in the catalog. A low-stock
-    product needs threshold - sealed + 1 spools; spools added by hand add to that."""
-    return _list_out(session, request)
+    product needs threshold - sealed + 1 spools; spools added by hand add to that. A dismissed
+    item is under dismissed while its need is at or below the need it was dismissed at."""
+    listed = _list_out(session, request)
+    # Reading clears the dismissals of products that need nothing any more.
+    session.commit()
+    return listed
 
 
 @router.post("/shopping-list/hand-reasons", response_model=ShoppingListOut)
@@ -171,6 +179,25 @@ def ordered(
     return _list_out(session, request)
 
 
+@router.post("/shopping-list/items/{product_id}/dismiss", response_model=ShoppingListOut)
+def dismiss(
+    product_id: int, caller: Editor, session: DbSession, request: Request
+) -> ShoppingListOut:
+    """Dismiss a product's item: hide it until more of it is needed than now, and remove its
+    hand-added reasons. Answers the list as it now stands."""
+    _product(session, product_id)
+    item = shopping_list.read(session).find(product_id)
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "not on the shopping list")
+    if item.hidden:
+        raise HTTPException(status.HTTP_409_CONFLICT, "already dismissed")
+    if item.need == 0:
+        raise HTTPException(status.HTTP_409_CONFLICT, "nothing of it is needed")
+    shopping_list.dismiss(session, item, _user_id(caller), utcnow())
+    session.commit()
+    return _list_out(session, request)
+
+
 @router.put("/shopping-list/items/{product_id}/on-order", response_model=ShoppingListOut)
 def set_on_order(
     product_id: int, body: OnOrderIn, caller: Editor, session: DbSession, request: Request
@@ -179,6 +206,21 @@ def set_on_order(
     the list as it now stands."""
     product = _product(session, product_id)
     shopping_list.set_on_order(session, product, body.on_order, _user_id(caller), utcnow())
+    session.commit()
+    return _list_out(session, request)
+
+
+@router.post("/shopping-list/items/{product_id}/bring-back", response_model=ShoppingListOut)
+def bring_back(
+    product_id: int, caller: Editor, session: DbSession, request: Request
+) -> ShoppingListOut:
+    """Bring back a dismissed item: clear its dismissal, so it shows whatever its need.
+    Answers the list as it now stands."""
+    _product(session, product_id)
+    try:
+        shopping_list.bring_back(session, product_id, _user_id(caller), utcnow())
+    except NotDismissed:
+        raise HTTPException(status.HTTP_409_CONFLICT, "not dismissed") from None
     session.commit()
     return _list_out(session, request)
 

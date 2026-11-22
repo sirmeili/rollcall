@@ -3,6 +3,7 @@ Each item's need is worked out live every time the list is read; nothing about i
 (ADR-0021)."""
 
 from filament_tracker.services.shopping_list.catalog_products import product_for_color
+from filament_tracker.services.shopping_list.dismiss import NotDismissed, bring_back, dismiss
 from filament_tracker.services.shopping_list.hand import (
     NoSuchReason,
     add_by_hand,
@@ -35,12 +36,15 @@ __all__ = [
     "LowStock",
     "NoSuchReason",
     "NoSuchSuggestion",
+    "NotDismissed",
     "OpenSuggestion",
     "ShoppingList",
     "ShoppingListItem",
     "SuggestionDecided",
     "add_by_hand",
     "add_suggestion",
+    "bring_back",
+    "dismiss",
     "dismiss_suggestion",
     "open_suggestions",
     "ordered",

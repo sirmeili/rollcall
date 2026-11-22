@@ -66,6 +66,7 @@ def test_an_empty_list(viewer: TestClient) -> None:
         "lines": [],
         "not_in_catalog": [],
         "store_address": "https://us.store.bambulab.com",
+        "dismissed": [],
     }
 
 
