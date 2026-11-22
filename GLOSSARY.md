@@ -48,6 +48,10 @@ _Avoid_: Scanner device, CYD (except when talking about the board itself)
 The Android app acting as a scanner. It also holds the full web app.
 _Avoid_: Phone scanner device, mobile device
 
+**Opening screen**:
+The page the phone app opens on, as set on the phone: Scan or Inventory. Not the start screen shown while the app loads, and not Pairing on a phone not yet set up.
+_Avoid_: Home screen, start screen
+
 **Reader**:
 The NFC chip that reads tags, the PN532 in a handheld scanner. Not the whole scanner.
 
