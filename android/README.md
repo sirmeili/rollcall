@@ -157,4 +157,14 @@ Run this before a release that changes the app, and record the results in the re
 29. Try setting up away from home (mobile data): the app says to finish setting up at home. "Use a different server" goes back to the address.
 30. Unlink a phone set up by signing in: it is signed out and back at the address step.
 
+**Back button**
+
+Run each step with the swipe-back gesture and, where the phone has one, the Back key.
+
+31. Back a page: from Inventory open a spool, then hop to Activity with the bottom nav. Back returns to the spool, and Back again to Inventory.
+32. The opening screen to the background: close the app fully and reopen it, so Scan has nothing before it. Turn on Delivery and record a spool, then press Back: the app goes to the background without closing. Reopen it from the recent apps: Scan shows, with Delivery on and the spool in its list.
+33. Nothing on the start screen: close the app fully, reopen it and press Back while the start screen shows. Nothing happens, and the app opens as usual.
+34. After pairing (QR code, typed code, or setting up by signing in), Back from the opened page sends the app to the background.
+35. After saving a form (a new print request, an edited request, a new spool), Back from the page it opens skips the form.
+
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.

@@ -13,6 +13,7 @@
   import PhoneNav from "#lib/components/shell/PhoneNav.svelte";
   import PhoneTopBar from "#lib/components/shell/PhoneTopBar.svelte";
   import { mayOpen, pageTitle } from "#lib/nav.ts";
+  import { listenForBack } from "#lib/phone/back.ts";
   import { isPhonePath, phone } from "#lib/phone/phone-state.svelte.ts";
   import { seesEveryRequest } from "#lib/requests/access.ts";
   import { requestsBadge } from "#lib/requests-badge.svelte.ts";
@@ -71,6 +72,9 @@
   $effect(() => {
     if (phone.app && !phone.loaded) void phone.load();
   });
+
+  // The phone's Back button and swipe-back gesture. A browser's Back is its own.
+  $effect(() => listenForBack(() => ({ starting: phone.app && !started })));
 
   $effect(() => {
     if (!phone.app || !phone.loaded) return;
