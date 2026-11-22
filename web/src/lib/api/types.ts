@@ -68,6 +68,8 @@ export interface Product {
   provisional: boolean;
   /** Made from an AMS report rather than by hand. */
   from_ams: boolean;
+  /** Made from a catalog color put on the shopping list, until a tag fills it in. */
+  from_catalog: boolean;
   /** Its catalog color; null when it has none. */
   catalog_link: CatalogLink | null;
 }

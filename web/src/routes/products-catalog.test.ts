@@ -180,6 +180,20 @@ describe("Products page, Catalog color column", () => {
     expect(cell("Glow green").getByText("No longer in the catalog")).toBeInTheDocument();
   });
 
+  it('shows "From the catalog" for a product made from a catalog color', async () => {
+    const fromCatalog = summary({
+      product: product({ ...BY_HAND.product, id: 5, display_name: "Jade White PLA Basic" }),
+    });
+    fromCatalog.product.from_catalog = true;
+    stock.getInventory.mockResolvedValue([BY_HAND, fromCatalog]);
+    render(ProductsPage);
+
+    const row = (await screen.findByDisplayValue("Jade White PLA Basic")).closest("tr")!;
+    expect(within(row).getByText("From the catalog")).toBeInTheDocument();
+    const hand = screen.getByDisplayValue("White PLA").closest("tr")!;
+    expect(within(hand).getByText("Added by hand")).toBeInTheDocument();
+  });
+
   it("shows Viewers the column without a way to change it", async () => {
     signedInAs("viewer");
     render(ProductsPage);

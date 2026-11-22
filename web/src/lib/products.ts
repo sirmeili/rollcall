@@ -59,9 +59,12 @@ export function unsavedText(count: number): string {
   return count === 1 ? "1 product changed" : `${count} products changed`;
 }
 
-/** Where a product came from: a scanned tag, or, until one of its tags is scanned, the AMS
- * or someone adding it by hand. */
-export function sourceText(product: Product): "From tag" | "From the AMS" | "Added by hand" {
+/** Where a product came from: a scanned tag, or, until one of its tags is scanned, the AMS,
+ * a catalog color put on the shopping list, or someone adding it by hand. */
+export function sourceText(
+  product: Product,
+): "From tag" | "From the AMS" | "From the catalog" | "Added by hand" {
   if (!product.provisional) return "From tag";
-  return product.from_ams ? "From the AMS" : "Added by hand";
+  if (product.from_ams) return "From the AMS";
+  return product.from_catalog ? "From the catalog" : "Added by hand";
 }

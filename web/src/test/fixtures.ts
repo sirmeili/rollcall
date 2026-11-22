@@ -39,6 +39,7 @@ export function product(overrides: Partial<Product> = {}): Product {
     nearly_out_pct: 15,
     provisional: false,
     from_ams: false,
+    from_catalog: false,
     catalog_link: null,
     ...overrides,
   };
