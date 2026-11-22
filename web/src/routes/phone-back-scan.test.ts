@@ -128,4 +128,20 @@ describe("Back on Scan with a scan card showing", () => {
     stayed();
     expect(recorded()).toEqual([]);
   });
+
+  it("closes the card after an action is recorded, keeping the event", async () => {
+    await openScan();
+    native.tap(tagRead(tags[0].blocks));
+    await userEvent.click(await screen.findByRole("button", { name: "Opened" }));
+    await screen.findByText("Recorded just now · spool #7");
+
+    native.pressBack(true);
+
+    expect(await screen.findByText(READY)).toBeInTheDocument();
+    expect(screen.getByText(/Black PLA Basic · Opened/)).toBeInTheDocument();
+    expect(screen.queryByText(/\(undone\)/)).toBeNull();
+    stayed();
+    expect(recorded()).toEqual(["opened"]);
+    expect(undone()).toBe(false);
+  });
 });
