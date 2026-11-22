@@ -10,6 +10,7 @@
     materialCounts,
     noFilter,
   } from "#lib/catalog.ts";
+  import { backCloses } from "#lib/phone/back-layer.svelte.ts";
 
   interface Props {
     lines: FilamentLine[];
@@ -19,6 +20,9 @@
   }
 
   let { lines, filter, onapply, onclose }: Props = $props();
+
+  // The phone's Back closes it too, as Escape does.
+  backCloses(() => onclose());
 
   // The sheet edits a copy; the page's filter changes only on Show.
   // svelte-ignore state_referenced_locally

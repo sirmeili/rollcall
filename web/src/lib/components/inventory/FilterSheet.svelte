@@ -5,6 +5,7 @@
   // panel on wider screens.
   import type { ProductSummary } from "#lib/api/types.ts";
   import { applyFilter, type InventoryFilter, noFilter, SORTS } from "#lib/inventory.ts";
+  import { backCloses } from "#lib/phone/back-layer.svelte.ts";
 
   interface Props {
     items: ProductSummary[];
@@ -16,6 +17,9 @@
   }
 
   let { items, types, filter, onapply, onclose }: Props = $props();
+
+  // The phone's Back closes it too, as Escape does.
+  backCloses(() => onclose());
 
   // The sheet edits a copy; the page's filter changes only on Show.
   // svelte-ignore state_referenced_locally

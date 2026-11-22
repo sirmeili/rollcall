@@ -3,6 +3,7 @@
   // State and Type, as the desktop chips and dropdown. Changes apply on "Show N spools";
   // Escape, the dimmed page or Close leave the filters as they were.
   import { keepTabInside } from "#lib/focus-trap.ts";
+  import { backCloses } from "#lib/phone/back-layer.svelte.ts";
   import { noFilter, type SpoolFilter, STATE_FILTERS } from "#lib/spools.ts";
 
   interface Props {
@@ -16,6 +17,9 @@
   }
 
   let { filter, types, count, onapply, onclose }: Props = $props();
+
+  // The phone's Back closes it too, as Escape does.
+  backCloses(() => onclose());
 
   // The sheet edits a copy; the page's filters change only on Show.
   // svelte-ignore state_referenced_locally
