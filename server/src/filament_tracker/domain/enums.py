@@ -116,3 +116,36 @@ class ChoiceKind(StrEnum):
 
     PRODUCT = "product"
     CATALOG_COLOR = "catalog_color"
+
+
+class ShoppingAction(StrEnum):
+    """What one shopping list history entry records."""
+
+    ADDED_BY_HAND = "added_by_hand"
+    REMOVED_BY_HAND = "removed_by_hand"
+    SUGGESTED = "suggested"
+    SUGGESTION_ADDED = "suggestion_added"
+    SUGGESTION_DISMISSED = "suggestion_dismissed"
+    ORDERED = "ordered"
+    ON_ORDER_CHANGED = "on_order_changed"
+    DISMISSED = "dismissed"
+    BROUGHT_BACK = "brought_back"
+    SIZE_CHANGED = "size_changed"
+    # A possible duplicate's Same product made two products one.
+    SAME_PRODUCT = "same_product"
+
+
+class SuggestionStatus(StrEnum):
+    """Where a Viewer's suggestion is: waiting for an Editor or Admin, or decided."""
+
+    OPEN = "open"
+    ADDED = "added"
+    DISMISSED = "dismissed"
+
+
+class DuplicateState(StrEnum):
+    """Where a possible duplicate in Review is: waiting for a person, or decided."""
+
+    OPEN = "open"
+    SAME_PRODUCT = "same_product"
+    KEPT_SEPARATE = "kept_separate"

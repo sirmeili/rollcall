@@ -5,6 +5,7 @@ import type { Catalog } from "#lib/api/catalog.ts";
 import type { Choice, ChoiceIn } from "#lib/api/requests.ts";
 import type { ProductSummary } from "#lib/api/types.ts";
 import { stockText, storeSearchUrl, storeUrl } from "#lib/catalog.ts";
+import { rgbHex } from "#lib/format.ts";
 import { similarText } from "#lib/requests/labels.ts";
 import { aboutGrams } from "#lib/spools.ts";
 
@@ -53,7 +54,7 @@ export function pickerOptions(inventory: ProductSummary[], catalog: Catalog | nu
       kind: "product" as const,
       productId: product.id,
       name: product.display_name,
-      hexes: [product.color_rgba.slice(0, 6).toUpperCase()],
+      hexes: [rgbHex(product.color_rgba)],
       sub: `${product.filament_type} · ${stockText(counts.sealed, counts.open)} · ${gramsText(grams)}`,
       similar: [],
       hay: `${product.display_name} ${product.filament_type}`,

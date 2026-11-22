@@ -1,4 +1,7 @@
-# Low stock: add the product to the shopping list and notify a phone.
+# Low stock: add the product to Home Assistant's shopping list and notify a phone.
+#
+# RollCall also has its own shopping list (the Shopping list page), which covers print
+# requests short of filament as well as low stock. Keep either list, or both.
 #
 # Paste into Home Assistant: Settings > Automations & scenes > Create automation >
 # three-dot menu > Edit in YAML, replace everything, then save. Change

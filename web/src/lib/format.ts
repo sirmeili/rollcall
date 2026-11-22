@@ -2,9 +2,31 @@
 
 import type { EventOut, SpoolState } from "#lib/api/types.ts";
 
+/** The whole numbers a field takes: "Spools: a whole number, 1 to 999." */
+export interface WholeRange {
+  label: string;
+  min: number;
+  max: number;
+  /** What the number counts, when the label doesn't say: "grams". */
+  unit?: string;
+}
+
+/** What is wrong with a field's whole number, or null. */
+export function wholeProblem(value: number | null, range: WholeRange): string | null {
+  const { label, min, max, unit } = range;
+  if (value !== null && Number.isInteger(value) && value >= min && value <= max) return null;
+  const number = unit ? `a whole number of ${unit}` : "a whole number";
+  return `${label}: ${number}, ${min.toLocaleString("en-US")} to ${max.toLocaleString("en-US")}.`;
+}
+
+/** "RRGGBB" from an RRGGBBAA color, as the swatch lists take it. */
+export function rgbHex(rgba: string): string {
+  return rgba.slice(0, 6).toUpperCase();
+}
+
 /** "#RRGGBB" from the tag's RRGGBBAA color, for the swatch; grey if it is malformed. */
 export function swatchColor(rgba: string): string {
-  return /^[0-9a-f]{6}/i.test(rgba) ? `#${rgba.slice(0, 6).toUpperCase()}` : "#808080";
+  return /^[0-9a-f]{6}/i.test(rgba) ? `#${rgbHex(rgba)}` : "#808080";
 }
 
 /** "RRGGBB", as printed next to the swatch. */

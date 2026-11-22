@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.domain.enums import SpoolState
 from filament_tracker.services import queries
+from filament_tracker.services.shopping_list import duplicates
 
 
 @dataclass(frozen=True)
@@ -51,11 +52,12 @@ def take_snapshot(session: Session) -> Snapshot:
         )
         for item in queries.inventory(session)
     )
-    # The same total as the Review page's badge.
+    # The same total as the Review page's badge, possible duplicates included.
     in_review = (
         len(queries.flagged_events(session))
         + len(queries.unidentified_tags(session))
         + len(queries.likely_empty(session))
+        + len(duplicates.open_duplicates(session))
     )
     return Snapshot(
         products,

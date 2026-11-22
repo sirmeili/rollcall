@@ -2,11 +2,13 @@
   /** A request's filament choices in order, with the stock and catalog as they are now. A
    * catalog color shows the similar colors in stock and Find in store; a multi-color one
    * gets no comparison, and one the catalog has dropped says so. Once approved, each shows
-   * its grams and holds (ChoiceHolds), which `onedit` lets an Admin change. */
+   * its grams and holds (ChoiceHolds), which `onedit` lets an Admin change, and while it is
+   * short, its product's shopping list stage (ChoiceShopping). */
   import type { Choice } from "#lib/api/requests.ts";
   import { stockText, storeSearchUrl } from "#lib/catalog.ts";
   import FindInStore from "#lib/components/catalog/FindInStore.svelte";
   import ChoiceHolds from "#lib/components/requests/ChoiceHolds.svelte";
+  import ChoiceShopping from "#lib/components/requests/ChoiceShopping.svelte";
   import HexRing from "#lib/components/catalog/HexRing.svelte";
   import { similarText } from "#lib/requests/labels.ts";
   import "#lib/requests/requests.css";
@@ -61,6 +63,7 @@
           >
         {/if}
         <ChoiceHolds {choice} {onedit} />
+        <ChoiceShopping shopping={choice.shopping} />
       </span>
       <span class="end">
         {#if choice.note}

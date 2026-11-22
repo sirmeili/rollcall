@@ -46,6 +46,9 @@ class ProductDetail(BaseModel):
     nearly_out_pct: int = Field(description="An open spool at or below this AMS % is nearly out")
     provisional: bool
     from_ams: bool = Field(description="Made from an AMS report rather than by hand")
+    from_catalog: bool = Field(
+        description="Made from a catalog color put on the shopping list, until a tag fills it in"
+    )
     catalog_link: CatalogLinkOut | None = Field(
         default=None, description="Its catalog color; null when it has none"
     )
@@ -158,9 +161,21 @@ class UnidentifiedTag(BaseModel):
     decoded: dict[str, Any] | None
 
 
+class PossibleDuplicateOut(BaseModel):
+    id: int
+    product: ProductDetail = Field(description="The product the scan made")
+    candidates: list[ProductDetail] = Field(
+        description='The "From the catalog" products it may be the same as, oldest first'
+    )
+    created_at: datetime
+
+
 class ReviewOut(BaseModel):
     flagged_events: list[EventOut] = Field(description="Flagged and not undone, newest first")
     unidentified_tags: list[UnidentifiedTag]
     likely_empty: list[SpoolRow] = Field(
         description="Open spools the AMS reports at 0%, not dismissed"
+    )
+    possible_duplicates: list[PossibleDuplicateOut] = Field(
+        description="Waiting for Same product or Keep separate, newest first"
     )

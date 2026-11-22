@@ -27,8 +27,13 @@ from filament_tracker.domain.actions import ScreenAction, menu_for
 from filament_tracker.domain.enums import EventSource, EventType, Role
 from filament_tracker.domain.state import Outcome
 from filament_tracker.services import grams
-from filament_tracker.services.catalog_links import link_product
+from filament_tracker.services.catalog_links import (
+    catalog_color_for_tag,
+    link_product,
+    linked_products,
+)
 from filament_tracker.services.events import AppendResult, append_event
+from filament_tracker.services.shopping_list import duplicates
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +50,11 @@ class EventIdConflict(Exception):
     """The event ID was already used by a different device."""
 
 
-def handle_scan(session: Session, device: Device, scan: ScanEvent, now: datetime) -> ScanResponse:
+def handle_scan(
+    session: Session, device: Device, scan: ScanEvent, now: datetime, similarity_cutoff: float
+) -> ScanResponse:
+    """`similarity_cutoff` is the largest ΔE at which a "From the catalog" product is a
+    possible duplicate of a product the scan makes."""
     device.last_seen_at = now
     if scan.fw_version:
         device.fw_version = scan.fw_version
@@ -81,7 +90,10 @@ def handle_scan(session: Session, device: Device, scan: ScanEvent, now: datetime
             view_only=not may_record(device),
         )
 
+    made = product is None
     product = _ensure_product(session, product, record)
+    if made:
+        duplicates.detect(session, product, record.variant_id, similarity_cutoff, now)
     linked = False
     if spool is None and placeholder is not None:
         spool, linked = placeholder, True
@@ -133,7 +145,8 @@ def _find_product(session: Session, record: TagRecord, spool: Spool | None) -> P
     In order: the product with the tag's key; the provisional product of the spool this
     tag belongs to (made when the AMS saw it first, perhaps renamed since); the one product
     made from the AMS with the tag's material ID and color; the one provisional product made
-    by hand with the tag's filament type and color that still has unlinked placeholders.
+    by hand with the tag's filament type and color that still has unlinked placeholders;
+    the one "From the catalog" product linked to the catalog color the tag's IDs give.
     """
     exact = session.scalar(
         select(Product).where(
@@ -169,7 +182,17 @@ def _find_product(session: Session, record: TagRecord, spool: Spool | None) -> P
         )
         .distinct()
     ).all()
-    return candidates[0] if len(candidates) == 1 else None
+    if len(candidates) == 1:
+        return candidates[0]
+    return _linked_to_tag_color(session, record)
+
+
+def _linked_to_tag_color(session: Session, record: TagRecord) -> Product | None:
+    color = catalog_color_for_tag(session, record.material_id, record.variant_id)
+    if color is None:
+        return None
+    waiting = [p for p in linked_products(session, color) if p.from_catalog]
+    return waiting[0] if len(waiting) == 1 else None
 
 
 def _oldest_placeholder(session: Session, product: Product) -> Spool | None:
@@ -201,6 +224,7 @@ def _ensure_product(session: Session, product: Product | None, record: TagRecord
         product.variant_id = record.variant_id
         product.color_rgba = record.color_rgba
         product.provisional = False
+        product.from_catalog = False
     else:
         return product
     # A new product, or a provisional one now known, is linked to its catalog color at once.

@@ -1,5 +1,6 @@
 """Resolve Review items and bring them back (Editor and up). Undo uses
-`/events/{id}/revert`."""
+`/events/{id}/revert`. A possible duplicate is resolved by Same product, which cannot be
+brought back, or Keep separate, which can."""
 
 from collections.abc import Callable
 from uuid import UUID
@@ -8,10 +9,12 @@ from fastapi import APIRouter, HTTPException, Response, status
 
 from filament_tracker.api.read_schemas import EventOut
 from filament_tracker.api.views import event_out
+from filament_tracker.api.write_schemas import SameProductIn
 from filament_tracker.auth import DbSession, Editor
 from filament_tracker.db.models import Event
 from filament_tracker.db.types import utcnow
 from filament_tracker.services import edits
+from filament_tracker.services.shopping_list import duplicates
 
 router = APIRouter(prefix="/review", tags=["review"])
 
@@ -28,7 +31,7 @@ def accept(event_id: UUID, caller: Editor, session: DbSession) -> EventOut:
     """The flagged event was right: keep it and take it out of Review."""
     event = _event(session, event_id)
     try:
-        edits.accept_event(event, utcnow(), user_id=caller.user.id if caller.user else None)
+        edits.accept_event(event, utcnow(), user_id=caller.user_id)
     except edits.EditError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     session.commit()
@@ -56,6 +59,20 @@ def _change(session: DbSession, change: Callable[[], object]) -> Response:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
     except edits.EditError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    except duplicates.NoSuchDuplicate as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such possible duplicate") from exc
+    except duplicates.DuplicateDecided as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "the possible duplicate was already decided"
+        ) from exc
+    except duplicates.NotACandidate as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "that product is not one of its candidates"
+        ) from exc
+    except duplicates.CandidateHasSpools as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "that product has spools, so it cannot be merged"
+        ) from exc
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -82,3 +99,31 @@ def dismiss_likely_empty(spool_id: int, _: Editor, session: DbSession) -> Respon
 def restore_likely_empty(spool_id: int, _: Editor, session: DbSession) -> Response:
     """Bring back: show a dismissed "Likely empty" suggestion again."""
     return _change(session, lambda: edits.restore_likely_empty(session, spool_id))
+
+
+@router.post("/duplicates/{duplicate_id}/same-product", status_code=status.HTTP_204_NO_CONTENT)
+def same_product(
+    duplicate_id: int, body: SameProductIn, caller: Editor, session: DbSession
+) -> Response:
+    """The scanned product is this candidate: merge the candidate into it and delete it."""
+    return _change(
+        session,
+        lambda: duplicates.same_product(
+            session, duplicate_id, body.candidate_id, caller.user_id, utcnow()
+        ),
+    )
+
+
+@router.post("/duplicates/{duplicate_id}/keep-separate", status_code=status.HTTP_204_NO_CONTENT)
+def keep_separate(duplicate_id: int, caller: Editor, session: DbSession) -> Response:
+    """They are different products: leave both, and take it out of Review."""
+    return _change(
+        session,
+        lambda: duplicates.keep_separate(session, duplicate_id, caller.user_id, utcnow()),
+    )
+
+
+@router.post("/duplicates/{duplicate_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+def restore_duplicate(duplicate_id: int, _: Editor, session: DbSession) -> Response:
+    """Bring back: return a possible duplicate kept separate to Review."""
+    return _change(session, lambda: duplicates.bring_back(session, duplicate_id))

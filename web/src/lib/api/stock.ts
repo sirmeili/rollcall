@@ -86,7 +86,10 @@ export function updateProduct(id: number, changes: ProductChanges): Promise<Prod
 /** How many items a Review answer holds. */
 export function waitingIn(review: ReviewOut): number {
   return (
-    review.flagged_events.length + review.unidentified_tags.length + review.likely_empty.length
+    review.flagged_events.length +
+    review.unidentified_tags.length +
+    review.likely_empty.length +
+    review.possible_duplicates.length
   );
 }
 

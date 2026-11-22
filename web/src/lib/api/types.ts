@@ -68,6 +68,8 @@ export interface Product {
   provisional: boolean;
   /** Made from an AMS report rather than by hand. */
   from_ams: boolean;
+  /** Made from a catalog color put on the shopping list, until a tag fills it in. */
+  from_catalog: boolean;
   /** Its catalog color; null when it has none. */
   catalog_link: CatalogLink | null;
 }
@@ -183,10 +185,21 @@ export interface UnidentifiedTag {
   decoded: Record<string, unknown> | null;
 }
 
+/** A product a scan made that may be the same as a "From the catalog" product. */
+export interface PossibleDuplicate {
+  id: number;
+  /** The product the scan made. */
+  product: Product;
+  /** The "From the catalog" products it may be the same as, oldest first. */
+  candidates: Product[];
+  created_at: string;
+}
+
 export interface ReviewOut {
   flagged_events: EventOut[];
   unidentified_tags: UnidentifiedTag[];
   likely_empty: SpoolRow[];
+  possible_duplicates: PossibleDuplicate[];
 }
 
 export interface DeviceOut {

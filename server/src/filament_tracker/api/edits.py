@@ -29,10 +29,6 @@ router = APIRouter(tags=["edits"])
 CLOCK_SKEW = timedelta(minutes=5)
 
 
-def _user_id(caller: Principal) -> int | None:
-    return caller.user.id if caller.user else None
-
-
 def _when(value: datetime | None) -> datetime:
     now = utcnow()
     if value is None:
@@ -120,7 +116,7 @@ def manual_action(
         spool,
         EventType(body.action.value),
         _when(body.occurred_at),
-        user_id=_user_id(caller),
+        user_id=caller.user_id,
     )
     session.commit()
     return ActionResult(
@@ -141,7 +137,7 @@ def add_spool(
         session,
         product,
         _when(body.received_at),
-        user_id=_user_id(caller),
+        user_id=caller.user_id,
         location=body.location,
         notes=body.notes,
     )
@@ -172,7 +168,7 @@ def update_product(
         setattr(product, name, value)
     if "catalog_color" in body.model_fields_set:
         try:
-            set_manual(session, product, body.catalog_color, _user_id(caller), utcnow())
+            set_manual(session, product, body.catalog_color, caller.user_id, utcnow())
         except UnknownColor:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, "no such catalog color"

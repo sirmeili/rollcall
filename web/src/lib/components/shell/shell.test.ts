@@ -32,6 +32,7 @@ describe("page titles and menu groups", () => {
       "Catalog",
       "Requests",
       "Review",
+      "Shopping list",
       "Activity",
     ]);
     expect(admin.admin.map((item) => item.label)).toEqual(["Devices", "Users", "Settings"]);
@@ -198,6 +199,7 @@ describe("the bottom bar", () => {
       "/products/3",
       "/catalog",
       "/review",
+      "/shopping-list",
       "/activity",
       "/account",
       "/devices",
@@ -245,6 +247,21 @@ describe("the bottom bar", () => {
     expect(nav.children).toHaveLength(3);
   });
 
+  it("marks Menu while suggestions are open, and counts them on the Shopping list", async () => {
+    render(PhoneNav, { user: VIEWER, pathname: "/", reviewCount: 0, shoppingCount: 3 });
+
+    const menu = screen.getByRole("button", { name: "Menu" });
+    expect(menu.querySelector(".dot")).not.toBeNull();
+    await userEvent.click(menu);
+    expect(screen.getByRole("link", { name: "Shopping list, 3 suggested" })).toBeInTheDocument();
+  });
+
+  it("puts no mark on Menu when nothing waits", () => {
+    render(PhoneNav, { user: VIEWER, pathname: "/", reviewCount: 0 });
+
+    expect(screen.getByRole("button", { name: "Menu" }).querySelector(".dot")).toBeNull();
+  });
+
   it("marks the user on Account", () => {
     render(PhoneNav, { user: ADMIN, pathname: "/account", reviewCount: 0 });
     expect(screen.getByRole("link", { name: "frank" })).toHaveAttribute("aria-current", "page");
@@ -257,7 +274,11 @@ describe("the bottom bar", () => {
 
     const menu = screen.getByRole("dialog", { name: "Menu" });
     const pages = within(menu).getByRole("navigation", { name: "Pages" });
-    expect(within(pages).getAllByRole("link")).toHaveLength(7);
+    expect(within(pages).getAllByRole("link")).toHaveLength(8);
+    expect(within(pages).getByRole("link", { name: "Shopping list" })).toHaveAttribute(
+      "href",
+      "/shopping-list",
+    );
     expect(within(pages).getByRole("link", { name: "Review, 4 waiting" })).toHaveAttribute(
       "href",
       "/review",

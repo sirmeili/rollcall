@@ -18,6 +18,7 @@ describe("visibleNav", () => {
       "Products",
       "Catalog",
       "Review",
+      "Shopping list",
       "Activity",
     ]);
     expect(labels("editor")).toEqual([
@@ -27,6 +28,7 @@ describe("visibleNav", () => {
       "Catalog",
       "Requests",
       "Review",
+      "Shopping list",
       "Activity",
     ]);
   });
@@ -35,6 +37,13 @@ describe("visibleNav", () => {
     expect(labels("admin")).toContain("Users");
     expect(labels("admin")).toContain("Devices");
     expect(labels("admin")).toContain("Settings");
+  });
+
+  it("shows the Shopping list to every role, beside Review", () => {
+    for (const role of ["viewer", "editor", "admin"] as const) {
+      const shown = labels(role);
+      expect(shown[shown.indexOf("Review") + 1]).toBe("Shopping list");
+    }
   });
 
   it("shows nothing when signed out", () => {
@@ -54,12 +63,13 @@ describe("visibleNav", () => {
     expect(shown(person("viewer"))).toBe(false);
   });
 
-  it("counts Requests as submitted and Review as waiting", () => {
+  it("counts Requests as submitted, Review as waiting and the Shopping list as suggested", () => {
     const words = Object.fromEntries(
       visibleNav(person("admin")).map((item) => [item.href, item.badgeWord]),
     );
     expect(words["/requests"]).toBe("submitted");
     expect(words["/review"]).toBe("waiting");
+    expect(words["/shopping-list"]).toBe("suggested");
   });
 });
 

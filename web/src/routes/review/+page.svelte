@@ -4,13 +4,23 @@
     dismissLikelyEmpty,
     dismissTag,
     getReview,
+    keepSeparate,
+    restoreDuplicate,
     restoreLikelyEmpty,
     restoreTag,
+    sameProduct,
     unacceptEvent,
   } from "#lib/api/admin.ts";
   import { describeError } from "#lib/api/errors.ts";
   import { recordAction, undoEvent, waitingIn } from "#lib/api/stock.ts";
-  import type { EventOut, ReviewOut, SpoolRow, UnidentifiedTag } from "#lib/api/types.ts";
+  import type {
+    EventOut,
+    PossibleDuplicate,
+    Product,
+    ReviewOut,
+    SpoolRow,
+    UnidentifiedTag,
+  } from "#lib/api/types.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import ReviewItem from "#lib/components/review/ReviewItem.svelte";
   import ReviewSection from "#lib/components/review/ReviewSection.svelte";
@@ -93,6 +103,20 @@
     return act(() => dismissLikelyEmpty(spool.id), {
       message: `Dismissed the suggestion for ${spool.product.display_name} #${spool.id}.`,
       bringBack: () => restoreLikelyEmpty(spool.id),
+    });
+  }
+
+  function same(duplicate: PossibleDuplicate, candidate: Product): Promise<void> {
+    // The candidate is deleted, so Same product cannot be brought back.
+    return act(() => sameProduct(duplicate.id, candidate.id), {
+      message: `Made ${duplicate.product.display_name} and ${candidate.display_name} one product.`,
+    });
+  }
+
+  function separate(duplicate: PossibleDuplicate): Promise<void> {
+    return act(() => keepSeparate(duplicate.id), {
+      message: `Kept ${duplicate.product.display_name} separate.`,
+      bringBack: () => restoreDuplicate(duplicate.id),
     });
   }
 
@@ -218,6 +242,46 @@
                 disabled={busy}
                 aria-label="Dismiss the suggestion for {spool.product.display_name} #{spool.id}"
                 onclick={() => dismissSuggestion(spool)}>Dismiss</button
+              >
+            {/if}
+          {/snippet}
+        </ReviewItem>
+      {/each}
+    </ReviewSection>
+
+    <ReviewSection
+      id="duplicates-h"
+      title="Possible duplicates"
+      count={review.possible_duplicates.length}
+      empty="No possible duplicates."
+    >
+      {#each review.possible_duplicates as duplicate (duplicate.id)}
+        {@const name = duplicate.product.display_name}
+        <ReviewItem
+          rgba={duplicate.product.color_rgba}
+          title={name}
+          body="A scan made this product, and it may be the same as a “From the catalog” product."
+        >
+          {#snippet meta()}
+            May be: {duplicate.candidates.map((c) => c.display_name).join(", ")} · scanned
+            <span class="mono">{dateTime(duplicate.created_at)}</span>
+          {/snippet}
+          {#snippet actions()}
+            {#if canEdit}
+              {#each duplicate.candidates as candidate (candidate.id)}
+                <button
+                  type="button"
+                  class="primary"
+                  disabled={busy}
+                  aria-label="Same product as {candidate.display_name}"
+                  onclick={() => same(duplicate, candidate)}>Same product</button
+                >
+              {/each}
+              <button
+                type="button"
+                disabled={busy}
+                aria-label="Keep {name} separate"
+                onclick={() => separate(duplicate)}>Keep separate</button
               >
             {/if}
           {/snippet}

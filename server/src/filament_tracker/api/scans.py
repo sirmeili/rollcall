@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from filament_tracker.api.deps import get_session
 from filament_tracker.api.schemas import ScanAction, ScanEvent, ScanResponse
+from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import ScannerDevice
 from filament_tracker.db.types import utcnow
 from filament_tracker.services.scans import EventIdConflict, handle_scan, may_record
@@ -18,6 +19,7 @@ VIEW_ONLY = "this phone's account can look spools up but not record them"
 @router.post("/scans", response_model=ScanResponse)
 def post_scan(
     scan: ScanEvent,
+    request: Request,
     device: ScannerDevice,
     session: Annotated[Session, Depends(get_session)],
 ) -> ScanResponse:
@@ -27,6 +29,7 @@ def post_scan(
     if scan.action != ScanAction.LOOKUP and not may_record(device):
         raise HTTPException(status.HTTP_403_FORBIDDEN, VIEW_ONLY)
     try:
-        return handle_scan(session, device, scan, utcnow())
+        store: SettingsStore = request.app.state.settings_store
+        return handle_scan(session, device, scan, utcnow(), store.similarity_cutoff())
     except EventIdConflict as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "event_id is already in use") from exc

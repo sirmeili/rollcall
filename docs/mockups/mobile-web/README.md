@@ -19,6 +19,7 @@ Mockups for the web app on a phone-sized screen, as the phone app shows it: the 
 | [PhoneRequestDetail.html](PhoneRequestDetail.html) | Request detail (#75) on a phone. Plain HTML, not part of `index.html` |
 | [PhoneSpools.html](PhoneSpools.html) | Spools (#175) on a phone: search and Filter (State and Type in a sheet), compact rows that expand one at a time, a checkbox per row for Editors, and the Move bar pinned above the bottom bar while spools are ticked. Plain HTML, not part of `index.html` |
 | [PhoneUsers.html](PhoneUsers.html) | Users on a phone, with the Requester checkbox and badge (#75). Plain HTML, not part of `index.html` |
+| [PhoneShoppingList.html](PhoneShoppingList.html) | The Shopping list (#78, #186) on a phone: filament lines that collapse, as on the phone Catalog page, each with its total to buy, then Not in the catalog; compact rows that expand one at a time, as on Spools, to the item's reasons and Find in store. Plain HTML, not part of `index.html` |
 
 ## When this layout applies
 
@@ -28,7 +29,7 @@ On phone-sized screens only (the phone app, or a narrow browser). Tablet and des
 
 - **Top:** the RollCall mark and the page title. Nothing else.
 - **Bottom bar**, on every page: **Menu** at the far left, the page's action in the centre, and the signed-in user (initial and name) at the far right, which opens Account. The centre follows the page (#171). On Inventory and Spools: with Scan available (the paired Android app), a raised round **Scan** button, with a smaller labelled **Add spool** beside it for Editors and above; without Scan, a single **+ Add spool** for Editors and above. On the Requests list and a request: **+ New request**. On Users: **+ New user**, which opens the new-user form. Everywhere else the centre is empty. Scan opens the Scan screen ([../mobile-scanner/](../mobile-scanner/README.md)).
-- **Menu:** a sheet that rises from the bottom over a dimmed page. First a row of shortcuts (#171): **Scanner** when Scan is available and **Add spool** for Editors and above; a lone one spans the row, and with neither there is no row. Then large buttons in two columns: Inventory, Spools, Products, Review (with its count), Activity; then an **Admin** row of smaller buttons: Devices, Users, Settings. Items the user's role does not allow are hidden. The current page is filled in. The Menu button turns into **Close** while the sheet is open; tapping the dimmed page also closes it.
+- **Menu:** a sheet that rises from the bottom over a dimmed page. First a row of shortcuts (#171): **Scanner** when Scan is available and **Add spool** for Editors and above; a lone one spans the row, and with neither there is no row. Then large buttons in two columns: Inventory, Spools, Products, Review (with its count), Shopping list, Activity; then an **Admin** row of smaller buttons: Devices, Users, Settings. Items the user's role does not allow are hidden. The current page is filled in. The Menu button turns into **Close** while the sheet is open; tapping the dimmed page also closes it.
 
 ## Account
 

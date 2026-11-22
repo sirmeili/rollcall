@@ -39,6 +39,9 @@
   {:else if href === "/review"}
     <path d="M9 11l3 3L22 4"></path>
     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+  {:else if href === "/shopping-list"}
+    <circle cx="9" cy="20" r="1.5"></circle><circle cx="18" cy="20" r="1.5"></circle>
+    <path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h8.1a2 2 0 0 0 2-1.5L22 7H6"></path>
   {:else if href === "/activity"}
     <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
   {:else if href === "/devices"}

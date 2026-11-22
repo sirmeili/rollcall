@@ -181,6 +181,11 @@ def test_linking_a_product_to_a_catalog_color_queues_a_request_waiting_for_that_
     pla = stock(client, token, BLACK_PLA, "PLA", "received")
     waiting = _approved(sam, frank, {"catalog_color": JADE_WHITE}, 400)
     assert (waiting["status"], _short(waiting)) == ("waiting_on_filament", 400)
+    # Approve gave the color a "From the catalog" product; a color links to one product, so
+    # that link is cleared first.
+    made = frank.get("/api/v1/shopping-list").json()["lines"][0]["items"][0]["product"]["id"]
+    cleared = frank.patch(f"/api/v1/products/{made}", json={"catalog_color": None}, headers=CSRF)
+    assert cleared.status_code == 200, cleared.text
 
     response = frank.patch(
         f"/api/v1/products/{pla}", json={"catalog_color": JADE_WHITE}, headers=CSRF

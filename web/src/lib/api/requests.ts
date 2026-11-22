@@ -69,6 +69,16 @@ export interface Hold {
   grams: number;
 }
 
+/** A short choice's product's shopping list item: on the list, partly ordered (`on_order`
+ * of `need` spools) or ordered. */
+export interface ShoppingStage {
+  stage: "on_list" | "partly_ordered" | "ordered";
+  /** Names the item on the shopping list. */
+  product_id: number;
+  on_order: number;
+  need: number;
+}
+
 /** One filament choice, with the stock and catalog as they are now. */
 export interface Choice {
   /** Names the choice in Approve's grams. */
@@ -102,6 +112,9 @@ export interface Choice {
   holds: Hold[] | null;
   /** Grams not held of the product it would be held on (0 with none). */
   available_g: number | null;
+  /** While it is short, its product's shopping list item stage, for anyone who may see the
+   * request; null once the item is gone or dismissed. */
+  shopping: ShoppingStage | null;
 }
 
 export type HistoryKind =

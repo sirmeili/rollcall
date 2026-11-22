@@ -4,7 +4,8 @@ from ha_helpers import add_product, add_spools
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Event, Spool, Tag
-from filament_tracker.domain.enums import EventSource, EventType, SpoolState
+from filament_tracker.db.shopping_models import DuplicateCandidate, PossibleDuplicate
+from filament_tracker.domain.enums import DuplicateState, EventSource, EventType, SpoolState
 from filament_tracker.ha.snapshot import ProductState, take_snapshot
 
 
@@ -46,3 +47,21 @@ def test_an_empty_database(session: Session) -> None:
     snapshot = take_snapshot(session)
     assert (snapshot.products, snapshot.total_spools, snapshot.in_review) == ((), 0, 0)
     assert snapshot.low_stock == ()
+
+
+def test_possible_duplicates_waiting_count_in_review(session: Session) -> None:
+    scanned = add_product(session, "PLA Basic #050505", color_rgba="050505FF")
+    waiting = add_product(
+        session, "Black PLA Basic", material_id=None, variant_id=None, from_catalog=True
+    )
+    for state in (DuplicateState.OPEN, DuplicateState.KEPT_SEPARATE):
+        session.add(
+            PossibleDuplicate(
+                product_id=scanned.id,
+                state=state,
+                candidates=[DuplicateCandidate(product_id=waiting.id)],
+            )
+        )
+    session.flush()
+
+    assert take_snapshot(session).in_review == 1

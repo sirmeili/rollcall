@@ -208,7 +208,7 @@ The server publishes Home Assistant entities through MQTT discovery, under one d
 
 - **Total spools** (sealed and open, not used up), **Total open** and **Total sealed**;
 - **Low filament**: on while any product's sealed count is at or below its low-stock threshold (set on the Products page; 0 turns it off). Its `products` attribute lists the low products with their name, type, color, sealed count and threshold, and `count` says how many;
-- **Spools in review**: the Review page's count.
+- **Spools in review**: the Review page's count: flagged events, unidentified tags, likely-empty suggestions and possible duplicates.
 
 Entities from an earlier version of the server (such as per-product sensors) are removed automatically.
 
@@ -255,7 +255,7 @@ Admins can set everything above on the **Settings** page, without restarting the
 
 Secrets are encrypted with a key from `SETTINGS_KEY`, or else from `data/settings.key`, which the server creates beside the database on first start. Back the key up with the database, or set `SETTINGS_KEY` instead, so the key is not stored next to the data it protects. A database restored without its key keeps everything except the saved secrets, which the Settings page then asks for again.
 
-**Example automation**: [docs/home-assistant/low-stock-automation.yaml](../docs/home-assistant/low-stock-automation.yaml) adds a low product to the shopping list and notifies your phone. Paste it into a new automation's YAML editor, set your phone's notify action, save, and give it the `Claude` label.
+**Example automation**: [docs/home-assistant/low-stock-automation.yaml](../docs/home-assistant/low-stock-automation.yaml) adds a low product to Home Assistant's shopping list and notifies your phone. Paste it into a new automation's YAML editor, set your phone's notify action, save, and give it the `Claude` label. RollCall also has its own shopping list (the Shopping list page), which covers print requests short of filament as well as low stock, so you can keep either list or both.
 
 ## Check against Home Assistant
 

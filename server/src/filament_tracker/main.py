@@ -18,11 +18,14 @@ from filament_tracker.api import (
     request_files,
     request_holders,
     request_holds,
+    request_needs,
     request_photos,
     requests,
     review,
     scans,
     setup,
+    shopping_list,
+    shopping_suggestions,
     stock,
     tokens,
     users,
@@ -132,6 +135,7 @@ def create_app(
     app.state.model_files = ModelFiles(files_dir(settings.database_url))
     # Spool detail names the requests holding a spool through this (ADR-0020).
     app.state.holder_reader = request_holders.holding_requests
+    app.state.request_needs_reader = request_needs.request_needs
     app.add_exception_handler(RequestValidationError, validation_error)
     app.add_middleware(
         BodySizeLimitMiddleware,
@@ -160,6 +164,8 @@ def create_app(
         app_settings,
         email_settings,
         catalog,
+        shopping_list,
+        shopping_suggestions,
         request_files,
         request_holds,
         request_photos,

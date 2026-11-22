@@ -44,6 +44,8 @@ class IndexedColor:
     uuid: str
     name: str
     line: str
+    # The filament line's OFDB UUID.
+    line_uuid: str
     # RRGGBB, the main color first.
     hexes: list[str]
     bambu_code: str | None
@@ -81,6 +83,7 @@ def load_index(session: Session) -> CatalogIndex:
             uuid=variant.uuid,
             name=variant.name,
             line=lines[variant.filament_uuid],
+            line_uuid=variant.filament_uuid,
             hexes=[variant.color_hex, *variant.extra_hexes],
             bambu_code=code,
         )
@@ -106,13 +109,50 @@ def forget_index(session: Session) -> None:
 # --- Automatic links ---------------------------------------------------------------------
 
 
-def _tag_codes(session: Session) -> dict[tuple[str, str], list[str]]:
-    """BambuStudio's entries by the tag IDs they read as: (material ID, variant ID)."""
+def _tag_codes(
+    session: Session, material_id: str | None = None
+) -> dict[tuple[str, str], list[str]]:
+    """BambuStudio's entries by the tag IDs they read as: (material ID, variant ID). Only
+    those for one material ID, when given."""
+    query = select(BambuColorCode)
+    if material_id is not None:
+        query = query.where(BambuColorCode.filament_id == material_id)
     found: dict[tuple[str, str], list[str]] = defaultdict(list)
-    for entry in session.scalars(select(BambuColorCode)):
+    for entry in session.scalars(query):
         variant_id = f"{entry.filament_id.removeprefix('GF')}-{entry.color_code}"
         found[(entry.filament_id, variant_id)].append(entry.bambu_code)
     return found
+
+
+def _color_for_tag(
+    material_id: str,
+    variant_id: str,
+    tag_codes: dict[tuple[str, str], list[str]],
+    index: CatalogIndex,
+) -> str | None:
+    """The one BambuStudio entry for these tag IDs, then the one catalog color with its
+    Bambu code; None when either is missing or not alone."""
+    codes = tag_codes.get((material_id, variant_id), [])
+    if len(codes) != 1:
+        return None
+    colors = index.by_code.get(codes[0], [])
+    return colors[0] if len(colors) == 1 else None
+
+
+def catalog_color_for_tag(session: Session, material_id: str, variant_id: str) -> str | None:
+    """The catalog color a tag's material ID and variant ID give, by the automatic rule:
+    its UUID, or None when the chain does not resolve to exactly one color."""
+    return _color_for_tag(
+        material_id, variant_id, _tag_codes(session, material_id), _session_index(session)
+    )
+
+
+def lines_for_material(session: Session, material_id: str) -> set[str]:
+    """The filament lines (their UUIDs) a tag's material ID gives: the catalog colors sold
+    under the Bambu codes BambuStudio lists for it, and their lines."""
+    index = _session_index(session)
+    codes = {code for found in _tag_codes(session, material_id).values() for code in found}
+    return {index.colors[uuid].line_uuid for code in codes for uuid in index.by_code.get(code, [])}
 
 
 def _automatic(
@@ -120,11 +160,7 @@ def _automatic(
 ) -> str | None:
     if product.provisional or not product.material_id or not product.variant_id:
         return None
-    codes = tag_codes.get((product.material_id, product.variant_id), [])
-    if len(codes) != 1:
-        return None
-    colors = index.by_code.get(codes[0], [])
-    return colors[0] if len(colors) == 1 else None
+    return _color_for_tag(product.material_id, product.variant_id, tag_codes, index)
 
 
 def _relinked(session: Session) -> None:
@@ -212,6 +248,22 @@ def set_manual(
         product.catalog_manual_by = user_id
         product.catalog_manual_at = now
         product.catalog_manual_line, product.catalog_manual_name = color.line, color.name
+    _relinked(session)
+
+
+def take_manual_link(session: Session, product: Product, other: Product) -> None:
+    """Move another product's manual link onto this one, when a possible duplicate's Same
+    product makes them one. Nothing changes when the other has none."""
+    if other.catalog_manual_uuid is None:
+        return
+    product.catalog_manual_uuid = other.catalog_manual_uuid
+    product.catalog_manual_by = other.catalog_manual_by
+    product.catalog_manual_at = other.catalog_manual_at
+    product.catalog_manual_line = other.catalog_manual_line
+    product.catalog_manual_name = other.catalog_manual_name
+    other.catalog_manual_uuid = other.catalog_manual_by = None
+    other.catalog_manual_at = None
+    other.catalog_manual_line = other.catalog_manual_name = None
     _relinked(session)
 
 

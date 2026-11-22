@@ -64,6 +64,9 @@ class Product(Base):
     provisional: Mapped[bool] = mapped_column(Boolean, default=False)
     # Made from an AMS report rather than by hand ("From the AMS" while provisional).
     from_ams: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Made from a catalog color put on the shopping list ("From the catalog" until a tag
+    # fills it in). Such a product is kept even with no spools.
+    from_catalog: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     # Catalog links (ADR-0016): catalog color UUIDs, not foreign keys, since a sync replaces
     # the catalog. The effective link is the manual one if set, otherwise the automatic one.
@@ -107,6 +110,11 @@ class Spool(Base):
     notes: Mapped[str | None] = mapped_column(String(2000))
     # Set when its "Likely empty" suggestion is dismissed; cleared when the AMS reports more.
     likely_empty_dismissed_at: Mapped[datetime | None]
+    # Its arrival has been taken off its product's on order, so it counts once.
+    arrival_counted: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # The event that counted it, when that took one off on order: undoing that event gives
+    # the one back. Not a foreign key, which would tie spool and event to each other.
+    arrival_event_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
     product: Mapped[Product] = relationship(back_populates="spools")
@@ -344,6 +352,6 @@ class SeededPrinter(Base):
     seeded_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
-# The catalog's and print requests' tables are in their own modules; importing them here
-# puts them on Base, so migrations and create_all see every table.
-from filament_tracker.db import catalog_models, request_models  # noqa: E402, F401
+# The catalog's, the shopping list's and print requests' tables are in their own modules;
+# importing them here puts them on Base, so migrations and create_all see every table.
+from filament_tracker.db import catalog_models, request_models, shopping_models  # noqa: E402, F401

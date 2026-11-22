@@ -40,6 +40,8 @@ export const NAV: readonly NavItem[] = [
     allowed: canOpenRequests,
   },
   { href: "/review", label: "Review", role: "viewer", badgeWord: WAITING },
+  // Counts the open suggestions.
+  { href: "/shopping-list", label: "Shopping list", role: "viewer", badgeWord: "suggested" },
   { href: "/activity", label: "Activity", role: "viewer", badgeWord: WAITING },
   { href: "/devices", label: "Devices", role: "admin", badgeWord: WAITING },
   { href: "/users", label: "Users", role: "admin", badgeWord: WAITING },
