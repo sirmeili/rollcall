@@ -79,7 +79,7 @@ export interface ShoppingListItem {
   reasons: ShoppingReason[];
   size: ShoppingSize;
   /** The most recent entries, newest first. */
-  history: ShoppingHistoryEntry[];
+  shopping_history: ShoppingHistoryEntry[];
   /** The need it was dismissed at; null when it is not dismissed. */
   dismissed_need: number | null;
   /** How many spools more it needs than when it was dismissed, once that is more. */

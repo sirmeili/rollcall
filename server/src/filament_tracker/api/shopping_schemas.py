@@ -55,7 +55,7 @@ class SizeOut(BaseModel):
     )
 
 
-class HistoryEntryOut(BaseModel):
+class ShoppingHistoryEntryOut(BaseModel):
     action: ShoppingAction
     spools: int | None = Field(description="The spools the action concerned, if any")
     size_g: int | None = Field(description="The size in grams it concerned, if any")
@@ -75,7 +75,9 @@ class ShoppingListItemOut(BaseModel):
     size: SizeOut = Field(
         description="The size the requests' grams, added up, are rounded up to spools with"
     )
-    history: list[HistoryEntryOut] = Field(description="The most recent entries, newest first")
+    shopping_history: list[ShoppingHistoryEntryOut] = Field(
+        description="The most recent entries, newest first"
+    )
     dismissed_need: int | None = Field(
         description="The need it was dismissed at; null when it is not dismissed"
     )

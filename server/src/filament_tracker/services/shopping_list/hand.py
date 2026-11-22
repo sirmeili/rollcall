@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.models import Product
 from filament_tracker.db.shopping_models import HandReason
 from filament_tracker.domain.enums import ShoppingAction
-from filament_tracker.services.shopping_list import history
+from filament_tracker.services.shopping_list import shopping_history
 
 
 class NoSuchReason(LookupError):
@@ -22,7 +22,9 @@ def add_by_hand(
     list gets another reason, never a second item."""
     reason = HandReason(product_id=product.id, spools=spools, user_id=user_id, at=now)
     session.add(reason)
-    history.record(session, product.id, ShoppingAction.ADDED_BY_HAND, user_id, now, spools=spools)
+    shopping_history.record(
+        session, product.id, ShoppingAction.ADDED_BY_HAND, user_id, now, spools=spools
+    )
     return reason
 
 
@@ -33,7 +35,7 @@ def remove_hand_reason(
     if reason is None:
         raise NoSuchReason(reason_id)
     session.delete(reason)
-    history.record(
+    shopping_history.record(
         session,
         reason.product_id,
         ShoppingAction.REMOVED_BY_HAND,

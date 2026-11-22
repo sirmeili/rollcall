@@ -57,7 +57,7 @@ def test_a_dismissed_item_moves_to_dismissed(editor: TestClient, db: Session) ->
         2,
         None,
     )
-    [entry] = item["history"]
+    [entry] = item["shopping_history"]
     assert (entry["action"], entry["spools"], entry["by"]) == ("dismissed", 2, "frank")
     assert editor.get(LIST).json()["dismissed"] == [item]
 
@@ -134,7 +134,7 @@ def test_bring_back_returns_the_item_to_the_list(editor: TestClient, db: Session
     assert body["dismissed"] == []
     [item] = _items(body)
     assert item["dismissed_need"] is None
-    assert [e["action"] for e in item["history"]] == ["brought_back", "dismissed"]
+    assert [e["action"] for e in item["shopping_history"]] == ["brought_back", "dismissed"]
 
 
 def test_dismissing_a_product_not_on_the_list_is_refused(editor: TestClient, db: Session) -> None:

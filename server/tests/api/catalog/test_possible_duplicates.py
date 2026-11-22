@@ -169,9 +169,11 @@ def test_same_product_merges_the_candidate_into_the_scanned_product(
     # Two were on order, and the scanned spool has now arrived.
     assert item["on_order"] == 1
     assert [(r["kind"], r["spools"]) for r in item["reasons"]] == [("low_stock", 3), ("hand", 2)]
-    newest = item["history"][0]
+    newest = item["shopping_history"][0]
     assert (newest["action"], newest["by"], newest["on_order"]) == ("same_product", "frank", 1)
-    assert {"added_by_hand", "ordered", "suggested"} <= {e["action"] for e in item["history"]}
+    assert {"added_by_hand", "ordered", "suggested"} <= {
+        e["action"] for e in item["shopping_history"]
+    }
     suggestions = client.get("/api/v1/shopping-list", headers=admin()).json()["suggestions"]
     assert [s["product"]["id"] for s in suggestions] == [scanned]
     assert _duplicates(client) == []
@@ -191,7 +193,7 @@ def _history_rows(db: Session) -> dict[int, tuple[Any, ...]]:
 def _entries(item: dict[str, Any]) -> list[tuple[Any, ...]]:
     return [
         (e["action"], e["spools"], e["size_g"], e["on_order"], e["by"], e["at"])
-        for e in item["history"]
+        for e in item["shopping_history"]
     ]
 
 

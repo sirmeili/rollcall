@@ -79,7 +79,7 @@ def test_adding_a_suggested_catalog_color_makes_its_from_the_catalog_product(
     assert item["to_buy"] == 3
     [reason] = item["reasons"]
     assert (reason["kind"], reason["spools"], reason["by"]) == ("hand", 3, "frank")
-    assert [(e["action"], e["by"]) for e in item["history"]] == [
+    assert [(e["action"], e["by"]) for e in item["shopping_history"]] == [
         ("suggestion_added", "frank"),
         ("suggested", "vic"),
     ]

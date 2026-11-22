@@ -17,9 +17,9 @@ from filament_tracker.db.shopping_models import ShoppingListItem as ItemRow
 from filament_tracker.domain.enums import SpoolState
 from filament_tracker.services import queries
 from filament_tracker.services.catalog_links import IndexedColor, catalog_link
-from filament_tracker.services.shopping_list.history import HistoryEntry, recent
 from filament_tracker.services.shopping_list.needs import RequestNeedsReader, RequestShort
 from filament_tracker.services.shopping_list.net_weight import NetWeight, net_weight
+from filament_tracker.services.shopping_list.shopping_history import ShoppingHistoryEntry, recent
 
 
 @dataclass(frozen=True)
@@ -54,7 +54,7 @@ class ShoppingListItem:
     # first.
     reasons: list[Reason]
     # Its most recent shopping list history, newest first.
-    history: list[HistoryEntry] = field(default_factory=list)
+    shopping_history: list[ShoppingHistoryEntry] = field(default_factory=list)
     # Spools ordered and not yet arrived.
     on_order: int = 0
     # The size the requests' grams are turned into spools with.

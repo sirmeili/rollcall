@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.models import Product
 from filament_tracker.db.shopping_models import ShoppingListItem
 from filament_tracker.domain.enums import ShoppingAction
-from filament_tracker.services.shopping_list import history
+from filament_tracker.services.shopping_list import shopping_history
 
 
 def find_item(session: Session, product_id: int) -> ShoppingListItem | None:
@@ -33,7 +33,9 @@ def ordered(
     if spools < 1:
         raise ValueError("order at least one spool")
     item_for(session, product.id).on_order += spools
-    history.record(session, product.id, ShoppingAction.ORDERED, user_id, now, spools=spools)
+    shopping_history.record(
+        session, product.id, ShoppingAction.ORDERED, user_id, now, spools=spools
+    )
 
 
 def set_on_order(
@@ -43,4 +45,4 @@ def set_on_order(
     if spools < 0:
         raise ValueError("on order cannot go below 0")
     item_for(session, product.id).on_order = spools
-    history.record(session, product.id, ShoppingAction.ON_ORDER_CHANGED, user_id, now)
+    shopping_history.record(session, product.id, ShoppingAction.ON_ORDER_CHANGED, user_id, now)

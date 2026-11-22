@@ -46,7 +46,7 @@ def test_a_product_added_by_hand_is_on_the_list_with_its_reason_and_history(
     assert item["to_buy"] == 2
     [reason] = item["reasons"]
     assert (reason["kind"], reason["spools"], reason["by"]) == ("hand", 2, "frank")
-    [entry] = item["history"]
+    [entry] = item["shopping_history"]
     assert (entry["action"], entry["spools"], entry["on_order"], entry["by"]) == (
         "added_by_hand",
         2,
@@ -113,7 +113,7 @@ def test_a_hand_reason_can_be_removed_and_the_removal_is_in_the_history(
     assert response.status_code == 200
     [item] = _items(response.json())
     assert [r["spools"] for r in item["reasons"]] == [1]
-    assert [(e["action"], e["spools"]) for e in item["history"]] == [
+    assert [(e["action"], e["spools"]) for e in item["shopping_history"]] == [
         ("removed_by_hand", 2),
         ("added_by_hand", 1),
         ("added_by_hand", 2),

@@ -31,8 +31,8 @@ export function reasonText(reason: ShoppingReason): string {
   return `Low stock: ${reason.sealed} sealed, threshold ${reason.threshold} · ${spoolsText(reason.spools)}`;
 }
 
-/** What a history entry records: "Added 2 spools by hand", "Ordered 2 spools". */
-export function historyText(entry: ShoppingHistoryEntry): string {
+/** What a shopping list history entry records: "Added 2 spools by hand", "Ordered 2 spools". */
+export function shoppingHistoryText(entry: ShoppingHistoryEntry): string {
   const spools = spoolsText(entry.spools ?? 0);
   if (entry.action === "added_by_hand") return `Added ${spools} by hand`;
   if (entry.action === "removed_by_hand") return `Removed ${spools} added by hand`;
@@ -64,7 +64,7 @@ export function sizeText(size: ShoppingSize): string {
 export const SIZE: WholeRange = { label: "Size", min: 1, max: MAX_SIZE_G, unit: "grams" };
 
 /** Who did it, when, and the on order after: "frank · Nov 21, 12:00 PM · 0 on order". */
-export function historyWhen(entry: ShoppingHistoryEntry, now: Date = new Date()): string {
+export function shoppingHistoryWhen(entry: ShoppingHistoryEntry, now: Date = new Date()): string {
   const parts = [dateTime(entry.at, now), `${entry.on_order} on order`];
   return (entry.by ? [entry.by, ...parts] : parts).join(" · ");
 }

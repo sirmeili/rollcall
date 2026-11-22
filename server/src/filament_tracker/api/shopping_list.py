@@ -8,13 +8,13 @@ from fastapi import APIRouter, HTTPException, Request, status
 from filament_tracker.api.shopping_schemas import (
     HandReasonIn,
     HandReasonOut,
-    HistoryEntryOut,
     LineOut,
     LowStockReasonOut,
     OnOrderIn,
     OrderedIn,
     ReasonOut,
     RequestReasonOut,
+    ShoppingHistoryEntryOut,
     ShoppingListItemOut,
     ShoppingListOut,
     SizeIn,
@@ -70,8 +70,8 @@ def _item_out(item: ShoppingListItem) -> ShoppingListItemOut:
         on_order=item.on_order,
         reasons=[_reason_out(r) for r in item.reasons],
         size=SizeOut(grams=item.size.grams, source=item.size.source),
-        history=[
-            HistoryEntryOut(
+        shopping_history=[
+            ShoppingHistoryEntryOut(
                 action=e.action,
                 spools=e.spools,
                 size_g=e.size_g,
@@ -79,7 +79,7 @@ def _item_out(item: ShoppingListItem) -> ShoppingListItemOut:
                 by=e.by,
                 at=e.at,
             )
-            for e in item.history
+            for e in item.shopping_history
         ],
         dismissed_need=item.dismissed_need,
         new_since_dismissal=item.new_since_dismissal,

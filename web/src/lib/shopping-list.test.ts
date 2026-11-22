@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setTimeZone, wholeProblem } from "#lib/format.ts";
 import {
   findInStore,
-  historyText,
-  historyWhen,
+  shoppingHistoryText,
+  shoppingHistoryWhen,
   reasonText,
   SIZE,
   shoppingGroups,
@@ -80,43 +80,45 @@ describe("the shopping list history", () => {
   afterEach(() => setTimeZone(undefined));
 
   it("says what was done", () => {
-    expect(historyText(added(2))).toBe("Added 2 spools by hand");
-    expect(historyText({ ...added(1), action: "removed_by_hand" })).toBe(
+    expect(shoppingHistoryText(added(2))).toBe("Added 2 spools by hand");
+    expect(shoppingHistoryText({ ...added(1), action: "removed_by_hand" })).toBe(
       "Removed 1 spool added by hand",
     );
-    expect(historyText({ ...added(1), action: "brought_back" })).toBe("Brought back");
-    expect(historyText({ ...added(1), action: "size_changed", spools: null, size_g: 3000 })).toBe(
-      "Size set to 3000 g",
-    );
+    expect(shoppingHistoryText({ ...added(1), action: "brought_back" })).toBe("Brought back");
+    expect(
+      shoppingHistoryText({ ...added(1), action: "size_changed", spools: null, size_g: 3000 }),
+    ).toBe("Size set to 3000 g");
   });
 
   it("tells a second order from a correction of on order", () => {
-    expect(historyText({ ...added(2), action: "ordered", on_order: 3 })).toBe("Ordered 2 spools");
-    expect(historyText({ ...added(0), spools: null, action: "on_order_changed" })).toBe(
+    expect(shoppingHistoryText({ ...added(2), action: "ordered", on_order: 3 })).toBe(
+      "Ordered 2 spools",
+    );
+    expect(shoppingHistoryText({ ...added(0), spools: null, action: "on_order_changed" })).toBe(
       "Changed on order",
     );
   });
 
   it("says what happened to a suggestion", () => {
-    expect(historyText({ ...added(2), action: "suggested" })).toBe("Suggested 2 spools");
-    expect(historyText({ ...added(2), action: "suggestion_added" })).toBe(
+    expect(shoppingHistoryText({ ...added(2), action: "suggested" })).toBe("Suggested 2 spools");
+    expect(shoppingHistoryText({ ...added(2), action: "suggestion_added" })).toBe(
       "Added a suggestion of 2 spools",
     );
-    expect(historyText({ ...added(1), action: "suggestion_dismissed" })).toBe(
+    expect(shoppingHistoryText({ ...added(1), action: "suggestion_dismissed" })).toBe(
       "Dismissed a suggestion of 1 spool",
     );
   });
 
   it("says when a possible duplicate made two products one", () => {
-    expect(historyText({ ...added(0), spools: null, action: "same_product" })).toBe(
+    expect(shoppingHistoryText({ ...added(0), spools: null, action: "same_product" })).toBe(
       "Made one product with a possible duplicate",
     );
   });
 
   it("says who did it, when, and what was on order after", () => {
     const now = new Date("2026-11-22T09:00:00Z");
-    expect(historyWhen(added(2), now)).toBe("frank · Nov 21, 12:00 PM · 0 on order");
-    expect(historyWhen({ ...added(2, null), on_order: 3 }, now)).toBe(
+    expect(shoppingHistoryWhen(added(2), now)).toBe("frank · Nov 21, 12:00 PM · 0 on order");
+    expect(shoppingHistoryWhen({ ...added(2, null), on_order: 3 }, now)).toBe(
       "Nov 21, 12:00 PM · 3 on order",
     );
   });

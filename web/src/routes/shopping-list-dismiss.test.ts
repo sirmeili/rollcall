@@ -22,7 +22,9 @@ const AFTER_DISMISS: ShoppingList = shoppingList({
     {
       ...RED,
       dismissed_need: 2,
-      history: [{ action: "dismissed", spools: 2, size_g: null, on_order: 0, by: "frank", at: "" }],
+      shopping_history: [
+        { action: "dismissed", spools: 2, size_g: null, on_order: 0, by: "frank", at: "" },
+      ],
     },
   ],
 });

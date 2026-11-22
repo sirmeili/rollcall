@@ -26,9 +26,9 @@ const LIST: ShoppingList = shoppingList({
 function afterOrdering(spools: number): ShoppingList {
   const black = {
     ...ordered(1, "Black PLA Basic", 3, 1 + spools),
-    history: [
+    shopping_history: [
       { ...added(spools), action: "ordered" as const, on_order: 1 + spools },
-      ...BLACK.history,
+      ...BLACK.shopping_history,
     ],
   };
   return shoppingList({ lines: [{ name: "PLA Basic", to_buy: 0, items: [black, JADE] }] });

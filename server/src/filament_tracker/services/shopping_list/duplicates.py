@@ -34,7 +34,7 @@ from filament_tracker.services.catalog_links import (
     load_index,
     take_manual_link,
 )
-from filament_tracker.services.shopping_list import arrivals, history
+from filament_tracker.services.shopping_list import arrivals, shopping_history
 from filament_tracker.services.shopping_list.on_order import find_item, item_for
 
 
@@ -156,7 +156,7 @@ def same_product(
     _copy_history(session, scanned, candidate)
     _drop_candidate(session, candidate, duplicate)
     _decide(duplicate, DuplicateState.SAME_PRODUCT, user_id, now)
-    history.record(session, scanned.id, ShoppingAction.SAME_PRODUCT, user_id, now)
+    shopping_history.record(session, scanned.id, ShoppingAction.SAME_PRODUCT, user_id, now)
     session.delete(candidate)
     session.flush()
     stock_changes.changed(session)

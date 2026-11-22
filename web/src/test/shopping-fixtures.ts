@@ -47,7 +47,7 @@ export function lowItem(
     on_order: 0,
     reasons: [{ kind: "low_stock", spools, sealed, threshold }],
     size: DEFAULT_SIZE,
-    history: [],
+    shopping_history: [],
     dismissed_need: null,
     new_since_dismissal: null,
   };
@@ -83,7 +83,7 @@ export function handItem(
     on_order: 0,
     reasons,
     size: DEFAULT_SIZE,
-    history: reasons.map((reason) => added(reason.spools, reason.by)),
+    shopping_history: reasons.map((reason) => added(reason.spools, reason.by)),
     dismissed_need: null,
     new_since_dismissal: null,
   };

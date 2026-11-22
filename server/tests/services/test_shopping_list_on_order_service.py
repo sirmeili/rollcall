@@ -97,7 +97,7 @@ def test_ordered_and_set_on_order_go_into_the_history_with_the_resulting_on_orde
     ordered(session, black, 1, None, NOW)
     set_on_order(session, black, 1, None, LATER)
 
-    history = listed(session)["Black"].history
+    history = listed(session)["Black"].shopping_history
     assert [(e.action, e.spools, e.on_order) for e in history] == [
         (ShoppingAction.ON_ORDER_CHANGED, None, 1),
         (ShoppingAction.ORDERED, 1, 3),

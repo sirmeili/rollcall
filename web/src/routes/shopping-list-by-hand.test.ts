@@ -18,7 +18,7 @@ const AFTER_REMOVE: ShoppingList = shoppingList({
   not_in_catalog: [
     {
       ...handItem(1, "Black PLA Basic", [handReason(8, 1, null)]),
-      history: [{ ...added(2), action: "removed_by_hand" }, ...BLACK.history],
+      shopping_history: [{ ...added(2), action: "removed_by_hand" }, ...BLACK.shopping_history],
     },
   ],
 });

@@ -22,7 +22,7 @@ from filament_tracker.services.catalog_links import (
     linked_product,
     load_index,
 )
-from filament_tracker.services.shopping_list import history
+from filament_tracker.services.shopping_list import shopping_history
 from filament_tracker.services.shopping_list.catalog_products import product_for_color
 
 
@@ -80,7 +80,7 @@ def suggest(
 
 
 def _record_suggested(session: Session, product: Product, suggestion: Suggestion) -> None:
-    history.record(
+    shopping_history.record(
         session,
         product.id,
         ShoppingAction.SUGGESTED,
@@ -122,7 +122,7 @@ def _decide(
         if status is SuggestionStatus.ADDED
         else ShoppingAction.SUGGESTION_DISMISSED
     )
-    history.record(session, product.id, action, user_id, now, spools=suggestion.spools)
+    shopping_history.record(session, product.id, action, user_id, now, spools=suggestion.spools)
 
 
 def add_suggestion(

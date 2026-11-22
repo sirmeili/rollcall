@@ -174,7 +174,7 @@ def test_choosing_a_size_re_rounds_the_requests_part_and_goes_into_the_history(
     [item] = line["items"]
     assert item["size"] == {"grams": 3000, "source": "chosen"}
     assert item["to_buy"] == 1
-    [entry] = item["history"]
+    [entry] = item["shopping_history"]
     assert (entry["action"], entry["size_g"], entry["by"]) == ("size_changed", 3000, "frank")
 
 

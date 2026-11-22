@@ -68,7 +68,7 @@ def test_the_first_scan_fills_in_the_from_the_catalog_product(
     assert [(r["kind"], r["spools"]) for r in kept["reasons"] if r["kind"] == "hand"] == [
         ("hand", 2)
     ]
-    assert [e["action"] for e in kept["history"]] == ["added_by_hand"]
+    assert [e["action"] for e in kept["shopping_history"]] == ["added_by_hand"]
 
 
 def test_a_lookup_reports_the_product_the_scan_would_fill_in(

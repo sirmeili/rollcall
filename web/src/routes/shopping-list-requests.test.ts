@@ -20,7 +20,7 @@ function jade(overrides: Partial<ShoppingListItem> = {}): ShoppingListItem {
     new_since_dismissal: null,
     reasons: [requestReason(4, 2000), requestReason(null, 500)],
     size: { grams: 1000, source: "default" },
-    history: [],
+    shopping_history: [],
     ...overrides,
   };
 }
@@ -32,7 +32,7 @@ const SIZED: ShoppingList = shoppingList({
       to_buy: 1,
       need: 1,
       size: { grams: 3000, source: "chosen" },
-      history: [{ ...added(0), action: "size_changed", spools: null, size_g: 3000 }],
+      shopping_history: [{ ...added(0), action: "size_changed", spools: null, size_g: 3000 }],
     }),
   ],
 });

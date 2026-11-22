@@ -14,9 +14,9 @@ from filament_tracker.services.accounts import create_user
 from filament_tracker.services.catalog_links import UnknownColor, catalog_link, set_manual
 from filament_tracker.services.shopping_list import (
     HandAdded,
-    HistoryEntry,
     LowStock,
     NoSuchReason,
+    ShoppingHistoryEntry,
     add_by_hand,
     product_for_color,
     remove_hand_reason,
@@ -150,10 +150,12 @@ def test_adding_and_removing_by_hand_go_into_the_items_history_newest_first(
 
     [item] = shopping_list.read(session).not_in_catalog
 
-    assert item.history == [
-        HistoryEntry(ShoppingAction.REMOVED_BY_HAND, 2, None, 0, "frank", later),
-        HistoryEntry(ShoppingAction.ADDED_BY_HAND, 1, None, 0, None, NOW + timedelta(minutes=30)),
-        HistoryEntry(ShoppingAction.ADDED_BY_HAND, 2, None, 0, "frank", NOW),
+    assert item.shopping_history == [
+        ShoppingHistoryEntry(ShoppingAction.REMOVED_BY_HAND, 2, None, 0, "frank", later),
+        ShoppingHistoryEntry(
+            ShoppingAction.ADDED_BY_HAND, 1, None, 0, None, NOW + timedelta(minutes=30)
+        ),
+        ShoppingHistoryEntry(ShoppingAction.ADDED_BY_HAND, 2, None, 0, "frank", NOW),
     ]
 
 
@@ -164,6 +166,6 @@ def test_an_item_shows_only_its_recent_history(session: Session, frank: User) ->
 
     [item] = shopping_list.read(session).not_in_catalog
 
-    assert [entry.at for entry in item.history] == [
+    assert [entry.at for entry in item.shopping_history] == [
         NOW + timedelta(minutes=m) for m in (6, 5, 4, 3, 2)
     ]

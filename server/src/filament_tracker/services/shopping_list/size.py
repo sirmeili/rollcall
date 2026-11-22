@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Product
 from filament_tracker.domain.enums import ShoppingAction
-from filament_tracker.services.shopping_list import history
+from filament_tracker.services.shopping_list import shopping_history
 from filament_tracker.services.shopping_list.on_order import item_for
 
 
@@ -16,4 +16,6 @@ def set_size(
 ) -> None:
     item_for(session, product.id).chosen_size_g = size_g
     session.flush()
-    history.record(session, product.id, ShoppingAction.SIZE_CHANGED, user_id, now, size_g=size_g)
+    shopping_history.record(
+        session, product.id, ShoppingAction.SIZE_CHANGED, user_id, now, size_g=size_g
+    )

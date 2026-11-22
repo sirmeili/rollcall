@@ -1,18 +1,18 @@
 <script lang="ts">
-  /** A shopping list item's recent history, newest first: what was done, by whom and when,
-   * and its on order after. */
+  /** A shopping list item's recent shopping list history, newest first: what was done, by
+   * whom and when, and its on order after. */
   import type { ShoppingHistoryEntry } from "#lib/api/shopping.ts";
-  import { historyText, historyWhen } from "#lib/shopping-list.ts";
+  import { shoppingHistoryText, shoppingHistoryWhen } from "#lib/shopping-list.ts";
 
-  let { history }: { history: ShoppingHistoryEntry[] } = $props();
+  let { entries }: { entries: ShoppingHistoryEntry[] } = $props();
 </script>
 
-{#if history.length > 0}
+{#if entries.length > 0}
   <ol class="history" aria-label="Recent history">
-    {#each history as entry, i (i)}
+    {#each entries as entry, i (i)}
       <li>
-        <span class="what">{historyText(entry)}</span>
-        <span class="when">{historyWhen(entry)}</span>
+        <span class="what">{shoppingHistoryText(entry)}</span>
+        <span class="when">{shoppingHistoryWhen(entry)}</span>
       </li>
     {/each}
   </ol>

@@ -43,7 +43,7 @@ def test_ordered_adds_to_on_order_and_takes_it_off_to_buy(editor: TestClient, db
     assert response.status_code == 200
     item = _only(response.json())
     assert (item["need"], item["on_order"], item["to_buy"]) == (3, 2, 1)
-    entry = item["history"][0]
+    entry = item["shopping_history"][0]
     assert (entry["action"], entry["spools"], entry["on_order"], entry["by"]) == (
         "ordered",
         2,
@@ -63,7 +63,7 @@ def test_setting_on_order_replaces_it_and_reads_as_a_change(
     assert response.status_code == 200
     item = _only(response.json())
     assert (item["need"], item["on_order"], item["to_buy"]) == (0, 5, 0)
-    assert [(e["action"], e["spools"], e["on_order"]) for e in item["history"]] == [
+    assert [(e["action"], e["spools"], e["on_order"]) for e in item["shopping_history"]] == [
         ("on_order_changed", None, 5),
         ("ordered", 2, 2),
     ]

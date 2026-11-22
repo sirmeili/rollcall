@@ -14,8 +14,8 @@ from filament_tracker.services.accounts import create_user
 from filament_tracker.services.catalog_links import UnknownColor, catalog_link, set_manual
 from filament_tracker.services.shopping_list import (
     HandAdded,
-    HistoryEntry,
     NoSuchSuggestion,
+    ShoppingHistoryEntry,
     SuggestionDecided,
     add_suggestion,
     dismiss_suggestion,
@@ -206,13 +206,15 @@ def test_suggesting_adding_and_dismissing_go_into_the_items_history(
 
     [item] = shopping_list.read(session).not_in_catalog
 
-    assert item.history == [
-        HistoryEntry(ShoppingAction.SUGGESTION_ADDED, 2, None, 0, "frank", LATER),
-        HistoryEntry(
+    assert item.shopping_history == [
+        ShoppingHistoryEntry(ShoppingAction.SUGGESTION_ADDED, 2, None, 0, "frank", LATER),
+        ShoppingHistoryEntry(
             ShoppingAction.SUGGESTION_DISMISSED, 1, None, 0, "frank", NOW + timedelta(minutes=2)
         ),
-        HistoryEntry(ShoppingAction.SUGGESTED, 1, None, 0, "vic", NOW + timedelta(minutes=1)),
-        HistoryEntry(ShoppingAction.SUGGESTED, 2, None, 0, "vic", NOW),
+        ShoppingHistoryEntry(
+            ShoppingAction.SUGGESTED, 1, None, 0, "vic", NOW + timedelta(minutes=1)
+        ),
+        ShoppingHistoryEntry(ShoppingAction.SUGGESTED, 2, None, 0, "vic", NOW),
     ]
 
 
@@ -225,7 +227,7 @@ def test_a_suggested_catalog_colors_history_starts_on_the_product_add_makes(
     add_suggestion(session, suggestion.id, frank.id, LATER)
 
     [line] = shopping_list.read(session).lines
-    assert line.items[0].history == [
-        HistoryEntry(ShoppingAction.SUGGESTION_ADDED, 3, None, 0, "frank", LATER),
-        HistoryEntry(ShoppingAction.SUGGESTED, 3, None, 0, "vic", NOW),
+    assert line.items[0].shopping_history == [
+        ShoppingHistoryEntry(ShoppingAction.SUGGESTION_ADDED, 3, None, 0, "frank", LATER),
+        ShoppingHistoryEntry(ShoppingAction.SUGGESTED, 3, None, 0, "vic", NOW),
     ]

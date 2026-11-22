@@ -16,7 +16,7 @@ RECENT = 5
 
 
 @dataclass(frozen=True)
-class HistoryEntry:
+class ShoppingHistoryEntry:
     action: ShoppingAction
     # The spools or the size in grams the action concerned, if any.
     spools: int | None
@@ -57,9 +57,9 @@ def record(
     session.flush()
 
 
-def recent(session: Session) -> dict[int, list[HistoryEntry]]:
+def recent(session: Session) -> dict[int, list[ShoppingHistoryEntry]]:
     """Each product's most recent entries, newest first."""
-    found: dict[int, list[HistoryEntry]] = defaultdict(list)
+    found: dict[int, list[ShoppingHistoryEntry]] = defaultdict(list)
     query = (
         select(ShoppingHistory)
         .options(selectinload(ShoppingHistory.user))
@@ -70,6 +70,8 @@ def recent(session: Session) -> dict[int, list[HistoryEntry]]:
         if len(kept) < RECENT:
             by = entry.user.username if entry.user else None
             kept.append(
-                HistoryEntry(entry.action, entry.spools, entry.size_g, entry.on_order, by, entry.at)
+                ShoppingHistoryEntry(
+                    entry.action, entry.spools, entry.size_g, entry.on_order, by, entry.at
+                )
             )
     return found

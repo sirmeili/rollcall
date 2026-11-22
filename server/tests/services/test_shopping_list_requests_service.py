@@ -241,7 +241,7 @@ def test_choosing_a_size_goes_into_the_history(session: Session, frank: User) ->
 
     set_size(session, black, 3000, frank.id, NOW)
 
-    [entry] = only(session, {}).history
+    [entry] = only(session, {}).shopping_history
     assert (entry.action, entry.size_g, entry.spools, entry.on_order, entry.by, entry.at) == (
         ShoppingAction.SIZE_CHANGED,
         3000,
@@ -261,4 +261,4 @@ def test_choosing_a_size_again_replaces_it(session: Session, frank: User) -> Non
     item = only(session, {black.id: [short(1, 600)]})
     assert item.size == NetWeight(250, SizeFrom.CHOSEN)
     assert item.to_buy == 3
-    assert [e.by for e in item.history] == [None, "frank"]
+    assert [e.by for e in item.shopping_history] == [None, "frank"]

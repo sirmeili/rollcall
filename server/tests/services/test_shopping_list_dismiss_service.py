@@ -168,7 +168,7 @@ def test_dismiss_and_bring_back_are_in_the_history(session: Session, frank: User
     item = shopping_list.read(session).find(black.id)
 
     assert item is not None
-    assert [(e.action, e.spools, e.by) for e in item.history] == [
+    assert [(e.action, e.spools, e.by) for e in item.shopping_history] == [
         (ShoppingAction.BROUGHT_BACK, None, "frank"),
         (ShoppingAction.DISMISSED, 2, "frank"),
     ]

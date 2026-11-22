@@ -6,7 +6,7 @@
   import type { ShoppingList, ShoppingListItem } from "#lib/api/shopping.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import FindInStore from "#lib/components/catalog/FindInStore.svelte";
-  import ItemHistory from "#lib/components/shopping/ItemHistory.svelte";
+  import ShoppingHistory from "#lib/components/shopping/ShoppingHistory.svelte";
   import ItemSize from "#lib/components/shopping/ItemSize.svelte";
   import { findInStore, reasonText } from "#lib/shopping-list.ts";
 
@@ -56,7 +56,7 @@
     >Dismiss</button
   >
 {/if}
-<ItemHistory history={item.history} />
+<ShoppingHistory entries={item.shopping_history} />
 
 <style>
   .reasons {
