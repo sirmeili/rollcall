@@ -29,10 +29,11 @@ The live, clickable version is the Claude design canvas "Filament Tracker — In
 | [RequestsList.html](RequestsList.html) | `/requests` | Requests (#75) | Viewer who is a Requester (own requests); Editor (every request) |
 | [RequestForm.html](RequestForm.html) | `/requests/new`, `/requests/{id}/edit` | New request, Edit request (#75) | Requester (edit: own request, while Submitted) |
 | [RequestDetail.html](RequestDetail.html) | `/requests/{id}` | Request detail (#75) | Requester (own request); Editor (every request, change priority) |
+| [ShoppingList.html](ShoppingList.html) | `/shopping-list` | Shopping list (#78, #186) | Viewer (actions: Editor; suggest: Viewer) |
 
 The routes are the ones already in `web/src/lib/nav.ts`, except `/catalog`, which #73 adds.
 
-The two Catalog mockups, the Products mockup, and the Requests and Users mockups (#75) are plain HTML, unlike the `.dc.html` files: open them straight in a browser. Each has a Mockup controls panel to switch the theme, the role or the state (before the first sync, or a failed sync). The phone version of the Catalog page is in [../mobile-web/PhoneCatalog.html](../mobile-web/PhoneCatalog.html). Where they differ from #73, the issue wins: the sample sync times show 03:12, but scheduled syncs run at 04:00. The mockups are drawn for an Admin, so every control is visible. Hide the controls a role does not allow, as the spec says.
+The two Catalog mockups, the Products mockup, the Requests and Users mockups (#75) and the Shopping list mockup (#186) are plain HTML, unlike the `.dc.html` files: open them straight in a browser. Each has a Mockup controls panel to switch the theme, the role or the state (before the first sync, or a failed sync). The phone version of the Catalog page is in [../mobile-web/PhoneCatalog.html](../mobile-web/PhoneCatalog.html). Where they differ from #73, the issue wins: the sample sync times show 03:12, but scheduled syncs run at 04:00. The mockups are drawn for an Admin, so every control is visible. Hide the controls a role does not allow, as the spec says.
 
 One layout difference from the current nav: the mockups take Account out of the nav links and reach it from the account button (initial and username) at the right of the header.
 

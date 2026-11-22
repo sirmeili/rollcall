@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shopping list · RollCall (desktop mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Global styles from the approved mockups (docs/mockups/web/, direction A "Workshop").
+ * Tokens come from docs/mockups/web/tokens.css. The theme is set on <html data-theme>
+ * by the script in app.html and by lib/theme.svelte.ts. Components add scoped styles. */
+
+:root,
+:root[data-theme="light"] {
+  --bg: #f4f2ee; /* page background */
+  --surface: #ffffff; /* cards, header, tables */
+  --line: #ddd8cf; /* borders and dividers */
+  --text: #1c1b19;
+  --muted: #5e5a53; /* secondary text; 6.5:1 on --surface */
+  --accent: #b45309; /* primary buttons, active filter, Review badge */
+  --onaccent: #ffffff;
+  --chip: #ece8e1; /* neutral fills: hover, open-state chip, avatars */
+  --lowbg: #fdecd3; /* low stock, flagged, warnings */
+  --lowtext: #7c3500;
+  --okbg: #dcefe2;
+  --oktext: #1f5c33;
+  --okdot: #2f8a4e;
+  --track: #e9e5de; /* % left bar: track */
+  --fill: #3f3b35; /* % left bar: fill */
+  --fillLow: #c2410c; /* % left bar: nearly out */
+  --danger: #b3261e;
+
+  /* Spool ring swatch: same treatment for every color */
+  --ringShadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.16);
+  --holeShadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+  --ringShadowSmall: var(--ringShadow);
+
+  --font-head: "Space Grotesk", system-ui, sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* The phone layout's bottom bar, and what the pages leave free for it. */
+  --bottom-bar: calc(84px + env(safe-area-inset-bottom, 0px));
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1c1c1b;
+  --line: #34322e;
+  --text: #f2efe9;
+  --muted: #a9a49b;
+  --accent: #f59e0b;
+  --onaccent: #1a1205;
+  --chip: #262523;
+  --lowbg: #3a2608;
+  --lowtext: #fbbf5c;
+  --okbg: #173322;
+  --oktext: #86d9a3;
+  --okdot: #4ade80;
+  --track: #2c2b28;
+  --fill: #d9d4cb;
+  --fillLow: #fb923c;
+  --danger: #ff8a80;
+
+  /* A gap in the surface color, a thin light rim, then a soft glow, outside and inside the
+     ring, so white and black swatches both stay visible. */
+  --ringShadow:
+    0 0 0 1.5px var(--surface), 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    0 0 10px 2px rgba(255, 255, 255, 0.1);
+  --holeShadow:
+    inset 0 0 0 1.5px var(--surface), inset 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    inset 0 0 6px 1px rgba(255, 255, 255, 0.1);
+  --ringShadowSmall:
+    0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255, 255, 255, 0.28),
+    0 0 6px 1px rgba(255, 255, 255, 0.08), inset 0 0 0 1px var(--surface),
+    inset 0 0 0 1.75px rgba(255, 255, 255, 0.28);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(30px, 6vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Buttons: neutral by default, .primary for the main action. */
+button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* A link that looks like a button, for navigation actions such as "Open spool". */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+/* Filter chips: round, accent when pressed. */
+button.chip {
+  padding: 10px 16px;
+  border-radius: 999px;
+}
+
+button.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+  min-height: 44px;
+}
+
+textarea {
+  padding: 10px 12px;
+  min-height: 88px;
+  resize: vertical;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Tables sit in a box that scrolls sideways on phones. */
+/* Positioned so screen-reader-only text inside a table scrolls with it instead of widening
+   the page (on a phone that pushed the bottom bar off the screen). */
+.tablebox {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.notice {
+  color: var(--lowtext);
+  margin: 0;
+}
+
+.badge-low {
+  background: var(--lowbg);
+  color: var(--lowtext);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.badge-hand {
+  border: 1px dashed var(--muted);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Page heading: title, subtitle, and actions on the right. */
+.pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pagehead p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* ---- Ring swatch (lib/components/ui/Ring.svelte), plus a split ring for multi-color ---- */
+:root, :root[data-theme="light"] { --ringOuterSm: var(--ringShadow); --holeSm: none; }
+:root[data-theme="dark"] {
+  --ringOuterSm: 0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255,255,255,.28), 0 0 6px 1px rgba(255,255,255,.08);
+  --holeSm: inset 0 0 0 1px var(--surface), inset 0 0 0 1.75px rgba(255,255,255,.28);
+}
+.ring { display: inline-block; flex: none; border-radius: 50%; border-style: solid; background: var(--bg); box-shadow: var(--ringShadow), var(--holeShadow); }
+.ring.sm { width: 30px; height: 30px; border-width: 8px; box-shadow: var(--ringShadowSmall); }
+.ring.multi { border: 0; position: relative; box-shadow: var(--ringOuterSm); }
+.ring.multi::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bg); box-shadow: var(--holeSm); }
+li.open .ring.multi::after, .open .ring.multi::after { background: var(--bg); }
+[hidden] { display: none !important; }
+
+
+/* ---- Header (lib/components/Header.svelte, Nav.svelte) ---- */
+.hdr{border-bottom:1px solid var(--line);background:var(--surface)}
+.hdr .inner{max-width:1240px;margin:0 auto;padding:14px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-head);font-weight:700;font-size:20px;letter-spacing:-.01em}
+.mainnav{flex:1 1 auto}
+.mainnav ul{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0;list-style:none}
+.mainnav a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:8px;color:var(--muted);font-weight:500;font-size:15px}
+.mainnav a:hover{background:var(--chip);color:var(--text)}
+.mainnav a[aria-current=page]{background:var(--text);color:var(--bg)}
+.navbadge{background:var(--accent);color:var(--onaccent);border-radius:999px;font-size:12px;font-weight:700;padding:1px 7px}
+.hend{display:flex;align-items:center;gap:10px}
+.account{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:10px;border:1px solid var(--line);font-size:14px;font-weight:500}
+.initial{width:26px;height:26px;border-radius:50%;background:var(--chip);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+main{max-width:1240px;margin:0 auto;padding:32px 24px 56px}
+.page{gap:20px}
+
+
+/* ---- Shopping list (this mockup) ---- */
+.groups{display:flex;flex-direction:column;gap:14px}
+.group{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.ghead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-height:56px;margin:0;padding:0 18px;font-size:inherit}
+.gname{font-family:var(--font-head);font-size:19px;font-weight:600}
+.gmeta{color:var(--muted);font-weight:500;font-size:14px}
+.rows{margin:0;padding:0;list-style:none;border-top:1px solid var(--line)}
+.rows > li + li{border-top:1px solid var(--line)}
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:16px;padding:16px 18px}
+.ibody{display:flex;flex-direction:column;gap:6px;min-width:0}
+.iname{font-family:var(--font-head);font-weight:600;font-size:17px;overflow-wrap:anywhere}
+.itype{font-family:var(--font-mono);font-size:13px;color:var(--muted)}
+.reasons{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;font-size:14px;color:var(--muted)}
+.store{display:inline-flex;align-items:center;gap:8px;align-self:flex-start}
+.tobuy{display:flex;flex-direction:column;align-items:flex-end}
+.buy{font-family:var(--font-head);font-size:40px;font-weight:700;line-height:1}
+.blabel{font-size:13px;color:var(--muted)}
+.none{margin:0;color:var(--muted)}
+
+/* ---- Mockup controls (not part of the design) ---- */
+.mock{background:#1c1b19;color:#f2efe9;padding:8px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;font-size:12px}
+.mock strong{font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+.mock .mrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mock .mrow > span{opacity:.8}
+.mock .mseg{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.12)}
+.mock button{min-height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:inherit;font-size:12px}
+.mock button[aria-pressed=true]{background:#f2efe9;color:#1c1b19}
+.mock .note{opacity:.7}
+</style>
+</head>
+<body>
+<aside class="mock" aria-label="Mockup controls">
+<strong>Mockup controls</strong>
+<div class="mrow"><span>State</span><div class="mseg" role="group" aria-label="State"><button type="button" data-state="items" aria-pressed="true">Items</button><button type="button" data-state="none" aria-pressed="false">Nothing to buy</button></div></div>
+<div class="mrow"><span>Role</span><div class="mseg" role="group" aria-label="Role"><button type="button" data-role="admin" aria-pressed="true">Admin</button><button type="button" data-role="viewer" aria-pressed="false">Viewer</button></div></div>
+<div class="mrow"><span>Theme</span><div class="mseg" role="group" aria-label="Theme"><button type="button" data-theme="light" aria-pressed="true">Light</button><button type="button" data-theme="dark" aria-pressed="false">Dark</button></div></div>
+<span class="note">Low stock only (#186). Request reasons, hand-added spools, on order, Dismiss and suggestions come in later tickets of #78. Sample data is fake.</span>
+</aside>
+<header class="hdr">
+<div class="inner">
+<a class="brand" href="#"><svg width="30" height="30" viewBox="0 0 140 140" aria-hidden="true"><circle cx="70" cy="70" r="62" fill="#C8324B"></circle><circle cx="70" cy="70" r="50" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="40" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"></circle><circle cx="70" cy="70" r="30" fill="#FFF7F5"></circle><polyline points="56,71 66,81 85,60" fill="none" stroke="#C8324B" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>RollCall</a>
+<nav class="mainnav" aria-label="Main"><ul>
+<li><a href="#">Inventory</a></li>
+<li><a href="#">Spools</a></li>
+<li><a href="#">Products</a></li>
+<li><a href="#">Catalog</a></li>
+<li class="admin"><a href="#">Requests</a></li>
+<li><a href="#" aria-label="Review, 3 waiting">Review<span class="navbadge" aria-hidden="true">3</span></a></li>
+<li><a href="#" aria-current="page">Shopping list</a></li>
+<li><a href="#">Activity</a></li>
+<li class="admin"><a href="#">Devices</a></li>
+<li class="admin"><a href="#">Users</a></li>
+<li class="admin"><a href="#">Settings</a></li>
+</ul></nav>
+<div class="hend"><a class="account" href="#" title="Account"><span class="initial" aria-hidden="true">F</span><span id="uname">frank</span></a></div>
+</div>
+</header>
+
+<main>
+<div class="page">
+<div class="pagehead"><div>
+<h1>Shopping list</h1>
+<p>What to buy, and why.</p>
+</div></div>
+<div class="groups" id="groups"></div>
+</div>
+</main>
+
+<script>
+/* Sample data: low-stock products, by filament line of their catalog link. code: the Bambu code
+   (Find in store only when there is one). */
+var LINES = [
+  { name: "PLA Basic", items: [
+    { name: "Black PLA Basic", rgba: "#1b1b1b", sealed: 1, threshold: 2, code: "10101" },
+    { name: "Jade White PLA Basic", rgba: "#f4f1e8", sealed: 0, threshold: 1, code: "10100" }
+  ] },
+  { name: "PLA Matte", items: [
+    { name: "Ivory White PLA Matte", rgba: "#ece3cf", sealed: 2, threshold: 2, code: null }
+  ] },
+  { name: "PETG HF", items: [
+    { name: "Orange PETG HF", rgba: "#f57c00", sealed: 0, threshold: 2, code: "33102" }
+  ] }
+];
+var NOT_IN_CATALOG = [
+  { name: "Gray TPU 95A", type: "TPU", rgba: "#8e9089", sealed: 0, threshold: 1 },
+  { name: "Green PLA (other brand)", type: "PLA", rgba: "#3a8f3a", sealed: 1, threshold: 1 }
+];
+var STORE = "https://us.store.bambulab.com";
+var s = { state: "items" };
+
+function toBuy(it) { return it.threshold - it.sealed + 1; }
+function spools(n) { return n + (n === 1 ? " spool" : " spools"); }
+function total(items) { return items.reduce(function (sum, it) { return sum + toBuy(it); }, 0); }
+var storeIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"></path><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg>';
+
+function itemHtml(it, showType) {
+  var n = toBuy(it);
+  return '<li><div class="item"><span class="ring" style="border-color:' + it.rgba + '"></span><div class="ibody">' +
+    '<span class="iname">' + it.name + "</span>" + (showType ? '<span class="itype">' + it.type + "</span>" : "") +
+    '<ul class="reasons"><li>Low stock: ' + it.sealed + " sealed, threshold " + it.threshold + " · " + spools(n) + "</li></ul>" +
+    (it.code ? '<a class="button store" href="' + STORE + "/search?q=" + it.code + '" target="_blank" rel="noopener noreferrer">Find in store' + storeIcon + "</a>" : "") +
+    '</div><div class="tobuy"><span class="buy">' + n + '</span><span class="blabel">to buy</span></div></div></li>';
+}
+function groupHtml(name, items, showType) {
+  var t = total(items);
+  return '<section class="group" aria-label="' + name + ", " + t + ' to buy"><h2 class="ghead"><span class="gname">' + name +
+    '</span><span class="gmeta">· ' + t + ' to buy</span></h2><ul class="rows">' +
+    items.map(function (it) { return itemHtml(it, showType); }).join("") + "</ul></section>";
+}
+function render() {
+  var g = document.getElementById("groups");
+  if (s.state === "none") { g.innerHTML = '<p class="none">Nothing to buy.</p>'; return; }
+  g.innerHTML = LINES.map(function (l) { return groupHtml(l.name, l.items, false); }).join("") +
+    groupHtml("Not in the catalog", NOT_IN_CATALOG, true);
+}
+
+document.addEventListener("click", function (e) {
+  var t = e.target.closest("button");
+  if (!t) return;
+  var d = t.dataset;
+  if (d.state) { pick(t); s.state = d.state; render(); }
+  else if (d.role) {
+    pick(t);
+    document.querySelectorAll(".mainnav .admin").forEach(function (li) { li.hidden = d.role !== "admin"; });
+  }
+  else if (d.theme) { pick(t); document.documentElement.setAttribute("data-theme", d.theme); }
+});
+function pick(btn) { btn.parentNode.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); }); }
+
+render();
+</script>
+</body>
+</html>
