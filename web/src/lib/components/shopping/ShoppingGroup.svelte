@@ -48,7 +48,7 @@
 {#snippet rows(items: ShoppingListItem[], label?: string)}
   <ul class="rows" aria-label={label}>
     {#each items as item (item.product.id)}
-      <li>
+      <li id={`shopping-item-${item.product.id}`}>
         {#if phone}
           <ShoppingItemRow
             {item}

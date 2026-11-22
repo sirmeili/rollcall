@@ -44,6 +44,7 @@ export function choice(fields: Partial<Choice> = {}): Choice {
     short_g: null,
     holds: null,
     available_g: 0,
+    shopping: null,
     ...fields,
   };
 }
