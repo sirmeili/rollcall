@@ -49,6 +49,19 @@ class HandAdded:
 Reason = LowStock | RequestShort | HandAdded
 
 
+def _counted(reasons: list[Reason]) -> tuple[int, int]:
+    """The spools the low-stock and hand-added reasons ask for, and the grams the print
+    requests are short."""
+    spools = grams = 0
+    for reason in reasons:
+        match reason:
+            case RequestShort():
+                grams += reason.short_g
+            case LowStock() | HandAdded():
+                spools += reason.spools
+    return spools, grams
+
+
 @dataclass(frozen=True)
 class ShoppingListItem:
     product: Product
@@ -67,7 +80,7 @@ class ShoppingListItem:
     @property
     def request_spools(self) -> int:
         """The requests' grams added up, then rounded up to spools once."""
-        grams = sum(r.short_g for r in self.reasons if isinstance(r, RequestShort))
+        _, grams = _counted(self.reasons)
         return math.ceil(grams / self.size.grams)
 
     # The need it was dismissed at, if it is dismissed.
@@ -75,7 +88,7 @@ class ShoppingListItem:
 
     @property
     def need(self) -> int:
-        spools = sum(r.spools for r in self.reasons if not isinstance(r, RequestShort))
+        spools, _ = _counted(self.reasons)
         return spools + self.request_spools
 
     @property

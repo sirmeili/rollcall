@@ -27,26 +27,29 @@ from filament_tracker.services.shopping_list import (
     HandAdded,
     LowStock,
     OpenSuggestion,
+    Reason,
     RequestNeedsReader,
     RequestShort,
     ShoppingListItem,
 )
 
 
-def reason_out(reason: LowStock | RequestShort | HandAdded) -> ReasonOut:
-    if isinstance(reason, RequestShort):
-        # Named and linked only for people allowed to see the request.
-        named = reason.title is not None
-        return RequestReasonOut(
-            request_id=reason.request_id if named else None,
-            title=reason.title,
-            short_g=reason.short_g,
-        )
-    if isinstance(reason, LowStock):
-        return LowStockReasonOut(
-            spools=reason.spools, sealed=reason.sealed, threshold=reason.threshold
-        )
-    return HandReasonOut(id=reason.id, spools=reason.spools, by=reason.by, at=reason.at)
+def reason_out(reason: Reason) -> ReasonOut:
+    match reason:
+        case RequestShort():
+            # Named and linked only for people allowed to see the request.
+            named = reason.title is not None
+            return RequestReasonOut(
+                request_id=reason.request_id if named else None,
+                title=reason.title,
+                short_g=reason.short_g,
+            )
+        case LowStock():
+            return LowStockReasonOut(
+                spools=reason.spools, sealed=reason.sealed, threshold=reason.threshold
+            )
+        case HandAdded():
+            return HandReasonOut(id=reason.id, spools=reason.spools, by=reason.by, at=reason.at)
 
 
 def item_out(item: ShoppingListItem) -> ShoppingListItemOut:
