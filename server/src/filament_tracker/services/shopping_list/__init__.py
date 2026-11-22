@@ -2,7 +2,15 @@
 Each item's need is worked out live every time the list is read; nothing about it is stored
 (ADR-0021)."""
 
+from filament_tracker.services.shopping_list.catalog_products import product_for_color
+from filament_tracker.services.shopping_list.hand import (
+    NoSuchReason,
+    add_by_hand,
+    remove_hand_reason,
+)
+from filament_tracker.services.shopping_list.history import HistoryEntry
 from filament_tracker.services.shopping_list.read import (
+    HandAdded,
     Line,
     LowStock,
     ShoppingList,
@@ -10,4 +18,16 @@ from filament_tracker.services.shopping_list.read import (
     read,
 )
 
-__all__ = ["Line", "LowStock", "ShoppingList", "ShoppingListItem", "read"]
+__all__ = [
+    "HandAdded",
+    "HistoryEntry",
+    "Line",
+    "LowStock",
+    "NoSuchReason",
+    "ShoppingList",
+    "ShoppingListItem",
+    "add_by_hand",
+    "product_for_color",
+    "read",
+    "remove_hand_reason",
+]
