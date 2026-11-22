@@ -171,7 +171,7 @@ def open_suggestions(session: Session) -> list[OpenSuggestion]:
             catalog_uuid=suggestion.catalog_uuid,
             color=colors.get(suggestion.catalog_uuid) if suggestion.catalog_uuid else None,
             spools=suggestion.spools,
-            by=user.username if user else None,
+            by=shopping_history.by(user),
             at=suggestion.suggested_at,
         )
         for suggestion, product, user in found

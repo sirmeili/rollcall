@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from filament_tracker.db.models import User
 from filament_tracker.db.shopping_models import ShoppingHistory
 from filament_tracker.domain.enums import ShoppingAction
 from filament_tracker.services.shopping_list.items import find_item
@@ -27,6 +28,12 @@ class ShoppingHistoryEntry:
     # Who did it: None for a token, which acts for no user.
     by: str | None
     at: datetime
+
+
+def by(user: User | None) -> str | None:
+    """Who did something, as the shopping list shows it: their username, or None for a token,
+    which acts for no user."""
+    return user.username if user is not None else None
 
 
 def on_order(session: Session, product_id: int) -> int:
@@ -69,10 +76,14 @@ def recent(session: Session) -> dict[int, list[ShoppingHistoryEntry]]:
     for entry in session.scalars(query):
         kept = found[entry.product_id]
         if len(kept) < RECENT:
-            by = entry.user.username if entry.user else None
             kept.append(
                 ShoppingHistoryEntry(
-                    entry.action, entry.spools, entry.size_g, entry.on_order, by, entry.at
+                    entry.action,
+                    entry.spools,
+                    entry.size_g,
+                    entry.on_order,
+                    by(entry.user),
+                    entry.at,
                 )
             )
     return found

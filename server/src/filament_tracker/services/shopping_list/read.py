@@ -19,7 +19,11 @@ from filament_tracker.services import queries
 from filament_tracker.services.catalog_links import IndexedColor, catalog_link
 from filament_tracker.services.shopping_list.needs import RequestNeedsReader, RequestShort
 from filament_tracker.services.shopping_list.net_weight import NetWeight, net_weight
-from filament_tracker.services.shopping_list.shopping_history import ShoppingHistoryEntry, recent
+from filament_tracker.services.shopping_list.shopping_history import (
+    ShoppingHistoryEntry,
+    by,
+    recent,
+)
 
 
 @dataclass(frozen=True)
@@ -143,8 +147,9 @@ def _hand_added(session: Session) -> dict[int, list[HandAdded]]:
         .order_by(HandReason.at, HandReason.id)
     )
     for reason in session.scalars(query):
-        by = reason.user.username if reason.user else None
-        found[reason.product_id].append(HandAdded(reason.id, reason.spools, by, reason.at))
+        found[reason.product_id].append(
+            HandAdded(reason.id, reason.spools, by(reason.user), reason.at)
+        )
     return found
 
 
