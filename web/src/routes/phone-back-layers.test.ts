@@ -256,4 +256,27 @@ describe("Back with a layer open", () => {
     expect(screen.queryByText("1 product changed")).toBeNull();
     expect(api.updateProduct).not.toHaveBeenCalled();
   });
+
+  it("closes only the top layer when two are open, then goes back a page", async () => {
+    await openAt("/");
+    render(InventoryPage);
+    await screen.findByText("Black PLA Basic");
+    await userEvent.click(screen.getByRole("button", { name: "Filter" }));
+    const bar = screen.getByRole("navigation", { name: "App" });
+    await userEvent.click(within(bar).getByRole("button", { name: "Menu" }));
+
+    native.pressBack(true);
+    await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull());
+    expect(screen.getByRole("dialog", { name: "Filter" })).toBeInTheDocument();
+    stayed();
+
+    native.pressBack(true);
+    await vi.waitFor(() => expect(screen.queryByRole("dialog", { name: "Filter" })).toBeNull());
+    stayed();
+
+    // With no layer left open, Back is as before.
+    native.pressBack(true);
+    expect(back).toHaveBeenCalledOnce();
+    expect(native.backgrounded).toBe(0);
+  });
 });
