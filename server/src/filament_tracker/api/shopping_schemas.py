@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field, StringConstraints, model_validator
 from filament_tracker.api.read_schemas import ProductDetail
 from filament_tracker.api.schemas import Strict
 from filament_tracker.domain.enums import ShoppingAction
+from filament_tracker.services.grams import MAX_NET_WEIGHT_G
+from filament_tracker.services.shopping_list import SizeFrom
 
 # More than anyone would buy at once; it only stops absurd input.
 MAX_SPOOLS = 999
@@ -20,6 +22,18 @@ class LowStockReasonOut(BaseModel):
     threshold: int
 
 
+class RequestReasonOut(BaseModel):
+    kind: Literal["request"] = "request"
+    request_id: int | None = Field(
+        description="The request, for people allowed to see it; otherwise null"
+    )
+    title: str | None = Field(
+        description="The request's title, for people allowed to see it; otherwise null, read "
+        "as a print request"
+    )
+    short_g: int = Field(description="How many grams it is short")
+
+
 class HandReasonOut(BaseModel):
     kind: Literal["hand"] = "hand"
     id: int
@@ -28,7 +42,17 @@ class HandReasonOut(BaseModel):
     at: datetime
 
 
-ReasonOut = Annotated[LowStockReasonOut | HandReasonOut, Field(discriminator="kind")]
+ReasonOut = Annotated[
+    LowStockReasonOut | RequestReasonOut | HandReasonOut, Field(discriminator="kind")
+]
+
+
+class SizeOut(BaseModel):
+    grams: int
+    source: SizeFrom = Field(
+        description="chosen on the item, the last spool received's net weight, the catalog "
+        "color's size, or the default 1000 g"
+    )
 
 
 class HistoryEntryOut(BaseModel):
@@ -43,7 +67,12 @@ class HistoryEntryOut(BaseModel):
 class ShoppingListItemOut(BaseModel):
     product: ProductDetail
     to_buy: int
-    reasons: list[ReasonOut] = Field(description="Low stock first, then hand-added, oldest first")
+    reasons: list[ReasonOut] = Field(
+        description="Low stock first, then the requests short of it, then hand-added, oldest first"
+    )
+    size: SizeOut = Field(
+        description="The size the requests' grams, added up, are rounded up to spools with"
+    )
     history: list[HistoryEntryOut] = Field(description="The most recent entries, newest first")
 
 
@@ -74,3 +103,9 @@ class HandReasonIn(Strict):
         if (self.product_id is None) == (self.catalog_color is None):
             raise ValueError("give a product_id or a catalog_color, not both")
         return self
+
+
+class SizeIn(Strict):
+    """The size to turn the item's requests' grams into spools with."""
+
+    size_g: int = Field(ge=1, le=MAX_NET_WEIGHT_G)

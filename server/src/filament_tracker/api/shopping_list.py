@@ -1,5 +1,6 @@
-"""The shopping list: what to buy and why (every role reads it), and adding to it by hand
-(Editors and Admins)."""
+"""The shopping list: what to buy and why (every role reads it), adding to it by hand and
+choosing an item's size (Editors and Admins). The print requests short of each product come
+from the request-needs reader wired in at start (ADR-0020)."""
 
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -10,8 +11,11 @@ from filament_tracker.api.shopping_schemas import (
     LineOut,
     LowStockReasonOut,
     ReasonOut,
+    RequestReasonOut,
     ShoppingListItemOut,
     ShoppingListOut,
+    SizeIn,
+    SizeOut,
 )
 from filament_tracker.api.views import product_detail
 from filament_tracker.app_settings.store import SettingsStore
@@ -24,13 +28,23 @@ from filament_tracker.services.shopping_list import (
     HandAdded,
     LowStock,
     NoSuchReason,
+    RequestNeedsReader,
+    RequestShort,
     ShoppingListItem,
 )
 
 router = APIRouter(tags=["shopping list"])
 
 
-def _reason_out(reason: LowStock | HandAdded) -> ReasonOut:
+def _reason_out(reason: LowStock | RequestShort | HandAdded) -> ReasonOut:
+    if isinstance(reason, RequestShort):
+        # Named and linked only for people allowed to see the request.
+        named = reason.title is not None
+        return RequestReasonOut(
+            request_id=reason.request_id if named else None,
+            title=reason.title,
+            short_g=reason.short_g,
+        )
     if isinstance(reason, LowStock):
         return LowStockReasonOut(
             spools=reason.spools, sealed=reason.sealed, threshold=reason.threshold
@@ -43,6 +57,7 @@ def _item_out(item: ShoppingListItem) -> ShoppingListItemOut:
         product=product_detail(item.product),
         to_buy=item.to_buy,
         reasons=[_reason_out(r) for r in item.reasons],
+        size=SizeOut(grams=item.size.grams, source=item.size.source),
         history=[
             HistoryEntryOut(
                 action=e.action,
@@ -57,9 +72,10 @@ def _item_out(item: ShoppingListItem) -> ShoppingListItemOut:
     )
 
 
-def _list_out(session: DbSession, request: Request) -> ShoppingListOut:
+def _list_out(session: DbSession, request: Request, caller: Principal) -> ShoppingListOut:
     store: SettingsStore = request.app.state.settings_store
-    listed = shopping_list.read(session)
+    needs: RequestNeedsReader = request.app.state.request_needs_reader
+    listed = shopping_list.read(session, caller, needs)
     return ShoppingListOut(
         lines=[
             LineOut(name=line.name, to_buy=line.to_buy, items=[_item_out(i) for i in line.items])
@@ -75,11 +91,13 @@ def _user_id(caller: Principal) -> int | None:
 
 
 @router.get("/shopping-list", response_model=ShoppingListOut)
-def read(_: Viewer, session: DbSession, request: Request) -> ShoppingListOut:
+def read(caller: Viewer, session: DbSession, request: Request) -> ShoppingListOut:
     """Each product to buy, as one item with its reasons and recent history, grouped by the
-    filament line of its catalog link, then the products not in the catalog. A low-stock
-    product needs threshold - sealed + 1 spools; spools added by hand add to that."""
-    return _list_out(session, request)
+    filament line of its catalog link, then the products not in the catalog. The grams the
+    print requests holding filament are short of it are added up and rounded up to spools
+    once, by the item's size; a low-stock product needs threshold - sealed + 1 spools on top;
+    spools added by hand add to that. A request is named only for people who may see it."""
+    return _list_out(session, request, caller)
 
 
 @router.post("/shopping-list/hand-reasons", response_model=ShoppingListOut)
@@ -104,7 +122,7 @@ def add_by_hand(
         product = found
     shopping_list.add_by_hand(session, product, body.spools, _user_id(caller), now)
     session.commit()
-    return _list_out(session, request)
+    return _list_out(session, request, caller)
 
 
 @router.delete("/shopping-list/hand-reasons/{reason_id}", response_model=ShoppingListOut)
@@ -117,4 +135,18 @@ def remove_hand_reason(
     except NoSuchReason:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such reason") from None
     session.commit()
-    return _list_out(session, request)
+    return _list_out(session, request, caller)
+
+
+@router.put("/shopping-list/items/{product_id}/size", response_model=ShoppingListOut)
+def set_size(
+    product_id: int, body: SizeIn, caller: Editor, session: DbSession, request: Request
+) -> ShoppingListOut:
+    """Choose the size the product's item turns its requests' grams into spools with. It
+    re-rounds only the requests' part. Answers the list as it now stands."""
+    product = session.get(Product, product_id)
+    if product is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such product")
+    shopping_list.set_size(session, product, body.size_g, _user_id(caller), utcnow())
+    session.commit()
+    return _list_out(session, request, caller)

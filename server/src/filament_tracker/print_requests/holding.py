@@ -6,8 +6,10 @@ effective catalog link is that color, and with none, all its grams are short. A 
 covered when it is short 0 g: see `short` for how an over-held spool is shared.
 
 Approve takes grams for every choice, from 1 to 100,000, for the whole quantity. In one
-transaction it records Approved by the Admin, places holds, and moves on automatically, with
-no user: to Queued when every choice is covered, otherwise to Waiting on Filament.
+transaction it records Approved by the Admin, gives each catalog color choice with no linked
+product the shopping list's "From the catalog" product, linked by hand by the Admin, places
+holds, and moves on automatically, with no user: to Queued when every choice is covered,
+otherwise to Waiting on Filament.
 
 Reprint takes grams for every choice in the same way, pre-filled on the page from the last
 attempt's. It places holds and lands on Queued when every choice is covered, otherwise on
@@ -31,8 +33,8 @@ from filament_tracker.print_requests import pipeline
 from filament_tracker.print_requests.pipeline import Moved, Mover
 from filament_tracker.print_requests.read import sort_key
 from filament_tracker.print_requests.rules import Problems
-from filament_tracker.services import holds
-from filament_tracker.services.catalog_links import linked_product
+from filament_tracker.services import holds, shopping_list
+from filament_tracker.services.catalog_links import UnknownColor, linked_product
 
 HOLDER_TYPE = "filament_choice"
 GRAMS_MIN = 1
@@ -87,6 +89,22 @@ def _checked(request: PrintRequest, grams: dict[int, int]) -> None:
         raise Problems(found)
 
 
+def _give_products(
+    session: Session, request: PrintRequest, user: User | None, now: datetime
+) -> None:
+    """Give each catalog color choice with no linked product a "From the catalog" one, so
+    its short lands on the shopping list. A color the catalog has dropped gets none."""
+    for choice in request.choices:
+        if choice.catalog_uuid is None:
+            continue
+        try:
+            shopping_list.product_for_color(
+                session, choice.catalog_uuid, user.id if user else None, now
+            )
+        except UnknownColor:
+            continue
+
+
 def _hold(session: Session, request: PrintRequest, grams: dict[int, int], now: datetime) -> bool:
     """Check the grams, give each choice its grams and hold them; whether every choice is
     covered."""
@@ -123,6 +141,8 @@ def approve(
         note=note,
         now=now,
     )
+    _checked(request, grams)
+    _give_products(session, request, user, now)
     covered = _hold(session, request, grams, now)
     landing = RequestStatus.QUEUED if covered else RequestStatus.WAITING_ON_FILAMENT
     pipeline.make_move(
