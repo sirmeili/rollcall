@@ -5,7 +5,7 @@ state whenever it (re)connects. One device, "RollCall", holds five entities:
 
 - Total spools (sealed and open, not used up), Total open, Total sealed;
 - Low filament, on while any product is low on stock, listing those products;
-- Spools in review (the Review page's count).
+- Spools in review (the Review page's count, possible duplicates included).
 
 The entities are unavailable while the server is not connected to the broker.
 """

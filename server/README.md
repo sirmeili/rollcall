@@ -208,7 +208,7 @@ The server publishes Home Assistant entities through MQTT discovery, under one d
 
 - **Total spools** (sealed and open, not used up), **Total open** and **Total sealed**;
 - **Low filament**: on while any product's sealed count is at or below its low-stock threshold (set on the Products page; 0 turns it off). Its `products` attribute lists the low products with their name, type, color, sealed count and threshold, and `count` says how many;
-- **Spools in review**: the Review page's count.
+- **Spools in review**: the Review page's count: flagged events, unidentified tags, likely-empty suggestions and possible duplicates.
 
 Entities from an earlier version of the server (such as per-product sensors) are removed automatically.
 
