@@ -18,7 +18,7 @@
     error = null;
     try {
       await phone.pair(fields);
-      await goto("/scan");
+      await goto("/scan", { replaceState: true });
     } catch (failure) {
       error = pairingError(failure);
     } finally {
