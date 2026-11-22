@@ -40,6 +40,8 @@ ROUTES = [
     ("get", "/api/v1/shopping-list", Role.VIEWER),
     ("post", "/api/v1/shopping-list/hand-reasons", Role.EDITOR),
     ("delete", "/api/v1/shopping-list/hand-reasons/99", Role.EDITOR),
+    ("post", "/api/v1/shopping-list/items/99/ordered", Role.EDITOR),
+    ("put", "/api/v1/shopping-list/items/99/on-order", Role.EDITOR),
     ("post", "/api/v1/shopping-list/suggestions", Role.VIEWER),
     ("post", "/api/v1/shopping-list/suggestions/99/add", Role.EDITOR),
     ("post", "/api/v1/shopping-list/suggestions/99/dismiss", Role.EDITOR),

@@ -55,6 +55,13 @@ describe("the shopping list history", () => {
     expect(historyText({ ...added(1), action: "brought_back" })).toBe("Brought back");
   });
 
+  it("tells a second order from a correction of on order", () => {
+    expect(historyText({ ...added(2), action: "ordered", on_order: 3 })).toBe("Ordered 2 spools");
+    expect(historyText({ ...added(0), spools: null, action: "on_order_changed" })).toBe(
+      "Changed on order",
+    );
+  });
+
   it("says what happened to a suggestion", () => {
     expect(historyText({ ...added(2), action: "suggested" })).toBe("Suggested 2 spools");
     expect(historyText({ ...added(2), action: "suggestion_added" })).toBe(

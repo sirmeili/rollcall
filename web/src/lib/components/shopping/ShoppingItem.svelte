@@ -1,9 +1,12 @@
 <script lang="ts">
   /** A shopping list item in full, on a wide screen: swatch and name, its reasons, Find in
-   * store, its recent history, and what to buy in large type. */
-  import type { ShoppingListItem } from "#lib/api/shopping.ts";
+   * store, its recent history, and what to buy in large type, then need and on order. */
+  import type { ShoppingList, ShoppingListItem } from "#lib/api/shopping.ts";
+  import { session } from "#lib/auth/session.svelte.ts";
   import ItemReasons from "#lib/components/shopping/ItemReasons.svelte";
+  import OnOrderActions from "#lib/components/shopping/OnOrderActions.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
+  import { needText } from "#lib/shopping-on-order.ts";
 
   interface Props {
     item: ShoppingListItem;
@@ -12,9 +15,11 @@
     showType: boolean;
     /** Remove a hand-added reason, by its ID. */
     onremove: (id: number) => void;
+    /** The list once an on order change is made. */
+    onchanged: (list: ShoppingList) => void;
   }
 
-  let { item, storeAddress, showType, onremove }: Props = $props();
+  let { item, storeAddress, showType, onremove, onchanged }: Props = $props();
 </script>
 
 <div class="item">
@@ -25,10 +30,14 @@
       <span class="type mono">{item.product.filament_type}</span>
     {/if}
     <ItemReasons {item} {storeAddress} {onremove} />
+    {#if session.can("editor")}
+      <OnOrderActions {item} {onchanged} />
+    {/if}
   </div>
   <div class="tobuy">
     <span class="buy">{item.to_buy}</span>
     <span class="label">to buy</span>
+    <span class="label">{needText(item)}</span>
   </div>
 </div>
 

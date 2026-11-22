@@ -1,8 +1,8 @@
 <script lang="ts">
   /** The Shopping list page: each product to buy, as one item with its reasons, grouped by
    * filament line, then Not in the catalog (every role), with Viewers' suggestions at the top.
-   * Editors and Admins add spools by hand and remove them, and add or dismiss suggestions;
-   * Viewers suggest. */
+   * Editors and Admins add spools by hand and remove them, mark items Ordered and set what is
+   * on order, and add or dismiss suggestions; Viewers suggest. */
   import { describeError } from "#lib/api/errors.ts";
   import {
     addSuggestion,
@@ -122,6 +122,7 @@
             {expanded}
             onexpand={(id) => (expanded = expanded === id ? null : id)}
             onremove={remove}
+            onchanged={(next) => (list = next)}
           />
         {/each}
       </div>

@@ -9,6 +9,7 @@ from filament_tracker.services.shopping_list.hand import (
     remove_hand_reason,
 )
 from filament_tracker.services.shopping_list.history import HistoryEntry
+from filament_tracker.services.shopping_list.on_order import ordered, set_on_order
 from filament_tracker.services.shopping_list.read import (
     HandAdded,
     Line,
@@ -42,8 +43,10 @@ __all__ = [
     "add_suggestion",
     "dismiss_suggestion",
     "open_suggestions",
+    "ordered",
     "product_for_color",
     "read",
     "remove_hand_reason",
+    "set_on_order",
     "suggest",
 ]
