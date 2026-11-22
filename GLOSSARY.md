@@ -103,7 +103,7 @@ _Avoid_: Filament, filament product, SKU
 What makes two spools the same product: the material ID, variant ID and color read from their tags.
 
 **Provisional product**:
-A product not yet identified from a tag, added by hand or first seen by the AMS. The first scan of its tag, if any, fills it in.
+A product not yet identified from a tag: added by hand, first seen by the AMS, or made from a catalog color put on the shopping list. The first scan of its tag, if any, fills it in.
 
 **Placeholder**:
 A spool with no tray UID, added by hand. The first scan of its product, if any, links it.
@@ -131,6 +131,25 @@ _Avoid_: Reservation, allocation
 **Available grams**:
 A spool's grams minus its holds, or the sum of that over a product's spools. An estimate, so shown as "about".
 _Avoid_: Free grams, stock (that word is for spool counts)
+
+**Shopping list**:
+The products to buy, in the app.
+_Avoid_: Home Assistant's shopping list (a separate list in Home Assistant)
+
+**Shopping list item**:
+One product on the shopping list, with the reasons it is there: low stock, print requests short of it, or added by hand. A product has at most one. A catalog color not yet owned goes on as a provisional product made from it.
+_Avoid_: Order (that word is for buying)
+
+**Suggestion**:
+A Viewer's ask to put a product or catalog color on the shopping list. It counts toward nothing until an Editor or Admin adds it.
+_Avoid_: Request (that word is for print requests). Not a likely-empty suggestion, which is the AMS's.
+
+**Shopping list history**:
+The record of what people did to a shopping list item: added, suggested, ordered, on order changed, dismissed, brought back, by whom and when. It is never edited.
+_Avoid_: History on its own, event (that word is for a spool's event log)
+
+**On order**:
+How many spools of a shopping list item's product have been ordered and not yet received. Each spool of the product received counts as one arriving.
 
 **Nearly out**:
 An Open spool whose remaining % is at or below its product's cutoff. It applies only to spools in an AMS.
@@ -209,7 +228,7 @@ _Avoid_: Revert
 ### Review
 
 **Review**:
-The queue of things a person has to settle: flagged events, unidentified tags and likely-empty suggestions. Used for this queue only.
+The queue of things a person has to settle: flagged events, unidentified tags, likely-empty suggestions and possible duplicates. Used for this queue only.
 
 **Flagged event**:
 An event that was recorded but needs a person to check it, such as Received on a spool that is already open.
@@ -219,10 +238,14 @@ Confirm that a flagged event is right.
 _Avoid_: Reviewed
 
 **Dismiss**:
-Set aside an unidentified tag or a likely-empty suggestion.
+Set aside an unidentified tag or a likely-empty suggestion. On the shopping list, hide an item until more of its product is needed than when it was dismissed.
+
+**Possible duplicate**:
+A product made by a scan that may be the same as a provisional product made from a catalog color, put to a person in Review. **Same product** makes them one product; **Keep separate** leaves both.
+_Avoid_: Possible match (that word is for similar in-stock colors)
 
 **Bring back**:
-Return an accepted or dismissed item to Review.
+Return an accepted or dismissed item to Review, or a dismissed item to the shopping list.
 
 **Likely empty**:
 The AMS's suggestion that a spool is empty. It never changes the spool's state on its own.
