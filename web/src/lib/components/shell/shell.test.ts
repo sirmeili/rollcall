@@ -32,6 +32,7 @@ describe("page titles and menu groups", () => {
       "Catalog",
       "Requests",
       "Review",
+      "Shopping list",
       "Activity",
     ]);
     expect(admin.admin.map((item) => item.label)).toEqual(["Devices", "Users", "Settings"]);
@@ -198,6 +199,7 @@ describe("the bottom bar", () => {
       "/products/3",
       "/catalog",
       "/review",
+      "/shopping-list",
       "/activity",
       "/account",
       "/devices",
@@ -257,7 +259,11 @@ describe("the bottom bar", () => {
 
     const menu = screen.getByRole("dialog", { name: "Menu" });
     const pages = within(menu).getByRole("navigation", { name: "Pages" });
-    expect(within(pages).getAllByRole("link")).toHaveLength(7);
+    expect(within(pages).getAllByRole("link")).toHaveLength(8);
+    expect(within(pages).getByRole("link", { name: "Shopping list" })).toHaveAttribute(
+      "href",
+      "/shopping-list",
+    );
     expect(within(pages).getByRole("link", { name: "Review, 4 waiting" })).toHaveAttribute(
       "href",
       "/review",

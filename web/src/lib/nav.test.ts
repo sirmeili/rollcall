@@ -18,6 +18,7 @@ describe("visibleNav", () => {
       "Products",
       "Catalog",
       "Review",
+      "Shopping list",
       "Activity",
     ]);
     expect(labels("editor")).toEqual([
@@ -27,6 +28,7 @@ describe("visibleNav", () => {
       "Catalog",
       "Requests",
       "Review",
+      "Shopping list",
       "Activity",
     ]);
   });
@@ -35,6 +37,13 @@ describe("visibleNav", () => {
     expect(labels("admin")).toContain("Users");
     expect(labels("admin")).toContain("Devices");
     expect(labels("admin")).toContain("Settings");
+  });
+
+  it("shows the Shopping list to every role, beside Review", () => {
+    for (const role of ["viewer", "editor", "admin"] as const) {
+      const shown = labels(role);
+      expect(shown[shown.indexOf("Review") + 1]).toBe("Shopping list");
+    }
   });
 
   it("shows nothing when signed out", () => {
