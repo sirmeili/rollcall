@@ -1,5 +1,5 @@
-"""The shopping list: what to buy and why (every role reads it), adding to it by hand, and
-dismissing and bringing back its items (Editors and Admins)."""
+"""The shopping list: what to buy and why (every role reads it), adding to it by hand, what
+is on order, and dismissing and bringing back its items (Editors and Admins)."""
 
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -9,6 +9,8 @@ from filament_tracker.api.shopping_schemas import (
     HistoryEntryOut,
     LineOut,
     LowStockReasonOut,
+    OnOrderIn,
+    OrderedIn,
     ReasonOut,
     ShoppingListItemOut,
     ShoppingListOut,
@@ -43,6 +45,8 @@ def _item_out(item: ShoppingListItem) -> ShoppingListItemOut:
     return ShoppingListItemOut(
         product=product_detail(item.product),
         to_buy=item.to_buy,
+        need=item.need,
+        on_order=item.on_order,
         reasons=[_reason_out(r) for r in item.reasons],
         history=[
             HistoryEntryOut(
@@ -135,6 +139,18 @@ def _product(session: DbSession, product_id: int) -> Product:
     return found
 
 
+@router.post("/shopping-list/items/{product_id}/ordered", response_model=ShoppingListOut)
+def ordered(
+    product_id: int, body: OrderedIn, caller: Editor, session: DbSession, request: Request
+) -> ShoppingListOut:
+    """Add spools just ordered to the product's on order; each spool of it that arrives takes
+    one off. Answers the list as it now stands."""
+    product = _product(session, product_id)
+    shopping_list.ordered(session, product, body.spools, _user_id(caller), utcnow())
+    session.commit()
+    return _list_out(session, request)
+
+
 @router.post("/shopping-list/items/{product_id}/dismiss", response_model=ShoppingListOut)
 def dismiss(
     product_id: int, caller: Editor, session: DbSession, request: Request
@@ -147,7 +163,21 @@ def dismiss(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not on the shopping list")
     if item.hidden:
         raise HTTPException(status.HTTP_409_CONFLICT, "already dismissed")
+    if item.need == 0:
+        raise HTTPException(status.HTTP_409_CONFLICT, "nothing of it is needed")
     shopping_list.dismiss(session, item, _user_id(caller), utcnow())
+    session.commit()
+    return _list_out(session, request)
+
+
+@router.put("/shopping-list/items/{product_id}/on-order", response_model=ShoppingListOut)
+def set_on_order(
+    product_id: int, body: OnOrderIn, caller: Editor, session: DbSession, request: Request
+) -> ShoppingListOut:
+    """Set the product's on order to any number, to fix a typo or a cancelled order. Answers
+    the list as it now stands."""
+    product = _product(session, product_id)
+    shopping_list.set_on_order(session, product, body.on_order, _user_id(caller), utcnow())
     session.commit()
     return _list_out(session, request)
 

@@ -17,6 +17,7 @@ from filament_tracker.services.shopping_list import (
     add_by_hand,
     bring_back,
     dismiss,
+    ordered,
 )
 
 NOW = datetime(2026, 11, 22, 12, 0, tzinfo=UTC)
@@ -171,3 +172,33 @@ def test_dismiss_and_bring_back_are_in_the_history(session: Session, frank: User
         (ShoppingAction.BROUGHT_BACK, None, "frank"),
         (ShoppingAction.DISMISSED, 2, "frank"),
     ]
+
+
+def test_a_dismissed_item_on_order_stays_hidden(session: Session, frank: User) -> None:
+    black = product(session, "Black", threshold=2, sealed=1)
+    ordered(session, black, 1, frank.id, NOW)
+
+    dismiss_now(session, black, frank)
+
+    assert items(session) == {}
+    [item] = shopping_list.read(session).dismissed
+    assert (item.on_order, item.dismissed_need) == (1, 2)
+
+
+def test_an_item_needing_nothing_but_on_order_keeps_no_dismissal(
+    session: Session, frank: User
+) -> None:
+    black = product(session, "Black", threshold=2, sealed=1)
+    ordered(session, black, 1, frank.id, NOW)
+    dismiss_now(session, black, frank)
+    for _ in range(2):
+        session.add(Spool(product=black, state=SpoolState.SEALED))
+    session.flush()
+
+    # Still on order, so on the list, with its dismissal forgotten.
+    assert items(session) == {"Black": 0}
+    for _ in range(2):
+        use_one(session, black)
+    item = shopping_list.read(session).find(black.id)
+    assert item is not None
+    assert (item.dismissed_need, item.hidden) == (None, False)

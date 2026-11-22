@@ -1,9 +1,9 @@
-"""Reading the shopping list: each product that is low on stock or has spools added by hand
-as one item, grouped by the filament line of its catalog link, then the products not in the
-catalog."""
+"""Reading the shopping list: each product that is low on stock, has spools added by hand or
+has spools on order as one item, grouped by the filament line of its catalog link, then the
+products not in the catalog."""
 
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from sqlalchemy import select
@@ -50,6 +50,8 @@ class ShoppingListItem:
     reasons: list[Reason]
     # Its most recent shopping list history, newest first.
     history: list[HistoryEntry] = field(default_factory=list)
+    # Spools ordered and not yet arrived.
+    on_order: int = 0
     # The need it was dismissed at, if it is dismissed.
     dismissed_need: int | None = None
 
@@ -59,7 +61,7 @@ class ShoppingListItem:
 
     @property
     def to_buy(self) -> int:
-        return self.need
+        return max(self.need - self.on_order, 0)
 
     @property
     def hidden(self) -> bool:
@@ -137,6 +139,12 @@ def _dismissed(session: Session) -> dict[int, ItemRow]:
     return {row.product_id: row for row in session.scalars(query)}
 
 
+def _on_order(session: Session) -> dict[int, int]:
+    """Each product's on order, where it is above 0."""
+    rows = session.execute(select(ItemRow.product_id, ItemRow.on_order).where(ItemRow.on_order > 0))
+    return {product_id: spools for product_id, spools in rows}
+
+
 def read(session: Session) -> ShoppingList:
     """The shopping list as it stands now. Items are by product name, as on Inventory. A
     dismissal whose product needs nothing any more is cleared, so the caller commits."""
@@ -145,21 +153,21 @@ def read(session: Session) -> ShoppingList:
     hand = _hand_added(session)
     entries = recent(session)
     dismissals = _dismissed(session)
+    on_order = _on_order(session)
     for counts in queries.inventory(session):
+        product = counts.product
         low = _low_stock(counts)
         reasons: list[Reason] = [low] if low else []
-        reasons += hand.get(counts.product.id, [])
-        if not reasons:
+        reasons += hand.get(product.id, [])
+        ordered = on_order.get(product.id, 0)
+        if not reasons and not ordered:
             continue
-        product = counts.product
-        row = dismissals.pop(product.id, None)
         item = ShoppingListItem(
-            product,
-            _color(product),
-            reasons,
-            entries.get(product.id, []),
-            row.dismissed_need if row else None,
+            product, _color(product), reasons, entries.get(product.id, []), ordered
         )
+        # A product needing nothing, though still on order, keeps no dismissal.
+        if item.need > 0 and product.id in dismissals:
+            item = replace(item, dismissed_need=dismissals.pop(product.id).dismissed_need)
         if item.hidden:
             listed.dismissed.append(item)
         elif item.color is None:

@@ -137,3 +137,10 @@ def test_bring_back_on_an_item_not_dismissed_is_refused(editor: TestClient, db: 
 def test_dismiss_and_bring_back_on_no_such_product_are_not_found(editor: TestClient) -> None:
     assert editor.post(f"{LIST}/items/99/dismiss", headers=CSRF).status_code == 404
     assert editor.post(f"{LIST}/items/99/bring-back", headers=CSRF).status_code == 404
+
+
+def test_dismissing_an_item_only_on_order_is_refused(editor: TestClient, db: Session) -> None:
+    black = _low(db, threshold=0)
+    editor.post(f"{LIST}/items/{black.id}/ordered", json={"spools": 1}, headers=CSRF)
+
+    assert _dismiss(editor, black).status_code == 409

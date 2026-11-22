@@ -1,7 +1,8 @@
 <script lang="ts">
   /** The Shopping list page: each product to buy, as one item with its reasons, grouped by
    * filament line, then Not in the catalog (every role), and a Dismissed filter. Editors and
-   * Admins add spools by hand and remove them, dismiss items and bring them back. */
+   * Admins add spools by hand and remove them, mark items Ordered and set what is on order,
+   * and dismiss items and bring them back. */
   import { describeError } from "#lib/api/errors.ts";
   import {
     bringBack,
@@ -109,6 +110,7 @@
           onexpand={(id) => (expanded = expanded === id ? null : id)}
           onremove={remove}
           ondismiss={dismiss}
+          onchanged={(next) => (list = next)}
         />
       {/each}
     </div>

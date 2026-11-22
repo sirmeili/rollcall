@@ -1,11 +1,14 @@
 <script lang="ts">
   /** A shopping list item on a phone (docs/mockups/mobile-web/PhoneShoppingList.html): a
-   * compact row that expands in place to its reasons, Find in store and recent history, as on
-   * Spools. */
-  import type { ShoppingListItem } from "#lib/api/shopping.ts";
+   * compact row that expands in place to its need and on order, reasons, Find in store, on
+   * order actions and recent history, as on Spools. */
+  import type { ShoppingList, ShoppingListItem } from "#lib/api/shopping.ts";
+  import { session } from "#lib/auth/session.svelte.ts";
   import ItemReasons from "#lib/components/shopping/ItemReasons.svelte";
   import NewSinceDismissal from "#lib/components/shopping/NewSinceDismissal.svelte";
+  import OnOrderActions from "#lib/components/shopping/OnOrderActions.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
+  import { needText } from "#lib/shopping-on-order.ts";
 
   interface Props {
     item: ShoppingListItem;
@@ -14,13 +17,16 @@
     showType: boolean;
     /** Remove a hand-added reason, by its ID. */
     onremove: (id: number) => void;
+    /** The list once an on order change is made. */
+    onchanged: (list: ShoppingList) => void;
     /** Dismiss the item, by its product's ID. */
     ondismiss: (productId: number) => void;
     open: boolean;
     ontoggle: () => void;
   }
 
-  let { item, storeAddress, showType, onremove, ondismiss, open, ontoggle }: Props = $props();
+  let { item, storeAddress, showType, onremove, onchanged, ondismiss, open, ontoggle }: Props =
+    $props();
 
   const detailId = $derived(`shopping-detail-${item.product.id}`);
 </script>
@@ -58,7 +64,11 @@
 </button>
 {#if open}
   <div class="detail" id={detailId}>
+    <span class="needs">{needText(item)}</span>
     <ItemReasons {item} {storeAddress} {onremove} {ondismiss} />
+    {#if session.can("editor")}
+      <OnOrderActions {item} {onchanged} />
+    {/if}
   </div>
 {/if}
 
@@ -124,6 +134,11 @@
 
   .crow.open .chev {
     transform: rotate(180deg);
+  }
+
+  .needs {
+    font-size: 14px;
+    font-weight: 600;
   }
 
   .detail {
