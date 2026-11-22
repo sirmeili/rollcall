@@ -22,6 +22,7 @@ from filament_tracker.services.shopping_list.read import (
     read,
 )
 from filament_tracker.services.shopping_list.size import set_size
+from filament_tracker.services.shopping_list.stage import ItemStage, Stage, stages
 from filament_tracker.services.shopping_list.suggestions import (
     NoSuchSuggestion,
     OpenSuggestion,
@@ -35,6 +36,7 @@ from filament_tracker.services.shopping_list.suggestions import (
 __all__ = [
     "HandAdded",
     "HistoryEntry",
+    "ItemStage",
     "Line",
     "LowStock",
     "NetWeight",
@@ -47,6 +49,7 @@ __all__ = [
     "ShoppingList",
     "ShoppingListItem",
     "SizeFrom",
+    "Stage",
     "SuggestionDecided",
     "add_by_hand",
     "add_suggestion",
@@ -60,5 +63,6 @@ __all__ = [
     "remove_hand_reason",
     "set_on_order",
     "set_size",
+    "stages",
     "suggest",
 ]
