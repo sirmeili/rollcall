@@ -1,5 +1,6 @@
 import type {
   HandReason,
+  RequestReason,
   ShoppingHistoryEntry,
   ShoppingList,
   ShoppingListItem,
@@ -8,6 +9,8 @@ import type { CatalogLink, Product } from "#lib/api/types.ts";
 import { product } from "./fixtures.ts";
 
 export const STORE = "https://store.example";
+
+export const DEFAULT_SIZE = { grams: 1000, source: "default" } as const;
 
 export function link(overrides: Partial<CatalogLink> = {}): CatalogLink {
   return {
@@ -40,6 +43,7 @@ export function lowItem(
     product: product({ id, display_name: name, low_stock_threshold: threshold, ...overrides }),
     to_buy: spools,
     reasons: [{ kind: "low_stock", spools, sealed, threshold }],
+    size: DEFAULT_SIZE,
     history: [],
   };
 }
@@ -63,6 +67,7 @@ export function handItem(
     product: product({ id, display_name: name, low_stock_threshold: 0, ...overrides }),
     to_buy: reasons.reduce((sum, reason) => sum + reason.spools, 0),
     reasons,
+    size: DEFAULT_SIZE,
     history: reasons.map((reason) => added(reason.spools, reason.by)),
   };
 }
@@ -76,4 +81,14 @@ export function added(spools: number, by: string | null = "frank"): ShoppingHist
     by,
     at: "2026-11-21T12:00:00Z",
   };
+}
+
+/** A print request short of the product: named and linked, or `null` for one the viewer may
+ * not see. */
+export function requestReason(
+  id: number | null,
+  shortG: number,
+  title: string | null = id === null ? null : "Lamp shade",
+): RequestReason {
+  return { kind: "request", request_id: id, title, short_g: shortG };
 }

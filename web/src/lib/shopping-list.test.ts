@@ -6,6 +6,8 @@ import {
   historyWhen,
   reasonText,
   shoppingGroups,
+  sizeProblem,
+  sizeText,
   spoolsText,
 } from "#lib/shopping-list.ts";
 import { product } from "../test/fixtures.ts";
@@ -14,6 +16,7 @@ import {
   handReason,
   link,
   lowItem,
+  requestReason,
   STORE,
   shoppingList,
 } from "../test/shopping-fixtures.ts";
@@ -43,6 +46,35 @@ describe("reasonText for spools added by hand", () => {
   });
 });
 
+describe("reasonText for print requests", () => {
+  it("names a request the viewer may see, and its grams short", () => {
+    expect(reasonText(requestReason(4, 300))).toBe("Lamp shade · 300 g short");
+  });
+
+  it("reads as a print request otherwise", () => {
+    expect(reasonText(requestReason(null, 250))).toBe("A print request · 250 g short");
+  });
+});
+
+describe("an item's size", () => {
+  it("says the size and where it came from", () => {
+    expect(sizeText({ grams: 3000, source: "chosen" })).toBe("3000 g spools (chosen)");
+    expect(sizeText({ grams: 750, source: "last_spool" })).toBe(
+      "750 g spools (from the last spool received)",
+    );
+    expect(sizeText({ grams: 1000, source: "catalog" })).toBe("1000 g spools (from the catalog)");
+    expect(sizeText({ grams: 1000, source: "default" })).toBe("1000 g spools (the default)");
+  });
+
+  it("takes a whole number of grams from 1 to 10,000", () => {
+    expect(sizeProblem(1)).toBeNull();
+    expect(sizeProblem(10_000)).toBeNull();
+    for (const bad of [null, 0, 10_001, 2.5]) {
+      expect(sizeProblem(bad)).toBe("Size: a whole number of grams, 1 to 10,000.");
+    }
+  });
+});
+
 describe("the shopping list history", () => {
   beforeEach(() => setTimeZone("UTC"));
   afterEach(() => setTimeZone(undefined));
@@ -53,6 +85,9 @@ describe("the shopping list history", () => {
       "Removed 1 spool added by hand",
     );
     expect(historyText({ ...added(1), action: "brought_back" })).toBe("Brought back");
+    expect(historyText({ ...added(1), action: "size_changed", spools: null, size_g: 3000 })).toBe(
+      "Size set to 3000 g",
+    );
   });
 
   it("says who did it, when, and what was on order after", () => {

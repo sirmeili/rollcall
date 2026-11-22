@@ -4,6 +4,7 @@
    * as on the phone Catalog page, and each item is a compact row. */
   import ShoppingItem from "#lib/components/shopping/ShoppingItem.svelte";
   import ShoppingItemRow from "#lib/components/shopping/ShoppingItemRow.svelte";
+  import type { ShoppingList } from "#lib/api/shopping.ts";
   import type { ShoppingGroup } from "#lib/shopping-list.ts";
 
   interface Props {
@@ -18,10 +19,21 @@
     onexpand: (productId: number) => void;
     /** Remove a hand-added reason, by its ID. */
     onremove: (id: number) => void;
+    /** The list once an item is changed. */
+    onchanged: (list: ShoppingList) => void;
   }
 
-  let { group, storeAddress, phone, open, ontoggle, expanded, onexpand, onremove }: Props =
-    $props();
+  let {
+    group,
+    storeAddress,
+    phone,
+    open,
+    ontoggle,
+    expanded,
+    onexpand,
+    onremove,
+    onchanged,
+  }: Props = $props();
 
   const label = $derived(`${group.name}, ${group.toBuy} to buy`);
   const rowsId = $derived(`shopping-rows-${group.key}`);
@@ -65,11 +77,12 @@
               {storeAddress}
               showType={group.showType}
               {onremove}
+              {onchanged}
               open={expanded === item.product.id}
               ontoggle={() => onexpand(item.product.id)}
             />
           {:else}
-            <ShoppingItem {item} {storeAddress} showType={group.showType} {onremove} />
+            <ShoppingItem {item} {storeAddress} showType={group.showType} {onremove} {onchanged} />
           {/if}
         </li>
       {/each}
