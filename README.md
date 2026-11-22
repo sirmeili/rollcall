@@ -110,7 +110,7 @@ Secrets such as the tag key-derivation constant, tokens and the printer access c
 
 ## Development
 
-Each area's README lists all its commands, including the checks CI runs: [server/README.md](server/README.md) (with the Docker image), [web/README.md](web/README.md) and [android/README.md](android/README.md). The basics:
+Each area's README lists all its commands, including the checks CI runs and the faster per-edit test command: [server/README.md](server/README.md) (with the Docker image), [web/README.md](web/README.md) and [android/README.md](android/README.md). The basics, whose test commands are the full runs to make before a PR:
 
 The server needs Python 3.12 and [uv](https://docs.astral.sh/uv/). From `server/`:
 

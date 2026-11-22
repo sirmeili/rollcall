@@ -13,6 +13,8 @@ uv run ruff format --check .   # Check formatting
 uv run pytest                  # Run tests with the 90% coverage gate
 ```
 
+These are the final gate. After each edit, run only the tests for the code you changed, with coverage off: `uv run pytest <test files> --no-cov`.
+
 Run the server with live reload: `uv run uvicorn filament_tracker.main:create_app --factory --reload`. It upgrades the database on startup; [Run it](#run-it) has the settings it needs.
 
 **Migrations.** Apply them by hand with `uv run alembic upgrade head`. After changing `db/models.py`, create one with `uv run alembic revision --autogenerate -m "describe the change"`, then review the generated file. Never edit a migration that has been merged. `uv run alembic check` checks that the models and migrations match.
