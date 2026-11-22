@@ -19,7 +19,26 @@ export interface HandReason {
   at: string;
 }
 
-export type ShoppingReason = LowStockReason | HandReason;
+/** A print request holding filament that is short of the product. */
+export interface RequestReason {
+  kind: "request";
+  /** The request, for people allowed to see it; otherwise null. */
+  request_id: number | null;
+  /** Its title, for people allowed to see it; otherwise null ("a print request"). */
+  title: string | null;
+  short_g: number;
+}
+
+export type ShoppingReason = LowStockReason | RequestReason | HandReason;
+
+/** Where an item's size came from. */
+export type SizeFrom = "chosen" | "last_spool" | "catalog" | "default";
+
+/** The size an item rounds its requests' grams, added up, to spools with. */
+export interface ShoppingSize {
+  grams: number;
+  source: SizeFrom;
+}
 
 export type ShoppingAction =
   | "added_by_hand"
@@ -56,8 +75,9 @@ export interface ShoppingListItem {
   need: number;
   /** Spools ordered and not yet arrived. */
   on_order: number;
-  /** Low stock first, then hand-added, oldest first. */
+  /** Low stock first, then the requests short of it, then hand-added, oldest first. */
   reasons: ShoppingReason[];
+  size: ShoppingSize;
   /** The most recent entries, newest first. */
   history: ShoppingHistoryEntry[];
   /** The need it was dismissed at; null when it is not dismissed. */
@@ -146,6 +166,15 @@ export function setOnOrder(productId: number, onOrder: number): Promise<Shopping
   return api<ShoppingList>(`/shopping-list/items/${productId}/on-order`, {
     method: "PUT",
     body: { on_order: onOrder },
+  });
+}
+
+/** Choose the size an item rounds its requests' grams to spools with (Editor and Admin);
+ * answers the list as it now stands. */
+export function setSize(productId: number, sizeG: number): Promise<ShoppingList> {
+  return api<ShoppingList>(`/shopping-list/items/${productId}/size`, {
+    method: "PUT",
+    body: { size_g: sizeG },
   });
 }
 

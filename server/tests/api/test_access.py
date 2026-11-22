@@ -47,6 +47,7 @@ ROUTES = [
     ("post", "/api/v1/shopping-list/suggestions", Role.VIEWER),
     ("post", "/api/v1/shopping-list/suggestions/99/add", Role.EDITOR),
     ("post", "/api/v1/shopping-list/suggestions/99/dismiss", Role.EDITOR),
+    ("put", "/api/v1/shopping-list/items/99/size", Role.EDITOR),
     ("patch", "/api/v1/spools/99", Role.EDITOR),
     ("patch", "/api/v1/spools", Role.EDITOR),
     ("post", "/api/v1/spools", Role.EDITOR),

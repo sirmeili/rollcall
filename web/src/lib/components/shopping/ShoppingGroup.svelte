@@ -21,7 +21,7 @@
     onexpand: (productId: number) => void;
     /** Remove a hand-added reason, by its ID. */
     onremove: (id: number) => void;
-    /** The list once an on order change is made. */
+    /** The list once an item is changed. */
     onchanged: (list: ShoppingList) => void;
     /** Dismiss an item, by its product's ID. */
     ondismiss: (productId: number) => void;

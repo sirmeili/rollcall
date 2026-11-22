@@ -17,7 +17,7 @@
     showType: boolean;
     /** Remove a hand-added reason, by its ID. */
     onremove: (id: number) => void;
-    /** The list once an on order change is made. */
+    /** The list once the item is changed. */
     onchanged: (list: ShoppingList) => void;
     /** Dismiss the item, by its product's ID. */
     ondismiss: (productId: number) => void;
@@ -65,7 +65,7 @@
 {#if open}
   <div class="detail" id={detailId}>
     <span class="needs">{needText(item)}</span>
-    <ItemReasons {item} {storeAddress} {onremove} {ondismiss} />
+    <ItemReasons {item} {storeAddress} {onremove} {onchanged} {ondismiss} />
     {#if session.can("editor")}
       <OnOrderActions {item} {onchanged} />
     {/if}

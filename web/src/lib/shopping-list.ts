@@ -3,20 +3,27 @@ import type {
   ShoppingList,
   ShoppingListItem,
   ShoppingReason,
+  ShoppingSize,
   Suggestion,
 } from "#lib/api/shopping.ts";
 import type { Product } from "#lib/api/types.ts";
 import { storeSearchUrl } from "#lib/catalog.ts";
 import { dateTime } from "#lib/format.ts";
 
+/** The largest size an item can be given, as the largest net weight a spool can have. */
+const MAX_SIZE_G = 10_000;
+
 /** "1 spool", "3 spools" */
 export function spoolsText(spools: number): string {
   return `${spools} ${spools === 1 ? "spool" : "spools"}`;
 }
 
-/** Why an item is on the list: "Low stock: 1 sealed, threshold 2 · 2 spools", "Added by
- * hand by frank · 1 spool". */
+/** Why an item is on the list: "Low stock: 1 sealed, threshold 2 · 2 spools", "Lamp shade ·
+ * 300 g short", "A print request · 300 g short", "Added by hand by frank · 1 spool". */
 export function reasonText(reason: ShoppingReason): string {
+  if (reason.kind === "request") {
+    return `${reason.title ?? "A print request"} · ${reason.short_g} g short`;
+  }
   if (reason.kind === "hand") {
     const by = reason.by ? ` by ${reason.by}` : "";
     return `Added by hand${by} · ${spoolsText(reason.spools)}`;
@@ -31,12 +38,32 @@ export function historyText(entry: ShoppingHistoryEntry): string {
   if (entry.action === "removed_by_hand") return `Removed ${spools} added by hand`;
   if (entry.action === "ordered") return `Ordered ${spools}`;
   if (entry.action === "on_order_changed") return "Changed on order";
+  if (entry.action === "size_changed") return `Size set to ${entry.size_g ?? 0} g`;
   if (entry.action === "suggested") return `Suggested ${spools}`;
   if (entry.action === "suggestion_added") return `Added a suggestion of ${spools}`;
   if (entry.action === "suggestion_dismissed") return `Dismissed a suggestion of ${spools}`;
   if (entry.action === "same_product") return "Made one product with a possible duplicate";
   const words = entry.action.replaceAll("_", " ");
   return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+const SIZE_FROM: Record<ShoppingSize["source"], string> = {
+  chosen: "chosen",
+  last_spool: "from the last spool received",
+  catalog: "from the catalog",
+  default: "the default",
+};
+
+/** The size an item turns its requests' grams into spools with: "1000 g spools (from the
+ * last spool received)". */
+export function sizeText(size: ShoppingSize): string {
+  return `${size.grams} g spools (${SIZE_FROM[size.source]})`;
+}
+
+/** Why a size can't be chosen, or null. */
+export function sizeProblem(grams: number | null): string | null {
+  const whole = grams !== null && Number.isInteger(grams) && grams >= 1;
+  return whole && grams <= MAX_SIZE_G ? null : `Size: a whole number of grams, 1 to 10,000.`;
 }
 
 /** Who did it, when, and the on order after: "frank · Nov 21, 12:00 PM · 0 on order". */

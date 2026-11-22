@@ -1,6 +1,7 @@
 """The shopping list: what to buy and why (every role reads it), adding to it by hand, what
-is on order, and dismissing and bringing back its items (Editors and Admins), and
-suggestions (every role suggests; Editors and Admins decide)."""
+is on order, choosing an item's size, and dismissing and bringing back its items (Editors and
+Admins), and suggestions (every role suggests; Editors and Admins decide). The print requests
+short of each product come from the request-needs reader wired in at start (ADR-0020)."""
 
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -13,8 +14,11 @@ from filament_tracker.api.shopping_schemas import (
     OnOrderIn,
     OrderedIn,
     ReasonOut,
+    RequestReasonOut,
     ShoppingListItemOut,
     ShoppingListOut,
+    SizeIn,
+    SizeOut,
     SuggestedColorOut,
     SuggestionIn,
     SuggestionOut,
@@ -33,6 +37,8 @@ from filament_tracker.services.shopping_list import (
     NoSuchSuggestion,
     NotDismissed,
     OpenSuggestion,
+    RequestNeedsReader,
+    RequestShort,
     ShoppingListItem,
     SuggestionDecided,
 )
@@ -40,7 +46,15 @@ from filament_tracker.services.shopping_list import (
 router = APIRouter(tags=["shopping list"])
 
 
-def _reason_out(reason: LowStock | HandAdded) -> ReasonOut:
+def _reason_out(reason: LowStock | RequestShort | HandAdded) -> ReasonOut:
+    if isinstance(reason, RequestShort):
+        # Named and linked only for people allowed to see the request.
+        named = reason.title is not None
+        return RequestReasonOut(
+            request_id=reason.request_id if named else None,
+            title=reason.title,
+            short_g=reason.short_g,
+        )
     if isinstance(reason, LowStock):
         return LowStockReasonOut(
             spools=reason.spools, sealed=reason.sealed, threshold=reason.threshold
@@ -55,6 +69,7 @@ def _item_out(item: ShoppingListItem) -> ShoppingListItemOut:
         need=item.need,
         on_order=item.on_order,
         reasons=[_reason_out(r) for r in item.reasons],
+        size=SizeOut(grams=item.size.grams, source=item.size.source),
         history=[
             HistoryEntryOut(
                 action=e.action,
@@ -91,9 +106,15 @@ def _suggestion_out(suggestion: OpenSuggestion) -> SuggestionOut:
     )
 
 
-def _list_out(session: DbSession, request: Request) -> ShoppingListOut:
+def _read(session: DbSession, request: Request, caller: Principal) -> shopping_list.ShoppingList:
+    """The list for the caller, with the request-needs reader wired in at start."""
+    needs: RequestNeedsReader = request.app.state.request_needs_reader
+    return shopping_list.read(session, caller, needs)
+
+
+def _list_out(session: DbSession, request: Request, caller: Principal) -> ShoppingListOut:
     store: SettingsStore = request.app.state.settings_store
-    listed = shopping_list.read(session)
+    listed = _read(session, request, caller)
     return ShoppingListOut(
         suggestions=[_suggestion_out(s) for s in shopping_list.open_suggestions(session)],
         lines=[
@@ -111,12 +132,15 @@ def _user_id(caller: Principal) -> int | None:
 
 
 @router.get("/shopping-list", response_model=ShoppingListOut)
-def read(_: Viewer, session: DbSession, request: Request) -> ShoppingListOut:
+def read(caller: Viewer, session: DbSession, request: Request) -> ShoppingListOut:
     """Each product to buy, as one item with its reasons and recent history, grouped by the
-    filament line of its catalog link, then the products not in the catalog. A low-stock
-    product needs threshold - sealed + 1 spools; spools added by hand add to that. A dismissed
-    item is under dismissed while its need is at or below the need it was dismissed at."""
-    listed = _list_out(session, request)
+    filament line of its catalog link, then the products not in the catalog. The grams the
+    print requests holding filament are short of it are added up and rounded up to spools
+    once, by the item's size; a low-stock product needs threshold - sealed + 1 spools on top;
+    spools added by hand add to that. A request is named only for people who may see it. A
+    dismissed item is under dismissed while its need is at or below the need it was
+    dismissed at."""
+    listed = _list_out(session, request, caller)
     # Reading clears the dismissals of products that need nothing any more.
     session.commit()
     return listed
@@ -144,7 +168,7 @@ def add_by_hand(
         product = found
     shopping_list.add_by_hand(session, product, body.spools, _user_id(caller), now)
     session.commit()
-    return _list_out(session, request)
+    return _list_out(session, request, caller)
 
 
 @router.delete("/shopping-list/hand-reasons/{reason_id}", response_model=ShoppingListOut)
@@ -157,7 +181,7 @@ def remove_hand_reason(
     except NoSuchReason:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such reason") from None
     session.commit()
-    return _list_out(session, request)
+    return _list_out(session, request, caller)
 
 
 def _product(session: DbSession, product_id: int) -> Product:
@@ -176,7 +200,7 @@ def ordered(
     product = _product(session, product_id)
     shopping_list.ordered(session, product, body.spools, _user_id(caller), utcnow())
     session.commit()
-    return _list_out(session, request)
+    return _list_out(session, request, caller)
 
 
 @router.post("/shopping-list/items/{product_id}/dismiss", response_model=ShoppingListOut)
@@ -186,7 +210,7 @@ def dismiss(
     """Dismiss a product's item: hide it until more of it is needed than now, and remove its
     hand-added reasons. Answers the list as it now stands."""
     _product(session, product_id)
-    item = shopping_list.read(session).find(product_id)
+    item = _read(session, request, caller).find(product_id)
     if item is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not on the shopping list")
     if item.hidden:
@@ -195,7 +219,7 @@ def dismiss(
         raise HTTPException(status.HTTP_409_CONFLICT, "nothing of it is needed")
     shopping_list.dismiss(session, item, _user_id(caller), utcnow())
     session.commit()
-    return _list_out(session, request)
+    return _list_out(session, request, caller)
 
 
 @router.put("/shopping-list/items/{product_id}/on-order", response_model=ShoppingListOut)
@@ -207,7 +231,7 @@ def set_on_order(
     product = _product(session, product_id)
     shopping_list.set_on_order(session, product, body.on_order, _user_id(caller), utcnow())
     session.commit()
-    return _list_out(session, request)
+    return _list_out(session, request, caller)
 
 
 @router.post("/shopping-list/items/{product_id}/bring-back", response_model=ShoppingListOut)
@@ -222,7 +246,19 @@ def bring_back(
     except NotDismissed:
         raise HTTPException(status.HTTP_409_CONFLICT, "not dismissed") from None
     session.commit()
-    return _list_out(session, request)
+    return _list_out(session, request, caller)
+
+
+@router.put("/shopping-list/items/{product_id}/size", response_model=ShoppingListOut)
+def set_size(
+    product_id: int, body: SizeIn, caller: Editor, session: DbSession, request: Request
+) -> ShoppingListOut:
+    """Choose the size the product's item turns its requests' grams into spools with. It
+    re-rounds only the requests' part. Answers the list as it now stands."""
+    product = _product(session, product_id)
+    shopping_list.set_size(session, product, body.size_g, _user_id(caller), utcnow())
+    session.commit()
+    return _list_out(session, request, caller)
 
 
 @router.post("/shopping-list/suggestions", response_model=ShoppingListOut)
@@ -244,7 +280,7 @@ def suggest(
     except UnknownColor:
         raise problems({"catalog_color": "No such catalog color."}) from None
     session.commit()
-    return _list_out(session, request)
+    return _list_out(session, request, caller)
 
 
 @router.post("/shopping-list/suggestions/{suggestion_id}/add", response_model=ShoppingListOut)
@@ -267,7 +303,7 @@ def add_suggestion(
             status.HTTP_409_CONFLICT, "That catalog color is no longer in the catalog."
         ) from None
     session.commit()
-    return _list_out(session, request)
+    return _list_out(session, request, caller)
 
 
 @router.post("/shopping-list/suggestions/{suggestion_id}/dismiss", response_model=ShoppingListOut)
@@ -284,4 +320,4 @@ def dismiss_suggestion(
             status.HTTP_409_CONFLICT, "That suggestion was already decided."
         ) from None
     session.commit()
-    return _list_out(session, request)
+    return _list_out(session, request, caller)

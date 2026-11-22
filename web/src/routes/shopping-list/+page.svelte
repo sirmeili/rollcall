@@ -2,8 +2,8 @@
   /** The Shopping list page: each product to buy, as one item with its reasons, grouped by
    * filament line, then Not in the catalog (every role), with Viewers' suggestions at the top
    * and a Dismissed filter. Editors and Admins add spools by hand and remove them, mark items
-   * Ordered and set what is on order, dismiss items and bring them back, and add or dismiss
-   * suggestions; Viewers suggest. */
+   * Ordered and set what is on order, choose each item's size, dismiss items and bring them
+   * back, and add or dismiss suggestions; Viewers suggest. */
   import { describeError } from "#lib/api/errors.ts";
   import {
     addSuggestion,

@@ -1,5 +1,6 @@
 import type {
   HandReason,
+  RequestReason,
   ShoppingHistoryEntry,
   ShoppingList,
   ShoppingListItem,
@@ -9,6 +10,8 @@ import type { CatalogLink, Product } from "#lib/api/types.ts";
 import { product } from "./fixtures.ts";
 
 export const STORE = "https://store.example";
+
+export const DEFAULT_SIZE = { grams: 1000, source: "default" } as const;
 
 export function link(overrides: Partial<CatalogLink> = {}): CatalogLink {
   return {
@@ -43,6 +46,7 @@ export function lowItem(
     need: spools,
     on_order: 0,
     reasons: [{ kind: "low_stock", spools, sealed, threshold }],
+    size: DEFAULT_SIZE,
     history: [],
     dismissed_need: null,
     new_since_dismissal: null,
@@ -78,6 +82,7 @@ export function handItem(
     need,
     on_order: 0,
     reasons,
+    size: DEFAULT_SIZE,
     history: reasons.map((reason) => added(reason.spools, reason.by)),
     dismissed_need: null,
     new_since_dismissal: null,
@@ -93,6 +98,16 @@ export function added(spools: number, by: string | null = "frank"): ShoppingHist
     by,
     at: "2026-11-21T12:00:00Z",
   };
+}
+
+/** A print request short of the product: named and linked, or `null` for one the viewer may
+ * not see. */
+export function requestReason(
+  id: number | null,
+  shortG: number,
+  title: string | null = id === null ? null : "Lamp shade",
+): RequestReason {
+  return { kind: "request", request_id: id, title, short_g: shortG };
 }
 
 /** An open suggestion by vic: of a product, unless overridden with a catalog color. */

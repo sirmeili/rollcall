@@ -10,6 +10,8 @@ from filament_tracker.services.shopping_list.hand import (
     remove_hand_reason,
 )
 from filament_tracker.services.shopping_list.history import HistoryEntry
+from filament_tracker.services.shopping_list.needs import RequestNeedsReader, RequestShort
+from filament_tracker.services.shopping_list.net_weight import NetWeight, SizeFrom
 from filament_tracker.services.shopping_list.on_order import ordered, set_on_order
 from filament_tracker.services.shopping_list.read import (
     HandAdded,
@@ -19,6 +21,7 @@ from filament_tracker.services.shopping_list.read import (
     ShoppingListItem,
     read,
 )
+from filament_tracker.services.shopping_list.size import set_size
 from filament_tracker.services.shopping_list.suggestions import (
     NoSuchSuggestion,
     OpenSuggestion,
@@ -34,12 +37,16 @@ __all__ = [
     "HistoryEntry",
     "Line",
     "LowStock",
+    "NetWeight",
     "NoSuchReason",
     "NoSuchSuggestion",
     "NotDismissed",
     "OpenSuggestion",
+    "RequestNeedsReader",
+    "RequestShort",
     "ShoppingList",
     "ShoppingListItem",
+    "SizeFrom",
     "SuggestionDecided",
     "add_by_hand",
     "add_suggestion",
@@ -52,5 +59,6 @@ __all__ = [
     "read",
     "remove_hand_reason",
     "set_on_order",
+    "set_size",
     "suggest",
 ]
