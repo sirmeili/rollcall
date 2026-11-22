@@ -9,6 +9,7 @@
   import ScanHeader from "#lib/components/phone/ScanHeader.svelte";
   import ScanResult from "#lib/components/phone/ScanResult.svelte";
   import TapTarget from "#lib/components/phone/TapTarget.svelte";
+  import { openLayer } from "#lib/phone/back.ts";
   import { bridge, type NfcStatus } from "#lib/phone/bridge.ts";
   import { NFC_MESSAGES } from "#lib/phone/card-text.ts";
   import { phone } from "#lib/phone/phone-state.svelte.ts";
@@ -65,6 +66,18 @@
   });
 
   const flow = $derived(phone.session?.flow ?? null);
+
+  // A scan card (the spool with its keys, or what was recorded) is a layer for the phone's
+  // Back button: Back closes it the way Next does, so before an action is chosen nothing is
+  // recorded, and a recorded action is kept, never undone.
+  const cardShowing = $derived(
+    view !== null && view.phase !== "idle" && view.phase !== "looking_up",
+  );
+  $effect(() => {
+    if (!cardShowing || !flow) return;
+    const shown = flow;
+    return openLayer(() => shown.dismiss());
+  });
   const delivery = phone.delivery;
 </script>
 

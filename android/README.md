@@ -169,5 +169,7 @@ Run each step with the swipe-back gesture and, where the phone has one, the Back
 36. The menu sheet closes first: on Inventory open the menu, then press Back. The menu closes and Inventory stays. Open the filter sheet, then the menu over it: Back closes the menu only, and Back again the filter sheet.
 37. A filter sheet closes first: on Spools open the filter sheet and choose a state, then press Back. The sheet closes, Spools stays, and the filters are as they were. Do the same on Catalog.
 38. A dialog closes first: as an Admin, open a submitted print request, tap Reject and type a reason, then press Back. The dialog closes, the request stays Submitted, and Back again leaves the page.
+39. A scan card before choosing an action: on Scan tap a spool, then press Back. The card closes, Scan is back at Ready, and nothing is recorded: Activity has no new event. Do the same with Delivery on: Delivery stays on and its list is unchanged.
+40. A scan card after choosing an action: on Scan tap a spool and choose an action, then press Back. The card closes and Scan is back at Ready, with the action kept, not undone: Activity shows it. Do the same with Delivery on: Delivery stays on and the spool stays in its list.
 
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.
