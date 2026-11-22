@@ -15,6 +15,12 @@ export interface TagRead {
   readOk: boolean;
 }
 
+/** One press of the phone's Back button or swipe-back gesture. */
+export interface BackPress {
+  /** Whether the WebView has history before the current page. */
+  canGoBack: boolean;
+}
+
 export interface PhoneBridge {
   /** True only inside the Android app. */
   readonly app: boolean;
@@ -28,6 +34,11 @@ export interface PhoneBridge {
   secureGet(key: string): Promise<string | null>;
   secureSet(key: string, value: string): Promise<void>;
   secureRemove(key: string): Promise<void>;
+  /** Call `listener` on each Back press, until the returned function is called. While
+   * anything listens, Back no longer closes the app on its own. */
+  onBack(listener: (press: BackPress) => void): () => void;
+  /** Send the app to the background, keeping it running (not finishing it). */
+  background(): Promise<void>;
 }
 
 function notInApp(): Promise<never> {
@@ -43,6 +54,9 @@ export const browserBridge: PhoneBridge = {
   secureGet: notInApp,
   secureSet: notInApp,
   secureRemove: notInApp,
+  // A browser's Back is its own: never reported, and there is no background to go to.
+  onBack: () => () => {},
+  background: () => Promise.resolve(),
 };
 
 let current: PhoneBridge = browserBridge;
