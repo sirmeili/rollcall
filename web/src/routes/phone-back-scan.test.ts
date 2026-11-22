@@ -145,3 +145,75 @@ describe("Back on Scan with a scan card showing", () => {
     expect(undone()).toBe(false);
   });
 });
+
+describe("Back on Scan with a scan card showing, unpacking a delivery", () => {
+  function deliveryRows(): HTMLElement[] {
+    const list = screen.getByRole("list", { name: "Spools in this delivery" });
+    return within(list).queryAllByRole("listitem");
+  }
+
+  function stillDelivering(): void {
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delivery" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  }
+
+  it("closes the card before an action is chosen, leaving Delivery and its list", async () => {
+    await openScan();
+    await deliveryOn();
+    native.tap(tagRead(tags[0].blocks));
+    await screen.findByRole("region", { name: "Scanned spool" });
+
+    native.pressBack(true);
+
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Scanned spool" })).toBeNull(),
+    );
+    stillDelivering();
+    expect(screen.getByText("Spools you scan show up here.")).toBeInTheDocument();
+    stayed();
+    expect(recorded()).toEqual([]);
+  });
+
+  it("closes the card after an action is recorded, keeping it in the list", async () => {
+    await openScan();
+    await deliveryOn();
+    native.tap(tagRead(tags[0].blocks));
+    const panel = await screen.findByRole("region", { name: "Scanned spool" });
+    await userEvent.click(within(panel).getByRole("button", { name: "Opened" }));
+    await screen.findByText("Recorded Opened");
+
+    native.pressBack(true);
+
+    await vi.waitFor(() => expect(screen.queryByText("Recorded Opened")).toBeNull());
+    stillDelivering();
+    const rows = deliveryRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("Black PLA Basic");
+    expect(within(rows[0]).queryByText("Undone")).toBeNull();
+    expect(screen.getByText("0 new · 1 opened")).toBeInTheDocument();
+    stayed();
+    expect(recorded()).toEqual(["opened"]);
+    expect(undone()).toBe(false);
+  });
+});
+
+describe("Back on Scan at Ready", () => {
+  it("goes back a page, or to the background, as before", async () => {
+    await openScan();
+    native.tap(tagRead(tags[0].blocks));
+    await userEvent.click(await screen.findByRole("button", { name: "Opened" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Scan next" }));
+    await screen.findByText(READY);
+
+    native.pressBack(true);
+    expect(back).toHaveBeenCalledOnce();
+
+    native.pressBack(false);
+    expect(native.backgrounded).toBe(1);
+    expect(screen.getByText(READY)).toBeInTheDocument();
+    expect(undone()).toBe(false);
+  });
+});
