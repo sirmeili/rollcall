@@ -138,7 +138,7 @@ describe("setting the phone up after signing in", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Checking with the server");
   });
 
-  it("sets the phone up as the user's own, then asks where it opens", async () => {
+  it("sets the phone up as the user's own, then asks where it opens and puts Inventory in Pairing's place", async () => {
     signedIn(BOB);
     render(PairPage);
 
@@ -162,19 +162,21 @@ describe("setting the phone up after signing in", () => {
     const choices = screen.getByRole("group", { name: "This phone opens on" });
     await userEvent.click(within(choices).getByRole("button", { name: /Looking at stock/ }));
 
-    await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/", { replaceState: true }));
+    expect(nav.goto).toHaveBeenCalledTimes(1);
     expect(phone.openOn).toBe("stock");
     expect(await native.secureGet("open_on")).toBe("stock");
   });
 
-  it("opens on Scan when chosen", async () => {
+  it("opens on Scan when chosen, in Pairing's place", async () => {
     signedIn(BOB);
     render(PairPage);
     const choices = await screen.findByRole("group", { name: "This phone opens on" });
 
     await userEvent.click(within(choices).getByRole("button", { name: /Scanning/ }));
 
-    await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/scan"));
+    await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/scan", { replaceState: true }));
+    expect(nav.goto).toHaveBeenCalledTimes(1);
     expect(phone.openOn).toBe("scan");
   });
 
