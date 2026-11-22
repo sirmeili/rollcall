@@ -17,7 +17,7 @@
   async function save(form: RequestForm): Promise<void> {
     const created = await submitRequest(requestBody(form));
     if (session.user) session.user.has_requests = true;
-    await goto(`/requests/${created.id}`);
+    await goto(`/requests/${created.id}`, { replaceState: true });
   }
 </script>
 
