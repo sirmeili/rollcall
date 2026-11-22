@@ -1,4 +1,9 @@
-import type { ShoppingList, ShoppingListItem } from "#lib/api/shopping.ts";
+import type {
+  HandReason,
+  ShoppingHistoryEntry,
+  ShoppingList,
+  ShoppingListItem,
+} from "#lib/api/shopping.ts";
 import type { CatalogLink, Product } from "#lib/api/types.ts";
 import { product } from "./fixtures.ts";
 
@@ -35,9 +40,40 @@ export function lowItem(
     product: product({ id, display_name: name, low_stock_threshold: threshold, ...overrides }),
     to_buy: spools,
     reasons: [{ kind: "low_stock", spools, sealed, threshold }],
+    history: [],
   };
 }
 
 export function shoppingList(overrides: Partial<ShoppingList> = {}): ShoppingList {
   return { lines: [], not_in_catalog: [], store_address: STORE, ...overrides };
+}
+
+export function handReason(id: number, spools: number, by: string | null = "frank"): HandReason {
+  return { kind: "hand", id, spools, by, at: "2026-11-21T12:00:00Z" };
+}
+
+/** An item on the list only for spools added by hand. */
+export function handItem(
+  id: number,
+  name: string,
+  reasons: HandReason[],
+  overrides: Partial<Product> = {},
+): ShoppingListItem {
+  return {
+    product: product({ id, display_name: name, low_stock_threshold: 0, ...overrides }),
+    to_buy: reasons.reduce((sum, reason) => sum + reason.spools, 0),
+    reasons,
+    history: reasons.map((reason) => added(reason.spools, reason.by)),
+  };
+}
+
+export function added(spools: number, by: string | null = "frank"): ShoppingHistoryEntry {
+  return {
+    action: "added_by_hand",
+    spools,
+    size_g: null,
+    on_order: 0,
+    by,
+    at: "2026-11-21T12:00:00Z",
+  };
 }

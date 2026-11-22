@@ -1,14 +1,19 @@
 <script lang="ts">
   /** The Shopping list page: each product to buy, as one item with its reasons, grouped by
-   * filament line, then Not in the catalog (every role). */
+   * filament line, then Not in the catalog (every role). Editors and Admins add spools by
+   * hand and remove them. */
   import { describeError } from "#lib/api/errors.ts";
-  import { getShoppingList, type ShoppingList } from "#lib/api/shopping.ts";
+  import { getShoppingList, removeHandReason, type ShoppingList } from "#lib/api/shopping.ts";
+  import { session } from "#lib/auth/session.svelte.ts";
+  import AddToShoppingList from "#lib/components/shopping/AddToShoppingList.svelte";
   import ShoppingGroup from "#lib/components/shopping/ShoppingGroup.svelte";
   import { shoppingGroups } from "#lib/shopping-list.ts";
   import { viewport } from "#lib/viewport.svelte.ts";
 
   let list = $state<ShoppingList | null>(null);
   let failure = $state<string | null>(null);
+  // Why the last change could not be made.
+  let changeFailure = $state<string | null>(null);
   let collapsed = $state<Set<string>>(new Set());
   // On a phone, one item at a time is expanded.
   let expanded = $state<number | null>(null);
@@ -22,6 +27,15 @@
       list = await getShoppingList();
     } catch (error) {
       failure = describeError(error);
+    }
+  }
+
+  async function remove(id: number): Promise<void> {
+    changeFailure = null;
+    try {
+      list = await removeHandReason(id);
+    } catch (error) {
+      changeFailure = describeError(error);
     }
   }
 
@@ -46,6 +60,11 @@
     </div>
   </div>
 
+  {#if list && session.can("editor")}
+    <AddToShoppingList onadded={(next) => (list = next)} />
+  {/if}
+  {#if changeFailure}<p role="alert" class="error">{changeFailure}</p>{/if}
+
   {#if failure}
     <p role="alert" class="error">
       {failure} <button class="small" onclick={load}>Try again</button>
@@ -65,6 +84,7 @@
           ontoggle={() => toggle(group.key)}
           {expanded}
           onexpand={(id) => (expanded = expanded === id ? null : id)}
+          onremove={remove}
         />
       {/each}
     </div>

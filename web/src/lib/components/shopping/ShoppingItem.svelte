@@ -1,6 +1,6 @@
 <script lang="ts">
   /** A shopping list item in full, on a wide screen: swatch and name, its reasons, Find in
-   * store, and what to buy in large type. */
+   * store, its recent history, and what to buy in large type. */
   import type { ShoppingListItem } from "#lib/api/shopping.ts";
   import ItemReasons from "#lib/components/shopping/ItemReasons.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
@@ -10,9 +10,11 @@
     storeAddress: string;
     /** Show the product's filament type (items not in the catalog). */
     showType: boolean;
+    /** Remove a hand-added reason, by its ID. */
+    onremove: (id: number) => void;
   }
 
-  let { item, storeAddress, showType }: Props = $props();
+  let { item, storeAddress, showType, onremove }: Props = $props();
 </script>
 
 <div class="item">
@@ -22,7 +24,7 @@
     {#if showType}
       <span class="type mono">{item.product.filament_type}</span>
     {/if}
-    <ItemReasons {item} {storeAddress} />
+    <ItemReasons {item} {storeAddress} {onremove} />
   </div>
   <div class="tobuy">
     <span class="buy">{item.to_buy}</span>

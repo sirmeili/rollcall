@@ -9,13 +9,52 @@ export interface LowStockReason {
   threshold: number;
 }
 
-export type ShoppingReason = LowStockReason;
+/** Spools an Editor or Admin added by hand. */
+export interface HandReason {
+  kind: "hand";
+  id: number;
+  spools: number;
+  /** Who added them; null for a token. */
+  by: string | null;
+  at: string;
+}
+
+export type ShoppingReason = LowStockReason | HandReason;
+
+export type ShoppingAction =
+  | "added_by_hand"
+  | "removed_by_hand"
+  | "suggested"
+  | "suggestion_added"
+  | "suggestion_dismissed"
+  | "ordered"
+  | "on_order_changed"
+  | "dismissed"
+  | "brought_back"
+  | "size_changed"
+  | "same_product";
+
+/** One entry in an item's shopping list history. */
+export interface ShoppingHistoryEntry {
+  action: ShoppingAction;
+  /** The spools or the size in grams the action concerned, if any. */
+  spools: number | null;
+  size_g: number | null;
+  /** The item's on order once it was done. */
+  on_order: number;
+  /** Who did it; null for a token. */
+  by: string | null;
+  at: string;
+}
 
 /** One product on the shopping list, with the reasons it is there. */
 export interface ShoppingListItem {
   product: Product;
   to_buy: number;
+  /** Low stock first, then hand-added, oldest first. */
   reasons: ShoppingReason[];
+  /** The most recent entries, newest first. */
+  history: ShoppingHistoryEntry[];
 }
 
 /** A filament line's items, from their products' catalog links. */
@@ -36,7 +75,24 @@ export interface ShoppingList {
   store_address: string;
 }
 
+/** What to add spools to: a product, or a catalog color (its product, made "From the catalog"
+ * if it has none). */
+export type AddTarget = { product_id: number } | { catalog_color: string };
+
 /** The shopping list (every role). */
 export function getShoppingList(): Promise<ShoppingList> {
   return api<ShoppingList>("/shopping-list");
+}
+
+/** Add spools by hand (Editor and Admin); answers the list as it now stands. */
+export function addByHand(target: AddTarget, spools: number): Promise<ShoppingList> {
+  return api<ShoppingList>("/shopping-list/hand-reasons", {
+    method: "POST",
+    body: { ...target, spools },
+  });
+}
+
+/** Remove a hand-added reason (Editor and Admin); answers the list as it now stands. */
+export function removeHandReason(id: number): Promise<ShoppingList> {
+  return api<ShoppingList>(`/shopping-list/hand-reasons/${id}`, { method: "DELETE" });
 }

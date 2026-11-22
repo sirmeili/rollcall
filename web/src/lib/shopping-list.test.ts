@@ -1,7 +1,22 @@
-import { describe, expect, it } from "vitest";
-import { findInStore, reasonText, shoppingGroups, spoolsText } from "#lib/shopping-list.ts";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { setTimeZone } from "#lib/format.ts";
+import {
+  findInStore,
+  historyText,
+  historyWhen,
+  reasonText,
+  shoppingGroups,
+  spoolsText,
+} from "#lib/shopping-list.ts";
 import { product } from "../test/fixtures.ts";
-import { link, lowItem, STORE, shoppingList } from "../test/shopping-fixtures.ts";
+import {
+  added,
+  handReason,
+  link,
+  lowItem,
+  STORE,
+  shoppingList,
+} from "../test/shopping-fixtures.ts";
 
 describe("spoolsText", () => {
   it("counts spools", () => {
@@ -17,6 +32,34 @@ describe("reasonText", () => {
     );
     expect(reasonText({ kind: "low_stock", spools: 1, sealed: 0, threshold: 0 + 0 })).toBe(
       "Low stock: 0 sealed, threshold 0 · 1 spool",
+    );
+  });
+});
+
+describe("reasonText for spools added by hand", () => {
+  it("says who added them", () => {
+    expect(reasonText(handReason(1, 2))).toBe("Added by hand by frank · 2 spools");
+    expect(reasonText(handReason(1, 1, null))).toBe("Added by hand · 1 spool");
+  });
+});
+
+describe("the shopping list history", () => {
+  beforeEach(() => setTimeZone("UTC"));
+  afterEach(() => setTimeZone(undefined));
+
+  it("says what was done", () => {
+    expect(historyText(added(2))).toBe("Added 2 spools by hand");
+    expect(historyText({ ...added(1), action: "removed_by_hand" })).toBe(
+      "Removed 1 spool added by hand",
+    );
+    expect(historyText({ ...added(1), action: "brought_back" })).toBe("Brought back");
+  });
+
+  it("says who did it, when, and what was on order after", () => {
+    const now = new Date("2026-11-22T09:00:00Z");
+    expect(historyWhen(added(2), now)).toBe("frank · Nov 21, 12:00 PM · 0 on order");
+    expect(historyWhen({ ...added(2, null), on_order: 3 }, now)).toBe(
+      "Nov 21, 12:00 PM · 3 on order",
     );
   });
 });

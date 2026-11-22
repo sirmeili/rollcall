@@ -1,15 +1,41 @@
-import type { ShoppingList, ShoppingListItem, ShoppingReason } from "#lib/api/shopping.ts";
+import type {
+  ShoppingHistoryEntry,
+  ShoppingList,
+  ShoppingListItem,
+  ShoppingReason,
+} from "#lib/api/shopping.ts";
 import type { Product } from "#lib/api/types.ts";
 import { storeSearchUrl } from "#lib/catalog.ts";
+import { dateTime } from "#lib/format.ts";
 
 /** "1 spool", "3 spools" */
 export function spoolsText(spools: number): string {
   return `${spools} ${spools === 1 ? "spool" : "spools"}`;
 }
 
-/** Why an item is on the list: "Low stock: 1 sealed, threshold 2 · 2 spools". */
+/** Why an item is on the list: "Low stock: 1 sealed, threshold 2 · 2 spools", "Added by
+ * hand by frank · 1 spool". */
 export function reasonText(reason: ShoppingReason): string {
+  if (reason.kind === "hand") {
+    const by = reason.by ? ` by ${reason.by}` : "";
+    return `Added by hand${by} · ${spoolsText(reason.spools)}`;
+  }
   return `Low stock: ${reason.sealed} sealed, threshold ${reason.threshold} · ${spoolsText(reason.spools)}`;
+}
+
+/** What a history entry records: "Added 2 spools by hand". */
+export function historyText(entry: ShoppingHistoryEntry): string {
+  const spools = spoolsText(entry.spools ?? 0);
+  if (entry.action === "added_by_hand") return `Added ${spools} by hand`;
+  if (entry.action === "removed_by_hand") return `Removed ${spools} added by hand`;
+  const words = entry.action.replaceAll("_", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** Who did it, when, and the on order after: "frank · Nov 21, 12:00 PM · 0 on order". */
+export function historyWhen(entry: ShoppingHistoryEntry, now: Date = new Date()): string {
+  const parts = [dateTime(entry.at, now), `${entry.on_order} on order`];
+  return (entry.by ? [entry.by, ...parts] : parts).join(" · ");
 }
 
 /** The store's search for the product's catalog color, only when it has a Bambu code. */

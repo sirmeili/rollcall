@@ -1,6 +1,7 @@
 <script lang="ts">
   /** A shopping list item on a phone (docs/mockups/mobile-web/PhoneShoppingList.html): a
-   * compact row that expands in place to its reasons and Find in store, as on Spools. */
+   * compact row that expands in place to its reasons, Find in store and recent history, as on
+   * Spools. */
   import type { ShoppingListItem } from "#lib/api/shopping.ts";
   import ItemReasons from "#lib/components/shopping/ItemReasons.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
@@ -10,11 +11,13 @@
     storeAddress: string;
     /** Show the product's filament type (items not in the catalog). */
     showType: boolean;
+    /** Remove a hand-added reason, by its ID. */
+    onremove: (id: number) => void;
     open: boolean;
     ontoggle: () => void;
   }
 
-  let { item, storeAddress, showType, open, ontoggle }: Props = $props();
+  let { item, storeAddress, showType, onremove, open, ontoggle }: Props = $props();
 
   const detailId = $derived(`shopping-detail-${item.product.id}`);
 </script>
@@ -51,7 +54,7 @@
 </button>
 {#if open}
   <div class="detail" id={detailId}>
-    <ItemReasons {item} {storeAddress} />
+    <ItemReasons {item} {storeAddress} {onremove} />
   </div>
 {/if}
 

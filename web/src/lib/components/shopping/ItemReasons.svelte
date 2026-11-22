@@ -1,27 +1,45 @@
 <script lang="ts">
-  /** A shopping list item's reasons, and Find in store when its product has a Bambu code. */
+  /** A shopping list item's reasons, with Remove on each hand-added one for Editors and
+   * Admins, Find in store when its product has a Bambu code, and its recent history. */
   import type { ShoppingListItem } from "#lib/api/shopping.ts";
+  import { session } from "#lib/auth/session.svelte.ts";
   import FindInStore from "#lib/components/catalog/FindInStore.svelte";
+  import ItemHistory from "#lib/components/shopping/ItemHistory.svelte";
   import { findInStore, reasonText } from "#lib/shopping-list.ts";
 
   interface Props {
     item: ShoppingListItem;
     storeAddress: string;
+    /** Remove a hand-added reason, by its ID. */
+    onremove: (id: number) => void;
   }
 
-  let { item, storeAddress }: Props = $props();
+  let { item, storeAddress, onremove }: Props = $props();
 
   const store = $derived(findInStore(storeAddress, item.product));
+  const editor = $derived(session.can("editor"));
 </script>
 
 <ul class="reasons">
   {#each item.reasons as reason, i (i)}
-    <li>{reasonText(reason)}</li>
+    {@const text = reasonText(reason)}
+    <li>
+      <span>{text}</span>
+      {#if reason.kind === "hand" && editor}
+        <button
+          type="button"
+          class="small"
+          aria-label={`Remove ${text}`}
+          onclick={() => onremove(reason.id)}>Remove</button
+        >
+      {/if}
+    </li>
   {/each}
 </ul>
 {#if store}
   <FindInStore href={store} />
 {/if}
+<ItemHistory history={item.history} />
 
 <style>
   .reasons {
@@ -34,5 +52,12 @@
     font-size: 14px;
     color: var(--muted);
     overflow-wrap: anywhere;
+  }
+
+  .reasons li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
   }
 </style>
