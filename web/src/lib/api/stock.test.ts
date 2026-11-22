@@ -29,6 +29,7 @@ describe("stock API calls", () => {
         flagged_events: [{}, {}],
         unidentified_tags: [{ uid: "X" }],
         likely_empty: [],
+        possible_duplicates: [{}],
       },
     });
     vi.stubGlobal("fetch", fetch);
@@ -41,7 +42,7 @@ describe("stock API calls", () => {
     await recordAction(4, "opened");
     await undoEvent("e1");
     await updateProduct(2, { nearly_out_pct: 20 });
-    expect(await reviewCount()).toBe(3);
+    expect(await reviewCount()).toBe(4);
 
     expect(fetch.calls.filter((c) => c.method !== "GET")).toEqual([
       { method: "PATCH", path: "/spools/4", body: { location: "Bin" } },

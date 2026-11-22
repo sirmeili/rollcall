@@ -99,4 +99,23 @@ describe("admin API calls", () => {
       { method: "PATCH", path: "/auth/me", body: { email: "frank@example.com" } },
     ]);
   });
+
+  it("resolve a possible duplicate and bring it back", async () => {
+    const fetch = fakeFetch({
+      "POST /review/duplicates/3/same-product": null,
+      "POST /review/duplicates/3/keep-separate": null,
+      "POST /review/duplicates/3/restore": null,
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await admin.sameProduct(3, 7);
+    await admin.keepSeparate(3);
+    await admin.restoreDuplicate(3);
+
+    expect(fetch.calls).toEqual([
+      { method: "POST", path: "/review/duplicates/3/same-product", body: { candidate_id: 7 } },
+      { method: "POST", path: "/review/duplicates/3/keep-separate", body: undefined },
+      { method: "POST", path: "/review/duplicates/3/restore", body: undefined },
+    ]);
+  });
 });

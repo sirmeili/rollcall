@@ -46,6 +46,23 @@ export function restoreLikelyEmpty(spoolId: number): Promise<void> {
   return api<void>(`/review/spools/${spoolId}/restore`, { method: "POST" });
 }
 
+/** The possible duplicate's scanned product is this candidate: merge the candidate into it. */
+export function sameProduct(duplicateId: number, candidateId: number): Promise<void> {
+  return api<void>(`/review/duplicates/${duplicateId}/same-product`, {
+    method: "POST",
+    body: { candidate_id: candidateId },
+  });
+}
+
+export function keepSeparate(duplicateId: number): Promise<void> {
+  return api<void>(`/review/duplicates/${duplicateId}/keep-separate`, { method: "POST" });
+}
+
+/** Bring back a possible duplicate kept separate. */
+export function restoreDuplicate(duplicateId: number): Promise<void> {
+  return api<void>(`/review/duplicates/${duplicateId}/restore`, { method: "POST" });
+}
+
 // --- Activity ---------------------------------------------------------------------------
 
 export function listEvents(query: {

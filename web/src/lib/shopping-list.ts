@@ -34,6 +34,7 @@ export function historyText(entry: ShoppingHistoryEntry): string {
   if (entry.action === "suggested") return `Suggested ${spools}`;
   if (entry.action === "suggestion_added") return `Added a suggestion of ${spools}`;
   if (entry.action === "suggestion_dismissed") return `Dismissed a suggestion of ${spools}`;
+  if (entry.action === "same_product") return "Made one product with a possible duplicate";
   const words = entry.action.replaceAll("_", " ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }

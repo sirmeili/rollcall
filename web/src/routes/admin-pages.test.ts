@@ -31,6 +31,9 @@ const admin = vi.hoisted(() => ({
   updateAccount: vi.fn(),
   dismissLikelyEmpty: vi.fn(),
   restoreLikelyEmpty: vi.fn(),
+  sameProduct: vi.fn(),
+  keepSeparate: vi.fn(),
+  restoreDuplicate: vi.fn(),
   listPrinters: vi.fn(),
   unpinPrinter: vi.fn(),
   addPrinter: vi.fn(),
@@ -45,7 +48,10 @@ const stock = vi.hoisted(() => ({
   recordAction: vi.fn(),
   reviewCount: vi.fn(),
   waitingIn: (r: ReviewOut) =>
-    r.flagged_events.length + r.unidentified_tags.length + r.likely_empty.length,
+    r.flagged_events.length +
+    r.unidentified_tags.length +
+    r.likely_empty.length +
+    r.possible_duplicates.length,
 }));
 vi.mock("#lib/api/stock.ts", () => stock);
 
@@ -79,9 +85,20 @@ function review(overrides: Partial<ReviewOut> = {}): ReviewOut {
     flagged_events: [event({ id: "f1", type: "empty", flagged: true, spool_id: 10 })],
     unidentified_tags: [UNREADABLE],
     likely_empty: [],
+    possible_duplicates: [],
     ...overrides,
   };
 }
+
+const DUPLICATE = {
+  id: 3,
+  product: product({ id: 5, display_name: "PLA Basic #050505", color_rgba: "050505FF" }),
+  candidates: [
+    product({ id: 7, display_name: "Black PLA Basic", provisional: true, from_catalog: true }),
+    product({ id: 8, display_name: "Charcoal PLA Basic", provisional: true, from_catalog: true }),
+  ],
+  created_at: "2026-11-22T12:00:00Z",
+};
 
 describe("Review page", () => {
   it("lists each section and sets the header count", async () => {
@@ -210,14 +227,65 @@ describe("Review page", () => {
     expect(admin.restoreLikelyEmpty).toHaveBeenCalledWith(16);
   });
 
+  it("lists a possible duplicate's candidates and counts it", async () => {
+    admin.getReview.mockResolvedValue(review({ possible_duplicates: [DUPLICATE] }));
+    render(ReviewPage);
+
+    const item = (await screen.findByRole("heading", { name: "PLA Basic #050505" })).closest(
+      "article",
+    ) as HTMLElement;
+    expect(within(item).getByText(/Black PLA Basic/)).toBeInTheDocument();
+    expect(within(item).getByText(/Charcoal PLA Basic/)).toBeInTheDocument();
+    expect(reviewBadge.count).toBe(3);
+  });
+
+  it("makes a possible duplicate one product, with no way to bring it back", async () => {
+    admin.getReview
+      .mockResolvedValueOnce(review({ possible_duplicates: [DUPLICATE] }))
+      .mockResolvedValue(review());
+    admin.sameProduct.mockResolvedValue(undefined);
+    render(ReviewPage);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Same product as Charcoal PLA Basic" }),
+    );
+
+    expect(admin.sameProduct).toHaveBeenCalledWith(3, 8);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Made PLA Basic #050505 and Charcoal PLA Basic one product.",
+    );
+    expect(screen.queryByRole("button", { name: "Bring back" })).toBeNull();
+    expect(screen.getByText("No possible duplicates.")).toBeInTheDocument();
+  });
+
+  it("keeps a possible duplicate separate and can bring it back", async () => {
+    admin.getReview.mockResolvedValue(review({ possible_duplicates: [DUPLICATE] }));
+    admin.keepSeparate.mockResolvedValue(undefined);
+    admin.restoreDuplicate.mockResolvedValue(undefined);
+    render(ReviewPage);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Keep PLA Basic #050505 separate" }),
+    );
+    expect(admin.keepSeparate).toHaveBeenCalledWith(3);
+    expect(await screen.findByRole("status")).toHaveTextContent("Kept PLA Basic #050505 separate.");
+
+    await userEvent.click(screen.getByRole("button", { name: "Bring back" }));
+    expect(admin.restoreDuplicate).toHaveBeenCalledWith(3);
+  });
+
   it("lets viewers look but not resolve", async () => {
     signedInAs("viewer");
     admin.getReview.mockResolvedValue(
-      review({ likely_empty: [spoolRow({ id: 16, remaining_pct: null })] }),
+      review({
+        likely_empty: [spoolRow({ id: 16, remaining_pct: null })],
+        possible_duplicates: [DUPLICATE],
+      }),
     );
     render(ReviewPage);
 
     await screen.findByRole("heading", { name: "Used up, flagged" });
+    expect(screen.getByRole("heading", { name: "PLA Basic #050505" })).toBeInTheDocument();
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.getByRole("heading", { name: "AMS reports 0% left" })).toBeInTheDocument();
   });

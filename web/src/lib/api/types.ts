@@ -185,10 +185,21 @@ export interface UnidentifiedTag {
   decoded: Record<string, unknown> | null;
 }
 
+/** A product a scan made that may be the same as a "From the catalog" product. */
+export interface PossibleDuplicate {
+  id: number;
+  /** The product the scan made. */
+  product: Product;
+  /** The "From the catalog" products it may be the same as, oldest first. */
+  candidates: Product[];
+  created_at: string;
+}
+
 export interface ReviewOut {
   flagged_events: EventOut[];
   unidentified_tags: UnidentifiedTag[];
   likely_empty: SpoolRow[];
+  possible_duplicates: PossibleDuplicate[];
 }
 
 export interface DeviceOut {

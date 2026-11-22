@@ -72,6 +72,12 @@ describe("the shopping list history", () => {
     );
   });
 
+  it("says when a possible duplicate made two products one", () => {
+    expect(historyText({ ...added(0), spools: null, action: "same_product" })).toBe(
+      "Made one product with a possible duplicate",
+    );
+  });
+
   it("says who did it, when, and what was on order after", () => {
     const now = new Date("2026-11-22T09:00:00Z");
     expect(historyWhen(added(2), now)).toBe("frank · Nov 21, 12:00 PM · 0 on order");

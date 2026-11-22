@@ -120,7 +120,12 @@ describe("layout", () => {
 
   it("shows how many items wait in Review", async () => {
     signedIn(me("viewer", { username: "alice" }));
-    const review = { flagged_events: [{}], unidentified_tags: [{}, {}], likely_empty: [] };
+    const review = {
+      flagged_events: [{}],
+      unidentified_tags: [{}, {}],
+      likely_empty: [],
+      possible_duplicates: [{}],
+    };
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response(JSON.stringify(review), { status: 200 })),
@@ -129,7 +134,7 @@ describe("layout", () => {
 
     render(Layout, { children });
 
-    expect(await screen.findByRole("link", { name: "Review, 3 waiting" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Review, 4 waiting" })).toBeInTheDocument();
     vi.unstubAllGlobals();
   });
 
@@ -139,7 +144,12 @@ describe("layout", () => {
     vi.stubGlobal(
       "fetch",
       fakeFetch({
-        "GET /review": { flagged_events: [], unidentified_tags: [], likely_empty: [] },
+        "GET /review": {
+          flagged_events: [],
+          unidentified_tags: [],
+          likely_empty: [],
+          possible_duplicates: [],
+        },
         "GET /shopping-list": list,
       }),
     );
