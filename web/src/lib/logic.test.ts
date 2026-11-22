@@ -192,9 +192,7 @@ describe("products", () => {
     expect(sourceText(saved)).toBe("From tag");
     expect(sourceText(product({ provisional: true }))).toBe("Added by hand");
     expect(sourceText(product({ provisional: true, from_ams: true }))).toBe("From the AMS");
-    expect(sourceText(product({ provisional: true, from_catalog: true }))).toBe(
-      "From the catalog",
-    );
+    expect(sourceText(product({ provisional: true, from_catalog: true }))).toBe("From the catalog");
     // Once a tag fills it in, it is a product from a tag.
     expect(sourceText(product({ from_ams: true }))).toBe("From tag");
   });
