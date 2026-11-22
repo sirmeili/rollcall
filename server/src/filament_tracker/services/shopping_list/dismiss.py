@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.shopping_models import HandReason
 from filament_tracker.domain.enums import ShoppingAction
 from filament_tracker.services.shopping_list import shopping_history
-from filament_tracker.services.shopping_list.on_order import find_item, item_for
+from filament_tracker.services.shopping_list.items import find_item, item_for
 from filament_tracker.services.shopping_list.read import ShoppingListItem
 
 

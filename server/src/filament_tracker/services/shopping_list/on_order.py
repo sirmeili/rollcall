@@ -4,26 +4,12 @@ Admin can set it to any number, and each spool's first appearance in stock takes
 
 from datetime import datetime
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Product
-from filament_tracker.db.shopping_models import ShoppingListItem
 from filament_tracker.domain.enums import ShoppingAction
 from filament_tracker.services.shopping_list import shopping_history
-
-
-def find_item(session: Session, product_id: int) -> ShoppingListItem | None:
-    return session.scalar(select(ShoppingListItem).where(ShoppingListItem.product_id == product_id))
-
-
-def item_for(session: Session, product_id: int) -> ShoppingListItem:
-    """The product's one item row, made if it has none."""
-    item = find_item(session, product_id)
-    if item is None:
-        item = ShoppingListItem(product_id=product_id, on_order=0)
-        session.add(item)
-    return item
+from filament_tracker.services.shopping_list.items import item_for
 
 
 def ordered(

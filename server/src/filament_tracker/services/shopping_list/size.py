@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.models import Product
 from filament_tracker.domain.enums import ShoppingAction
 from filament_tracker.services.shopping_list import shopping_history
-from filament_tracker.services.shopping_list.on_order import item_for
+from filament_tracker.services.shopping_list.items import item_for
 
 
 def set_size(

@@ -8,8 +8,9 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from filament_tracker.db.shopping_models import ShoppingHistory, ShoppingListItem
+from filament_tracker.db.shopping_models import ShoppingHistory
 from filament_tracker.domain.enums import ShoppingAction
+from filament_tracker.services.shopping_list.items import find_item
 
 # How many entries an item's expanded view shows.
 RECENT = 5
@@ -29,7 +30,7 @@ class ShoppingHistoryEntry:
 
 
 def on_order(session: Session, product_id: int) -> int:
-    item = session.scalar(select(ShoppingListItem).where(ShoppingListItem.product_id == product_id))
+    item = find_item(session, product_id)
     return item.on_order if item else 0
 
 

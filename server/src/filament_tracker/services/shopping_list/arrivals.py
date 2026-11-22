@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Event, Spool
 from filament_tracker.domain.enums import EventType, SpoolState
-from filament_tracker.services.shopping_list.on_order import find_item, item_for
+from filament_tracker.services.shopping_list.items import find_item, item_for
 
 IN_STOCK = {SpoolState.SEALED, SpoolState.OPEN}
 

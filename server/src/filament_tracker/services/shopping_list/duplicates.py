@@ -35,7 +35,7 @@ from filament_tracker.services.catalog_links import (
     take_manual_link,
 )
 from filament_tracker.services.shopping_list import arrivals, shopping_history
-from filament_tracker.services.shopping_list.on_order import find_item, item_for
+from filament_tracker.services.shopping_list.items import find_item, item_for
 
 
 class NoSuchDuplicate(LookupError):
