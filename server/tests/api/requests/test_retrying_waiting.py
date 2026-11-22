@@ -283,6 +283,24 @@ def test_an_over_held_spool_leaves_the_later_request_in_active_tab_order_short(
     assert (later["status"], _short(later)) == ("queued", 200)
 
 
+def test_an_over_held_spool_covers_a_requests_first_added_choice_first(
+    client: TestClient, token: str, sam: TestClient, frank: TestClient, db: Session
+) -> None:
+    tag = SyntheticTag(color_rgba=BLACK_PLA, tray_uid=bytes.fromhex(TRAY_UID))
+    pla = scan(client, token, tag, "received")["product"]["id"]
+    body = {"product_id": pla}
+    created = submitted(sam, choices=[{**body, "note": "body"}, {**body, "note": "accents"}])
+    first, second = (c["id"] for c in created["choices"])
+    grams = {str(first): 400, str(second): 300}
+    assert _move(frank, created["id"], "submitted", "approved", grams).status_code == 200
+
+    _ams_reports(db, 50)
+
+    read = _read(frank, created["id"])
+    short = {c["id"]: c["short_g"] for c in read["choices"]}
+    assert (read["status"], short) == ("queued", {first: 0, second: 200})
+
+
 # --- Spools gone ------------------------------------------------------------------------------
 
 

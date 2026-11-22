@@ -11,10 +11,10 @@ This is the one place holds are placed and read. A holder is named only by its t
 - Placing holds for a product takes Open spools with known grams first, least grams left
   first, then Sealed ones, least first. It splits across spools and keeps a partial cover.
   More for a spool the holder already holds is added to that hold: one hold per spool.
-- Shortfalls are worked out for holders in an order the caller gives: each is its target
-  less its active held grams, where a spool's grams left go to its holders in that order, each
-  taking up to what it holds there. On an over-held spool the later holders are short; a
-  holder not in the order takes none.
+- How short holders are is worked out in an order the caller gives: each is short its
+  target less its active held grams, where a spool's grams left go to its holders in that
+  order, each taking up to what it holds there. On an over-held spool the later holders are
+  short; a holder not in the order takes none.
 - Releasing a holder's holds keeps them, with when and why they were released; their grams
   are then available again. A spool that becomes Empty or Unknown has its holds released as
   `spool_gone`. A release is a stock change (ADR-0020).
@@ -277,11 +277,11 @@ def _holds_of(session: Session, holders: Collection[Holder]) -> list[SpoolHold]:
     return list(session.scalars(query.order_by(SpoolHold.id)))
 
 
-def shortfalls(session: Session, targets: Mapping[Holder, int]) -> dict[Holder, int]:
-    """Each holder's target grams less what it holds, never below 0. The order of `targets`
-    is the order a spool's grams left go to its holders: each takes up to what it holds
-    there, so on an over-held spool the later ones are short. Holders not in `targets`
-    take none of them. Unknown grams left count as 0."""
+def short(session: Session, targets: Mapping[Holder, int]) -> dict[Holder, int]:
+    """How short each holder is: its target grams less what it holds, never below 0. The
+    order of `targets` is the order a spool's grams left go to its holders: each takes up to
+    what it holds there, so on an over-held spool the later ones are short. Holders not in
+    `targets` take none of them. Unknown grams left count as 0."""
     held: dict[int, dict[Holder, int]] = defaultdict(lambda: defaultdict(int))
     spools: dict[int, Spool] = {}
     for hold in _holds_of(session, targets):
