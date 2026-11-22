@@ -13,6 +13,7 @@ from filament_tracker.api.request_schemas import (
     RequesterOut,
     RequestOut,
     RequestRowOut,
+    ShoppingStageOut,
     SimilarOut,
     SwatchOut,
 )
@@ -33,7 +34,8 @@ from filament_tracker.print_requests.photos import Photos
 from filament_tracker.print_requests.pipeline import allowed_moves, attempt
 from filament_tracker.print_requests.read import model_source
 from filament_tracker.print_requests.service import why_not_editable
-from filament_tracker.services import holds
+from filament_tracker.services import holds, shopping_list
+from filament_tracker.services.shopping_list import ItemStage, RequestNeedsReader
 
 
 def model_files(request: Request) -> ModelFiles:
@@ -100,6 +102,30 @@ def _held(item: PrintRequest, short: int | None, staff: bool) -> bool | None:
     return short == 0 or (not staff and item.status is RequestStatus.QUEUED)
 
 
+def _stages(
+    http: Request, session: Session, principal: Principal, short: list[FilamentChoice]
+) -> dict[int, ItemStage]:
+    """The shopping list stage of each short choice's product, by product ID, read with the
+    request-needs reader wired in at start so the print requests count."""
+    needs: RequestNeedsReader = http.app.state.request_needs_reader
+    found = {holding.product_id(session, choice) for choice in short}
+    product_ids = {product_id for product_id in found if product_id is not None}
+    return shopping_list.stages(session, principal, needs, product_ids)
+
+
+def _stage_out(
+    stages: dict[int, ItemStage], session: Session, choice: FilamentChoice
+) -> ShoppingStageOut | None:
+    """The stage of the short choice's product, if it has one."""
+    product_id = holding.product_id(session, choice)
+    found = stages.get(product_id) if product_id is not None else None
+    if found is None:
+        return None
+    return ShoppingStageOut(
+        stage=found.stage, product_id=found.product_id, on_order=found.on_order, need=found.need
+    )
+
+
 def request_out(
     http: Request, session: Session, principal: Principal, item: PrintRequest
 ) -> RequestOut:
@@ -107,6 +133,9 @@ def request_out(
     reader = ChoiceReader(session, store.similarity_cutoff(), store.store_address())
     staff = sees_every_request(principal)
     short_by_choice = holding.request_short(session, item)
+    stages = _stages(
+        http, session, principal, [c for c in item.choices if short_by_choice.get(c.id)]
+    )
     choices = []
     for choice in item.choices:
         shown = reader.show(choice)
@@ -134,6 +163,7 @@ def request_out(
                 short_g=short if staff else None,
                 holds=_holds_out(session, choice) if staff else None,
                 available_g=holding.available(session, choice) if staff else None,
+                shopping=_stage_out(stages, session, choice) if short else None,
             )
         )
     history = [

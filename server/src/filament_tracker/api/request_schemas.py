@@ -17,6 +17,7 @@ from filament_tracker.domain.enums import (
     RequestStatus,
 )
 from filament_tracker.print_requests.photos import MAX_PHOTOS
+from filament_tracker.services.shopping_list import Stage
 
 # More than anyone would pick; it only stops absurd input.
 MAX_CHOICES = 20
@@ -158,6 +159,17 @@ class HoldOut(BaseModel):
     grams: int
 
 
+class ShoppingStageOut(BaseModel):
+    """A short choice's product's shopping list item: on the list, partly ordered (on_order
+    of need spools) or ordered."""
+
+    stage: Stage
+    # Links to the product's item on the shopping list.
+    product_id: int
+    on_order: int
+    need: int
+
+
 class ChoiceOut(BaseModel):
     # Names the choice in Approve's grams.
     id: int
@@ -196,6 +208,9 @@ class ChoiceOut(BaseModel):
     holds: list[HoldOut] | None
     # and the grams not held of the product it would be held on (0 with none).
     available_g: int | None
+    # While it is short, its product's shopping list item stage, for anyone who may see the
+    # request; None once the item is gone or dismissed.
+    shopping: ShoppingStageOut | None
 
 
 class SwatchOut(BaseModel):
