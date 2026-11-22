@@ -46,6 +46,9 @@ class ProductDetail(BaseModel):
     nearly_out_pct: int = Field(description="An open spool at or below this AMS % is nearly out")
     provisional: bool
     from_ams: bool = Field(description="Made from an AMS report rather than by hand")
+    from_catalog: bool = Field(
+        description="Made from a catalog color put on the shopping list, until a tag fills it in"
+    )
     catalog_link: CatalogLinkOut | None = Field(
         default=None, description="Its catalog color; null when it has none"
     )

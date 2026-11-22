@@ -201,6 +201,7 @@ def _ensure_product(session: Session, product: Product | None, record: TagRecord
         product.variant_id = record.variant_id
         product.color_rgba = record.color_rgba
         product.provisional = False
+        product.from_catalog = False
     else:
         return product
     # A new product, or a provisional one now known, is linked to its catalog color at once.
