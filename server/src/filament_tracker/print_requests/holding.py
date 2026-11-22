@@ -3,7 +3,7 @@
 Each choice is a holder in Inventory's hold service, as `filament_choice` and its ID. A
 product choice is held on that product; a catalog color choice on the product whose
 effective catalog link is that color, and with none, all its grams are short. A choice is
-covered when its shortfall is 0.
+covered when it is short 0 g: see `short` for how an over-held spool is shared.
 
 Approve takes grams for every choice, from 1 to 100,000, for the whole quantity. In one
 transaction it records Approved by the Admin, places holds, and moves on automatically, with
@@ -21,6 +21,7 @@ changes a request's holds by hand in holds_by_hand.py.
 
 from datetime import datetime
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import User
@@ -28,6 +29,7 @@ from filament_tracker.db.request_models import FilamentChoice, PrintRequest
 from filament_tracker.domain.enums import ReleaseReason, RequestStatus
 from filament_tracker.print_requests import pipeline
 from filament_tracker.print_requests.pipeline import Moved, Mover
+from filament_tracker.print_requests.read import sort_key
 from filament_tracker.print_requests.rules import Problems
 from filament_tracker.services import holds
 from filament_tracker.services.catalog_links import linked_product
@@ -202,11 +204,26 @@ def make_move(
     return moved
 
 
-def shortfall(session: Session, request: PrintRequest, choice: FilamentChoice) -> int | None:
-    """The choice's grams not yet held, while the request holds filament; else None."""
-    if choice.grams is None or request.status not in pipeline.HOLDING:
-        return None
-    return holds.shortfall(session, holder(choice), choice.grams)
+def short(session: Session) -> dict[int, int]:
+    """How short each choice with grams of a request that holds filament is, by choice ID.
+    An over-held spool's grams left go to the requests in Active-tab order, and a request's
+    choices in the order they were added; a Printing request's holds take none of them."""
+    query = select(PrintRequest).where(PrintRequest.status.in_(pipeline.HOLDING))
+    targets: dict[holds.Holder, int] = {}
+    for request in sorted(session.scalars(query), key=sort_key):
+        for choice in sorted(request.choices, key=lambda c: c.id):
+            if choice.grams is not None:
+                targets[holder(choice)] = choice.grams
+    return {held.id: grams for held, grams in holds.short(session, targets).items()}
+
+
+def request_short(session: Session, request: PrintRequest) -> dict[int, int]:
+    """How short the request's choices with grams are, by choice ID, while it holds
+    filament; empty otherwise."""
+    if request.status not in pipeline.HOLDING:
+        return {}
+    every = short(session)
+    return {c.id: every[c.id] for c in request.choices if c.id in every}
 
 
 def available(session: Session, choice: FilamentChoice) -> int:

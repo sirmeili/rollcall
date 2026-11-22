@@ -132,6 +132,17 @@ _Avoid_: Reservation, allocation
 A spool's grams minus its holds, or the sum of that over a product's spools. An estimate, so shown as "about".
 _Avoid_: Free grams, stock (that word is for spool counts)
 
+**Over-held**:
+A spool whose holds, leaving out those of a Printing request, are more than its grams left.
+
+**Short**:
+How many grams of a filament choice its holds don't cover. On an over-held spool, its grams left go to the requests holding it in Active-tab order, so the later ones are short.
+_Avoid_: Shortfall, missing
+
+**Covered**:
+A filament choice that is short 0 g.
+_Avoid_: Fully held
+
 **Shopping list**:
 The products to buy, in the app.
 _Avoid_: Home Assistant's shopping list (a separate list in Home Assistant)
@@ -269,6 +280,9 @@ _Avoid_: Event (that word is for a spool's event log)
 **Requests**:
 The page listing print requests: a Requester's own, or every request for Editors and Admins.
 _Avoid_: Review (that word is for the Review queue only)
+
+**Active-tab order**:
+The order of open print requests on the Requests page's Active tab: Urgent, Normal, then No rush; then by needed-by date, earliest first and undated last; then oldest first.
 
 **Approve**:
 Agree to print a print request. It moves the request to Approved.

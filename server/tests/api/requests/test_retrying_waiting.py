@@ -266,6 +266,41 @@ def test_the_first_request_in_active_tab_order_gets_a_new_spool_first(
     assert (read["status"], _short(read)) == ("waiting_on_filament", 100)
 
 
+def test_an_over_held_spool_leaves_the_later_request_in_active_tab_order_short(
+    client: TestClient, token: str, sam: TestClient, frank: TestClient, db: Session
+) -> None:
+    tag = SyntheticTag(color_rgba=BLACK_PLA, tray_uid=bytes.fromhex(TRAY_UID))
+    pla = scan(client, token, tag, "received")["product"]["id"]
+    older = _approved(sam, frank, {"product_id": pla}, 400)
+    urgent = _approved(sam, frank, {"product_id": pla}, 300, priority="urgent")
+    assert (older["status"], urgent["status"]) == ("queued", "queued")
+
+    # 50% of the spool's 1000 g: 500 g left for 700 g held.
+    _ams_reports(db, 50)
+
+    first, later = _read(frank, urgent["id"]), _read(frank, older["id"])
+    assert (first["status"], _short(first)) == ("queued", 0)
+    assert (later["status"], _short(later)) == ("queued", 200)
+
+
+def test_an_over_held_spool_covers_a_requests_first_added_choice_first(
+    client: TestClient, token: str, sam: TestClient, frank: TestClient, db: Session
+) -> None:
+    tag = SyntheticTag(color_rgba=BLACK_PLA, tray_uid=bytes.fromhex(TRAY_UID))
+    pla = scan(client, token, tag, "received")["product"]["id"]
+    body = {"product_id": pla}
+    created = submitted(sam, choices=[{**body, "note": "body"}, {**body, "note": "accents"}])
+    first, second = (c["id"] for c in created["choices"])
+    grams = {str(first): 400, str(second): 300}
+    assert _move(frank, created["id"], "submitted", "approved", grams).status_code == 200
+
+    _ams_reports(db, 50)
+
+    read = _read(frank, created["id"])
+    short = {c["id"]: c["short_g"] for c in read["choices"]}
+    assert (read["status"], short) == ("queued", {first: 0, second: 200})
+
+
 # --- Spools gone ------------------------------------------------------------------------------
 
 

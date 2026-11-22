@@ -11,8 +11,10 @@ This is the one place holds are placed and read. A holder is named only by its t
 - Placing holds for a product takes Open spools with known grams first, least grams left
   first, then Sealed ones, least first. It splits across spools and keeps a partial cover.
   More for a spool the holder already holds is added to that hold: one hold per spool.
-- A holder's shortfall is its target less its active held grams, where its grams on a spool
-  count only up to that spool's grams left.
+- How short holders are is worked out in an order the caller gives: each is short its
+  target less its active held grams, where a spool's grams left go to its holders in that
+  order, each taking up to what it holds there. On an over-held spool the later holders are
+  short; a holder not in the order takes none.
 - Releasing a holder's holds keeps them, with when and why they were released; their grams
   are then available again. A spool that becomes Empty or Unknown has its holds released as
   `spool_gone`. A release is a stock change (ADR-0020).
@@ -21,11 +23,11 @@ Callers own the transaction: nothing here commits.
 """
 
 from collections import defaultdict
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Spool, SpoolHold
@@ -258,13 +260,38 @@ def release_gone(session: Session, spool: Spool, now: datetime) -> list[SpoolHol
     return _release(session, _active_on(session, spool), ReleaseReason.SPOOL_GONE, now)
 
 
-def shortfall(session: Session, holder: Holder, target: int) -> int:
-    """The target grams less what the holder holds, counting each spool only up to its
-    grams left; never below 0."""
-    by_spool: dict[int, int] = defaultdict(int)
+def _holds_of(session: Session, holders: Collection[Holder]) -> list[SpoolHold]:
+    """The active holds of these holders, oldest first."""
+    by_type: dict[str, list[int]] = defaultdict(list)
+    for holder in holders:
+        by_type[holder.type].append(holder.id)
+    if not by_type:
+        return []
+    of_holders = or_(
+        *(
+            and_(SpoolHold.holder_type == kind, SpoolHold.holder_id.in_(ids))
+            for kind, ids in by_type.items()
+        )
+    )
+    query = select(SpoolHold).where(SpoolHold.released_at.is_(None), of_holders)
+    return list(session.scalars(query.order_by(SpoolHold.id)))
+
+
+def short(session: Session, targets: Mapping[Holder, int]) -> dict[Holder, int]:
+    """How short each holder is: its target grams less what it holds, never below 0. The
+    order of `targets` is the order a spool's grams left go to its holders: each takes up to
+    what it holds there, so on an over-held spool the later ones are short. Holders not in
+    `targets` take none of them. Unknown grams left count as 0."""
+    held: dict[int, dict[Holder, int]] = defaultdict(lambda: defaultdict(int))
     spools: dict[int, Spool] = {}
-    for hold in active_holds(session, holder):
-        by_spool[hold.spool_id] += hold.grams
+    for hold in _holds_of(session, targets):
+        held[hold.spool_id][Holder(hold.holder_type, hold.holder_id)] += hold.grams
         spools[hold.spool_id] = hold.spool
-    counted = sum(min(grams, _grams_left(spools[i]) or 0) for i, grams in by_spool.items())
-    return max(target - counted, 0)
+    counted: dict[Holder, int] = defaultdict(int)
+    for spool_id, by_holder in held.items():
+        left = _grams_left(spools[spool_id]) or 0
+        for holder in targets:
+            take = min(by_holder.get(holder, 0), left)
+            counted[holder] += take
+            left -= take
+    return {holder: max(target - counted[holder], 0) for holder, target in targets.items()}
