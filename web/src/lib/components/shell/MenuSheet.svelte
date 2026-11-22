@@ -3,6 +3,7 @@
   // from the bottom over a dimmed page. Escape, the dimmed page or a page link closes it.
   import NavIcon from "#lib/components/shell/NavIcon.svelte";
   import type { MenuShortcut, NavItem } from "#lib/nav.ts";
+  import { backCloses } from "#lib/phone/back-layer.svelte.ts";
 
   interface Props {
     /** The first row's tiles, above the pages; none hides the row. */
@@ -16,6 +17,9 @@
   }
 
   let { shortcuts = [], main, admin, current, badges = {}, onclose }: Props = $props();
+
+  // The phone's Back closes it too.
+  backCloses(() => onclose());
 
   let sheet: HTMLDivElement;
 
