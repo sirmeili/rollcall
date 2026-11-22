@@ -5,6 +5,7 @@
   import type { ShoppingList, ShoppingListItem } from "#lib/api/shopping.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import ItemReasons from "#lib/components/shopping/ItemReasons.svelte";
+  import NewSinceDismissal from "#lib/components/shopping/NewSinceDismissal.svelte";
   import OnOrderActions from "#lib/components/shopping/OnOrderActions.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
   import { needText } from "#lib/shopping-on-order.ts";
@@ -18,11 +19,14 @@
     onremove: (id: number) => void;
     /** The list once the item is changed. */
     onchanged: (list: ShoppingList) => void;
+    /** Dismiss the item, by its product's ID. */
+    ondismiss: (productId: number) => void;
     open: boolean;
     ontoggle: () => void;
   }
 
-  let { item, storeAddress, showType, onremove, onchanged, open, ontoggle }: Props = $props();
+  let { item, storeAddress, showType, onremove, onchanged, ondismiss, open, ontoggle }: Props =
+    $props();
 
   const detailId = $derived(`shopping-detail-${item.product.id}`);
 </script>
@@ -41,6 +45,7 @@
     {#if showType}
       <span class="type mono">{item.product.filament_type}</span>
     {/if}
+    <NewSinceDismissal {item} />
   </span>
   <span class="tobuy"><span class="buy">{item.to_buy}</span> <span class="label">to buy</span></span
   >
@@ -60,7 +65,7 @@
 {#if open}
   <div class="detail" id={detailId}>
     <span class="needs">{needText(item)}</span>
-    <ItemReasons {item} {storeAddress} {onremove} {onchanged} />
+    <ItemReasons {item} {storeAddress} {onremove} {onchanged} {ondismiss} />
     {#if session.can("editor")}
       <OnOrderActions {item} {onchanged} />
     {/if}

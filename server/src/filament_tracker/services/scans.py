@@ -27,7 +27,11 @@ from filament_tracker.domain.actions import ScreenAction, menu_for
 from filament_tracker.domain.enums import EventSource, EventType, Role
 from filament_tracker.domain.state import Outcome
 from filament_tracker.services import grams
-from filament_tracker.services.catalog_links import link_product
+from filament_tracker.services.catalog_links import (
+    catalog_color_for_tag,
+    link_product,
+    linked_products,
+)
 from filament_tracker.services.events import AppendResult, append_event
 
 logger = logging.getLogger(__name__)
@@ -133,7 +137,8 @@ def _find_product(session: Session, record: TagRecord, spool: Spool | None) -> P
     In order: the product with the tag's key; the provisional product of the spool this
     tag belongs to (made when the AMS saw it first, perhaps renamed since); the one product
     made from the AMS with the tag's material ID and color; the one provisional product made
-    by hand with the tag's filament type and color that still has unlinked placeholders.
+    by hand with the tag's filament type and color that still has unlinked placeholders;
+    the one "From the catalog" product linked to the catalog color the tag's IDs give.
     """
     exact = session.scalar(
         select(Product).where(
@@ -169,7 +174,17 @@ def _find_product(session: Session, record: TagRecord, spool: Spool | None) -> P
         )
         .distinct()
     ).all()
-    return candidates[0] if len(candidates) == 1 else None
+    if len(candidates) == 1:
+        return candidates[0]
+    return _linked_to_tag_color(session, record)
+
+
+def _linked_to_tag_color(session: Session, record: TagRecord) -> Product | None:
+    color = catalog_color_for_tag(session, record.material_id, record.variant_id)
+    if color is None:
+        return None
+    waiting = [p for p in linked_products(session, color) if p.from_catalog]
+    return waiting[0] if len(waiting) == 1 else None
 
 
 def _oldest_placeholder(session: Session, product: Product) -> Spool | None:

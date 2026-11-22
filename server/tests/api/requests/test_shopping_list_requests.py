@@ -248,3 +248,24 @@ def test_a_machine_token_sees_requests_named_by_its_role(
 
     titles = [r["title"] for item in _items(body) for r in item["reasons"]]
     assert titles == (["Lithophane lamp shade", "Vic's vase"] if named else [None, None])
+
+
+def test_an_item_on_the_list_only_for_a_request_stays_dismissed_until_more_is_needed(
+    sam: TestClient, frank: TestClient
+) -> None:
+    _approved(sam, frank, 300)
+    [line] = frank.get(LIST).json()["lines"]
+    [item] = line["items"]
+    dismissed = frank.post(f"{LIST}/items/{item['product']['id']}/dismiss", headers=CSRF)
+    assert dismissed.status_code == 200, dismissed.text
+
+    body = frank.get(LIST).json()
+    assert body["lines"] == []
+    [hidden] = body["dismissed"]
+    assert (hidden["need"], hidden["dismissed_need"]) == (1, 1)
+
+    _approved(sam, frank, 800, title="Desk tidy")
+
+    [line] = frank.get(LIST).json()["lines"]
+    [shown] = line["items"]
+    assert shown["need"] == 2

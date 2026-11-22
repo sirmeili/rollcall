@@ -4,7 +4,7 @@ the filament line of its catalog link, then the products not in the catalog."""
 
 import math
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from sqlalchemy import select
@@ -66,6 +66,9 @@ class ShoppingListItem:
         grams = sum(r.short_g for r in self.reasons if isinstance(r, RequestShort))
         return math.ceil(grams / self.size.grams)
 
+    # The need it was dismissed at, if it is dismissed.
+    dismissed_need: int | None = None
+
     @property
     def need(self) -> int:
         spools = sum(r.spools for r in self.reasons if not isinstance(r, RequestShort))
@@ -74,6 +77,18 @@ class ShoppingListItem:
     @property
     def to_buy(self) -> int:
         return max(self.need - self.on_order, 0)
+
+    @property
+    def hidden(self) -> bool:
+        """Dismissed, and no more of it needed than when it was."""
+        return self.dismissed_need is not None and self.need <= self.dismissed_need
+
+    @property
+    def new_since_dismissal(self) -> int | None:
+        """How many spools more it needs than when it was dismissed, once that is more."""
+        if self.dismissed_need is None or self.hidden:
+            return None
+        return self.need - self.dismissed_need
 
 
 @dataclass(frozen=True)
@@ -94,6 +109,16 @@ class ShoppingList:
     lines: list[Line] = field(default_factory=list)
     # Products with no catalog link, or a link to a color the catalog has dropped, last.
     not_in_catalog: list[ShoppingListItem] = field(default_factory=list)
+    # Dismissed items still hidden, by name.
+    dismissed: list[ShoppingListItem] = field(default_factory=list)
+
+    def find(self, product_id: int) -> ShoppingListItem | None:
+        """The product's item, shown or dismissed; None when it is not on the list."""
+        shown = [item for line in self.lines for item in line.items] + self.not_in_catalog
+        for item in shown + self.dismissed:
+            if item.product.id == product_id:
+                return item
+        return None
 
 
 def _low_stock(counts: queries.ProductCounts) -> LowStock | None:
@@ -123,6 +148,12 @@ def _hand_added(session: Session) -> dict[int, list[HandAdded]]:
     return found
 
 
+def _dismissed(session: Session) -> dict[int, ItemRow]:
+    """Each dismissed product's item row."""
+    query = select(ItemRow).where(ItemRow.dismissed_need.is_not(None))
+    return {row.product_id: row for row in session.scalars(query)}
+
+
 def _on_order(session: Session) -> dict[int, int]:
     """Each product's on order, where it is above 0."""
     rows = session.execute(select(ItemRow.product_id, ItemRow.on_order).where(ItemRow.on_order > 0))
@@ -134,12 +165,14 @@ def read(
 ) -> ShoppingList:
     """The shopping list as it stands now, for the viewing user. Items are by product name,
     as on Inventory. Request reasons come from `needs`, asked for `viewer`; with either left
-    out there are none."""
+    out there are none. A dismissal whose product needs nothing any more is cleared, so the
+    caller commits."""
     by_line: dict[str, list[ShoppingListItem]] = defaultdict(list)
     listed = ShoppingList()
     hand = _hand_added(session)
     short = needs(session, viewer) if needs is not None and viewer is not None else {}
     entries = recent(session)
+    dismissals = _dismissed(session)
     on_order = _on_order(session)
     for counts in queries.inventory(session):
         product = counts.product
@@ -159,10 +192,18 @@ def read(
             ordered,
             size=net_weight(session, product, color),
         )
-        if item.color is None:
+        # A product needing nothing, though still on order, keeps no dismissal.
+        if item.need > 0 and product.id in dismissals:
+            item = replace(item, dismissed_need=dismissals.pop(product.id).dismissed_need)
+        if item.hidden:
+            listed.dismissed.append(item)
+        elif item.color is None:
             listed.not_in_catalog.append(item)
         else:
             by_line[item.color.line].append(item)
+    # The products left need nothing: their dismissals are forgotten.
+    for row in dismissals.values():
+        row.dismissed_need = None
     for name in sorted(by_line, key=str.lower):
         listed.lines.append(Line(name, by_line[name]))
     return listed

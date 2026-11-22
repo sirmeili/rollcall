@@ -23,6 +23,8 @@
     onremove: (id: number) => void;
     /** The list once an item is changed. */
     onchanged: (list: ShoppingList) => void;
+    /** Dismiss an item, by its product's ID. */
+    ondismiss: (productId: number) => void;
   }
 
   let {
@@ -35,6 +37,7 @@
     onexpand,
     onremove,
     onchanged,
+    ondismiss,
   }: Props = $props();
 
   const label = $derived(`${group.name}, ${group.toBuy} to buy`);
@@ -53,11 +56,19 @@
             showType={group.showType}
             {onremove}
             {onchanged}
+            {ondismiss}
             open={expanded === item.product.id}
             ontoggle={() => onexpand(item.product.id)}
           />
         {:else}
-          <ShoppingItem {item} {storeAddress} showType={group.showType} {onremove} {onchanged} />
+          <ShoppingItem
+            {item}
+            {storeAddress}
+            showType={group.showType}
+            {onremove}
+            {onchanged}
+            {ondismiss}
+          />
         {/if}
       </li>
     {/each}

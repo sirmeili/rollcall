@@ -47,11 +47,13 @@ export function lowItem(
     reasons: [{ kind: "low_stock", spools, sealed, threshold }],
     size: DEFAULT_SIZE,
     history: [],
+    dismissed_need: null,
+    new_since_dismissal: null,
   };
 }
 
 export function shoppingList(overrides: Partial<ShoppingList> = {}): ShoppingList {
-  return { lines: [], not_in_catalog: [], store_address: STORE, ...overrides };
+  return { lines: [], not_in_catalog: [], store_address: STORE, dismissed: [], ...overrides };
 }
 
 export function handReason(id: number, spools: number, by: string | null = "frank"): HandReason {
@@ -74,6 +76,8 @@ export function handItem(
     reasons,
     size: DEFAULT_SIZE,
     history: reasons.map((reason) => added(reason.spools, reason.by)),
+    dismissed_need: null,
+    new_since_dismissal: null,
   };
 }
 

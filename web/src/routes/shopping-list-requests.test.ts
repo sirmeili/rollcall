@@ -16,6 +16,8 @@ function jade(overrides: Partial<ShoppingListItem> = {}): ShoppingListItem {
     to_buy: 3,
     need: 3,
     on_order: 0,
+    dismissed_need: null,
+    new_since_dismissal: null,
     reasons: [requestReason(4, 2000), requestReason(null, 500)],
     size: { grams: 1000, source: "default" },
     history: [],

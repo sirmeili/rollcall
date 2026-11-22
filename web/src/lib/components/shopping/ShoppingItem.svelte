@@ -4,6 +4,7 @@
   import type { ShoppingList, ShoppingListItem } from "#lib/api/shopping.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import ItemReasons from "#lib/components/shopping/ItemReasons.svelte";
+  import NewSinceDismissal from "#lib/components/shopping/NewSinceDismissal.svelte";
   import OnOrderActions from "#lib/components/shopping/OnOrderActions.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
   import { needText } from "#lib/shopping-on-order.ts";
@@ -17,9 +18,11 @@
     onremove: (id: number) => void;
     /** The list once the item is changed. */
     onchanged: (list: ShoppingList) => void;
+    /** Dismiss the item, by its product's ID. */
+    ondismiss: (productId: number) => void;
   }
 
-  let { item, storeAddress, showType, onremove, onchanged }: Props = $props();
+  let { item, storeAddress, showType, onremove, onchanged, ondismiss }: Props = $props();
 </script>
 
 <div class="item">
@@ -29,7 +32,8 @@
     {#if showType}
       <span class="type mono">{item.product.filament_type}</span>
     {/if}
-    <ItemReasons {item} {storeAddress} {onremove} {onchanged} />
+    <NewSinceDismissal {item} />
+    <ItemReasons {item} {storeAddress} {onremove} {onchanged} {ondismiss} />
     {#if session.can("editor")}
       <OnOrderActions {item} {onchanged} />
     {/if}
