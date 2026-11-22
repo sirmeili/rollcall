@@ -66,7 +66,30 @@ export interface ShoppingLine {
   items: ShoppingListItem[];
 }
 
+/** A suggested catalog color. Its fields are null once the catalog has dropped it. */
+export interface SuggestedColor {
+  uuid: string;
+  name: string | null;
+  line: string | null;
+  /** RRGGBB, the main color first. */
+  hexes: string[] | null;
+  bambu_code: string | null;
+}
+
+/** An open suggestion: of a product, or of a catalog color no product was linked to. */
+export interface Suggestion {
+  id: number;
+  product: Product | null;
+  catalog_color: SuggestedColor | null;
+  spools: number;
+  /** Who suggested it; null for a token. */
+  by: string | null;
+  at: string;
+}
+
 export interface ShoppingList {
+  /** Open suggestions, oldest first; they count toward nothing. */
+  suggestions: Suggestion[];
   /** By name. */
   lines: ShoppingLine[];
   /** Products with no catalog link, by name. */
@@ -95,4 +118,28 @@ export function addByHand(target: AddTarget, spools: number): Promise<ShoppingLi
 /** Remove a hand-added reason (Editor and Admin); answers the list as it now stands. */
 export function removeHandReason(id: number): Promise<ShoppingList> {
   return api<ShoppingList>(`/shopping-list/hand-reasons/${id}`, { method: "DELETE" });
+}
+
+/** Suggest spools of a product or a catalog color (every role); answers the list as it now
+ * stands. */
+export function suggest(target: AddTarget, spools: number): Promise<ShoppingList> {
+  return api<ShoppingList>("/shopping-list/suggestions", {
+    method: "POST",
+    body: { ...target, spools },
+  });
+}
+
+/** Add an open suggestion, making it a hand-added reason (Editor and Admin). */
+export function addSuggestion(id: number): Promise<ShoppingList> {
+  return api<ShoppingList>(`/shopping-list/suggestions/${id}/add`, { method: "POST" });
+}
+
+/** Dismiss an open suggestion (Editor and Admin). */
+export function dismissSuggestion(id: number): Promise<ShoppingList> {
+  return api<ShoppingList>(`/shopping-list/suggestions/${id}/dismiss`, { method: "POST" });
+}
+
+/** How many suggestions are open, for the badge on the Shopping list link. */
+export async function suggestionCount(): Promise<number> {
+  return (await getShoppingList()).suggestions.length;
 }

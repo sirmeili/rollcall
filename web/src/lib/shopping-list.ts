@@ -3,6 +3,7 @@ import type {
   ShoppingList,
   ShoppingListItem,
   ShoppingReason,
+  Suggestion,
 } from "#lib/api/shopping.ts";
 import type { Product } from "#lib/api/types.ts";
 import { storeSearchUrl } from "#lib/catalog.ts";
@@ -28,6 +29,9 @@ export function historyText(entry: ShoppingHistoryEntry): string {
   const spools = spoolsText(entry.spools ?? 0);
   if (entry.action === "added_by_hand") return `Added ${spools} by hand`;
   if (entry.action === "removed_by_hand") return `Removed ${spools} added by hand`;
+  if (entry.action === "suggested") return `Suggested ${spools}`;
+  if (entry.action === "suggestion_added") return `Added a suggestion of ${spools}`;
+  if (entry.action === "suggestion_dismissed") return `Dismissed a suggestion of ${spools}`;
   const words = entry.action.replaceAll("_", " ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
@@ -75,4 +79,24 @@ export function shoppingGroups(list: ShoppingList): ShoppingGroup[] {
     });
   }
   return groups;
+}
+
+/** What was suggested: the product's name, or the catalog color and its line. */
+export function suggestionName(suggestion: Suggestion): string {
+  if (suggestion.product) return suggestion.product.display_name;
+  const color = suggestion.catalog_color;
+  return color?.name ? `${color.name} ${color.line}` : "A color no longer in the catalog";
+}
+
+/** The suggestion's swatch colors, RRGGBB. */
+export function suggestionHexes(suggestion: Suggestion): string[] {
+  if (suggestion.product) return [suggestion.product.color_rgba.slice(0, 6).toUpperCase()];
+  return suggestion.catalog_color?.hexes ?? [];
+}
+
+/** "2 spools · catalog color · suggested by vic · Nov 21, 12:00 PM" */
+export function suggestionText(suggestion: Suggestion, now: Date = new Date()): string {
+  const kind = suggestion.product ? suggestion.product.filament_type : "catalog color";
+  const by = suggestion.by ? `suggested by ${suggestion.by}` : "suggested";
+  return [spoolsText(suggestion.spools), kind, by, dateTime(suggestion.at, now)].join(" · ");
 }

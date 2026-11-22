@@ -102,11 +102,20 @@ describe("Add to shopping list on a Catalog color row", () => {
     expect(detail.queryByRole("status")).toBeNull();
   });
 
-  it("is not offered to Viewers", async () => {
-    serve();
+  it("makes a suggestion for a Viewer", async () => {
+    const fetch = serve({ "POST /shopping-list/suggestions": shoppingList() });
     const detail = await expandJade("viewer");
 
     expect(detail.getByRole("link", { name: /Find in store/ })).toBeInTheDocument();
-    expect(detail.queryByRole("button", { name: "Add to shopping list" })).toBeNull();
+    await userEvent.click(detail.getByRole("button", { name: "Add to shopping list" }));
+
+    expect(await detail.findByRole("status")).toHaveTextContent(
+      "Suggested 1 spool of Jade White for the shopping list.",
+    );
+    expect(fetch.calls.at(-1)).toEqual({
+      method: "POST",
+      path: "/shopping-list/suggestions",
+      body: { catalog_color: "jade", spools: 1 },
+    });
   });
 });

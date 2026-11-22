@@ -21,11 +21,20 @@
     reviewCount: number;
     /** Submitted print requests, for Editors and Admins. */
     requestCount?: number;
+    /** Open shopping list suggestions. */
+    shoppingCount?: number;
     /** Scan is available: running as the Android app, paired. */
     scan?: boolean;
   }
 
-  let { user, pathname, reviewCount, requestCount = 0, scan = false }: Props = $props();
+  let {
+    user,
+    pathname,
+    reviewCount,
+    requestCount = 0,
+    shoppingCount = 0,
+    scan = false,
+  }: Props = $props();
 
   let open = $state(false);
   let menuButton: HTMLButtonElement;
@@ -66,7 +75,11 @@
     main={groups.main}
     admin={groups.admin}
     current={navItemFor(pathname)}
-    badges={{ "/review": reviewCount, "/requests": requestCount }}
+    badges={{
+      "/review": reviewCount,
+      "/requests": requestCount,
+      "/shopping-list": shoppingCount,
+    }}
     onclose={close}
   />
 {/if}
@@ -97,7 +110,10 @@
       {/if}
     </svg>
     {open ? "Close" : "Menu"}
-    {#if reviewCount + requestCount > 0 && !open}<span class="dot" aria-hidden="true"></span>{/if}
+    {#if reviewCount + requestCount + shoppingCount > 0 && !open}<span
+        class="dot"
+        aria-hidden="true"
+      ></span>{/if}
   </button>
 
   {#if centre === "scan"}

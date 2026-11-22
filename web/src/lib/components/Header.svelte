@@ -12,11 +12,20 @@
     reviewCount: number;
     /** Submitted print requests, for Editors and Admins. */
     requestCount?: number;
+    /** Open shopping list suggestions. */
+    shoppingCount?: number;
     /** In the phone app: show the button back to Scan. */
     scan?: boolean;
   }
 
-  let { user, pathname, reviewCount, requestCount = 0, scan = false }: Props = $props();
+  let {
+    user,
+    pathname,
+    reviewCount,
+    requestCount = 0,
+    shoppingCount = 0,
+    scan = false,
+  }: Props = $props();
 </script>
 
 <header>
@@ -28,7 +37,11 @@
     <Nav
       items={visibleNav(user)}
       current={navItemFor(pathname)}
-      badges={{ "/review": reviewCount, "/requests": requestCount }}
+      badges={{
+        "/review": reviewCount,
+        "/requests": requestCount,
+        "/shopping-list": shoppingCount,
+      }}
     />
     <div class="end">
       {#if scan}

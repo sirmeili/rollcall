@@ -1,17 +1,19 @@
 <script lang="ts">
-  /** Add to shopping list on the list page (Editors and Admins): search every product and
-   * the catalog colors no product is linked to, pick one, and add a number of spools. A
-   * catalog color gets its "From the catalog" product on the server. */
+  /** Add to shopping list on the list page: search every product and the catalog colors no
+   * product is linked to, pick one, and add a number of spools. Editors and Admins add them
+   * by hand, a catalog color getting its "From the catalog" product on the server; Viewers
+   * make a suggestion. */
   import { listProducts } from "#lib/api/admin.ts";
   import { getCatalog, type Catalog } from "#lib/api/catalog.ts";
   import { describeError } from "#lib/api/errors.ts";
-  import { addByHand, type ShoppingList } from "#lib/api/shopping.ts";
+  import { addByHand, suggest, type ShoppingList } from "#lib/api/shopping.ts";
   import type { Product } from "#lib/api/types.ts";
+  import { session } from "#lib/auth/session.svelte.ts";
   import HexRing from "#lib/components/catalog/HexRing.svelte";
   import { type AddOption, addOptions, searchAdd, spoolsProblem } from "#lib/shopping-add.ts";
 
   interface Props {
-    /** The list once the spools are added. */
+    /** The list once the spools are added or suggested. */
     onadded: (list: ShoppingList) => void;
   }
 
@@ -29,6 +31,7 @@
   const found = $derived(searchAdd(options, query));
   const choice = $derived(options.find((o) => o.key === picked));
   const problem = $derived(spoolsProblem(spools));
+  const editor = $derived(session.can("editor"));
 
   async function start(): Promise<void> {
     open = true;
@@ -53,7 +56,7 @@
     saving = true;
     failure = null;
     try {
-      const list = await addByHand(choice.target, spools);
+      const list = await (editor ? addByHand : suggest)(choice.target, spools);
       open = false;
       onadded(list);
     } catch (error) {
@@ -97,7 +100,7 @@
     {#if failure}<p role="alert" class="error">{failure}</p>{/if}
     <div class="actions">
       <button type="submit" class="primary" disabled={!choice || problem !== null || saving}
-        >Add</button
+        >{editor ? "Add" : "Suggest"}</button
       >
       <button type="button" onclick={() => (open = false)}>Cancel</button>
     </div>

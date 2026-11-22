@@ -63,12 +63,13 @@ describe("visibleNav", () => {
     expect(shown(person("viewer"))).toBe(false);
   });
 
-  it("counts Requests as submitted and Review as waiting", () => {
+  it("counts Requests as submitted, Review as waiting and the Shopping list as suggested", () => {
     const words = Object.fromEntries(
       visibleNav(person("admin")).map((item) => [item.href, item.badgeWord]),
     );
     expect(words["/requests"]).toBe("submitted");
     expect(words["/review"]).toBe("waiting");
+    expect(words["/shopping-list"]).toBe("suggested");
   });
 });
 

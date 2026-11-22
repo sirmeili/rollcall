@@ -3,6 +3,7 @@ import type {
   ShoppingHistoryEntry,
   ShoppingList,
   ShoppingListItem,
+  Suggestion,
 } from "#lib/api/shopping.ts";
 import type { CatalogLink, Product } from "#lib/api/types.ts";
 import { product } from "./fixtures.ts";
@@ -45,7 +46,7 @@ export function lowItem(
 }
 
 export function shoppingList(overrides: Partial<ShoppingList> = {}): ShoppingList {
-  return { lines: [], not_in_catalog: [], store_address: STORE, ...overrides };
+  return { suggestions: [], lines: [], not_in_catalog: [], store_address: STORE, ...overrides };
 }
 
 export function handReason(id: number, spools: number, by: string | null = "frank"): HandReason {
@@ -76,4 +77,32 @@ export function added(spools: number, by: string | null = "frank"): ShoppingHist
     by,
     at: "2026-11-21T12:00:00Z",
   };
+}
+
+/** An open suggestion by vic: of a product, unless overridden with a catalog color. */
+export function suggestion(id: number, overrides: Partial<Suggestion> = {}): Suggestion {
+  return {
+    id,
+    product: product({ id: 100 + id, display_name: `Suggested ${id}` }),
+    catalog_color: null,
+    spools: 1,
+    by: "vic",
+    at: "2026-11-21T12:00:00Z",
+    ...overrides,
+  };
+}
+
+/** A suggested catalog color with no product. */
+export function suggestedColor(id: number, spools = 1): Suggestion {
+  return suggestion(id, {
+    product: null,
+    catalog_color: {
+      uuid: "jade",
+      name: "Jade White",
+      line: "PLA Basic",
+      hexes: ["F5F5F0"],
+      bambu_code: "10100",
+    },
+    spools,
+  });
 }
