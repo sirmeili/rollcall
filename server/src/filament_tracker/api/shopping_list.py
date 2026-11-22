@@ -129,6 +129,13 @@ def _list_out(session: DbSession, request: Request, caller: Principal) -> Shoppi
     )
 
 
+def _product(session: DbSession, product_id: int) -> Product:
+    found = session.get(Product, product_id)
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such product")
+    return found
+
+
 @router.get("/shopping-list", response_model=ShoppingListOut)
 def read(caller: Viewer, session: DbSession, request: Request) -> ShoppingListOut:
     """Each product to buy, as one item with its reasons and recent history, grouped by the
@@ -149,18 +156,15 @@ def add_by_hand(
     no linked product gets a provisional "From the catalog" product, linked to it by hand by
     the caller. Answers the list as it now stands."""
     now = utcnow()
-    if body.catalog_color is not None:
+    if body.product_id is not None:
+        product = _product(session, body.product_id)
+    else:
         try:
             product = shopping_list.product_for_color(
                 session, body.catalog_color, caller.user_id, now
             )
         except UnknownColor:
             raise problems({"catalog_color": "No such catalog color."}) from None
-    else:
-        found = session.get(Product, body.product_id)
-        if found is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "no such product")
-        product = found
     shopping_list.add_by_hand(session, product, body.spools, caller.user_id, now)
     session.commit()
     return _list_out(session, request, caller)
@@ -177,13 +181,6 @@ def remove_hand_reason(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such reason") from None
     session.commit()
     return _list_out(session, request, caller)
-
-
-def _product(session: DbSession, product_id: int) -> Product:
-    found = session.get(Product, product_id)
-    if found is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such product")
-    return found
 
 
 @router.post("/shopping-list/items/{product_id}/ordered", response_model=ShoppingListOut)
@@ -263,11 +260,7 @@ def suggest(
     """Suggest spools of a product or a catalog color. It counts toward nothing until an
     Editor or Admin adds it; a catalog color already linked to a product suggests that
     product. Answers the list as it now stands."""
-    product = None
-    if body.product_id is not None:
-        product = session.get(Product, body.product_id)
-        if product is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "no such product")
+    product = _product(session, body.product_id) if body.product_id is not None else None
     try:
         shopping_list.suggest(
             session, product, body.catalog_color, body.spools, caller.user_id, utcnow()
