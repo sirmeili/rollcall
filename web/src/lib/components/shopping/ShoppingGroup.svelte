@@ -18,10 +18,21 @@
     onexpand: (productId: number) => void;
     /** Remove a hand-added reason, by its ID. */
     onremove: (id: number) => void;
+    /** Dismiss an item, by its product's ID. */
+    ondismiss: (productId: number) => void;
   }
 
-  let { group, storeAddress, phone, open, ontoggle, expanded, onexpand, onremove }: Props =
-    $props();
+  let {
+    group,
+    storeAddress,
+    phone,
+    open,
+    ontoggle,
+    expanded,
+    onexpand,
+    onremove,
+    ondismiss,
+  }: Props = $props();
 
   const label = $derived(`${group.name}, ${group.toBuy} to buy`);
   const rowsId = $derived(`shopping-rows-${group.key}`);
@@ -65,11 +76,12 @@
               {storeAddress}
               showType={group.showType}
               {onremove}
+              {ondismiss}
               open={expanded === item.product.id}
               ontoggle={() => onexpand(item.product.id)}
             />
           {:else}
-            <ShoppingItem {item} {storeAddress} showType={group.showType} {onremove} />
+            <ShoppingItem {item} {storeAddress} showType={group.showType} {onremove} {ondismiss} />
           {/if}
         </li>
       {/each}

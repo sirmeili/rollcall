@@ -3,6 +3,7 @@
    * store, its recent history, and what to buy in large type. */
   import type { ShoppingListItem } from "#lib/api/shopping.ts";
   import ItemReasons from "#lib/components/shopping/ItemReasons.svelte";
+  import NewSinceDismissal from "#lib/components/shopping/NewSinceDismissal.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
 
   interface Props {
@@ -12,9 +13,11 @@
     showType: boolean;
     /** Remove a hand-added reason, by its ID. */
     onremove: (id: number) => void;
+    /** Dismiss the item, by its product's ID. */
+    ondismiss: (productId: number) => void;
   }
 
-  let { item, storeAddress, showType, onremove }: Props = $props();
+  let { item, storeAddress, showType, onremove, ondismiss }: Props = $props();
 </script>
 
 <div class="item">
@@ -24,7 +27,8 @@
     {#if showType}
       <span class="type mono">{item.product.filament_type}</span>
     {/if}
-    <ItemReasons {item} {storeAddress} {onremove} />
+    <NewSinceDismissal {item} />
+    <ItemReasons {item} {storeAddress} {onremove} {ondismiss} />
   </div>
   <div class="tobuy">
     <span class="buy">{item.to_buy}</span>

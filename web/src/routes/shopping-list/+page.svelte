@@ -1,11 +1,18 @@
 <script lang="ts">
   /** The Shopping list page: each product to buy, as one item with its reasons, grouped by
-   * filament line, then Not in the catalog (every role). Editors and Admins add spools by
-   * hand and remove them. */
+   * filament line, then Not in the catalog (every role), and a Dismissed filter. Editors and
+   * Admins add spools by hand and remove them, dismiss items and bring them back. */
   import { describeError } from "#lib/api/errors.ts";
-  import { getShoppingList, removeHandReason, type ShoppingList } from "#lib/api/shopping.ts";
+  import {
+    bringBack,
+    dismissItem,
+    getShoppingList,
+    removeHandReason,
+    type ShoppingList,
+  } from "#lib/api/shopping.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import AddToShoppingList from "#lib/components/shopping/AddToShoppingList.svelte";
+  import DismissedItems from "#lib/components/shopping/DismissedItems.svelte";
   import ShoppingGroup from "#lib/components/shopping/ShoppingGroup.svelte";
   import { shoppingGroups } from "#lib/shopping-list.ts";
   import { viewport } from "#lib/viewport.svelte.ts";
@@ -17,6 +24,8 @@
   let collapsed = $state<Set<string>>(new Set());
   // On a phone, one item at a time is expanded.
   let expanded = $state<number | null>(null);
+  // The Dismissed filter: the dismissed items instead of the list.
+  let showDismissed = $state(false);
 
   const screen = viewport();
   const groups = $derived(list ? shoppingGroups(list) : []);
@@ -30,14 +39,18 @@
     }
   }
 
-  async function remove(id: number): Promise<void> {
+  async function change(made: Promise<ShoppingList>): Promise<void> {
     changeFailure = null;
     try {
-      list = await removeHandReason(id);
+      list = await made;
     } catch (error) {
       changeFailure = describeError(error);
     }
   }
+
+  const remove = (id: number) => change(removeHandReason(id));
+  const dismiss = (productId: number) => change(dismissItem(productId));
+  const restore = (productId: number) => change(bringBack(productId));
 
   function toggle(key: string): void {
     const next = new Set(collapsed);
@@ -58,6 +71,14 @@
       <h1>Shopping list</h1>
       <p>What to buy, and why.</p>
     </div>
+    {#if list}
+      <button
+        type="button"
+        class="chip"
+        aria-pressed={showDismissed}
+        onclick={() => (showDismissed = !showDismissed)}>Dismissed ({list.dismissed.length})</button
+      >
+    {/if}
   </div>
 
   {#if list && session.can("editor")}
@@ -71,6 +92,8 @@
     </p>
   {:else if !list}
     <p class="muted">Loading…</p>
+  {:else if showDismissed}
+    <DismissedItems items={list.dismissed} onbringback={restore} />
   {:else if groups.length === 0}
     <p class="muted">Nothing to buy.</p>
   {:else}
@@ -85,6 +108,7 @@
           {expanded}
           onexpand={(id) => (expanded = expanded === id ? null : id)}
           onremove={remove}
+          ondismiss={dismiss}
         />
       {/each}
     </div>

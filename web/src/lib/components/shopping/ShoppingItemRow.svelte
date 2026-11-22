@@ -4,6 +4,7 @@
    * Spools. */
   import type { ShoppingListItem } from "#lib/api/shopping.ts";
   import ItemReasons from "#lib/components/shopping/ItemReasons.svelte";
+  import NewSinceDismissal from "#lib/components/shopping/NewSinceDismissal.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
 
   interface Props {
@@ -13,11 +14,13 @@
     showType: boolean;
     /** Remove a hand-added reason, by its ID. */
     onremove: (id: number) => void;
+    /** Dismiss the item, by its product's ID. */
+    ondismiss: (productId: number) => void;
     open: boolean;
     ontoggle: () => void;
   }
 
-  let { item, storeAddress, showType, onremove, open, ontoggle }: Props = $props();
+  let { item, storeAddress, showType, onremove, ondismiss, open, ontoggle }: Props = $props();
 
   const detailId = $derived(`shopping-detail-${item.product.id}`);
 </script>
@@ -36,6 +39,7 @@
     {#if showType}
       <span class="type mono">{item.product.filament_type}</span>
     {/if}
+    <NewSinceDismissal {item} />
   </span>
   <span class="tobuy"><span class="buy">{item.to_buy}</span> <span class="label">to buy</span></span
   >
@@ -54,7 +58,7 @@
 </button>
 {#if open}
   <div class="detail" id={detailId}>
-    <ItemReasons {item} {storeAddress} {onremove} />
+    <ItemReasons {item} {storeAddress} {onremove} {ondismiss} />
   </div>
 {/if}
 
