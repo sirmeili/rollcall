@@ -66,6 +66,12 @@ def test_the_hold_service_and_its_table_are_checked() -> None:
     assert {"services/holds.py", "db/models.py"} <= names
 
 
+def test_the_shopping_list_is_checked() -> None:
+    names = {path.relative_to(PACKAGE).as_posix() for path in _inventory_files()}
+
+    assert {"services/shopping_list/read.py", "api/shopping_list.py"} <= names
+
+
 def test_an_import_of_print_requests_is_found(tmp_path: Path) -> None:
     module = tmp_path / "leaky.py"
     module.write_text(
