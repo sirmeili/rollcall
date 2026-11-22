@@ -101,6 +101,28 @@ def test_a_dismissal_is_cleared_once_the_need_reaches_0(editor: TestClient, db: 
     assert item["dismissed_need"] is None
 
 
+def test_an_action_route_clears_a_dismissal_once_the_need_reaches_0(
+    editor: TestClient, db: Session
+) -> None:
+    black = _low(db)
+    other = _low(db)
+    _dismiss(editor, black)
+    db.add_all(Spool(product=black, state=SpoolState.SEALED) for _ in range(2))
+    db.commit()
+
+    # Only an action's answer reads the list while black needs nothing.
+    assert editor.post(
+        f"{LIST}/items/{other.id}/ordered", json={"spools": 1}, headers=CSRF
+    ).is_success
+
+    for spool in black.spools:
+        db.delete(spool)
+    db.commit()
+    body = editor.get(LIST).json()
+    [item] = [i for i in _items(body) if i["product"]["id"] == black.id]
+    assert item["dismissed_need"] is None
+
+
 def test_bring_back_returns_the_item_to_the_list(editor: TestClient, db: Session) -> None:
     black = _low(db)
     _dismiss(editor, black)

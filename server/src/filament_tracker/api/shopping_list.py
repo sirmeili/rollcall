@@ -115,6 +115,8 @@ def _read(session: DbSession, request: Request, caller: Principal) -> shopping_l
 def _list_out(session: DbSession, request: Request, caller: Principal) -> ShoppingListOut:
     store: SettingsStore = request.app.state.settings_store
     listed = _read(session, request, caller)
+    # Reading clears the dismissals of products that need nothing any more.
+    session.commit()
     return ShoppingListOut(
         suggestions=[_suggestion_out(s) for s in shopping_list.open_suggestions(session)],
         lines=[
@@ -140,10 +142,7 @@ def read(caller: Viewer, session: DbSession, request: Request) -> ShoppingListOu
     spools added by hand add to that. A request is named only for people who may see it. A
     dismissed item is under dismissed while its need is at or below the need it was
     dismissed at."""
-    listed = _list_out(session, request, caller)
-    # Reading clears the dismissals of products that need nothing any more.
-    session.commit()
-    return listed
+    return _list_out(session, request, caller)
 
 
 @router.post("/shopping-list/hand-reasons", response_model=ShoppingListOut)

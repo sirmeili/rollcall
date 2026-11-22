@@ -110,7 +110,10 @@ def _stages(
     needs: RequestNeedsReader = http.app.state.request_needs_reader
     found = {holding.product_id(session, choice) for choice in short}
     product_ids = {product_id for product_id in found if product_id is not None}
-    return shopping_list.stages(session, principal, needs, product_ids)
+    stages = shopping_list.stages(session, principal, needs, product_ids)
+    # Reading the list clears the dismissals of products that need nothing any more.
+    session.commit()
+    return stages
 
 
 def _stage_out(
