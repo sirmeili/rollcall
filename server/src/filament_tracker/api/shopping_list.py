@@ -129,10 +129,6 @@ def _list_out(session: DbSession, request: Request, caller: Principal) -> Shoppi
     )
 
 
-def _user_id(caller: Principal) -> int | None:
-    return caller.user.id if caller.user else None
-
-
 @router.get("/shopping-list", response_model=ShoppingListOut)
 def read(caller: Viewer, session: DbSession, request: Request) -> ShoppingListOut:
     """Each product to buy, as one item with its reasons and recent history, grouped by the
@@ -156,7 +152,7 @@ def add_by_hand(
     if body.catalog_color is not None:
         try:
             product = shopping_list.product_for_color(
-                session, body.catalog_color, _user_id(caller), now
+                session, body.catalog_color, caller.user_id, now
             )
         except UnknownColor:
             raise problems({"catalog_color": "No such catalog color."}) from None
@@ -165,7 +161,7 @@ def add_by_hand(
         if found is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "no such product")
         product = found
-    shopping_list.add_by_hand(session, product, body.spools, _user_id(caller), now)
+    shopping_list.add_by_hand(session, product, body.spools, caller.user_id, now)
     session.commit()
     return _list_out(session, request, caller)
 
@@ -176,7 +172,7 @@ def remove_hand_reason(
 ) -> ShoppingListOut:
     """Remove a hand-added reason. Answers the list as it now stands."""
     try:
-        shopping_list.remove_hand_reason(session, reason_id, _user_id(caller), utcnow())
+        shopping_list.remove_hand_reason(session, reason_id, caller.user_id, utcnow())
     except NoSuchReason:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such reason") from None
     session.commit()
@@ -197,7 +193,7 @@ def ordered(
     """Add spools just ordered to the product's on order; each spool of it that arrives takes
     one off. Answers the list as it now stands."""
     product = _product(session, product_id)
-    shopping_list.ordered(session, product, body.spools, _user_id(caller), utcnow())
+    shopping_list.ordered(session, product, body.spools, caller.user_id, utcnow())
     session.commit()
     return _list_out(session, request, caller)
 
@@ -216,7 +212,7 @@ def dismiss(
         raise HTTPException(status.HTTP_409_CONFLICT, "already dismissed")
     if item.need == 0:
         raise HTTPException(status.HTTP_409_CONFLICT, "nothing of it is needed")
-    shopping_list.dismiss(session, item, _user_id(caller), utcnow())
+    shopping_list.dismiss(session, item, caller.user_id, utcnow())
     session.commit()
     return _list_out(session, request, caller)
 
@@ -228,7 +224,7 @@ def set_on_order(
     """Set the product's on order to any number, to fix a typo or a cancelled order. Answers
     the list as it now stands."""
     product = _product(session, product_id)
-    shopping_list.set_on_order(session, product, body.on_order, _user_id(caller), utcnow())
+    shopping_list.set_on_order(session, product, body.on_order, caller.user_id, utcnow())
     session.commit()
     return _list_out(session, request, caller)
 
@@ -241,7 +237,7 @@ def bring_back(
     Answers the list as it now stands."""
     _product(session, product_id)
     try:
-        shopping_list.bring_back(session, product_id, _user_id(caller), utcnow())
+        shopping_list.bring_back(session, product_id, caller.user_id, utcnow())
     except NotDismissed:
         raise HTTPException(status.HTTP_409_CONFLICT, "not dismissed") from None
     session.commit()
@@ -255,7 +251,7 @@ def set_size(
     """Choose the size the product's item turns its requests' grams into spools with. It
     re-rounds only the requests' part. Answers the list as it now stands."""
     product = _product(session, product_id)
-    shopping_list.set_size(session, product, body.size_g, _user_id(caller), utcnow())
+    shopping_list.set_size(session, product, body.size_g, caller.user_id, utcnow())
     session.commit()
     return _list_out(session, request, caller)
 
@@ -274,7 +270,7 @@ def suggest(
             raise HTTPException(status.HTTP_404_NOT_FOUND, "no such product")
     try:
         shopping_list.suggest(
-            session, product, body.catalog_color, body.spools, _user_id(caller), utcnow()
+            session, product, body.catalog_color, body.spools, caller.user_id, utcnow()
         )
     except UnknownColor:
         raise problems({"catalog_color": "No such catalog color."}) from None
@@ -290,7 +286,7 @@ def add_suggestion(
     color with no linked product gets its "From the catalog" product only now. Answers the
     list as it now stands."""
     try:
-        shopping_list.add_suggestion(session, suggestion_id, _user_id(caller), utcnow())
+        shopping_list.add_suggestion(session, suggestion_id, caller.user_id, utcnow())
     except NoSuchSuggestion:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such suggestion") from None
     except SuggestionDecided:
@@ -311,7 +307,7 @@ def dismiss_suggestion(
 ) -> ShoppingListOut:
     """Set an open suggestion aside; it adds nothing. Answers the list as it now stands."""
     try:
-        shopping_list.dismiss_suggestion(session, suggestion_id, _user_id(caller), utcnow())
+        shopping_list.dismiss_suggestion(session, suggestion_id, caller.user_id, utcnow())
     except NoSuchSuggestion:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such suggestion") from None
     except SuggestionDecided:

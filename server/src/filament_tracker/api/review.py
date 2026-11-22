@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Response, status
 from filament_tracker.api.read_schemas import EventOut
 from filament_tracker.api.views import event_out
 from filament_tracker.api.write_schemas import SameProductIn
-from filament_tracker.auth import DbSession, Editor, Principal
+from filament_tracker.auth import DbSession, Editor
 from filament_tracker.db.models import Event
 from filament_tracker.db.types import utcnow
 from filament_tracker.services import edits
@@ -31,7 +31,7 @@ def accept(event_id: UUID, caller: Editor, session: DbSession) -> EventOut:
     """The flagged event was right: keep it and take it out of Review."""
     event = _event(session, event_id)
     try:
-        edits.accept_event(event, utcnow(), user_id=caller.user.id if caller.user else None)
+        edits.accept_event(event, utcnow(), user_id=caller.user_id)
     except edits.EditError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     session.commit()
@@ -101,10 +101,6 @@ def restore_likely_empty(spool_id: int, _: Editor, session: DbSession) -> Respon
     return _change(session, lambda: edits.restore_likely_empty(session, spool_id))
 
 
-def _user_id(caller: Principal) -> int | None:
-    return caller.user.id if caller.user else None
-
-
 @router.post("/duplicates/{duplicate_id}/same-product", status_code=status.HTTP_204_NO_CONTENT)
 def same_product(
     duplicate_id: int, body: SameProductIn, caller: Editor, session: DbSession
@@ -113,7 +109,7 @@ def same_product(
     return _change(
         session,
         lambda: duplicates.same_product(
-            session, duplicate_id, body.candidate_id, _user_id(caller), utcnow()
+            session, duplicate_id, body.candidate_id, caller.user_id, utcnow()
         ),
     )
 
@@ -123,7 +119,7 @@ def keep_separate(duplicate_id: int, caller: Editor, session: DbSession) -> Resp
     """They are different products: leave both, and take it out of Review."""
     return _change(
         session,
-        lambda: duplicates.keep_separate(session, duplicate_id, _user_id(caller), utcnow()),
+        lambda: duplicates.keep_separate(session, duplicate_id, caller.user_id, utcnow()),
     )
 
 

@@ -106,7 +106,7 @@ def read_group(name: GroupName, _: Admin, request: Request) -> GroupOut:
 def save_group(name: GroupName, body: GroupIn, principal: Admin, request: Request) -> GroupOut:
     name = _group_name(name)
     store = _store(request)
-    user_id = principal.user.id if principal.user else None
+    user_id = principal.user_id
     keys = [d.key for d in group(name)]
     try:
         written = store.save(body.values, body.clear, keys=keys, user_id=user_id)
@@ -124,7 +124,7 @@ def use_env_value(
     name = _group_name(name)
     if key not in {d.key for d in group(name)}:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such setting")
-    user_id = principal.user.id if principal.user else None
+    user_id = principal.user_id
     try:
         if _store(request).reset(key, user_id=user_id):
             _apply(request, name)

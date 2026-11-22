@@ -63,6 +63,11 @@ class Principal:
     token: MachineToken | None = None
 
     @property
+    def user_id(self) -> int | None:
+        """The signed-in user's ID; None for a scanner or a token, which act for no user."""
+        return self.user.id if self.user is not None else None
+
+    @property
     def role(self) -> Role | None:
         """The caller's role; scanners have none."""
         if self.user is not None:
