@@ -1,11 +1,13 @@
 <script lang="ts">
   /** A filament line of the shopping list, or Not in the catalog: its heading with the
    * group's to buy, and its items. On a phone the heading collapses and expands the group,
-   * as on the phone Catalog page, and each item is a compact row. */
+   * as on the phone Catalog page, and each item is a compact row. Items fully ordered come
+   * last, under an On order label. */
+  import type { ShoppingList, ShoppingListItem } from "#lib/api/shopping.ts";
   import ShoppingItem from "#lib/components/shopping/ShoppingItem.svelte";
   import ShoppingItemRow from "#lib/components/shopping/ShoppingItemRow.svelte";
-  import type { ShoppingList } from "#lib/api/shopping.ts";
   import type { ShoppingGroup } from "#lib/shopping-list.ts";
+  import { byOrdered } from "#lib/shopping-on-order.ts";
 
   interface Props {
     group: ShoppingGroup;
@@ -37,7 +39,30 @@
 
   const label = $derived(`${group.name}, ${group.toBuy} to buy`);
   const rowsId = $derived(`shopping-rows-${group.key}`);
+  const split = $derived(byOrdered(group.items));
 </script>
+
+{#snippet rows(items: ShoppingListItem[], label?: string)}
+  <ul class="rows" aria-label={label}>
+    {#each items as item (item.product.id)}
+      <li>
+        {#if phone}
+          <ShoppingItemRow
+            {item}
+            {storeAddress}
+            showType={group.showType}
+            {onremove}
+            {onchanged}
+            open={expanded === item.product.id}
+            ontoggle={() => onexpand(item.product.id)}
+          />
+        {:else}
+          <ShoppingItem {item} {storeAddress} showType={group.showType} {onremove} {onchanged} />
+        {/if}
+      </li>
+    {/each}
+  </ul>
+{/snippet}
 
 <section class="group" aria-label={label}>
   {#if phone}
@@ -68,25 +93,15 @@
     </h2>
   {/if}
   {#if !phone || open}
-    <ul class="rows" id={rowsId}>
-      {#each group.items as item (item.product.id)}
-        <li>
-          {#if phone}
-            <ShoppingItemRow
-              {item}
-              {storeAddress}
-              showType={group.showType}
-              {onremove}
-              {onchanged}
-              open={expanded === item.product.id}
-              ontoggle={() => onexpand(item.product.id)}
-            />
-          {:else}
-            <ShoppingItem {item} {storeAddress} showType={group.showType} {onremove} {onchanged} />
-          {/if}
-        </li>
-      {/each}
-    </ul>
+    <div id={rowsId}>
+      {#if split.toBuy.length > 0}
+        {@render rows(split.toBuy)}
+      {/if}
+      {#if split.ordered.length > 0}
+        <h3 class="sub">On order</h3>
+        {@render rows(split.ordered, "On order")}
+      {/if}
+    </div>
   {/if}
 </section>
 
@@ -146,6 +161,21 @@
     padding: 0;
     list-style: none;
     border-top: 1px solid var(--line);
+  }
+
+  .sub {
+    margin: 0;
+    padding: 10px 18px 6px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .sub + .rows {
+    border-top: 0;
   }
 
   .rows > li + li {

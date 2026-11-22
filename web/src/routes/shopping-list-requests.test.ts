@@ -14,6 +14,8 @@ function jade(overrides: Partial<ShoppingListItem> = {}): ShoppingListItem {
   return {
     product: product({ id: 3, display_name: "Jade White PLA Basic", low_stock_threshold: 0 }),
     to_buy: 3,
+    need: 3,
+    on_order: 0,
     reasons: [requestReason(4, 2000), requestReason(null, 500)],
     size: { grams: 1000, source: "default" },
     history: [],
@@ -26,6 +28,7 @@ const SIZED: ShoppingList = shoppingList({
   not_in_catalog: [
     jade({
       to_buy: 1,
+      need: 1,
       size: { grams: 3000, source: "chosen" },
       history: [{ ...added(0), action: "size_changed", spools: null, size_g: 3000 }],
     }),

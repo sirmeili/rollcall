@@ -112,6 +112,9 @@ class Spool(Base):
     likely_empty_dismissed_at: Mapped[datetime | None]
     # Its arrival has been taken off its product's on order, so it counts once.
     arrival_counted: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # The event that counted it, when that took one off on order: undoing that event gives
+    # the one back. Not a foreign key, which would tie spool and event to each other.
+    arrival_event_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
     product: Mapped[Product] = relationship(back_populates="spools")

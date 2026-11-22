@@ -1,6 +1,6 @@
 """Reading the shopping list: each product that is low on stock, that print requests are
-short of, or that has spools added by hand as one item, grouped by the filament line of its
-catalog link, then the products not in the catalog."""
+short of, that has spools added by hand or that has spools on order as one item, grouped by
+the filament line of its catalog link, then the products not in the catalog."""
 
 import math
 from collections import defaultdict
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, selectinload
 from filament_tracker.auth import Principal
 from filament_tracker.db.models import Product
 from filament_tracker.db.shopping_models import HandReason
+from filament_tracker.db.shopping_models import ShoppingListItem as ItemRow
 from filament_tracker.domain.enums import SpoolState
 from filament_tracker.services import queries
 from filament_tracker.services.catalog_links import IndexedColor, catalog_link
@@ -54,6 +55,8 @@ class ShoppingListItem:
     reasons: list[Reason]
     # Its most recent shopping list history, newest first.
     history: list[HistoryEntry] = field(default_factory=list)
+    # Spools ordered and not yet arrived.
+    on_order: int = 0
     # The size the requests' grams are turned into spools with.
     size: NetWeight = field(kw_only=True)
 
@@ -64,9 +67,13 @@ class ShoppingListItem:
         return math.ceil(grams / self.size.grams)
 
     @property
-    def to_buy(self) -> int:
+    def need(self) -> int:
         spools = sum(r.spools for r in self.reasons if not isinstance(r, RequestShort))
         return spools + self.request_spools
+
+    @property
+    def to_buy(self) -> int:
+        return max(self.need - self.on_order, 0)
 
 
 @dataclass(frozen=True)
@@ -116,6 +123,12 @@ def _hand_added(session: Session) -> dict[int, list[HandAdded]]:
     return found
 
 
+def _on_order(session: Session) -> dict[int, int]:
+    """Each product's on order, where it is above 0."""
+    rows = session.execute(select(ItemRow.product_id, ItemRow.on_order).where(ItemRow.on_order > 0))
+    return {product_id: spools for product_id, spools in rows}
+
+
 def read(
     session: Session, viewer: Principal | None = None, needs: RequestNeedsReader | None = None
 ) -> ShoppingList:
@@ -127,13 +140,15 @@ def read(
     hand = _hand_added(session)
     short = needs(session, viewer) if needs is not None and viewer is not None else {}
     entries = recent(session)
+    on_order = _on_order(session)
     for counts in queries.inventory(session):
         product = counts.product
         low = _low_stock(counts)
         reasons: list[Reason] = [low] if low else []
         reasons += short.get(product.id, [])
         reasons += hand.get(product.id, [])
-        if not reasons:
+        ordered = on_order.get(product.id, 0)
+        if not reasons and not ordered:
             continue
         color = _color(product)
         item = ShoppingListItem(
@@ -141,6 +156,7 @@ def read(
             color,
             reasons,
             entries.get(product.id, []),
+            ordered,
             size=net_weight(session, product, color),
         )
         if item.color is None:

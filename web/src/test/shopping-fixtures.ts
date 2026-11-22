@@ -42,6 +42,8 @@ export function lowItem(
   return {
     product: product({ id, display_name: name, low_stock_threshold: threshold, ...overrides }),
     to_buy: spools,
+    need: spools,
+    on_order: 0,
     reasons: [{ kind: "low_stock", spools, sealed, threshold }],
     size: DEFAULT_SIZE,
     history: [],
@@ -63,9 +65,12 @@ export function handItem(
   reasons: HandReason[],
   overrides: Partial<Product> = {},
 ): ShoppingListItem {
+  const need = reasons.reduce((sum, reason) => sum + reason.spools, 0);
   return {
     product: product({ id, display_name: name, low_stock_threshold: 0, ...overrides }),
-    to_buy: reasons.reduce((sum, reason) => sum + reason.spools, 0),
+    to_buy: need,
+    need,
+    on_order: 0,
     reasons,
     size: DEFAULT_SIZE,
     history: reasons.map((reason) => added(reason.spools, reason.by)),

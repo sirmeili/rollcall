@@ -66,7 +66,9 @@ class HistoryEntryOut(BaseModel):
 
 class ShoppingListItemOut(BaseModel):
     product: ProductDetail
-    to_buy: int
+    to_buy: int = Field(description="need - on order, never below 0")
+    need: int = Field(description="The spools its reasons add up to")
+    on_order: int = Field(description="Spools ordered and not yet arrived")
     reasons: list[ReasonOut] = Field(
         description="Low stock first, then the requests short of it, then hand-added, oldest first"
     )
@@ -103,6 +105,18 @@ class HandReasonIn(Strict):
         if (self.product_id is None) == (self.catalog_color is None):
             raise ValueError("give a product_id or a catalog_color, not both")
         return self
+
+
+class OrderedIn(Strict):
+    """Spools just ordered, added to the item's on order."""
+
+    spools: int = Field(ge=1, le=MAX_SPOOLS)
+
+
+class OnOrderIn(Strict):
+    """The item's on order, set by hand to fix a typo or a cancelled order."""
+
+    on_order: int = Field(ge=0, le=MAX_SPOOLS)
 
 
 class SizeIn(Strict):
