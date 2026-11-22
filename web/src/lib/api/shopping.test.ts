@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { addByHand, getShoppingList, removeHandReason } from "#lib/api/shopping.ts";
+import {
+  addByHand,
+  bringBack,
+  dismissItem,
+  getShoppingList,
+  removeHandReason,
+} from "#lib/api/shopping.ts";
 import { fakeFetch } from "../../test/fixtures.ts";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -36,6 +42,22 @@ describe("shopping list API calls", () => {
     expect(await removeHandReason(7)).toEqual(list);
     expect(fetch.calls).toEqual([
       { method: "DELETE", path: "/shopping-list/hand-reasons/7", body: undefined },
+    ]);
+  });
+
+  it("dismisses an item and brings it back", async () => {
+    const list = { lines: [], not_in_catalog: [], store_address: "https://store.example" };
+    const fetch = fakeFetch({
+      "POST /shopping-list/items/4/dismiss": list,
+      "POST /shopping-list/items/4/bring-back": list,
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    expect(await dismissItem(4)).toEqual(list);
+    expect(await bringBack(4)).toEqual(list);
+    expect(fetch.calls).toEqual([
+      { method: "POST", path: "/shopping-list/items/4/dismiss", body: undefined },
+      { method: "POST", path: "/shopping-list/items/4/bring-back", body: undefined },
     ]);
   });
 });

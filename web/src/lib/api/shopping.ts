@@ -60,6 +60,10 @@ export interface ShoppingListItem {
   reasons: ShoppingReason[];
   /** The most recent entries, newest first. */
   history: ShoppingHistoryEntry[];
+  /** The need it was dismissed at; null when it is not dismissed. */
+  dismissed_need: number | null;
+  /** How many spools more it needs than when it was dismissed, once that is more. */
+  new_since_dismissal: number | null;
 }
 
 /** A filament line's items, from their products' catalog links. */
@@ -78,6 +82,8 @@ export interface ShoppingList {
   not_in_catalog: ShoppingListItem[];
   /** The store Find in store searches, without a trailing slash. */
   store_address: string;
+  /** Dismissed items still hidden: no more is needed than when dismissed. By name. */
+  dismissed: ShoppingListItem[];
 }
 
 /** What to add spools to: a product, or a catalog color (its product, made "From the catalog"
@@ -118,4 +124,15 @@ export function setOnOrder(productId: number, onOrder: number): Promise<Shopping
     method: "PUT",
     body: { on_order: onOrder },
   });
+}
+
+/** Dismiss a product's item (Editor and Admin): hide it until more of it is needed than now,
+ * and remove its hand-added reasons. Answers the list as it now stands. */
+export function dismissItem(productId: number): Promise<ShoppingList> {
+  return api<ShoppingList>(`/shopping-list/items/${productId}/dismiss`, { method: "POST" });
+}
+
+/** Bring back a dismissed item (Editor and Admin); answers the list as it now stands. */
+export function bringBack(productId: number): Promise<ShoppingList> {
+  return api<ShoppingList>(`/shopping-list/items/${productId}/bring-back`, { method: "POST" });
 }
