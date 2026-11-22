@@ -23,11 +23,13 @@ export function reasonText(reason: ShoppingReason): string {
   return `Low stock: ${reason.sealed} sealed, threshold ${reason.threshold} · ${spoolsText(reason.spools)}`;
 }
 
-/** What a history entry records: "Added 2 spools by hand". */
+/** What a history entry records: "Added 2 spools by hand", "Ordered 2 spools". */
 export function historyText(entry: ShoppingHistoryEntry): string {
   const spools = spoolsText(entry.spools ?? 0);
   if (entry.action === "added_by_hand") return `Added ${spools} by hand`;
   if (entry.action === "removed_by_hand") return `Removed ${spools} added by hand`;
+  if (entry.action === "ordered") return `Ordered ${spools}`;
+  if (entry.action === "on_order_changed") return "Changed on order";
   const words = entry.action.replaceAll("_", " ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }

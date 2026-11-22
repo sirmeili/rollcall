@@ -2,7 +2,8 @@
 
 Events are never edited, apart from `reverted_by`, which an undo sets on the event it
 undoes. After every write the spool's state and dates are rebuilt from its events, a spool
-that became Empty or Unknown has its holds released, and the write is a stock change
+that became Empty or Unknown has its holds released, a spool's first appearance in stock takes
+one off its product's on order (undoing that gives it back), and the write is a stock change
 (ADR-0020).
 Callers own the transaction: these functions flush but do not commit.
 """
@@ -26,6 +27,7 @@ from filament_tracker.domain.state import (
     replay,
 )
 from filament_tracker.services import grams, holds, stock_changes
+from filament_tracker.services.shopping_list import arrivals
 
 
 class RevertError(ValueError):
@@ -92,6 +94,7 @@ def append_event(
         payload_json=payload,
     )
     session.add(event)
+    before = spool.state
     step = reproject(spool).steps[event.id]
     event.flagged = flag or step.outcome is Outcome.FLAGGED
     # Received, or a scan or hand Opened on a spool never received (both in one step): the
@@ -106,6 +109,7 @@ def append_event(
     ):
         grams.received(spool)
     session.flush()
+    arrivals.appended(session, spool, event, before)
     _changed(session, spool)
     return AppendResult(event, step)
 
@@ -143,6 +147,7 @@ def revert_event(
     target.reverted_by = revert.id
     reproject(spool)
     session.flush()
+    arrivals.undone(session, spool, target)
     _changed(session, spool)
     return revert
 

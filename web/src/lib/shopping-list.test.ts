@@ -55,6 +55,13 @@ describe("the shopping list history", () => {
     expect(historyText({ ...added(1), action: "brought_back" })).toBe("Brought back");
   });
 
+  it("tells a second order from a correction of on order", () => {
+    expect(historyText({ ...added(2), action: "ordered", on_order: 3 })).toBe("Ordered 2 spools");
+    expect(historyText({ ...added(0), spools: null, action: "on_order_changed" })).toBe(
+      "Changed on order",
+    );
+  });
+
   it("says who did it, when, and what was on order after", () => {
     const now = new Date("2026-11-22T09:00:00Z");
     expect(historyWhen(added(2), now)).toBe("frank · Nov 21, 12:00 PM · 0 on order");

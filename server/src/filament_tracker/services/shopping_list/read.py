@@ -1,6 +1,6 @@
-"""Reading the shopping list: each product that is low on stock or has spools added by hand
-as one item, grouped by the filament line of its catalog link, then the products not in the
-catalog."""
+"""Reading the shopping list: each product that is low on stock, has spools added by hand or
+has spools on order as one item, grouped by the filament line of its catalog link, then the
+products not in the catalog."""
 
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from filament_tracker.db.models import Product
 from filament_tracker.db.shopping_models import HandReason
+from filament_tracker.db.shopping_models import ShoppingListItem as ItemRow
 from filament_tracker.domain.enums import SpoolState
 from filament_tracker.services import queries
 from filament_tracker.services.catalog_links import IndexedColor, catalog_link
@@ -49,10 +50,16 @@ class ShoppingListItem:
     reasons: list[Reason]
     # Its most recent shopping list history, newest first.
     history: list[HistoryEntry] = field(default_factory=list)
+    # Spools ordered and not yet arrived.
+    on_order: int = 0
+
+    @property
+    def need(self) -> int:
+        return sum(reason.spools for reason in self.reasons)
 
     @property
     def to_buy(self) -> int:
-        return sum(reason.spools for reason in self.reasons)
+        return max(self.need - self.on_order, 0)
 
 
 @dataclass(frozen=True)
@@ -102,20 +109,30 @@ def _hand_added(session: Session) -> dict[int, list[HandAdded]]:
     return found
 
 
+def _on_order(session: Session) -> dict[int, int]:
+    """Each product's on order, where it is above 0."""
+    rows = session.execute(select(ItemRow.product_id, ItemRow.on_order).where(ItemRow.on_order > 0))
+    return {product_id: spools for product_id, spools in rows}
+
+
 def read(session: Session) -> ShoppingList:
     """The shopping list as it stands now. Items are by product name, as on Inventory."""
     by_line: dict[str, list[ShoppingListItem]] = defaultdict(list)
     listed = ShoppingList()
     hand = _hand_added(session)
     entries = recent(session)
+    on_order = _on_order(session)
     for counts in queries.inventory(session):
+        product = counts.product
         low = _low_stock(counts)
         reasons: list[Reason] = [low] if low else []
-        reasons += hand.get(counts.product.id, [])
-        if not reasons:
+        reasons += hand.get(product.id, [])
+        ordered = on_order.get(product.id, 0)
+        if not reasons and not ordered:
             continue
-        product = counts.product
-        item = ShoppingListItem(product, _color(product), reasons, entries.get(product.id, []))
+        item = ShoppingListItem(
+            product, _color(product), reasons, entries.get(product.id, []), ordered
+        )
         if item.color is None:
             listed.not_in_catalog.append(item)
         else:
