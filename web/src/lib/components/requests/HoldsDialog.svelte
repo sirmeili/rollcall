@@ -17,6 +17,7 @@
   import type { SpoolRow } from "#lib/api/types.ts";
   import HoldRow from "#lib/components/requests/HoldRow.svelte";
   import { keepTabInside } from "#lib/focus-trap.ts";
+  import { backCloses } from "#lib/phone/back-layer.svelte.ts";
   import { GRAMS_MAX, spoolText } from "#lib/requests/labels.ts";
 
   interface Props {
@@ -30,6 +31,9 @@
   }
 
   let { requestId, choice, busy, failure, onchange, onclose }: Props = $props();
+
+  // The phone's Back closes it too, as Escape does.
+  backCloses(() => onclose());
 
   let spools = $state<SpoolRow[]>([]);
   let grams = $state<number | null>(untrack(() => choice.grams));
