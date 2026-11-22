@@ -11,6 +11,7 @@
   import CurrentLink from "#lib/components/products/CurrentLink.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
   import { hexText } from "#lib/format.ts";
+  import { backCloses } from "#lib/phone/back-layer.svelte.ts";
 
   interface Props {
     product: Product;
@@ -28,6 +29,9 @@
   }
 
   let { product, staged, entries, storeAddress, failure, me, onsave, onclose }: Props = $props();
+
+  // The phone's Back closes it too, as Escape does.
+  backCloses(() => onclose());
 
   // svelte-ignore state_referenced_locally
   let pick = $state<LinkPick>(staged);
