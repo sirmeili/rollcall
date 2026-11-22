@@ -12,7 +12,7 @@ from filament_tracker.db.types import str_enum, utcnow
 from filament_tracker.domain.enums import DuplicateState, ShoppingAction, SuggestionStatus
 
 
-class ShoppingListItem(Base):
+class ShoppingListItemRow(Base):
     """What people set on a product's one shopping list item. A row with nothing in it is the
     same as no row."""
 

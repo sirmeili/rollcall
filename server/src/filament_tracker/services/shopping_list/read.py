@@ -12,8 +12,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from filament_tracker.auth import Principal
 from filament_tracker.db.models import Product
-from filament_tracker.db.shopping_models import HandReason
-from filament_tracker.db.shopping_models import ShoppingListItem as ItemRow
+from filament_tracker.db.shopping_models import HandReason, ShoppingListItemRow
 from filament_tracker.domain.enums import SpoolState
 from filament_tracker.services import queries
 from filament_tracker.services.catalog_links import IndexedColor, catalog_link
@@ -166,15 +165,19 @@ def _hand_added(session: Session) -> dict[int, list[HandAdded]]:
     return found
 
 
-def _dismissed(session: Session) -> dict[int, ItemRow]:
+def _dismissed(session: Session) -> dict[int, ShoppingListItemRow]:
     """Each dismissed product's item row."""
-    query = select(ItemRow).where(ItemRow.dismissed_need.is_not(None))
+    query = select(ShoppingListItemRow).where(ShoppingListItemRow.dismissed_need.is_not(None))
     return {row.product_id: row for row in session.scalars(query)}
 
 
 def _on_order(session: Session) -> dict[int, int]:
     """Each product's on order, where it is above 0."""
-    rows = session.execute(select(ItemRow.product_id, ItemRow.on_order).where(ItemRow.on_order > 0))
+    rows = session.execute(
+        select(ShoppingListItemRow.product_id, ShoppingListItemRow.on_order).where(
+            ShoppingListItemRow.on_order > 0
+        )
+    )
     return {product_id: spools for product_id, spools in rows}
 
 

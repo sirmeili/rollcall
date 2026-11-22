@@ -4,17 +4,19 @@ order, its chosen size and its dismissal. Its need is never stored (ADR-0021).""
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from filament_tracker.db.shopping_models import ShoppingListItem
+from filament_tracker.db.shopping_models import ShoppingListItemRow
 
 
-def find_item(session: Session, product_id: int) -> ShoppingListItem | None:
-    return session.scalar(select(ShoppingListItem).where(ShoppingListItem.product_id == product_id))
+def find_item(session: Session, product_id: int) -> ShoppingListItemRow | None:
+    return session.scalar(
+        select(ShoppingListItemRow).where(ShoppingListItemRow.product_id == product_id)
+    )
 
 
-def item_for(session: Session, product_id: int) -> ShoppingListItem:
+def item_for(session: Session, product_id: int) -> ShoppingListItemRow:
     """The product's one item row, made if it has none."""
     item = find_item(session, product_id)
     if item is None:
-        item = ShoppingListItem(product_id=product_id, on_order=0)
+        item = ShoppingListItemRow(product_id=product_id, on_order=0)
         session.add(item)
     return item

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.db.catalog_models import CatalogSize
 from filament_tracker.db.models import Product, Spool
-from filament_tracker.db.shopping_models import ShoppingListItem
+from filament_tracker.db.shopping_models import ShoppingListItemRow
 from filament_tracker.services.catalog_links import IndexedColor
 from filament_tracker.services.grams import FALLBACK_NET_WEIGHT_G
 
@@ -57,7 +57,9 @@ def _catalog(session: Session, color: IndexedColor) -> int | None:
 def net_weight(session: Session, product: Product, color: IndexedColor | None) -> NetWeight:
     """The item's size; `color` is the catalog color the product is linked to, if any."""
     chosen = session.scalar(
-        select(ShoppingListItem.chosen_size_g).where(ShoppingListItem.product_id == product.id)
+        select(ShoppingListItemRow.chosen_size_g).where(
+            ShoppingListItemRow.product_id == product.id
+        )
     )
     if chosen is not None:
         return NetWeight(chosen, SizeFrom.CHOSEN)
