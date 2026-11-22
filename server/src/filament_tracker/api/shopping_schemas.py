@@ -45,6 +45,12 @@ class ShoppingListItemOut(BaseModel):
     to_buy: int
     reasons: list[ReasonOut] = Field(description="Low stock first, then hand-added, oldest first")
     history: list[HistoryEntryOut] = Field(description="The most recent entries, newest first")
+    dismissed_need: int | None = Field(
+        description="The need it was dismissed at; null when it is not dismissed"
+    )
+    new_since_dismissal: int | None = Field(
+        description="How many spools more it needs than when it was dismissed, once that is more"
+    )
 
 
 class LineOut(BaseModel):
@@ -59,6 +65,9 @@ class ShoppingListOut(BaseModel):
         description="Products with no catalog link, by name"
     )
     store_address: str = Field(description="The store Find in store searches, no trailing slash")
+    dismissed: list[ShoppingListItemOut] = Field(
+        description="Dismissed items still hidden: no more is needed than when dismissed. By name"
+    )
 
 
 class HandReasonIn(Strict):

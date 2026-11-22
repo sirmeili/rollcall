@@ -1,5 +1,5 @@
-"""The shopping list: what to buy and why (every role reads it), and adding to it by hand
-(Editors and Admins)."""
+"""The shopping list: what to buy and why (every role reads it), adding to it by hand, and
+dismissing and bringing back its items (Editors and Admins)."""
 
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -24,6 +24,7 @@ from filament_tracker.services.shopping_list import (
     HandAdded,
     LowStock,
     NoSuchReason,
+    NotDismissed,
     ShoppingListItem,
 )
 
@@ -54,6 +55,8 @@ def _item_out(item: ShoppingListItem) -> ShoppingListItemOut:
             )
             for e in item.history
         ],
+        dismissed_need=item.dismissed_need,
+        new_since_dismissal=item.new_since_dismissal,
     )
 
 
@@ -67,6 +70,7 @@ def _list_out(session: DbSession, request: Request) -> ShoppingListOut:
         ],
         not_in_catalog=[_item_out(i) for i in listed.not_in_catalog],
         store_address=store.store_address(),
+        dismissed=[_item_out(i) for i in listed.dismissed],
     )
 
 
@@ -78,8 +82,12 @@ def _user_id(caller: Principal) -> int | None:
 def read(_: Viewer, session: DbSession, request: Request) -> ShoppingListOut:
     """Each product to buy, as one item with its reasons and recent history, grouped by the
     filament line of its catalog link, then the products not in the catalog. A low-stock
-    product needs threshold - sealed + 1 spools; spools added by hand add to that."""
-    return _list_out(session, request)
+    product needs threshold - sealed + 1 spools; spools added by hand add to that. A dismissed
+    item is under dismissed while its need is at or below the need it was dismissed at."""
+    listed = _list_out(session, request)
+    # Reading clears the dismissals of products that need nothing any more.
+    session.commit()
+    return listed
 
 
 @router.post("/shopping-list/hand-reasons", response_model=ShoppingListOut)
@@ -116,5 +124,44 @@ def remove_hand_reason(
         shopping_list.remove_hand_reason(session, reason_id, _user_id(caller), utcnow())
     except NoSuchReason:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such reason") from None
+    session.commit()
+    return _list_out(session, request)
+
+
+def _product(session: DbSession, product_id: int) -> Product:
+    found = session.get(Product, product_id)
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such product")
+    return found
+
+
+@router.post("/shopping-list/items/{product_id}/dismiss", response_model=ShoppingListOut)
+def dismiss(
+    product_id: int, caller: Editor, session: DbSession, request: Request
+) -> ShoppingListOut:
+    """Dismiss a product's item: hide it until more of it is needed than now, and remove its
+    hand-added reasons. Answers the list as it now stands."""
+    _product(session, product_id)
+    item = shopping_list.read(session).find(product_id)
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "not on the shopping list")
+    if item.hidden:
+        raise HTTPException(status.HTTP_409_CONFLICT, "already dismissed")
+    shopping_list.dismiss(session, item, _user_id(caller), utcnow())
+    session.commit()
+    return _list_out(session, request)
+
+
+@router.post("/shopping-list/items/{product_id}/bring-back", response_model=ShoppingListOut)
+def bring_back(
+    product_id: int, caller: Editor, session: DbSession, request: Request
+) -> ShoppingListOut:
+    """Bring back a dismissed item: clear its dismissal, so it shows whatever its need.
+    Answers the list as it now stands."""
+    _product(session, product_id)
+    try:
+        shopping_list.bring_back(session, product_id, _user_id(caller), utcnow())
+    except NotDismissed:
+        raise HTTPException(status.HTTP_409_CONFLICT, "not dismissed") from None
     session.commit()
     return _list_out(session, request)
