@@ -465,3 +465,40 @@ def test_existing_spools_get_net_weight_and_grams_left(tmp_path: Path) -> None:
         (8, 1000, None),
         (9, 750, 750),
     ]
+
+
+def test_spools_already_here_count_as_arrived_and_new_ones_do_not(tmp_path: Path) -> None:
+    url = f"sqlite:///{tmp_path / 'arrivals.db'}"
+    upgrade(url, "9d41c6b7e2a3")
+    engine = create_db_engine(url)
+    when = "2026-11-21 12:00:00.000000"
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO product (id, filament_type, color_rgba, display_name,"
+                " low_stock_threshold, provisional, created_at) VALUES (1, 'PLA', '000000FF',"
+                " 'Black', 0, 0, :when)"
+            ),
+            {"when": when},
+        )
+        connection.execute(
+            text("INSERT INTO spool (id, product_id, created_at) VALUES (1, 1, :when)"),
+            {"when": when},
+        )
+    engine.dispose()
+
+    upgrade(url)
+
+    engine = create_db_engine(url)
+    with engine.begin() as connection:
+        connection.execute(
+            text("INSERT INTO spool (id, product_id, created_at) VALUES (2, 1, :when)"),
+            {"when": when},
+        )
+        counted = connection.execute(
+            text("SELECT id, arrival_counted FROM spool ORDER BY id")
+        ).all()
+        products = connection.execute(text("SELECT from_catalog FROM product")).all()
+    engine.dispose()
+    assert [tuple(row) for row in counted] == [(1, 1), (2, 0)]
+    assert [tuple(row) for row in products] == [(0,)]
