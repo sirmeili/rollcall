@@ -106,10 +106,11 @@ def request_out(
     store = _store(http)
     reader = ChoiceReader(session, store.similarity_cutoff(), store.store_address())
     staff = sees_every_request(principal)
+    shortfalls = holding.request_shortfalls(session, item)
     choices = []
     for choice in item.choices:
         shown = reader.show(choice)
-        short = holding.shortfall(session, item, choice)
+        short = shortfalls.get(choice.id)
         choices.append(
             ChoiceOut(
                 id=choice.id,

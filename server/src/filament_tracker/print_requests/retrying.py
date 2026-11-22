@@ -3,7 +3,7 @@
 Approved and Waiting on Filament requests are retried in Active-tab order: each short choice
 takes more holds, and a request with every choice covered moves to Queued automatically, with
 no user and no email. A Queued request is never moved back; one that becomes short shows its
-shortfall.
+shortfall. Shortfalls share an over-held spool in the same order (`holding.shortfalls`).
 
 A request whose holds were changed by hand in this transaction is only checked, so the retry
 its change set off doesn't undo it; later retries treat it as any other.
@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.request_models import FilamentChoice, PrintRequest
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.print_requests import pipeline
+from filament_tracker.print_requests import holding, pipeline
 from filament_tracker.print_requests.holding import holder, product_id
 from filament_tracker.print_requests.pipeline import Mover
 from filament_tracker.print_requests.read import sort_key
@@ -46,14 +46,16 @@ def _wanted(request: PrintRequest) -> dict[FilamentChoice, int] | None:
 
 
 def _covered(session: Session, wanted: dict[FilamentChoice, int]) -> bool:
-    return all(holds.shortfall(session, holder(c), grams) == 0 for c, grams in wanted.items())
+    shortfalls = holding.shortfalls(session)
+    return all(shortfalls[c.id] == 0 for c in wanted)
 
 
 def _hold_more(session: Session, wanted: dict[FilamentChoice, int], now: datetime) -> bool:
     """Hold more for each short choice, toward its grams; whether every choice is covered."""
+    shortfalls = holding.shortfalls(session)
     covered = True
-    for choice, grams in wanted.items():
-        short = holds.shortfall(session, holder(choice), grams)
+    for choice in wanted:
+        short = shortfalls[choice.id]
         if short:
             found = product_id(session, choice)
             short = holds.place(session, holder(choice), found, short, now).short
