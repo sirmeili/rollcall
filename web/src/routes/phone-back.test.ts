@@ -2,7 +2,7 @@
 import { cleanup, render, screen, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { createRawSnippet } from "svelte";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import { browserBridge, setBridge } from "#lib/phone/bridge.ts";
 import { saveOpenOn, savePairing } from "#lib/phone/pairing-store.ts";
 import { fakeBridge, fakeFetch, PAIRING, tagRead, type FakeBridge } from "../test/fake-bridge.ts";
@@ -24,7 +24,7 @@ const ScanPage = (await import("./scan/+page.svelte")).default;
 const children = createRawSnippet(() => ({ render: () => "<p>page content</p>" }));
 
 let native: FakeBridge;
-let back: ReturnType<typeof vi.spyOn<History, "back">>;
+let back: MockInstance<() => void>;
 
 function at(path: string): void {
   nav.page.url = new URL(path, "https://localhost");

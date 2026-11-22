@@ -164,7 +164,7 @@ Run each step with the swipe-back gesture and, where the phone has one, the Back
 31. Back a page: from Inventory open a spool, then hop to Activity with the bottom nav. Back returns to the spool, and Back again to Inventory.
 32. The opening screen to the background: close the app fully and reopen it, so Scan has nothing before it. Turn on Delivery and record a spool, then press Back: the app goes to the background without closing. Reopen it from the recent apps: Scan shows, with Delivery on and the spool in its list.
 33. Nothing on the start screen: close the app fully, reopen it and press Back while the start screen shows. Nothing happens, and the app opens as usual.
-34. Back after pairing: after pairing with the QR code, with a typed code, or setting up by signing in, Back from the opened page sends the app to the background.
-35. Back after saving a form: after saving a new print request, an edited print request or a new spool, Back from the page it opens doesn't return to the form.
+34. After pairing (QR code, typed code, or setting up by signing in), Back from the opened page sends the app to the background.
+35. After saving a form (a new print request, an edited request, a new spool), Back from the page it opens skips the form.
 
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.
