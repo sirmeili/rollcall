@@ -42,9 +42,32 @@ Keep `README.md` accurate. A change to what it describes (status, components, se
 
 ## Commands
 
-- Working in `server/` or on the Docker image: its commands, including the checks CI runs, are in `server/README.md`.
-- Working in `web/`: its commands, including the checks CI runs, are in `web/README.md`.
-- Working in `android/`: its commands, including the checks CI runs, are in `android/README.md`.
+- Working in `server/` or on the Docker image: its commands, including the checks CI runs and the inner-loop test command, are in `server/README.md`.
+- Working in `web/`: its commands, including the checks CI runs and the inner-loop test command, are in `web/README.md`.
+- Working in `android/`: its commands, including the checks CI runs and the inner-loop test command, are in `android/README.md`.
+
+## Testing
+
+Narrow while working, complete before the PR, with evidence both times.
+
+- **Inner loop**: after each edit, run the tests for the code you changed, with coverage off, using the inner-loop command in that area's README. When the edit touches shared code, widen the loop to the tests of the code that uses it.
+- **Final gate**: when the branch is ready for a PR, run the checks that the README of each area the branch changes lists to run before a review, with coverage on. Run it again only if code changes after it; a clean merge of tested code needs no new run.
+- **A failing test**: rerun that test alone, not the suite. A test that passes only on retry is flaky: report it with the first failure's output.
+- **Fix the code, or report the failure.** Tests, skips, timeouts and thresholds change only as `CODING_STANDARDS.md` allows.
+
+Before the PR, report this to the user (not in the PR body), filling in every line and writing "none" where it applies. Take `main`'s numbers from the latest successful CI run on `main`; where its log has no count, write "not in the CI log".
+
+```text
+Gate:     each command, and the commit it ran on
+Counts:   passed / failed / skipped per command   (main: … / … / …)
+Flaky:    each test that passed only on retry
+Missing:  each test removed or newly skipped, and why
+Edited:   each existing test changed, and why
+Coverage: total per area, and lines or branches newly missed
+Break it: if you changed security rules, changed existing tests or made the tests run faster:
+          on a throwaway copy, break the behaviour those tests guard, and name the
+          assert that failed in each edited test file
+```
 
 ## Agent skills
 

@@ -15,6 +15,8 @@ npm run audit          # Audit dependencies
 npm run build          # Build to web/build
 ```
 
+Inner loop, with coverage off: `npx vitest run <test files>`.
+
 - **Build**: `npm run build` writes `web/build`. The server serves it at `/`.
 - **Live reload**: start the server on port 8000 (see [server/README.md](../server/README.md#development)), then `npm run dev`. Vite proxies `/api` to it.
 - **End-to-end tests**: `npx playwright install chromium` once, then `npm run build` and `npm run test:e2e`. They start the real server on a scratch database.

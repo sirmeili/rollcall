@@ -16,6 +16,8 @@ npx cap sync android
 ./gradlew assembleDebug    # Writes app/build/outputs/apk/debug/app-debug.apk
 ```
 
+Inner loop, without the coverage check, from `android/`: `./gradlew testDebugUnitTest --tests <test class>`.
+
 Run `npm run build` and `npx cap sync android` again after any web change, before building the app.
 
 The coverage gate leaves out the Android glue that needs a phone; the list is `coverageExcludes` in `app/build.gradle`, and [docs/testing.md](../docs/testing.md#coverage-exclusions) says why each is excluded and which checklist covers it. New Android dependencies follow the same rules as npm ones: see [CODING_STANDARDS.md](../CODING_STANDARDS.md#dependencies).
