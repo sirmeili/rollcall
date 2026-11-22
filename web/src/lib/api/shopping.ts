@@ -50,7 +50,12 @@ export interface ShoppingHistoryEntry {
 /** One product on the shopping list, with the reasons it is there. */
 export interface ShoppingListItem {
   product: Product;
+  /** need - on order, never below 0. */
   to_buy: number;
+  /** The spools its reasons add up to. */
+  need: number;
+  /** Spools ordered and not yet arrived. */
+  on_order: number;
   /** Low stock first, then hand-added, oldest first. */
   reasons: ShoppingReason[];
   /** The most recent entries, newest first. */
@@ -95,4 +100,22 @@ export function addByHand(target: AddTarget, spools: number): Promise<ShoppingLi
 /** Remove a hand-added reason (Editor and Admin); answers the list as it now stands. */
 export function removeHandReason(id: number): Promise<ShoppingList> {
   return api<ShoppingList>(`/shopping-list/hand-reasons/${id}`, { method: "DELETE" });
+}
+
+/** Add spools just ordered to a product's on order (Editor and Admin); answers the list as it
+ * now stands. */
+export function markOrdered(productId: number, spools: number): Promise<ShoppingList> {
+  return api<ShoppingList>(`/shopping-list/items/${productId}/ordered`, {
+    method: "POST",
+    body: { spools },
+  });
+}
+
+/** Set a product's on order to any number (Editor and Admin); answers the list as it now
+ * stands. */
+export function setOnOrder(productId: number, onOrder: number): Promise<ShoppingList> {
+  return api<ShoppingList>(`/shopping-list/items/${productId}/on-order`, {
+    method: "PUT",
+    body: { on_order: onOrder },
+  });
 }

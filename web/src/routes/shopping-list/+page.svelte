@@ -1,7 +1,7 @@
 <script lang="ts">
   /** The Shopping list page: each product to buy, as one item with its reasons, grouped by
    * filament line, then Not in the catalog (every role). Editors and Admins add spools by
-   * hand and remove them. */
+   * hand and remove them, mark items Ordered and set what is on order. */
   import { describeError } from "#lib/api/errors.ts";
   import { getShoppingList, removeHandReason, type ShoppingList } from "#lib/api/shopping.ts";
   import { session } from "#lib/auth/session.svelte.ts";
@@ -85,6 +85,7 @@
           {expanded}
           onexpand={(id) => (expanded = expanded === id ? null : id)}
           onremove={remove}
+          onchanged={(next) => (list = next)}
         />
       {/each}
     </div>
