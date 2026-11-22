@@ -5,7 +5,8 @@
   import { describeError } from "#lib/api/errors.ts";
   import { addByHand, suggest } from "#lib/api/shopping.ts";
   import { session } from "#lib/auth/session.svelte.ts";
-  import { spoolsProblem } from "#lib/shopping-add.ts";
+  import { wholeProblem } from "#lib/format.ts";
+  import { SPOOLS } from "#lib/shopping-add.ts";
   import { spoolsText } from "#lib/shopping-list.ts";
 
   interface Props {
@@ -21,7 +22,7 @@
   let done = $state<string | null>(null);
   let failure = $state<string | null>(null);
 
-  const problem = $derived(spoolsProblem(spools));
+  const problem = $derived(wholeProblem(spools, SPOOLS));
 
   async function add(): Promise<void> {
     if (problem || spools === null) return;

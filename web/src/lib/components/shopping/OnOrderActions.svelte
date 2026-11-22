@@ -8,8 +8,9 @@
     type ShoppingList,
     type ShoppingListItem,
   } from "#lib/api/shopping.ts";
-  import { spoolsProblem } from "#lib/shopping-add.ts";
-  import { onOrderProblem, orderedDefault } from "#lib/shopping-on-order.ts";
+  import { wholeProblem } from "#lib/format.ts";
+  import { SPOOLS } from "#lib/shopping-add.ts";
+  import { ON_ORDER, orderedDefault } from "#lib/shopping-on-order.ts";
 
   interface Props {
     item: ShoppingListItem;
@@ -26,7 +27,11 @@
   let failure = $state<string | null>(null);
 
   const problem = $derived(
-    open === "ordered" ? spoolsProblem(spools) : open === "set" ? onOrderProblem(spools) : null,
+    open === "ordered"
+      ? wholeProblem(spools, SPOOLS)
+      : open === "set"
+        ? wholeProblem(spools, ON_ORDER)
+        : null,
   );
   const name = $derived(item.product.display_name);
 

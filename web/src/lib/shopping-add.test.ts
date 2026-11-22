@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Catalog, CatalogColor } from "#lib/api/catalog.ts";
-import { addOptions, searchAdd, spoolsProblem } from "#lib/shopping-add.ts";
+import { wholeProblem } from "#lib/format.ts";
+import { addOptions, SPOOLS, searchAdd } from "#lib/shopping-add.ts";
+import { ON_ORDER } from "#lib/shopping-on-order.ts";
 import { product } from "../test/fixtures.ts";
 
 function color(uuid: string, name: string, overrides: Partial<CatalogColor> = {}): CatalogColor {
@@ -86,13 +88,18 @@ describe("searchAdd", () => {
   });
 });
 
-describe("spoolsProblem", () => {
+describe("wholeProblem", () => {
   it("wants a whole number of spools, 1 to 999", () => {
-    expect(spoolsProblem(1)).toBeNull();
-    expect(spoolsProblem(999)).toBeNull();
-    expect(spoolsProblem(null)).toBe("Spools: a whole number, 1 to 999.");
-    expect(spoolsProblem(0)).toBe("Spools: a whole number, 1 to 999.");
-    expect(spoolsProblem(1.5)).toBe("Spools: a whole number, 1 to 999.");
-    expect(spoolsProblem(1000)).toBe("Spools: a whole number, 1 to 999.");
+    expect(wholeProblem(1, SPOOLS)).toBeNull();
+    expect(wholeProblem(999, SPOOLS)).toBeNull();
+    expect(wholeProblem(null, SPOOLS)).toBe("Spools: a whole number, 1 to 999.");
+    expect(wholeProblem(0, SPOOLS)).toBe("Spools: a whole number, 1 to 999.");
+    expect(wholeProblem(1.5, SPOOLS)).toBe("Spools: a whole number, 1 to 999.");
+    expect(wholeProblem(1000, SPOOLS)).toBe("Spools: a whole number, 1 to 999.");
+  });
+
+  it("lets on order be 0 to 999", () => {
+    expect(wholeProblem(0, ON_ORDER)).toBeNull();
+    expect(wholeProblem(-1, ON_ORDER)).toBe("On order: a whole number, 0 to 999.");
   });
 });

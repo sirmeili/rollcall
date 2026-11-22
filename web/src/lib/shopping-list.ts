@@ -8,7 +8,7 @@ import type {
 } from "#lib/api/shopping.ts";
 import type { Product } from "#lib/api/types.ts";
 import { storeSearchUrl } from "#lib/catalog.ts";
-import { dateTime } from "#lib/format.ts";
+import { dateTime, rgbHex, type WholeRange } from "#lib/format.ts";
 
 /** The largest size an item can be given, as the largest net weight a spool can have. */
 const MAX_SIZE_G = 10_000;
@@ -60,11 +60,8 @@ export function sizeText(size: ShoppingSize): string {
   return `${size.grams} g spools (${SIZE_FROM[size.source]})`;
 }
 
-/** Why a size can't be chosen, or null. */
-export function sizeProblem(grams: number | null): string | null {
-  const whole = grams !== null && Number.isInteger(grams) && grams >= 1;
-  return whole && grams <= MAX_SIZE_G ? null : `Size: a whole number of grams, 1 to 10,000.`;
-}
+/** The sizes an item can be given. */
+export const SIZE: WholeRange = { label: "Size", min: 1, max: MAX_SIZE_G, unit: "grams" };
 
 /** Who did it, when, and the on order after: "frank · Nov 21, 12:00 PM · 0 on order". */
 export function historyWhen(entry: ShoppingHistoryEntry, now: Date = new Date()): string {
@@ -120,7 +117,7 @@ export function suggestionName(suggestion: Suggestion): string {
 
 /** The suggestion's swatch colors, RRGGBB. */
 export function suggestionHexes(suggestion: Suggestion): string[] {
-  if (suggestion.product) return [suggestion.product.color_rgba.slice(0, 6).toUpperCase()];
+  if (suggestion.product) return [rgbHex(suggestion.product.color_rgba)];
   return suggestion.catalog_color?.hexes ?? [];
 }
 

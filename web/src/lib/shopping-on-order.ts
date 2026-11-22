@@ -1,4 +1,5 @@
 import type { ShoppingListItem } from "#lib/api/shopping.ts";
+import type { WholeRange } from "#lib/format.ts";
 import { MAX_SPOOLS } from "#lib/shopping-add.ts";
 
 /** "3 need · 1 on order" */
@@ -11,11 +12,8 @@ export function orderedDefault(item: ShoppingListItem): number {
   return Math.max(item.to_buy, 1);
 }
 
-/** Why a number can't be on order, or null: a whole number, 0 to 999. */
-export function onOrderProblem(spools: number | null): string | null {
-  const whole = spools !== null && Number.isInteger(spools) && spools >= 0;
-  return whole && spools <= MAX_SPOOLS ? null : `On order: a whole number, 0 to ${MAX_SPOOLS}.`;
-}
+/** What an item's on order can be set to. */
+export const ON_ORDER: WholeRange = { label: "On order", min: 0, max: MAX_SPOOLS };
 
 /** A group's items still to buy, then those fully ordered, which show under On order. */
 export function byOrdered(items: ShoppingListItem[]): {

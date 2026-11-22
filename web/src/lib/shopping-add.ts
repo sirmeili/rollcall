@@ -4,6 +4,7 @@
 import type { Catalog } from "#lib/api/catalog.ts";
 import type { AddTarget } from "#lib/api/shopping.ts";
 import type { Product } from "#lib/api/types.ts";
+import { rgbHex, type WholeRange } from "#lib/format.ts";
 
 /** The server's limit: more than anyone would buy at once. */
 export const MAX_SPOOLS = 999;
@@ -26,7 +27,7 @@ export function addOptions(products: Product[], catalog: Catalog | null): AddOpt
     key: `p:${p.id}`,
     target: { product_id: p.id },
     name: p.display_name,
-    hexes: [p.color_rgba.slice(0, 6).toUpperCase()],
+    hexes: [rgbHex(p.color_rgba)],
     sub: `${p.filament_type} · product`,
     hay: `${p.display_name} ${p.filament_type}`,
   }));
@@ -61,8 +62,5 @@ export function searchAdd(options: AddOption[], query: string, most = 8): AddOpt
     .slice(0, most);
 }
 
-/** What is wrong with the number of spools, or null. */
-export function spoolsProblem(spools: number | null): string | null {
-  const whole = spools !== null && Number.isInteger(spools) && spools >= 1;
-  return whole && spools <= MAX_SPOOLS ? null : `Spools: a whole number, 1 to ${MAX_SPOOLS}.`;
-}
+/** The spools added, ordered or suggested at once. */
+export const SPOOLS: WholeRange = { label: "Spools", min: 1, max: MAX_SPOOLS };

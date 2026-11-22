@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { setTimeZone } from "#lib/format.ts";
+import { setTimeZone, wholeProblem } from "#lib/format.ts";
 import {
   findInStore,
   historyText,
   historyWhen,
   reasonText,
+  SIZE,
   shoppingGroups,
-  sizeProblem,
   sizeText,
   spoolsText,
 } from "#lib/shopping-list.ts";
@@ -67,10 +67,10 @@ describe("an item's size", () => {
   });
 
   it("takes a whole number of grams from 1 to 10,000", () => {
-    expect(sizeProblem(1)).toBeNull();
-    expect(sizeProblem(10_000)).toBeNull();
+    expect(wholeProblem(1, SIZE)).toBeNull();
+    expect(wholeProblem(10_000, SIZE)).toBeNull();
     for (const bad of [null, 0, 10_001, 2.5]) {
-      expect(sizeProblem(bad)).toBe("Size: a whole number of grams, 1 to 10,000.");
+      expect(wholeProblem(bad, SIZE)).toBe("Size: a whole number of grams, 1 to 10,000.");
     }
   });
 });

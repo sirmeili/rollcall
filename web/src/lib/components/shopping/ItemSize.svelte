@@ -4,7 +4,8 @@
   import { describeError } from "#lib/api/errors.ts";
   import { setSize, type ShoppingList, type ShoppingListItem } from "#lib/api/shopping.ts";
   import { session } from "#lib/auth/session.svelte.ts";
-  import { sizeProblem, sizeText } from "#lib/shopping-list.ts";
+  import { wholeProblem } from "#lib/format.ts";
+  import { SIZE, sizeText } from "#lib/shopping-list.ts";
 
   interface Props {
     item: ShoppingListItem;
@@ -19,7 +20,7 @@
   let saving = $state(false);
   let failure = $state<string | null>(null);
 
-  const problem = $derived(sizeProblem(grams));
+  const problem = $derived(wholeProblem(grams, SIZE));
   const inputId = $derived(`shopping-size-${item.product.id}`);
 
   function start(): void {

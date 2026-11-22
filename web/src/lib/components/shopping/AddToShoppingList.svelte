@@ -10,7 +10,8 @@
   import type { Product } from "#lib/api/types.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import HexRing from "#lib/components/catalog/HexRing.svelte";
-  import { type AddOption, addOptions, searchAdd, spoolsProblem } from "#lib/shopping-add.ts";
+  import { wholeProblem } from "#lib/format.ts";
+  import { type AddOption, addOptions, SPOOLS, searchAdd } from "#lib/shopping-add.ts";
 
   interface Props {
     /** The list once the spools are added or suggested. */
@@ -30,7 +31,7 @@
 
   const found = $derived(searchAdd(options, query));
   const choice = $derived(options.find((o) => o.key === picked));
-  const problem = $derived(spoolsProblem(spools));
+  const problem = $derived(wholeProblem(spools, SPOOLS));
   const editor = $derived(session.can("editor"));
 
   async function start(): Promise<void> {
