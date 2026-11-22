@@ -15,7 +15,7 @@ npm run audit          # Audit dependencies
 npm run build          # Build to web/build
 ```
 
-These are the final gate. After each edit, run only the tests for the code you changed, with coverage off: `npx vitest run <test files>`.
+Inner loop, with coverage off: `npx vitest run <test files>`.
 
 - **Build**: `npm run build` writes `web/build`. The server serves it at `/`.
 - **Live reload**: start the server on port 8000 (see [server/README.md](../server/README.md#development)), then `npm run dev`. Vite proxies `/api` to it.

@@ -16,7 +16,7 @@ npx cap sync android
 ./gradlew assembleDebug    # Writes app/build/outputs/apk/debug/app-debug.apk
 ```
 
-These are the final gate. After each edit to the Kotlin code, run only the tests for the class you changed, without the coverage check: from `android/`, `./gradlew testDebugUnitTest --tests <test class>`.
+Inner loop, without the coverage check, from `android/`: `./gradlew testDebugUnitTest --tests <test class>`.
 
 Run `npm run build` and `npx cap sync android` again after any web change, before building the app.
 
