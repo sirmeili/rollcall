@@ -126,9 +126,11 @@ def same_product(
     """The scanned product and the candidate are one: merge the candidate into it.
 
     The scanned product keeps its tag IDs, name, color and spools. It takes the candidate's
-    manual catalog link, the higher threshold and its on order, and its spools then count as
-    arriving. The candidate's hand-added reasons, suggestions, dismissal and history move to
-    it, and the candidate is deleted. The merge goes into the shopping list history.
+    manual catalog link, the higher threshold, its on order and its chosen size if it has
+    none, and its spools then count as arriving. The candidate's hand-added reasons,
+    suggestions and dismissal move to it. Its shopping list history is copied to it, since
+    entries are never edited, and the candidate is deleted with its own entries. The merge
+    goes into the shopping list history.
     """
     duplicate = _get(session, duplicate_id)
     if duplicate.state is not DuplicateState.OPEN:
@@ -147,10 +149,11 @@ def same_product(
         select(Spool).where(Spool.product_id == scanned.id).order_by(Spool.id)
     ):
         arrivals.count_late(session, spool)
-    for table in (HandReason, Suggestion, ShoppingHistory):
+    for table in (HandReason, Suggestion):
         session.execute(
             update(table).where(table.product_id == candidate.id).values(product_id=scanned.id)
         )
+    _copy_history(session, scanned, candidate)
     _drop_candidate(session, candidate, duplicate)
     _decide(duplicate, DuplicateState.SAME_PRODUCT, user_id, now)
     history.record(session, scanned.id, ShoppingAction.SAME_PRODUCT, user_id, now)
@@ -171,6 +174,26 @@ def _merge_items(session: Session, scanned: Product, candidate: Product) -> None
     if item.chosen_size_g is None:
         item.chosen_size_g = other.chosen_size_g
     session.delete(other)
+    session.flush()
+
+
+def _copy_history(session: Session, scanned: Product, candidate: Product) -> None:
+    """New entries on the scanned product, copying the candidate's; the candidate's own are
+    deleted with it."""
+    query = select(ShoppingHistory).where(ShoppingHistory.product_id == candidate.id)
+    for entry in session.scalars(query.order_by(ShoppingHistory.id)).all():
+        session.add(
+            ShoppingHistory(
+                product_id=scanned.id,
+                action=entry.action,
+                spools=entry.spools,
+                size_g=entry.size_g,
+                on_order=entry.on_order,
+                user_id=entry.user_id,
+                at=entry.at,
+            )
+        )
+        session.delete(entry)
     session.flush()
 
 

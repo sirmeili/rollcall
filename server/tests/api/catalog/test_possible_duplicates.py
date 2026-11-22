@@ -9,7 +9,10 @@ from api_helpers import CSRF, admin, scan, signed_in
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from ofdb_fake import refresh
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from filament_tracker.db.shopping_models import ShoppingHistory
 from filament_tracker.decoder.synthetic import SyntheticTag
 from filament_tracker.domain.enums import Role
 
@@ -175,6 +178,61 @@ def test_same_product_merges_the_candidate_into_the_scanned_product(
     # Undoing the scanned Received gives its one back.
     assert client.post(f"/api/v1/events/{received['event_id']}/revert", headers=admin()).is_success
     assert _item(client, scanned)["on_order"] == 2
+
+
+def _history_rows(db: Session) -> dict[int, tuple[Any, ...]]:
+    db.expire_all()
+    return {
+        r.id: (r.product_id, r.action, r.spools, r.size_g, r.on_order, r.user_id, r.at)
+        for r in db.scalars(select(ShoppingHistory))
+    }
+
+
+def _entries(item: dict[str, Any]) -> list[tuple[Any, ...]]:
+    return [
+        (e["action"], e["spools"], e["size_g"], e["on_order"], e["by"], e["at"])
+        for e in item["history"]
+    ]
+
+
+def test_same_product_copies_the_candidates_history_and_edits_no_entry(
+    client: TestClient, token: str, editor: TestClient, db: Session
+) -> None:
+    black = _from_the_catalog(editor, "var-black", spools=2)
+    assert editor.post(
+        f"/api/v1/shopping-list/items/{black}/ordered", json={"spools": 2}, headers=CSRF
+    ).is_success
+    copied = _entries(_item(client, black))
+    scanned = scan(client, token, NEAR_BLACK, "received")["product"]["id"]
+    [duplicate] = _duplicates(client)
+    before = _history_rows(db)
+
+    assert _same(editor, duplicate, black).status_code == 204
+
+    after = _history_rows(db)
+    # No surviving entry changed; the candidate's own went with it.
+    assert {i: row for i, row in after.items() if i in before} == {
+        i: row for i, row in before.items() if i in after
+    }
+    assert all(row[0] != black for row in after.values())
+    entries = _entries(_item(client, scanned))
+    assert entries[0][0] == "same_product"
+    assert [e for e in entries if e[0] in {"added_by_hand", "ordered"}] == copied
+
+
+def test_same_product_carries_over_the_candidates_chosen_size(
+    client: TestClient, token: str, editor: TestClient
+) -> None:
+    black = _from_the_catalog(editor, "var-black")
+    assert editor.put(
+        f"/api/v1/shopping-list/items/{black}/size", json={"size_g": 500}, headers=CSRF
+    ).is_success
+    scanned = scan(client, token, NEAR_BLACK, "received")["product"]["id"]
+    [duplicate] = _duplicates(client)
+
+    assert _same(editor, duplicate, black).status_code == 204
+
+    assert _item(client, scanned)["size"] == {"grams": 500, "source": "chosen"}
 
 
 def test_same_product_moves_a_dismissal(client: TestClient, token: str, editor: TestClient) -> None:
