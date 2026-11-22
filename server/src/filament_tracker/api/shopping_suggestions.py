@@ -45,11 +45,11 @@ def add_suggestion(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such suggestion") from None
     except SuggestionDecided:
         raise HTTPException(
-            status.HTTP_409_CONFLICT, "That suggestion was already decided."
+            status.HTTP_409_CONFLICT, "that suggestion was already decided"
         ) from None
     except UnknownColor:
         raise HTTPException(
-            status.HTTP_409_CONFLICT, "That catalog color is no longer in the catalog."
+            status.HTTP_409_CONFLICT, "that catalog color is no longer in the catalog"
         ) from None
     session.commit()
     return list_out(session, request, caller)
@@ -66,7 +66,7 @@ def dismiss_suggestion(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such suggestion") from None
     except SuggestionDecided:
         raise HTTPException(
-            status.HTTP_409_CONFLICT, "That suggestion was already decided."
+            status.HTTP_409_CONFLICT, "that suggestion was already decided"
         ) from None
     session.commit()
     return list_out(session, request, caller)
