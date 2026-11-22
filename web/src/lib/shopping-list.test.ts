@@ -97,6 +97,16 @@ describe("the shopping list history", () => {
     );
   });
 
+  it("says what happened to a suggestion", () => {
+    expect(historyText({ ...added(2), action: "suggested" })).toBe("Suggested 2 spools");
+    expect(historyText({ ...added(2), action: "suggestion_added" })).toBe(
+      "Added a suggestion of 2 spools",
+    );
+    expect(historyText({ ...added(1), action: "suggestion_dismissed" })).toBe(
+      "Dismissed a suggestion of 1 spool",
+    );
+  });
+
   it("says who did it, when, and what was on order after", () => {
     const now = new Date("2026-11-22T09:00:00Z");
     expect(historyWhen(added(2), now)).toBe("frank · Nov 21, 12:00 PM · 0 on order");

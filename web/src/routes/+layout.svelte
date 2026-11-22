@@ -17,6 +17,7 @@
   import { seesEveryRequest } from "#lib/requests/access.ts";
   import { requestsBadge } from "#lib/requests-badge.svelte.ts";
   import { reviewBadge } from "#lib/review-badge.svelte.ts";
+  import { shoppingBadge } from "#lib/shopping-badge.svelte.ts";
   import { theme } from "#lib/theme.svelte.ts";
   import { viewport } from "#lib/viewport.svelte.ts";
 
@@ -118,11 +119,14 @@
     if (target) void goto(target, { replaceState: true });
   });
 
-  // The Review and Requests badges, refreshed on every page change. Only Editors and
-  // Admins get the count of Submitted requests.
+  // The Review, Shopping list and Requests badges, refreshed on every page change. Only
+  // Editors and Admins get the count of Submitted requests.
   $effect(() => {
     void page.url.pathname;
-    if (session.user) void reviewBadge.refresh();
+    if (session.user) {
+      void reviewBadge.refresh();
+      void shoppingBadge.refresh();
+    }
     if (seesEveryRequest(session.user)) void requestsBadge.refresh();
     else requestsBadge.clear();
   });
@@ -143,6 +147,7 @@
       pathname={page.url.pathname}
       reviewCount={reviewBadge.count}
       requestCount={requestsBadge.count}
+      shoppingCount={shoppingBadge.count}
       scan={phone.app}
     />
   {/if}
@@ -159,6 +164,7 @@
       pathname={page.url.pathname}
       reviewCount={reviewBadge.count}
       requestCount={requestsBadge.count}
+      shoppingCount={shoppingBadge.count}
       scan={phone.app && phone.paired}
     />
   {/if}

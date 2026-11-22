@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createRawSnippet } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Me } from "#lib/api/types.ts";
-import { me } from "../test/fixtures.ts";
+import { fakeFetch, me } from "../test/fixtures.ts";
 
 // The page URL and navigation, controlled by each test.
 const nav = vi.hoisted(() => ({
@@ -130,6 +130,26 @@ describe("layout", () => {
     render(Layout, { children });
 
     expect(await screen.findByRole("link", { name: "Review, 3 waiting" })).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it("shows how many suggestions are open on the Shopping list", async () => {
+    signedIn(me("viewer", { username: "alice" }));
+    const list = { suggestions: [{}, {}], lines: [], not_in_catalog: [], store_address: "" };
+    vi.stubGlobal(
+      "fetch",
+      fakeFetch({
+        "GET /review": { flagged_events: [], unidentified_tags: [], likely_empty: [] },
+        "GET /shopping-list": list,
+      }),
+    );
+    at("/");
+
+    render(Layout, { children });
+
+    expect(
+      await screen.findByRole("link", { name: "Shopping list, 2 suggested" }),
+    ).toBeInTheDocument();
     vi.unstubAllGlobals();
   });
 

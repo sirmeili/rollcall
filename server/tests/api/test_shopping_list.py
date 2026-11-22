@@ -62,6 +62,7 @@ def test_an_empty_list(viewer: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {
+        "suggestions": [],
         "lines": [],
         "not_in_catalog": [],
         "store_address": "https://us.store.bambulab.com",

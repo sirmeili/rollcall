@@ -1,9 +1,10 @@
 <script lang="ts">
-  /** Add to shopping list on an expanded catalog color (Editors and Admins): a number of
-   * spools of it, put on its product's item. A color with no linked product gets a "From the
-   * catalog" product on the server. */
+  /** Add to shopping list on an expanded catalog color: a number of spools of it. Editors and
+   * Admins put them on its product's item, a color with no linked product getting a "From
+   * the catalog" product on the server; Viewers make a suggestion. */
   import { describeError } from "#lib/api/errors.ts";
-  import { addByHand } from "#lib/api/shopping.ts";
+  import { addByHand, suggest } from "#lib/api/shopping.ts";
+  import { session } from "#lib/auth/session.svelte.ts";
   import { spoolsProblem } from "#lib/shopping-add.ts";
   import { spoolsText } from "#lib/shopping-list.ts";
 
@@ -27,8 +28,13 @@
     saving = true;
     done = failure = null;
     try {
-      await addByHand({ catalog_color: uuid }, spools);
-      done = `Added ${spoolsText(spools)} of ${name} to the shopping list.`;
+      if (session.can("editor")) {
+        await addByHand({ catalog_color: uuid }, spools);
+        done = `Added ${spoolsText(spools)} of ${name} to the shopping list.`;
+      } else {
+        await suggest({ catalog_color: uuid }, spools);
+        done = `Suggested ${spoolsText(spools)} of ${name} for the shopping list.`;
+      }
     } catch (error) {
       failure = describeError(error);
     } finally {

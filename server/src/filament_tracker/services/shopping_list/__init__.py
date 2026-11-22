@@ -22,6 +22,15 @@ from filament_tracker.services.shopping_list.read import (
     read,
 )
 from filament_tracker.services.shopping_list.size import set_size
+from filament_tracker.services.shopping_list.suggestions import (
+    NoSuchSuggestion,
+    OpenSuggestion,
+    SuggestionDecided,
+    add_suggestion,
+    dismiss_suggestion,
+    open_suggestions,
+    suggest,
+)
 
 __all__ = [
     "HandAdded",
@@ -30,19 +39,26 @@ __all__ = [
     "LowStock",
     "NetWeight",
     "NoSuchReason",
+    "NoSuchSuggestion",
     "NotDismissed",
+    "OpenSuggestion",
     "RequestNeedsReader",
     "RequestShort",
     "ShoppingList",
     "ShoppingListItem",
     "SizeFrom",
+    "SuggestionDecided",
     "add_by_hand",
+    "add_suggestion",
     "bring_back",
     "dismiss",
+    "dismiss_suggestion",
+    "open_suggestions",
     "ordered",
     "product_for_color",
     "read",
     "remove_hand_reason",
     "set_on_order",
     "set_size",
+    "suggest",
 ]

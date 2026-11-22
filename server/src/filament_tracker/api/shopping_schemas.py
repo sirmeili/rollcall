@@ -90,7 +90,31 @@ class LineOut(BaseModel):
     items: list[ShoppingListItemOut] = Field(description="By product name")
 
 
+class SuggestedColorOut(BaseModel):
+    """A suggested catalog color. Its fields are null once the catalog has dropped it."""
+
+    uuid: str
+    name: str | None
+    line: str | None = Field(description="The filament line, such as PLA Basic")
+    hexes: list[str] | None = Field(description="RRGGBB, the main color first")
+    bambu_code: str | None
+
+
+class SuggestionOut(BaseModel):
+    """An open suggestion: of a product, or of a catalog color no product was linked to."""
+
+    id: int
+    product: ProductDetail | None
+    catalog_color: SuggestedColorOut | None
+    spools: int
+    by: str | None = Field(description="Who suggested it; null for a token")
+    at: datetime
+
+
 class ShoppingListOut(BaseModel):
+    suggestions: list[SuggestionOut] = Field(
+        description="Open suggestions, oldest first; they count toward nothing"
+    )
     lines: list[LineOut] = Field(description="By name")
     not_in_catalog: list[ShoppingListItemOut] = Field(
         description="Products with no catalog link, by name"
@@ -132,3 +156,8 @@ class SizeIn(Strict):
     """The size to turn the item's requests' grams into spools with."""
 
     size_g: int = Field(ge=1, le=MAX_NET_WEIGHT_G)
+
+
+class SuggestionIn(HandReasonIn):
+    """Spools to suggest of exactly one of a product or a catalog color (its OFDB UUID). A
+    catalog color gets no product until an Editor or Admin adds the suggestion."""

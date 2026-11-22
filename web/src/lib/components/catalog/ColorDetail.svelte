@@ -1,7 +1,7 @@
 <script lang="ts">
   /** What an expanded catalog color shows: its owned products, its linked products with
-   * none in stock, its similar in-stock colors, then Find in store and, for Editors and
-   * Admins, Add to shopping list beside it. */
+   * none in stock, its similar in-stock colors, then Find in store and Add to shopping list
+   * beside it (a suggestion, for a Viewer). */
   import type { CatalogColor } from "#lib/api/catalog.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import { storeUrl } from "#lib/catalog.ts";
@@ -27,7 +27,7 @@
   <SimilarColors {color} {material} {cutoff} />
   <div class="buy">
     <FindInStore href={storeUrl(storeAddress, lineName, color)} />
-    {#if session.can("editor")}
+    {#if session.user}
       <AddColorToList uuid={color.uuid} name={color.name} />
     {/if}
   </div>

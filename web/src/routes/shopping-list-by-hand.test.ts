@@ -151,14 +151,13 @@ describe("spools added by hand on the shopping list", () => {
     expect(screen.getByText("Added by hand by frank · 2 spools")).toBeInTheDocument();
   });
 
-  it("gives Viewers no Remove and no Add to shopping list", async () => {
+  it("gives Viewers no Remove", async () => {
     signedInAs("viewer");
     serve();
     render(ShoppingListPage);
 
     await screen.findByText("Black PLA Basic");
     expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Add to shopping list" })).toBeNull();
   });
 
   it("shows the reasons, Remove and history in a phone row's expanded view", async () => {

@@ -97,6 +97,15 @@ describe("header", () => {
     expect(screen.queryByRole("group", { name: "Theme" })).toBeNull();
   });
 
+  it("shows the count of open suggestions on the Shopping list link", () => {
+    render(Header, { user: me("viewer"), pathname: "/", reviewCount: 0, shoppingCount: 2 });
+
+    expect(screen.getByRole("link", { name: "Shopping list, 2 suggested" })).toHaveAttribute(
+      "href",
+      "/shopping-list",
+    );
+  });
+
   it("has a Scan button only in the phone app", () => {
     const props = {
       user: me("viewer"),
