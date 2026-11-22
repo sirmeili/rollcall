@@ -17,8 +17,8 @@ from filament_tracker.services import shopping_list
 from filament_tracker.services.accounts import create_user
 from filament_tracker.services.shopping_list import (
     HandAdded,
+    ItemSize,
     LowStock,
-    NetWeight,
     RequestShort,
     ShoppingListItem,
     SizeFrom,
@@ -150,7 +150,7 @@ def test_with_nothing_else_the_size_is_1000_g(session: Session) -> None:
 
     item = only(session, {black.id: [short(1, 1001)]})
 
-    assert item.size == NetWeight(1000, SizeFrom.DEFAULT)
+    assert item.size == ItemSize(1000, SizeFrom.DEFAULT)
     assert item.to_buy == 2
 
 
@@ -161,7 +161,7 @@ def test_a_catalog_colors_1000_g_size_comes_before_its_others(session: Session) 
 
     item = only(session, {jade.id: [short(1, 1500)]})
 
-    assert item.size == NetWeight(1000, SizeFrom.CATALOG)
+    assert item.size == ItemSize(1000, SizeFrom.CATALOG)
     assert item.to_buy == 2
 
 
@@ -172,7 +172,7 @@ def test_a_catalog_colors_only_size_is_used_without_a_1000_g_one(session: Sessio
 
     item = only(session, {jade.id: [short(1, 3500)]})
 
-    assert item.size == NetWeight(3000, SizeFrom.CATALOG)
+    assert item.size == ItemSize(3000, SizeFrom.CATALOG)
     assert item.to_buy == 2
 
 
@@ -183,7 +183,7 @@ def test_a_catalog_colors_smallest_size_is_used_without_a_1000_g_one(session: Se
 
     item = only(session, {jade.id: [short(1, 600)]})
 
-    assert item.size == NetWeight(500, SizeFrom.CATALOG)
+    assert item.size == ItemSize(500, SizeFrom.CATALOG)
     assert item.to_buy == 2
 
 
@@ -192,7 +192,7 @@ def test_a_catalog_color_with_no_sizes_uses_1000_g(session: Session) -> None:
     sizes(session, "jade")
     jade = product(session, "Jade", threshold=0, color="jade")
 
-    assert only(session, {jade.id: [short(1, 600)]}).size == NetWeight(1000, SizeFrom.DEFAULT)
+    assert only(session, {jade.id: [short(1, 600)]}).size == ItemSize(1000, SizeFrom.DEFAULT)
 
 
 def test_the_most_recently_received_spools_net_weight_comes_before_the_catalog(
@@ -208,7 +208,7 @@ def test_the_most_recently_received_spools_net_weight_comes_before_the_catalog(
 
     item = only(session, {jade.id: [short(1, 600)]})
 
-    assert item.size == NetWeight(500, SizeFrom.LAST_SPOOL)
+    assert item.size == ItemSize(500, SizeFrom.LAST_SPOOL)
     assert item.to_buy == 2
 
 
@@ -217,7 +217,7 @@ def test_a_received_spool_with_no_net_weight_is_passed_over(session: Session) ->
     received(session, jade, None, days_ago=1)
     received(session, jade, 750, days_ago=5)
 
-    assert only(session, {jade.id: [short(1, 600)]}).size == NetWeight(750, SizeFrom.LAST_SPOOL)
+    assert only(session, {jade.id: [short(1, 600)]}).size == ItemSize(750, SizeFrom.LAST_SPOOL)
 
 
 def test_a_chosen_size_comes_first_and_re_rounds_only_the_requests_part(
@@ -232,7 +232,7 @@ def test_a_chosen_size_comes_first_and_re_rounds_only_the_requests_part(
     set_size(session, black, 3000, frank.id, NOW)
 
     item = only(session, needs)
-    assert item.size == NetWeight(3000, SizeFrom.CHOSEN)
+    assert item.size == ItemSize(3000, SizeFrom.CHOSEN)
     assert item.to_buy == 1 + 1 + 1
 
 
@@ -259,6 +259,6 @@ def test_choosing_a_size_again_replaces_it(session: Session, frank: User) -> Non
     set_size(session, black, 250, None, NOW)
 
     item = only(session, {black.id: [short(1, 600)]})
-    assert item.size == NetWeight(250, SizeFrom.CHOSEN)
+    assert item.size == ItemSize(250, SizeFrom.CHOSEN)
     assert item.to_buy == 3
     assert [e.by for e in item.shopping_history] == [None, "frank"]

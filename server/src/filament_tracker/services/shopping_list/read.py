@@ -17,12 +17,12 @@ from filament_tracker.domain.enums import SpoolState
 from filament_tracker.services import queries
 from filament_tracker.services.catalog_links import IndexedColor, catalog_link
 from filament_tracker.services.shopping_list.needs import RequestNeedsReader, RequestShort
-from filament_tracker.services.shopping_list.net_weight import NetWeight, net_weight
 from filament_tracker.services.shopping_list.shopping_history import (
     ShoppingHistoryEntry,
     by,
     recent,
 )
+from filament_tracker.services.shopping_list.size import ItemSize, item_size
 
 
 @dataclass(frozen=True)
@@ -74,7 +74,7 @@ class ShoppingListItem:
     # Spools ordered and not yet arrived.
     on_order: int = 0
     # The size the requests' grams are turned into spools with.
-    size: NetWeight = field(kw_only=True)
+    size: ItemSize = field(kw_only=True)
 
     @property
     def request_spools(self) -> int:
@@ -211,7 +211,7 @@ def read(
             reasons,
             entries.get(product.id, []),
             ordered,
-            size=net_weight(session, product, color),
+            size=item_size(session, product, color),
         )
         # A product needing nothing, though still on order, keeps no dismissal.
         if item.need > 0 and product.id in dismissals:

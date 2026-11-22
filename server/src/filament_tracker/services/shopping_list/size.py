@@ -1,14 +1,80 @@
-"""Choosing the size an item turns print requests' grams into spools with. It goes into the
-shopping list history."""
+"""An item's size: the size it turns print requests' grams into spools with, first of: the
+size chosen on the item; the net weight of the product's most recently received spool; its
+catalog color's 1000 g size (refill or not), else its only size, else its smallest; 1000 g.
+Choosing the size goes into the shopping list history."""
 
+from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from filament_tracker.db.models import Product
+from filament_tracker.db.catalog_models import CatalogSize
+from filament_tracker.db.models import Product, Spool
+from filament_tracker.db.shopping_models import ShoppingListItemRow
 from filament_tracker.domain.enums import ShoppingAction
+from filament_tracker.services.catalog_links import IndexedColor
+from filament_tracker.services.grams import FALLBACK_NET_WEIGHT_G
 from filament_tracker.services.shopping_list import shopping_history
 from filament_tracker.services.shopping_list.items import item_for
+
+
+class SizeFrom(StrEnum):
+    """Where an item's size came from."""
+
+    CHOSEN = "chosen"
+    LAST_SPOOL = "last_spool"
+    CATALOG = "catalog"
+    DEFAULT = "default"
+
+
+@dataclass(frozen=True)
+class ItemSize:
+    grams: int
+    source: SizeFrom
+
+
+def _last_spool(session: Session, product: Product) -> int | None:
+    return session.scalar(
+        select(Spool.net_weight_g)
+        .where(
+            Spool.product_id == product.id,
+            Spool.received_at.is_not(None),
+            Spool.net_weight_g.is_not(None),
+        )
+        .order_by(Spool.received_at.desc(), Spool.id.desc())
+        .limit(1)
+    )
+
+
+def _catalog(session: Session, color: IndexedColor) -> int | None:
+    weights = set(
+        session.scalars(
+            select(CatalogSize.filament_weight).where(CatalogSize.variant_uuid == color.uuid)
+        )
+    )
+    if not weights:
+        return None
+    return FALLBACK_NET_WEIGHT_G if FALLBACK_NET_WEIGHT_G in weights else round(min(weights))
+
+
+def item_size(session: Session, product: Product, color: IndexedColor | None) -> ItemSize:
+    """The item's size; `color` is the catalog color the product is linked to, if any."""
+    chosen = session.scalar(
+        select(ShoppingListItemRow.chosen_size_g).where(
+            ShoppingListItemRow.product_id == product.id
+        )
+    )
+    if chosen is not None:
+        return ItemSize(chosen, SizeFrom.CHOSEN)
+    last = _last_spool(session, product)
+    if last is not None:
+        return ItemSize(last, SizeFrom.LAST_SPOOL)
+    sized = _catalog(session, color) if color else None
+    if sized is not None:
+        return ItemSize(sized, SizeFrom.CATALOG)
+    return ItemSize(FALLBACK_NET_WEIGHT_G, SizeFrom.DEFAULT)
 
 
 def set_size(
