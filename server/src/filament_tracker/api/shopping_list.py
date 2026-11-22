@@ -1,5 +1,5 @@
-"""The shopping list: what to buy and why (every role reads it), and adding to it by hand
-(Editors and Admins)."""
+"""The shopping list: what to buy and why (every role reads it), adding to it by hand
+(Editors and Admins), and suggestions (every role suggests; Editors and Admins decide)."""
 
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -12,6 +12,9 @@ from filament_tracker.api.shopping_schemas import (
     ReasonOut,
     ShoppingListItemOut,
     ShoppingListOut,
+    SuggestedColorOut,
+    SuggestionIn,
+    SuggestionOut,
 )
 from filament_tracker.api.views import product_detail
 from filament_tracker.app_settings.store import SettingsStore
@@ -24,7 +27,10 @@ from filament_tracker.services.shopping_list import (
     HandAdded,
     LowStock,
     NoSuchReason,
+    NoSuchSuggestion,
+    OpenSuggestion,
     ShoppingListItem,
+    SuggestionDecided,
 )
 
 router = APIRouter(tags=["shopping list"])
@@ -57,10 +63,31 @@ def _item_out(item: ShoppingListItem) -> ShoppingListItemOut:
     )
 
 
+def _suggestion_out(suggestion: OpenSuggestion) -> SuggestionOut:
+    color = suggestion.color
+    return SuggestionOut(
+        id=suggestion.id,
+        product=product_detail(suggestion.product) if suggestion.product else None,
+        catalog_color=SuggestedColorOut(
+            uuid=suggestion.catalog_uuid,
+            name=color.name if color else None,
+            line=color.line if color else None,
+            hexes=color.hexes if color else None,
+            bambu_code=color.bambu_code if color else None,
+        )
+        if suggestion.catalog_uuid
+        else None,
+        spools=suggestion.spools,
+        by=suggestion.by,
+        at=suggestion.at,
+    )
+
+
 def _list_out(session: DbSession, request: Request) -> ShoppingListOut:
     store: SettingsStore = request.app.state.settings_store
     listed = shopping_list.read(session)
     return ShoppingListOut(
+        suggestions=[_suggestion_out(s) for s in shopping_list.open_suggestions(session)],
         lines=[
             LineOut(name=line.name, to_buy=line.to_buy, items=[_item_out(i) for i in line.items])
             for line in listed.lines
@@ -116,5 +143,67 @@ def remove_hand_reason(
         shopping_list.remove_hand_reason(session, reason_id, _user_id(caller), utcnow())
     except NoSuchReason:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such reason") from None
+    session.commit()
+    return _list_out(session, request)
+
+
+@router.post("/shopping-list/suggestions", response_model=ShoppingListOut)
+def suggest(
+    body: SuggestionIn, caller: Viewer, session: DbSession, request: Request
+) -> ShoppingListOut:
+    """Suggest spools of a product or a catalog color. It counts toward nothing until an
+    Editor or Admin adds it; a catalog color already linked to a product suggests that
+    product. Answers the list as it now stands."""
+    product = None
+    if body.product_id is not None:
+        product = session.get(Product, body.product_id)
+        if product is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "no such product")
+    try:
+        shopping_list.suggest(
+            session, product, body.catalog_color, body.spools, _user_id(caller), utcnow()
+        )
+    except UnknownColor:
+        raise problems({"catalog_color": "No such catalog color."}) from None
+    session.commit()
+    return _list_out(session, request)
+
+
+@router.post("/shopping-list/suggestions/{suggestion_id}/add", response_model=ShoppingListOut)
+def add_suggestion(
+    suggestion_id: int, caller: Editor, session: DbSession, request: Request
+) -> ShoppingListOut:
+    """Add an open suggestion: its spools become a hand-added reason by the caller. A catalog
+    color with no linked product gets its "From the catalog" product only now. Answers the
+    list as it now stands."""
+    try:
+        shopping_list.add_suggestion(session, suggestion_id, _user_id(caller), utcnow())
+    except NoSuchSuggestion:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such suggestion") from None
+    except SuggestionDecided:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "That suggestion was already decided."
+        ) from None
+    except UnknownColor:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "That catalog color is no longer in the catalog."
+        ) from None
+    session.commit()
+    return _list_out(session, request)
+
+
+@router.post("/shopping-list/suggestions/{suggestion_id}/dismiss", response_model=ShoppingListOut)
+def dismiss_suggestion(
+    suggestion_id: int, caller: Editor, session: DbSession, request: Request
+) -> ShoppingListOut:
+    """Set an open suggestion aside; it adds nothing. Answers the list as it now stands."""
+    try:
+        shopping_list.dismiss_suggestion(session, suggestion_id, _user_id(caller), utcnow())
+    except NoSuchSuggestion:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such suggestion") from None
+    except SuggestionDecided:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "That suggestion was already decided."
+        ) from None
     session.commit()
     return _list_out(session, request)

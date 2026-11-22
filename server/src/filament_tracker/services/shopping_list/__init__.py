@@ -17,6 +17,15 @@ from filament_tracker.services.shopping_list.read import (
     ShoppingListItem,
     read,
 )
+from filament_tracker.services.shopping_list.suggestions import (
+    NoSuchSuggestion,
+    OpenSuggestion,
+    SuggestionDecided,
+    add_suggestion,
+    dismiss_suggestion,
+    open_suggestions,
+    suggest,
+)
 
 __all__ = [
     "HandAdded",
@@ -24,10 +33,17 @@ __all__ = [
     "Line",
     "LowStock",
     "NoSuchReason",
+    "NoSuchSuggestion",
+    "OpenSuggestion",
     "ShoppingList",
     "ShoppingListItem",
+    "SuggestionDecided",
     "add_by_hand",
+    "add_suggestion",
+    "dismiss_suggestion",
+    "open_suggestions",
     "product_for_color",
     "read",
     "remove_hand_reason",
+    "suggest",
 ]
