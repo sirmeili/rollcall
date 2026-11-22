@@ -461,7 +461,7 @@ describe("New request", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Fix 2 things before submitting");
   });
 
-  it("submits the request and opens it", async () => {
+  it("submits the request and opens it in the form's place in history", async () => {
     api.submitRequest.mockResolvedValue(request({ id: 43 }));
     render(NewPage);
 
@@ -491,7 +491,9 @@ describe("New request", () => {
       ],
       upload_id: null,
     });
-    await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/requests/43"));
+    await waitFor(() =>
+      expect(nav.goto).toHaveBeenCalledWith("/requests/43", { replaceState: true }),
+    );
   });
 
   it("offers in-stock products and catalog colors no one has", async () => {
@@ -711,6 +713,7 @@ describe("New request", () => {
     const summary = await screen.findByRole("alert");
     expect(summary).toHaveTextContent("Fix 1 thing before submitting");
     expect(summary).toHaveTextContent("Pick products with a Sealed or Open spool");
+    expect(nav.goto).not.toHaveBeenCalled();
   });
 
   it("explains a failure that isn't about the fields", async () => {
@@ -722,6 +725,7 @@ describe("New request", () => {
     await userEvent.click(screen.getByRole("button", { name: "Submit request" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Your role cannot do that.");
+    expect(nav.goto).not.toHaveBeenCalled();
   });
 
   it("makes the notes required when there is no file or link", async () => {
@@ -795,7 +799,7 @@ describe("New request", () => {
 });
 
 describe("Edit request", () => {
-  it("starts from the request and saves the changes", async () => {
+  it("starts from the request, saves the changes and opens it in the form's place in history", async () => {
     api.getRequest.mockResolvedValue(request({ can_edit: true }));
     api.editRequest.mockResolvedValue(request());
     render(EditPage);
@@ -820,7 +824,22 @@ describe("Edit request", () => {
         ],
       }),
     );
-    await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/requests/41"));
+    await waitFor(() =>
+      expect(nav.goto).toHaveBeenCalledWith("/requests/41", { replaceState: true }),
+    );
+  });
+
+  it("stays on the form when saving fails", async () => {
+    api.getRequest.mockResolvedValue(request({ can_edit: true }));
+    api.editRequest.mockRejectedValue(new ApiError(403, "no"));
+    render(EditPage);
+
+    await userEvent.type(await screen.findByLabelText("Title"), " v2");
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Your role cannot do that.");
+    expect(screen.getByLabelText("Title")).toHaveValue("Wingspan insert v2");
+    expect(nav.goto).not.toHaveBeenCalled();
   });
 
   it("offers Find in store on a saved catalog color, unless it has left the catalog", async () => {

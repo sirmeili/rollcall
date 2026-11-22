@@ -43,7 +43,7 @@
 
   async function opensOn(value: OpenOn): Promise<void> {
     await phone.chooseOpenOn(value);
-    await goto(value === "scan" ? "/scan" : "/");
+    await goto(value === "scan" ? "/scan" : "/", { replaceState: true });
   }
 </script>
 

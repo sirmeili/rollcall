@@ -33,7 +33,7 @@
 
   async function save(form: RequestForm): Promise<void> {
     await editRequest(id, editBody(form));
-    await goto(`/requests/${id}`);
+    await goto(`/requests/${id}`, { replaceState: true });
   }
 </script>
 

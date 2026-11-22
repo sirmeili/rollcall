@@ -375,7 +375,7 @@ describe("Activity page", () => {
 describe("Add a spool by hand", () => {
   beforeEach(() => signedInAs("editor"));
 
-  it("adds a spool for an existing product", async () => {
+  it("adds a spool for an existing product and opens it in the form's place in history", async () => {
     admin.listProducts.mockResolvedValue([product({ id: 4 })]);
     admin.addSpool.mockResolvedValue(spoolDetail({ id: 21 }));
     render(NewSpoolPage);
@@ -388,7 +388,7 @@ describe("Add a spool by hand", () => {
     await userEvent.click(screen.getByRole("button", { name: "Add spool" }));
 
     expect(admin.addSpool).toHaveBeenCalledWith({ product_id: 4, location: "Bin 3", notes: null });
-    expect(nav.goto).toHaveBeenCalledWith("/spools/21");
+    expect(nav.goto).toHaveBeenCalledWith("/spools/21", { replaceState: true });
     expect(admin.createProduct).not.toHaveBeenCalled();
   });
 
@@ -411,9 +411,13 @@ describe("Add a spool by hand", () => {
       color_rgba: "808080FF",
     });
     expect(await screen.findByRole("alert")).toHaveTextContent("Cannot reach the server.");
+    expect(screen.getByRole("button", { name: "Add spool" })).toBeVisible();
+    expect(nav.goto).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole("button", { name: "Add spool" }));
-    await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/spools/22"));
+    await waitFor(() =>
+      expect(nav.goto).toHaveBeenCalledWith("/spools/22", { replaceState: true }),
+    );
     expect(admin.createProduct).toHaveBeenCalledTimes(1);
     expect(admin.addSpool).toHaveBeenLastCalledWith({ product_id: 9, location: null, notes: null });
   });

@@ -53,7 +53,7 @@
         location: blankIsNull(entry.location),
         notes: blankIsNull(entry.notes),
       });
-      await goto(`/spools/${spool.id}`);
+      await goto(`/spools/${spool.id}`, { replaceState: true });
     } catch (error) {
       problem = describeError(error);
     } finally {
