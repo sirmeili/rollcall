@@ -161,9 +161,21 @@ class UnidentifiedTag(BaseModel):
     decoded: dict[str, Any] | None
 
 
+class PossibleDuplicateOut(BaseModel):
+    id: int
+    product: ProductDetail = Field(description="The product the scan made")
+    candidates: list[ProductDetail] = Field(
+        description='The "From the catalog" products it may be the same as, oldest first'
+    )
+    created_at: datetime
+
+
 class ReviewOut(BaseModel):
     flagged_events: list[EventOut] = Field(description="Flagged and not undone, newest first")
     unidentified_tags: list[UnidentifiedTag]
     likely_empty: list[SpoolRow] = Field(
         description="Open spools the AMS reports at 0%, not dismissed"
+    )
+    possible_duplicates: list[PossibleDuplicateOut] = Field(
+        description="Waiting for Same product or Keep separate, newest first"
     )

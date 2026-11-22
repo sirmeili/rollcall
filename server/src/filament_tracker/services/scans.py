@@ -33,6 +33,7 @@ from filament_tracker.services.catalog_links import (
     linked_products,
 )
 from filament_tracker.services.events import AppendResult, append_event
+from filament_tracker.services.shopping_list import duplicates
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,11 @@ class EventIdConflict(Exception):
     """The event ID was already used by a different device."""
 
 
-def handle_scan(session: Session, device: Device, scan: ScanEvent, now: datetime) -> ScanResponse:
+def handle_scan(
+    session: Session, device: Device, scan: ScanEvent, now: datetime, similarity_cutoff: float
+) -> ScanResponse:
+    """`similarity_cutoff` is the largest ΔE at which a "From the catalog" product is a
+    possible duplicate of a product the scan makes."""
     device.last_seen_at = now
     if scan.fw_version:
         device.fw_version = scan.fw_version
@@ -85,7 +90,10 @@ def handle_scan(session: Session, device: Device, scan: ScanEvent, now: datetime
             view_only=not may_record(device),
         )
 
+    made = product is None
     product = _ensure_product(session, product, record)
+    if made:
+        duplicates.detect(session, product, record.variant_id, similarity_cutoff, now)
     linked = False
     if spool is None and placeholder is not None:
         spool, linked = placeholder, True

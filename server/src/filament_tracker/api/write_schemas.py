@@ -89,6 +89,10 @@ class ProductUpdate(Strict):
     )
 
 
+class SameProductIn(Strict):
+    candidate_id: int = Field(description="The candidate product the scanned product is")
+
+
 class ActionResult(BaseModel):
     outcome: str = Field(description="applied, already_in_state or flagged")
     event: EventOut

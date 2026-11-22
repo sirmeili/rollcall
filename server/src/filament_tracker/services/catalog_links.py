@@ -44,6 +44,8 @@ class IndexedColor:
     uuid: str
     name: str
     line: str
+    # The filament line's OFDB UUID.
+    line_uuid: str
     # RRGGBB, the main color first.
     hexes: list[str]
     bambu_code: str | None
@@ -81,6 +83,7 @@ def load_index(session: Session) -> CatalogIndex:
             uuid=variant.uuid,
             name=variant.name,
             line=lines[variant.filament_uuid],
+            line_uuid=variant.filament_uuid,
             hexes=[variant.color_hex, *variant.extra_hexes],
             bambu_code=code,
         )
@@ -142,6 +145,14 @@ def catalog_color_for_tag(session: Session, material_id: str, variant_id: str) -
     return _color_for_tag(
         material_id, variant_id, _tag_codes(session, material_id), _session_index(session)
     )
+
+
+def lines_for_material(session: Session, material_id: str) -> set[str]:
+    """The filament lines (their UUIDs) a tag's material ID gives: the catalog colors sold
+    under the Bambu codes BambuStudio lists for it, and their lines."""
+    index = _session_index(session)
+    codes = {code for found in _tag_codes(session, material_id).values() for code in found}
+    return {index.colors[uuid].line_uuid for code in codes for uuid in index.by_code.get(code, [])}
 
 
 def _automatic(
@@ -237,6 +248,22 @@ def set_manual(
         product.catalog_manual_by = user_id
         product.catalog_manual_at = now
         product.catalog_manual_line, product.catalog_manual_name = color.line, color.name
+    _relinked(session)
+
+
+def take_manual_link(session: Session, product: Product, other: Product) -> None:
+    """Move another product's manual link onto this one, when a possible duplicate's Same
+    product makes them one. Nothing changes when the other has none."""
+    if other.catalog_manual_uuid is None:
+        return
+    product.catalog_manual_uuid = other.catalog_manual_uuid
+    product.catalog_manual_by = other.catalog_manual_by
+    product.catalog_manual_at = other.catalog_manual_at
+    product.catalog_manual_line = other.catalog_manual_line
+    product.catalog_manual_name = other.catalog_manual_name
+    other.catalog_manual_uuid = other.catalog_manual_by = None
+    other.catalog_manual_at = None
+    other.catalog_manual_line = other.catalog_manual_name = None
     _relinked(session)
 
 
