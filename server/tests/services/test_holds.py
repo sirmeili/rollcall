@@ -77,7 +77,7 @@ def test_too_little_is_held_as_a_partial_cover_and_the_rest_is_short(
 
     assert holds.place(session, FIRST, black.id, 500, NOW) == holds.Placed(held=350, short=150)
     assert held(session, FIRST) == [(first.id, 150), (second.id, 200)]
-    assert holds.shortfall(session, FIRST, 500) == 150
+    assert holds.shortfalls(session, {FIRST: 500}) == {FIRST: 150}
 
 
 def test_open_spools_with_unknown_grams_and_gone_spools_are_never_held(
@@ -93,7 +93,7 @@ def test_open_spools_with_unknown_grams_and_gone_spools_are_never_held(
 
 def test_no_product_holds_nothing_and_leaves_every_gram_short(session: Session) -> None:
     assert holds.place(session, FIRST, None, 300, NOW) == holds.Placed(held=0, short=300)
-    assert holds.shortfall(session, FIRST, 300) == 300
+    assert holds.shortfalls(session, {FIRST: 300}) == {FIRST: 300}
 
 
 def test_other_products_spools_are_not_held(session: Session, black: Product) -> None:
@@ -126,7 +126,7 @@ def test_holding_more_on_a_spool_the_holder_already_holds_adds_to_that_hold(
 
     assert holds.place(session, FIRST, black.id, 200, LATER) == holds.Placed(held=200, short=0)
     assert held(session, FIRST) == [(opened.id, 500)]
-    assert holds.shortfall(session, FIRST, 500) == 0
+    assert holds.shortfalls(session, {FIRST: 500}) == {FIRST: 0}
 
 
 def test_available_grams_are_grams_left_less_active_holds(session: Session, black: Product) -> None:
@@ -155,12 +155,7 @@ def test_a_spool_held_beyond_its_grams_left_has_none_available_and_counts_only_w
 
     assert holds.spool_available(session, opened) == 0
     assert holds.product_available(session, black.id) == 0
-    assert holds.shortfall(session, FIRST, 400) == 100
-    assert holds.shortfall(session, SECOND, 100) == 0
-
-
-def test_a_holder_with_no_holds_is_short_its_whole_target(session: Session) -> None:
-    assert holds.shortfall(session, FIRST, 120) == 120
+    assert holds.shortfalls(session, {FIRST: 400, SECOND: 100}) == {FIRST: 100, SECOND: 100}
 
 
 def test_a_products_grams_are_unknown_when_an_open_spool_has_unknown_grams(
@@ -298,3 +293,93 @@ def test_releasing_one_hold_keeps_it_with_when_and_why_and_leaves_the_others(
     assert (first.released_at, first.release_reason) == (LATER, ReleaseReason.CHANGED)
     assert held(session, FIRST) == [(sealed.id, 200)]
     assert holds.spool_available(session, opened) == 300
+
+
+def test_an_over_held_spools_grams_left_go_to_its_holders_in_the_order_given(
+    session: Session, black: Product
+) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 1000)
+    holds.hold(session, FIRST, opened, 600, NOW)
+    holds.hold(session, SECOND, opened, 400, NOW)
+    # The AMS reports 50%.
+    opened.grams_left_g = 500
+    session.flush()
+
+    assert holds.shortfalls(session, {FIRST: 600, SECOND: 400}) == {FIRST: 100, SECOND: 400}
+    assert holds.shortfalls(session, {SECOND: 400, FIRST: 600}) == {SECOND: 0, FIRST: 500}
+
+
+THIRD = Holder("filament_choice", 3)
+
+
+def test_three_holders_of_an_over_held_spool_are_covered_in_order(
+    session: Session, black: Product
+) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 1000)
+    holds.hold(session, FIRST, opened, 300, NOW)
+    holds.hold(session, SECOND, opened, 300, NOW)
+    holds.hold(session, THIRD, opened, 300, NOW)
+    opened.grams_left_g = 400
+    session.flush()
+
+    assert holds.shortfalls(session, {THIRD: 300, FIRST: 300, SECOND: 300}) == {
+        THIRD: 0,
+        FIRST: 200,
+        SECOND: 300,
+    }
+
+
+def test_each_spool_is_shared_on_its_own_for_holders_across_several_spools(
+    session: Session, black: Product
+) -> None:
+    over = spool(session, black, SpoolState.OPEN, 1000)
+    fine = spool(session, black, SpoolState.SEALED, 1000)
+    holds.hold(session, FIRST, over, 500, NOW)
+    holds.hold(session, FIRST, fine, 200, NOW)
+    holds.hold(session, SECOND, over, 300, NOW)
+    holds.hold(session, SECOND, fine, 300, NOW)
+    over.grams_left_g = 600
+    session.flush()
+
+    assert holds.shortfalls(session, {FIRST: 700, SECOND: 600}) == {FIRST: 0, SECOND: 200}
+
+
+def test_a_spool_with_unknown_grams_left_counts_as_none_for_any_holder(
+    session: Session, black: Product
+) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 1000)
+    holds.hold(session, FIRST, opened, 200, NOW)
+    holds.hold(session, SECOND, opened, 100, NOW)
+    opened.grams_left_g = None
+    session.flush()
+
+    assert holds.shortfalls(session, {FIRST: 200, SECOND: 100}) == {FIRST: 200, SECOND: 100}
+
+
+def test_a_holder_left_out_of_the_order_takes_none_of_the_grams_left(
+    session: Session, black: Product
+) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 1000)
+    # FIRST is printing, and its grams left already fall as it prints.
+    holds.hold(session, FIRST, opened, 700, NOW)
+    holds.hold(session, SECOND, opened, 300, NOW)
+    opened.grams_left_g = 500
+    session.flush()
+
+    assert holds.shortfalls(session, {SECOND: 300}) == {SECOND: 0}
+
+
+def test_a_spool_that_is_not_over_held_covers_every_holder_in_any_order(
+    session: Session, black: Product
+) -> None:
+    opened = spool(session, black, SpoolState.OPEN, 1000)
+    holds.hold(session, FIRST, opened, 600, NOW)
+    holds.hold(session, SECOND, opened, 400, NOW)
+
+    assert holds.shortfalls(session, {SECOND: 500, FIRST: 600}) == {SECOND: 100, FIRST: 0}
+    assert holds.shortfalls(session, {FIRST: 600, SECOND: 500}) == {FIRST: 0, SECOND: 100}
+
+
+def test_holders_with_no_holds_are_short_their_whole_targets(session: Session) -> None:
+    assert holds.shortfalls(session, {FIRST: 120, SECOND: 80}) == {FIRST: 120, SECOND: 80}
+    assert holds.shortfalls(session, {}) == {}
