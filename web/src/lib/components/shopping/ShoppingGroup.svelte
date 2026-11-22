@@ -4,8 +4,8 @@
    * as on the phone Catalog page, and each item is a compact row. Items fully ordered come
    * last, under an On order label. */
   import type { ShoppingList, ShoppingListItem } from "#lib/api/shopping.ts";
-  import ShoppingItem from "#lib/components/shopping/ShoppingItem.svelte";
-  import ShoppingItemRow from "#lib/components/shopping/ShoppingItemRow.svelte";
+  import ShoppingItemWide from "#lib/components/shopping/ShoppingItemWide.svelte";
+  import ShoppingItemPhone from "#lib/components/shopping/ShoppingItemPhone.svelte";
   import type { ShoppingGroup } from "#lib/shopping-list.ts";
   import { byOrdered } from "#lib/shopping-on-order.ts";
 
@@ -50,7 +50,7 @@
     {#each items as item (item.product.id)}
       <li id={`shopping-item-${item.product.id}`}>
         {#if phone}
-          <ShoppingItemRow
+          <ShoppingItemPhone
             {item}
             {storeAddress}
             showType={group.showType}
@@ -61,7 +61,7 @@
             ontoggle={() => onexpand(item.product.id)}
           />
         {:else}
-          <ShoppingItem
+          <ShoppingItemWide
             {item}
             {storeAddress}
             showType={group.showType}
