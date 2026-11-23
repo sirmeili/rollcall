@@ -31,6 +31,10 @@ class Fake:
     def __init__(self, *args: Any) -> None:
         self.args = args
         self.calls: list[str] = []
+        self.changes: list[Any] = []
+
+    def changed(self, session: Session, changes: Any) -> None:
+        self.changes.append(changes)
 
     def start(self) -> None:
         self.calls.append("start")
@@ -113,6 +117,21 @@ def test_reload_restarts_both_links_with_new_settings(sessions: sessionmaker[Ses
 
     link.stop()
     assert link.publisher.calls == ["start", "stop"]  # type: ignore[union-attr]
+
+
+def test_what_the_poll_saw_goes_to_the_sender_in_use(sessions: sessionmaker[Session]) -> None:
+    link = HomeAssistantLink(make_store(sessions), sessions, sender_factory=Fake)
+    link.changed(None, "before starting")  # type: ignore[arg-type]
+    link.start()
+    first = link.sender
+    link.changed(None, "first")  # type: ignore[arg-type]
+
+    link.reload()
+    link.changed(None, "second")  # type: ignore[arg-type]
+    link.stop()
+
+    assert first.changes == ["first"]  # type: ignore[union-attr]
+    assert link.sender.changes == ["second"]  # type: ignore[union-attr]
 
 
 def test_stopping_before_starting_is_harmless(sessions: sessionmaker[Session]) -> None:

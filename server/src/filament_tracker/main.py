@@ -112,7 +112,7 @@ def create_app(
         # Always running, Home Assistant or not (ADR-0009).
         poll = Poll(
             app.state.session_factory,
-            [LowStockEmails(mail, lambda: store.text("public_url"))],
+            [LowStockEmails(mail, lambda: store.text("public_url")), home_assistant.changed],
         )
         app.state.poll = poll
         poll.start()

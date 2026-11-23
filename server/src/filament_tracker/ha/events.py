@@ -5,12 +5,14 @@
 - `filament_tracker_low_stock`, when a product goes from not low to low.
 
 Every few seconds the sender reads what is new and fires it through Home Assistant's REST
-API. Only events recorded after the server started are fired, so a restart never replays
+API. Low stock comes from the database poll (poll.py), which tells the sender what it saw.
+Only events recorded after the server started are fired, so a restart never replays
 history into automations. An event undone before it is fired is skipped; one undone later
 stays fired. A failed request is retried a few times and then dropped with a warning.
 """
 
 import logging
+import queue
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -26,7 +28,8 @@ from filament_tracker.db.models import Event, Spool
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import EventType
 from filament_tracker.ha.rest import HaRest, HaRestError, Problem
-from filament_tracker.ha.snapshot import ProductState, take_snapshot
+from filament_tracker.ha.snapshot import ProductState
+from filament_tracker.poll import Changes
 
 logger = logging.getLogger(__name__)
 
@@ -101,18 +104,8 @@ class EventFeed:
 
     started_at: datetime
     fired: dict[UUID, datetime] = field(default_factory=dict)
-    low: set[int] | None = None  # products low at the last poll; None before the first
 
     def poll(self, session: Session, now: datetime) -> list[HaEvent]:
-        out = self._spool_events(session, now)
-        snapshot = take_snapshot(session)
-        low_now = {p.id: p for p in snapshot.low_stock}
-        if self.low is not None:
-            out += [low_stock_event(p) for i, p in low_now.items() if i not in self.low]
-        self.low = set(low_now)
-        return out
-
-    def _spool_events(self, session: Session, now: datetime) -> list[HaEvent]:
         since = max(self.started_at, now - LOOKBACK)
         self.fired = {i: at for i, at in self.fired.items() if at >= now - LOOKBACK}
         query = (
@@ -151,6 +144,8 @@ class HaEventSender:
         self._clock = clock
         self.status = EventsStatus.OFF if rest is None else EventsStatus.READY
         self.feed = EventFeed(started_at=clock())
+        # Low stock events from the database poll, waiting to be fired.
+        self._low_stock: queue.SimpleQueue[HaEvent] = queue.SimpleQueue()
         self._stopping = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -172,14 +167,24 @@ class HaEventSender:
             self.step()
             self._stopping.wait(self._poll_seconds)
 
+    def changed(self, session: Session, changes: Changes) -> None:
+        """The database poll's listener: low stock events to fire on the next step, while
+        Home Assistant is set up."""
+        if self.rest is None:
+            return
+        for product in changes.became_low:
+            self._low_stock.put(low_stock_event(product))
+
     def step(self) -> None:
-        """One poll: read what is new and fire it."""
+        """One poll: read what is new and fire it, then the low stock events waiting."""
         try:
             with self._sessions() as session:
                 events = self.feed.poll(session, self._clock())
         except Exception:
             logger.exception("Home Assistant events: could not read the database")
             return
+        while not self._low_stock.empty():
+            events.append(self._low_stock.get_nowait())
         for event in events:
             if self._stopping.is_set():
                 return
