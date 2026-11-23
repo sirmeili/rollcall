@@ -11,7 +11,7 @@ const nav = vi.hoisted(() => ({
   goto: vi.fn(),
 }));
 vi.mock("$app/state", () => ({ page: nav.page }));
-vi.mock("$app/navigation", () => ({ goto: nav.goto }));
+vi.mock("$app/navigation", () => ({ goto: nav.goto, beforeNavigate: vi.fn() }));
 
 const { session } = await import("#lib/auth/session.svelte.ts");
 const Layout = (await import("./+layout.svelte")).default;
