@@ -1,17 +1,23 @@
 /** Unsaved changes, and the warning before leaving them: one piece that every form shares.
  *
  * A form has unsaved changes when one of its fields (an input, textarea or select inside a
- * `<form>`) differs from what it was when the page opened. It's worked out from the fields
- * themselves, so a new form needs no wiring. Each field's first value is taken the first time
- * the person reaches into its form (a tap, a key or focus), before they can change anything,
- * so values a page fills in as it loads count as the start. A field changed back counts as
- * unchanged. A save resets the comparison: an API write made while a form is being submitted
- * takes that form's values as its new start once the server accepts it, so a save the server
- * (or the form's own checks) refuses leaves the changes unsaved.
+ * `<form>`) differs from what it was when the person started on it. It's worked out from the
+ * fields themselves, so a new form needs no wiring. Each field's first value is taken the
+ * first time the person reaches into its form (a tap, a key or focus), before they can change
+ * anything, so values a page fills in as it loads count as the start. A field changed back
+ * counts as unchanged.
+ *
+ * A save resets the comparison. An API write the server accepts saves the form the person
+ * last acted in (tapped, typed in or submitted) when the write started, whatever button made
+ * it: that form's first values are forgotten, and taken again the next time the person
+ * reaches into it, from what the page shows by then (the saved values, as the server sent
+ * them back). A write the server refuses leaves the changes unsaved.
  *
  * `askToLeave` shows the warning (`LeaveWarning.svelte`, in the layout) when there are unsaved
  * changes, and says whether the person chose Leave.
  */
+
+import { onWrite } from "#lib/api/client.ts";
 
 type Field = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
@@ -20,8 +26,8 @@ const FIELDS = "form input, form textarea, form select";
 /** Each field's value when it started, by field. A field not in it hasn't been reached. */
 let started = new WeakMap<Field, string>();
 
-/** The form being submitted, with its values, until its submit handler has run. */
-let submitting: Map<Field, string> | null = null;
+/** The form the person last acted in, or null after acting outside every form. */
+let acting: HTMLFormElement | null = null;
 
 function fieldsIn(root: ParentNode): Field[] {
   return [...root.querySelectorAll<Field>(FIELDS)];
@@ -36,10 +42,6 @@ function valueOf(field: Field): string {
   return field.value;
 }
 
-function valuesOf(form: HTMLFormElement): Map<Field, string> {
-  return new Map(fieldsIn(form).map((field) => [field, valueOf(field)]));
-}
-
 /** Whether a form inside `within` (the whole page unless given) has unsaved changes. */
 export function hasUnsavedChanges(within: ParentNode = document): boolean {
   return fieldsIn(within).some(
@@ -52,34 +54,38 @@ export function forgetChanges(): void {
   started = new WeakMap();
 }
 
-/** An API write is starting. If a form is being submitted, returns what to call once the
- * server has accepted the write: that form's values become its new start. */
-export function saving(): (() => void) | null {
-  const values = submitting;
-  if (!values) return null;
-  return () => values.forEach((value, field) => started.set(field, value));
+function formOf(event: Event): HTMLFormElement | null {
+  return (event.target as Element).closest?.("form") ?? null;
 }
 
 function reached(event: Event): void {
-  const form = (event.target as Element).closest?.("form");
+  const form = formOf(event);
   if (!form) return;
   for (const field of fieldsIn(form)) if (!started.has(field)) started.set(field, valueOf(field));
 }
 
-function submitted(event: SubmitEvent): void {
-  submitting = valuesOf(event.target as HTMLFormElement);
-  // The submit handler starts its save before this runs.
-  setTimeout(() => (submitting = null));
+function acted(event: Event): void {
+  acting = formOf(event);
+}
+
+/** A write is starting: if the server accepts it, the form the person is acting in is saved. */
+function writing(): () => void {
+  const form = acting;
+  return () => form && fieldsIn(form).forEach((field) => started.delete(field));
 }
 
 /** Watch the page's forms, until the returned function is called. */
 export function watchForms(): () => void {
   const reach = ["pointerdown", "keydown", "focusin"] as const;
+  const act = ["pointerdown", "keydown", "submit"] as const;
   reach.forEach((type) => document.addEventListener(type, reached, true));
-  document.addEventListener("submit", submitted, true);
+  act.forEach((type) => document.addEventListener(type, acted, true));
+  const unwrite = onWrite(writing);
   return () => {
     reach.forEach((type) => document.removeEventListener(type, reached, true));
-    document.removeEventListener("submit", submitted, true);
+    act.forEach((type) => document.removeEventListener(type, acted, true));
+    unwrite();
+    acting = null;
   };
 }
 

@@ -3,7 +3,7 @@
 // layout's guard as SvelteKit's `beforeNavigate` would call it.
 import { cleanup, render, screen, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
-import { createRawSnippet } from "svelte";
+import { createRawSnippet, type Component } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import type { Me } from "#lib/api/types.ts";
 import { browserBridge, setBridge } from "#lib/phone/bridge.ts";
@@ -11,6 +11,7 @@ import { savePairing } from "#lib/phone/pairing-store.ts";
 import { fakeBridge, PAIRING, type FakeBridge } from "../test/fake-bridge.ts";
 import { fakeFetch, me, spoolDetail, spoolRow } from "../test/fixtures.ts";
 import { choice, request } from "../test/request-fixtures.ts";
+import DelayedSaveForm from "../test/DelayedSaveForm.svelte";
 
 /** A SvelteKit navigation, as `beforeNavigate` is given it. */
 interface Navigation {
@@ -39,6 +40,7 @@ const NewRequestPage = (await import("./requests/new/+page.svelte")).default;
 const SpoolPage = (await import("./spools/[id]/+page.svelte")).default;
 const AccountPage = (await import("./account/+page.svelte")).default;
 const RequestPage = (await import("./requests/[id]/+page.svelte")).default;
+const SettingsPage = (await import("./settings/+page.svelte")).default;
 
 const SAM = me("viewer", { id: 2, username: "sam", requester: true, has_requests: true });
 const children = createRawSnippet(() => ({ render: () => "<p>page content</p>" }));
@@ -47,13 +49,18 @@ const children = createRawSnippet(() => ({ render: () => "<p>page content</p>" }
 const routes: Record<string, unknown> = {};
 
 /** The Layout at `path`, signed in as `user`, with `Page` rendered beside it. */
-async function openAt(path: string, user: Me, Page: typeof NewRequestPage): Promise<void> {
+async function openAt<Props extends Record<string, unknown>>(
+  path: string,
+  user: Me,
+  Page: Component<Props>,
+  props?: Props,
+): Promise<void> {
   session.user = user;
   session.loaded = true;
   nav.page.url = new URL(path, "https://localhost");
   render(Layout, { children });
   await screen.findByText("page content");
-  render(Page);
+  render(Page, props);
 }
 
 /** Navigate as SvelteKit would, through the layout's guard; true when it went ahead. */
@@ -226,6 +233,131 @@ describe("Leaving a changed inline form", () => {
     await screen.findByText(/failed/i);
 
     expect(navigate("link", "/")).toBe(false);
+  });
+});
+
+describe("Saving resets the comparison", () => {
+  const ADMIN = me("admin", { id: 1, username: "frank" });
+  const NEVER_SYNCED = {
+    last_success_at: null,
+    last_attempt_at: null,
+    last_result: null,
+    last_reason: null,
+    dataset_version: null,
+  };
+
+  /** A Home Assistant setting, as the server sends it. */
+  function setting(key: string, fields: Record<string, unknown> = {}) {
+    return {
+      key,
+      value: null,
+      secret: false,
+      set: false,
+      source: "default",
+      has_env: false,
+      unreadable: false,
+      ...fields,
+    };
+  }
+
+  function homeAssistant(broker: { value: string; source: string }) {
+    return {
+      group: "home-assistant",
+      settings: [
+        setting("mqtt_url", { ...broker, set: true, has_env: true }),
+        setting("ha_token", { secret: true, set: true, source: "env", has_env: true }),
+      ],
+    };
+  }
+
+  beforeEach(() => {
+    nav.page.params = { id: "1" };
+    const empty = (group: string) => ({ group, settings: [] });
+    Object.assign(routes, {
+      "GET /settings/general": empty("general"),
+      "GET /settings/scanners": empty("scanners"),
+      "GET /settings/email": empty("email"),
+      "GET /settings/email/status": { on: false, last_success: null, last_failure: null },
+      "GET /settings/catalog": empty("catalog"),
+      "GET /catalog/sync": { colors: 0, ofdb: NEVER_SYNCED, bambustudio: NEVER_SYNCED },
+      "GET /tokens": [],
+      "GET /settings/home-assistant": homeAssistant({
+        value: "mqtt://other:1883",
+        source: "app",
+      }),
+    });
+  });
+
+  it("after a save made with a button rather than the form's Save", async () => {
+    routes["DELETE /settings/home-assistant/mqtt_url"] = () => {
+      routes["GET /settings/home-assistant"] = homeAssistant({
+        value: "mqtt://broker:1883",
+        source: "env",
+      });
+      return null;
+    };
+    await openAt("/settings", ADMIN, SettingsPage);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Use the .env value for MQTT broker" }),
+    );
+    await vi.waitFor(() =>
+      expect(screen.getByLabelText("MQTT broker")).toHaveValue("mqtt://broker:1883"),
+    );
+
+    expect(navigate("link", "/")).toBe(true);
+    expect(warning()).toBeNull();
+  });
+
+  it("still asks when a button's save is refused", async () => {
+    routes["PUT /settings/home-assistant"] = () => new Response(null, { status: 500 });
+    await openAt("/settings", ADMIN, SettingsPage);
+    await userEvent.type(await screen.findByLabelText("MQTT broker"), "0");
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear Access token" }));
+    await screen.findByRole("status");
+
+    expect(navigate("link", "/")).toBe(false);
+  });
+
+  it("taking the value the server sends back as saved", async () => {
+    routes["PATCH /spools/1"] = spoolDetail({ location: "Dry box 2" });
+    await openAt("/spools/1", me("editor"), SpoolPage);
+    const location = await screen.findByLabelText("Location");
+    await userEvent.clear(location);
+    await userEvent.type(location, "dry box 2");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await vi.waitFor(() => expect(location).toHaveValue("Dry box 2"));
+
+    expect(navigate("link", "/")).toBe(true);
+    expect(warning()).toBeNull();
+  });
+
+  it("asks again for a change made after saving", async () => {
+    routes["PATCH /spools/1"] = spoolDetail({ location: "Dry box 2" });
+    await openAt("/spools/1", me("editor"), SpoolPage);
+    const location = await screen.findByLabelText("Location");
+    await userEvent.clear(location);
+    await userEvent.type(location, "Dry box 2");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Saved");
+
+    await userEvent.type(location, "b");
+
+    expect(navigate("link", "/")).toBe(false);
+  });
+
+  it("when the form's Save waits for something before it writes", async () => {
+    routes["PUT /things/1"] = {};
+    const before = () => new Promise<void>((done) => setTimeout(done, 20));
+    await openAt("/things/1", me("editor"), DelayedSaveForm, { before });
+    await userEvent.type(screen.getByLabelText("Name"), "Dragon");
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("status");
+
+    expect(navigate("link", "/")).toBe(true);
+    expect(warning()).toBeNull();
   });
 });
 
