@@ -86,8 +86,7 @@ def register(
         endpoint.route, endpoint.endpoint, endpoint.p256dh, endpoint.auth = given
         endpoint.registered_at = utcnow()
         endpoint.last_success_at = None
-        endpoint.failures = 0
-        endpoint.failing_since = None
+        endpoint.mark_healthy()
         session.add(endpoint)
         session.commit()
         logger.info("phone %s registered for phone notifications", device.id)

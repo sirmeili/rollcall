@@ -52,12 +52,16 @@ class HttpPushTransport:
     def __init__(self, transport: httpx.BaseTransport | None = None) -> None:
         self._transport = transport
 
+    def _client(self) -> httpx.Client:
+        # Redirects aren't followed, so a push goes only to the URL the phone gave, and the
+        # signed assertion only to Google.
+        return httpx.Client(
+            transport=self._transport, timeout=TIMEOUT_SECONDS, follow_redirects=False
+        )
+
     def post(self, message: PushMessage) -> int:
         try:
-            # Redirects aren't followed, so a push goes only to the URL the phone gave.
-            with httpx.Client(
-                transport=self._transport, timeout=TIMEOUT_SECONDS, follow_redirects=False
-            ) as client:
+            with self._client() as client:
                 response = client.post(
                     message.endpoint, content=message.body, headers=message.headers
                 )
@@ -70,9 +74,7 @@ class HttpPushTransport:
     def access_token(self, assertion: str) -> AccessToken:
         form = {"grant_type": JWT_BEARER, "assertion": assertion}
         try:
-            with httpx.Client(
-                transport=self._transport, timeout=TIMEOUT_SECONDS, follow_redirects=False
-            ) as client:
+            with self._client() as client:
                 response = client.post(TOKEN_URL, data=form)
         except httpx.HTTPError:
             raise PushError(UNREACHABLE) from None

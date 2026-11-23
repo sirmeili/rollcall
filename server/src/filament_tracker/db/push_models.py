@@ -32,6 +32,11 @@ class PushEndpoint(Base):
 
     device: Mapped[Device] = relationship()
 
+    def mark_healthy(self) -> None:
+        """Clear the failures: after a success, or a new endpoint registered."""
+        self.failures = 0
+        self.failing_since = None
+
 
 class VapidKey(Base):
     """The server's VAPID key pair (RFC 8292), made on first start and never changed: a new

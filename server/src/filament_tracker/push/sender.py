@@ -166,8 +166,7 @@ class PushSender:
 
     def _succeeded(self, session: Session, endpoint: PushEndpoint) -> None:
         endpoint.last_success_at = self._clock()
-        endpoint.failures = 0
-        endpoint.failing_since = None
+        endpoint.mark_healthy()
 
     def _drop(self, session: Session, endpoint: PushEndpoint) -> None:
         session.delete(endpoint)
