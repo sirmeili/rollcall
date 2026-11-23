@@ -1,5 +1,6 @@
 package io.github.sirmeili.filamenttracker
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.media.AudioManager
@@ -12,14 +13,17 @@ import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.MifareClassic
 import androidx.activity.result.ActivityResult
+import androidx.core.app.NotificationManagerCompat
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
+import com.getcapacitor.PermissionState
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.ActivityCallback
-
+import com.getcapacitor.annotation.Permission
+import com.getcapacitor.annotation.PermissionCallback
 import io.github.sirmeili.filamenttracker.flavor.appFlavor
 import io.github.sirmeili.filamenttracker.nfc.AndroidMifare
 import io.github.sirmeili.filamenttracker.nfc.Hex
@@ -30,25 +34,36 @@ import io.github.sirmeili.filamenttracker.push.Notifier
 import io.github.sirmeili.filamenttracker.push.PhoneNotification
 import io.github.sirmeili.filamenttracker.push.PushEndpointInfo
 import io.github.sirmeili.filamenttracker.push.PushEvents
+import io.github.sirmeili.filamenttracker.push.PushRoutes
+import io.github.sirmeili.filamenttracker.push.UnifiedPushProvider
 import io.github.sirmeili.filamenttracker.push.pushEndpoints
 import io.github.sirmeili.filamenttracker.storage.KeystoreKey
 import io.github.sirmeili.filamenttracker.storage.PrefsValues
 import io.github.sirmeili.filamenttracker.storage.SecureStore
 
+/** Android 13's permission to show notifications, as the plugin names it to Capacitor. */
+private const val NOTIFICATIONS = "notifications"
+
 /**
  * The phone app's native side: NFC tag reads, QR scanning, encrypted storage, and phone
- * notifications (the push route, registering, the endpoint and tapped notifications).
+ * notifications (the push route and its name, registering, the endpoint, Android's permission to
+ * show them and tapped notifications).
  *
  * Derived keys stay in [TagReader]; only the UID, data blocks and `readOk` reach the web view.
  * Nothing here logs tag contents, the salt or stored values.
  */
-@CapacitorPlugin(name = "FilamentTracker")
+@CapacitorPlugin(
+    name = "FilamentTracker",
+    permissions = [Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = NOTIFICATIONS)],
+)
 class FilamentTrackerPlugin : Plugin() {
     private val store by lazy { SecureStore(KeystoreKey::get, PrefsValues(context)) }
     private val endpoints by lazy { pushEndpoints(context) }
     private val routes by lazy { appFlavor.pushRoutes(context, endpoints) }
     private var pending: PluginCall? = null
     private var salt: ByteArray? = null
+
+    private val unifiedPush by lazy { UnifiedPushProvider(context, endpoints) }
 
     private companion object {
         const val TONE_VOLUME = 80
@@ -242,6 +257,47 @@ class FilamentTrackerPlugin : Plugin() {
     @PluginMethod
     fun pushEndpoint(call: PluginCall) {
         call.resolve(JSObject().put("endpoint", endpoints.load()?.toJs()))
+    }
+
+
+    /** Whether RollCall may show notifications: Android 13's permission granted, and
+     * notifications not turned off for the app in Android's settings. */
+    @PluginMethod
+    fun pushPermission(call: PluginCall) {
+        call.resolve(permission())
+    }
+
+    /** Ask for Android 13's permission to show notifications. Earlier Android versions have
+     * none to ask, and say only whether notifications are turned on. */
+    @PluginMethod
+    fun requestPushPermission(call: PluginCall) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || getPermissionState(NOTIFICATIONS) == PermissionState.GRANTED) {
+            return call.resolve(permission())
+        }
+        requestPermissionForAlias(NOTIFICATIONS, call, "permissionAnswered")
+    }
+
+    @PermissionCallback
+    private fun permissionAnswered(call: PluginCall) {
+        call.resolve(permission())
+    }
+
+    private fun permission(): JSObject {
+        val granted = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        return JSObject().put("permission", if (granted) "granted" else "denied")
+    }
+
+    /** The name people know the route by: the UnifiedPush distributor app's ("ntfy"), or
+     * "Google" for Google's push service (FCM). */
+    @PluginMethod
+    fun pushRouteName(call: PluginCall) {
+        val name =
+            when (routes.route()) {
+                UnifiedPushProvider.ROUTE -> unifiedPush.distributorName()
+                PushRoutes.FCM -> "Google"
+                else -> null
+            }
+        call.resolve(JSObject().put("name", name))
     }
 
     private fun PushEndpointInfo.toJs(): JSObject =

@@ -20,6 +20,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from phone_helpers import endpoint_path, pushed, set_up_phone
 from request_helpers import person, submitted
+from test_photos import jpeg, move, printing, uploaded_photo
 
 from filament_tracker.domain.enums import Role
 
@@ -125,6 +126,22 @@ def test_a_notification_reaches_an_fcm_phone_with_the_web_push_payload(
             "path": f"/requests/{request_id}",
         }
     ]
+
+
+def test_a_done_notification_names_its_photo_to_an_fcm_phone_too(
+    app: FastAPI, client: TestClient, pushes: FakePushOutbox, account: ServiceAccount
+) -> None:
+    sam = person(app, "sam")
+    phone = fcm_phone(sam)
+    frank = person(app, "frank", Role.ADMIN, requester=False)
+    request_id = printing(sam, frank)
+    pushed(app, pushes)
+    photo = uploaded_photo(frank, jpeg((60, 40)))
+
+    assert move(frank, request_id, "printing", "done", photo_ids=[photo]).status_code == 200
+
+    [done] = phone.data(pushed(app, pushes))
+    assert done["photo"] == f"/api/v1/requests/{request_id}/photos/{photo}"
 
 
 def test_an_unregistered_token_is_dropped_at_once(

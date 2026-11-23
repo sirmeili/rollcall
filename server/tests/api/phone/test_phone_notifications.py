@@ -167,8 +167,63 @@ def test_a_requester_hears_of_their_request_moving_and_new_photos(
             "title": "New photo of your print: Lithophane lamp shade",
             "text": 'A new photo of your print "Lithophane lamp shade" was added.',
             "path": path,
+            "photo": f"{API}/requests/{request_id}/photos/{photo_id}",
         },
     ]
+
+
+def test_done_and_new_photo_name_the_first_photo_for_the_phone_to_show(
+    app: FastAPI, client: TestClient, pushes: FakePushOutbox
+) -> None:
+    sam = person(app, "sam")
+    phone = users_phone(sam)
+    frank = person(app, "frank", Role.ADMIN, requester=False)
+    request_id = printing(sam, frank)
+    pushed(app, pushes)
+    first, second = uploaded_photo(frank, jpeg((60, 40))), uploaded_photo(frank, jpeg())
+
+    assert move(frank, request_id, "printing", "done", photo_ids=[first, second]).status_code == 200
+    third, fourth = uploaded_photo(frank, jpeg()), uploaded_photo(frank, jpeg())
+    assert add_photos(frank, request_id, third, fourth).status_code == 200
+
+    done, new_photo = to(phone, pushed(app, pushes))
+    photos = f"{API}/requests/{request_id}/photos"
+    assert (done["kind"], done["photo"]) == ("request_update", f"{photos}/{first}")
+    assert (new_photo["kind"], new_photo["photo"]) == ("new_photo", f"{photos}/{third}")
+
+
+def test_only_someone_who_may_see_the_request_downloads_the_named_photo(
+    app: FastAPI, client: TestClient, pushes: FakePushOutbox
+) -> None:
+    sam = person(app, "sam")
+    phone = users_phone(sam)
+    frank = person(app, "frank", Role.ADMIN, requester=False)
+    request_id = printing(sam, frank)
+    pushed(app, pushes)
+    photo_id = uploaded_photo(frank, jpeg())
+    assert move(frank, request_id, "printing", "done", photo_ids=[photo_id]).status_code == 200
+
+    [done] = to(phone, pushed(app, pushes))
+    maya = person(app, "maya")
+
+    assert sam.get(done["photo"]).headers["Content-Type"] == "image/jpeg"
+    assert maya.get(done["photo"]).status_code == 404
+
+
+def test_a_move_other_than_done_with_photos_names_no_photo(
+    app: FastAPI, client: TestClient, pushes: FakePushOutbox
+) -> None:
+    sam = person(app, "sam")
+    phone = users_phone(sam)
+    frank = person(app, "frank", Role.ADMIN, requester=False)
+    request_id = printing(sam, frank)
+    pushed(app, pushes)
+
+    assert move(frank, request_id, "printing", "failed", note="Spaghetti").status_code == 200
+
+    [failed] = to(phone, pushed(app, pushes))
+    assert failed["kind"] == "request_update"
+    assert "photo" not in failed
 
 
 def test_editors_hear_of_a_suggestion_but_not_the_suggester(

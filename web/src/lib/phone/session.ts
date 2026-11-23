@@ -9,7 +9,8 @@
  * At start and whenever the app comes back to the front, the first heartbeat that reaches
  * the server at home also fetches the tag key constant and the Access token again, so a
  * token replaced on the server reaches the phone without pairing again. A user's phone also
- * registers for phone notifications (push.ts).
+ * registers for phone notifications (push.ts), and asks once for Android's permission to show
+ * them (permission.ts).
  */
 
 import { setAccessToken, type AccessToken } from "#lib/api/client.ts";
@@ -27,6 +28,7 @@ import {
   saveUserPhone,
   type Pairing,
 } from "#lib/phone/pairing-store.ts";
+import { askPermissionOnce } from "#lib/phone/permission.ts";
 import { PhonePush } from "#lib/phone/push.ts";
 import { OfflineQueue, type QueueStore } from "#lib/phone/queue.ts";
 import { ScanFlow } from "#lib/phone/scan-flow.ts";
@@ -59,6 +61,7 @@ export class PhoneSession {
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private unsubscribe: (() => void) | null = null;
   private flushing: Promise<void> | null = null;
+  private asking: Promise<void> | null = null;
   private readonly onVisible = () => {
     if (document.visibilityState !== "visible") return;
     this.refreshDue = true;
@@ -124,6 +127,12 @@ export class PhoneSession {
     this.scheduleRetry();
     document.addEventListener("visibilitychange", this.onVisible);
     this.push.start();
+    if (this.userPhone) this.askPermission();
+  }
+
+  /** Ask for Android's notification permission, once on a user's phone (permission.ts). */
+  private askPermission(): void {
+    this.asking ??= askPermissionOnce(this.native).catch(() => {});
   }
 
   stop(): void {
@@ -163,7 +172,10 @@ export class PhoneSession {
       this.records = fresh.records;
       const learned = fresh.userPhone && !this.userPhone;
       this.userPhone = fresh.userPhone;
-      if (learned) void this.push.sync();
+      if (learned) {
+        void this.push.sync();
+        this.askPermission();
+      }
       this.salt = fresh.salt;
       this.access = fresh.access;
       setAccessToken(fresh.access);

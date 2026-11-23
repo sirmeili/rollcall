@@ -130,6 +130,7 @@ def coverageExcludes = [
     '**/UnifiedPush*', '**/Notifier*',
     '**/flavor/Flavor*', '**/GmsQrScanner*', '**/ZxingQrScanner*',
     '**/FirebaseStart.*', '**/FirebaseStart$*', '**/FirebaseStartProvider*', '**/FirebaseFcm*', '**/FcmService*',
+    '**/PhotoDownloader*',
 ]
 
 ['google', 'foss'].each { flavor ->

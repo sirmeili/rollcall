@@ -15,8 +15,9 @@ interface PushProvider {
 }
 
 /**
- * The push-provider choice: the first usable route, in order of preference. For now the only
- * route is a UnifiedPush distributor, if one is installed; otherwise there is none.
+ * The push-provider choice: the first usable route, in order of preference: a UnifiedPush
+ * distributor, if one is installed, then (in the google flavor) Google's push service when the
+ * server has Firebase set up; otherwise there is none.
  */
 class PushRoutes(private val providers: List<PushProvider>) {
     private fun chosen(): PushProvider? = providers.firstOrNull { it.usable() }
@@ -36,5 +37,8 @@ class PushRoutes(private val providers: List<PushProvider>) {
 
     companion object {
         const val NONE = "none"
+
+        /** Google's push service (FCM), in the google flavor only. */
+        const val FCM = "fcm"
     }
 }

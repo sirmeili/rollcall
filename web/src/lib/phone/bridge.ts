@@ -39,6 +39,10 @@ export interface FirebaseClient {
   sender_id: string;
 }
 
+/** Whether Android lets RollCall show notifications: granted, or refused (Android 13's
+ * permission refused, or notifications turned off for the app in Android's settings). */
+export type PushPermission = "granted" | "denied";
+
 export interface PhoneBridge {
   /** True only inside the Android app. */
   readonly app: boolean;
@@ -75,6 +79,14 @@ export interface PhoneBridge {
   /** Call `listener` with the page of each tapped phone notification, including the one
    * that opened the app. */
   onNotificationOpen(listener: (path: string) => void): () => void;
+  /** Whether Android lets RollCall show notifications now. */
+  pushPermission(): Promise<PushPermission>;
+  /** Ask Android for the permission to show notifications (Android 13 and later; earlier
+   * ones have none to ask), and say whether it is granted. */
+  requestPushPermission(): Promise<PushPermission>;
+  /** The name people know the route by, such as the distributor app's ("ntfy"); null when
+   * there is no route or no name. */
+  pushRouteName(): Promise<string | null>;
 }
 
 function notInApp(): Promise<never> {
@@ -101,6 +113,9 @@ export const browserBridge: PhoneBridge = {
   pushEndpoint: () => Promise.resolve(null),
   onPushEndpoint: () => () => {},
   onNotificationOpen: () => () => {},
+  pushPermission: () => Promise.resolve("denied"),
+  requestPushPermission: () => Promise.resolve("denied"),
+  pushRouteName: () => Promise.resolve(null),
 };
 
 let current: PhoneBridge = browserBridge;

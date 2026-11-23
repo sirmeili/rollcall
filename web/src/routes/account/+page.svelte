@@ -22,6 +22,8 @@
     if (!(await askToLeave())) return;
     busy = true;
     try {
+      // This phone stops getting the user's phone notifications first, while signed in.
+      await phone.session?.push.leave();
       await session.logout();
     } finally {
       busy = false;

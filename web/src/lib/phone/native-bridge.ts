@@ -15,6 +15,7 @@ import {
   type FirebaseClient,
   type PhoneBridge,
   type PushEndpoint,
+  type PushPermission,
   type PushRoute,
   type TagRead,
 } from "#lib/phone/bridge.ts";
@@ -33,6 +34,9 @@ export interface FilamentTrackerPlugin {
   pushRegister(options: { vapidKey: string }): Promise<void>;
   pushUnregister(): Promise<void>;
   pushEndpoint(): Promise<{ endpoint: PushEndpoint | null }>;
+  pushPermission(): Promise<{ permission: PushPermission }>;
+  requestPushPermission(): Promise<{ permission: PushPermission }>;
+  pushRouteName(): Promise<{ name?: string | null }>;
   addListener(
     eventName: "pushEndpoint",
     listener: (event: { endpoint?: PushEndpoint | null }) => void,
@@ -108,6 +112,9 @@ export function nativeBridge(
       stopping(plugin.addListener("pushEndpoint", ({ endpoint }) => listener(endpoint ?? null))),
     onNotificationOpen: (listener) =>
       stopping(plugin.addListener("notificationOpened", ({ path }) => listener(path))),
+    pushPermission: async () => (await plugin.pushPermission()).permission,
+    requestPushPermission: async () => (await plugin.requestPushPermission()).permission,
+    pushRouteName: async () => (await plugin.pushRouteName()).name ?? null,
   };
 }
 

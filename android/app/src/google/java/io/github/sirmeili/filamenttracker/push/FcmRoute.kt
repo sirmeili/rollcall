@@ -49,6 +49,6 @@ class FcmRoute(
 
     companion object {
         /** What the web app shows as "via Google". */
-        const val ROUTE = "fcm"
+        const val ROUTE = PushRoutes.FCM
     }
 }
