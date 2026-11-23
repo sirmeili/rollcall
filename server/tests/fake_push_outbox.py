@@ -10,8 +10,13 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import http_ece
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+    PublicFormat,
+)
 from py_vapid.jwt import decode
 
 from filament_tracker.push.transport import PushError
@@ -69,6 +74,42 @@ def vapid_claims(message: PushMessage, public_key: str) -> dict[str, Any]:
     origin = urlsplit(message.endpoint)
     assert claims["aud"] == f"{origin.scheme}://{origin.netloc}"
     return claims
+
+
+# Made-up Firebase client settings, in Firebase's formats.
+FIREBASE = {
+    "firebase_project_id": "rollcall-test",
+    "firebase_app_id": "1:123456789012:android:0123456789abcdef",
+    "firebase_api_key": "AIza" + "Sy0123456789abcdefghijklmnopqrstu",
+    "firebase_sender_id": "123456789012",
+}
+
+
+@dataclass(frozen=True)
+class ServiceAccount:
+    """A made-up Firebase service-account key: its JSON, as Firebase's console downloads it,
+    and its RSA key, to check what it signed."""
+
+    json: str
+    email: str
+    key: rsa.RSAPrivateKey
+
+
+def service_account(project_id: str = "rollcall-test") -> ServiceAccount:
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode()
+    email = f"firebase-adminsdk-abc12@{project_id}.iam.gserviceaccount.com"
+    body = {
+        "type": "service_account",
+        "project_id": project_id,
+        "private_key_id": "0123456789abcdef0123456789abcdef01234567",
+        "private_key": pem,
+        "client_email": email,
+        "client_id": "123456789012345678901",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+    }
+    return ServiceAccount(json.dumps(body, indent=2), email, key)
 
 
 @dataclass
