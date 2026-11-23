@@ -9,10 +9,10 @@ from filament_tracker.api.shopping_schemas import ShoppingListOut, SuggestionIn
 from filament_tracker.api.shopping_views import find_product, list_out
 from filament_tracker.auth import DbSession, Editor, Viewer, problems
 from filament_tracker.db.types import utcnow
+from filament_tracker.notifications.suggestion import suggestion_emails
 from filament_tracker.services import shopping_list
 from filament_tracker.services.catalog_links import UnknownColor
 from filament_tracker.services.shopping_list import NoSuchSuggestion, SuggestionDecided
-from filament_tracker.services.shopping_list.suggestion_emails import suggestion_emails
 
 router = APIRouter(tags=["shopping list"])
 

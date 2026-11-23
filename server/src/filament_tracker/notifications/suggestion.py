@@ -13,12 +13,12 @@ from filament_tracker.notifications.email import compose, link
 from filament_tracker.notifications.recipients import email_recipients
 from filament_tracker.services.catalog_links import load_index
 
-SUBJECT = "New suggestion from {user}: {name}"
-SENTENCE = "{user} suggested {spools} of {name} for the shopping list."
+SUGGESTION_SUBJECT = "New suggestion from {user}: {name}"
+SUGGESTION_SENTENCE = "{user} suggested {spools} of {name} for the shopping list."
 # From a token, which acts for no user.
-NO_USER_SUBJECT = "New suggestion: {name}"
-NO_USER_SENTENCE = "Someone suggested {spools} of {name} for the shopping list."
-OPEN = "Open the shopping list"
+SUGGESTION_NO_USER_SUBJECT = "New suggestion: {name}"
+SUGGESTION_NO_USER_SENTENCE = "Someone suggested {spools} of {name} for the shopping list."
+OPEN_SHOPPING_LIST = "Open the shopping list"
 
 
 def suggestion_emails(
@@ -29,14 +29,14 @@ def suggestion_emails(
     name = _name(session, suggestion)
     spools = f"{suggestion.spools} spool{'' if suggestion.spools == 1 else 's'}"
     if user is None:
-        subject = NO_USER_SUBJECT.format(name=name)
-        sentence = NO_USER_SENTENCE.format(spools=spools, name=name)
+        subject = SUGGESTION_NO_USER_SUBJECT.format(name=name)
+        sentence = SUGGESTION_NO_USER_SENTENCE.format(spools=spools, name=name)
     else:
-        subject = SUBJECT.format(user=user.username, name=name)
-        sentence = SENTENCE.format(user=user.username, spools=spools, name=name)
+        subject = SUGGESTION_SUBJECT.format(user=user.username, name=name)
+        sentence = SUGGESTION_SENTENCE.format(user=user.username, spools=spools, name=name)
     to_list = link(public_url, "/shopping-list")
     return [
-        compose(to, subject=subject, sentence=sentence, link=to_list, link_text=OPEN)
+        compose(to, subject=subject, sentence=sentence, link=to_list, link_text=OPEN_SHOPPING_LIST)
         for to in email_recipients(session, NotificationKind.SUGGESTION, actor=user)
     ]
 
