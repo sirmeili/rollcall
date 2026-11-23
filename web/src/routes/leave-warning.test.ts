@@ -63,14 +63,20 @@ async function openAt<Props extends Record<string, unknown>>(
   render(Page, props);
 }
 
-/** Navigate as SvelteKit would, through the layout's guard; true when it went ahead. */
-function navigate(type: Navigation["type"], to: string | null, delta?: number): boolean {
+/** Navigate as SvelteKit would, through the layout's guard; true when it went ahead. A
+ * navigation leaving the app (closing the tab, a link to another site) unloads the page. */
+function navigate(
+  type: Navigation["type"],
+  to: string | null,
+  delta?: number,
+  willUnload = type === "leave",
+): boolean {
   let cancelled = false;
   nav.guard!({
     type,
     to: to === null ? null : { url: new URL(to, "https://localhost") },
     delta,
-    willUnload: type === "leave",
+    willUnload,
     cancel: () => (cancelled = true),
   });
   return !cancelled;
@@ -164,6 +170,46 @@ describe("Leaving a changed full-page form", () => {
 
     expect(warning()).toBeNull();
     expect(nav.goto).toHaveBeenCalledWith(new URL("https://localhost/spools"));
+  });
+
+  it("keeps Tab inside the warning", async () => {
+    await openAt("/requests/new", SAM, NewRequestPage);
+    await userEvent.type(await screen.findByLabelText("Title"), "Dragon");
+    navigate("link", "/spools");
+    const dialog = await screen.findByRole("alertdialog", { name: "Leave without saving?" });
+    const stay = within(dialog).getByRole("button", { name: "Stay" });
+    const leave = within(dialog).getByRole("button", { name: "Leave" });
+    expect(stay).toHaveFocus();
+
+    await userEvent.tab();
+    expect(leave).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(stay).toHaveFocus();
+  });
+
+  it("follows a link to another site on Leave, loading it", async () => {
+    await openAt("/requests/new", SAM, NewRequestPage);
+    await userEvent.type(await screen.findByLabelText("Title"), "Dragon");
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign });
+
+    expect(navigate("link", "https://example.com/help", undefined, true)).toBe(false);
+    await answer("Leave");
+
+    expect(assign).toHaveBeenCalledExactlyOnceWith(new URL("https://example.com/help"));
+    expect(nav.goto).not.toHaveBeenCalled();
+  });
+
+  it("goes nowhere on Leave when the navigation had no destination", async () => {
+    await openAt("/requests/new", SAM, NewRequestPage);
+    await userEvent.type(await screen.findByLabelText("Title"), "Dragon");
+
+    expect(navigate("link", null)).toBe(false);
+    await answer("Leave");
+
+    expect(warning()).toBeNull();
+    expect(nav.goto).not.toHaveBeenCalled();
+    expect(go).not.toHaveBeenCalled();
   });
 
   it("asks before the browser's Back, and goes back on Leave", async () => {
