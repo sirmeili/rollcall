@@ -41,7 +41,8 @@ def test_login_sets_a_strict_session_cookie_and_returns_the_user(
         "has_requests": False,
         "time_zone": "UTC",
         "notifications": [
-            {"kind": "new_request", "channel": "email", "on": False, "default": True}
+            {"kind": "new_request", "channel": "email", "on": False, "default": True},
+            {"kind": "low_stock", "channel": "email", "on": False, "default": True},
         ],
         "email_set_up": False,
     }
