@@ -9,6 +9,7 @@
   import { session } from "#lib/auth/session.svelte.ts";
   import Forbidden from "#lib/components/Forbidden.svelte";
   import Header from "#lib/components/Header.svelte";
+  import LeaveWarning from "#lib/components/LeaveWarning.svelte";
   import StartScreen from "#lib/components/phone/StartScreen.svelte";
   import PhoneNav from "#lib/components/shell/PhoneNav.svelte";
   import PhoneTopBar from "#lib/components/shell/PhoneTopBar.svelte";
@@ -135,6 +136,8 @@
     else requestsBadge.clear();
   });
 </script>
+
+<LeaveWarning />
 
 {#if phone.app && !started}
   <StartScreen ready={startReady} ondone={() => (started = true)} />
