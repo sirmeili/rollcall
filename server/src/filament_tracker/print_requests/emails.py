@@ -76,7 +76,7 @@ def move_emails(
     request = moved.request
     if not moved.move.emails_requester:
         return []
-    to = _requester(session, NotificationKind.REQUEST_UPDATE, request, moved.user)
+    to = _requester_address(session, NotificationKind.REQUEST_UPDATE, request, moved.user)
     if to is None:
         return []
     subject, sentence = MOVE_WORDING[moved.move.to_status]
@@ -107,7 +107,7 @@ def new_photo_emails(
     showing their email copies, if the resolver tells them."""
     if not photos:
         return []
-    to = _requester(session, NotificationKind.NEW_PHOTO, request, user)
+    to = _requester_address(session, NotificationKind.NEW_PHOTO, request, user)
     if to is None:
         return []
     return [
@@ -144,7 +144,7 @@ def new_request_emails(
     ]
 
 
-def _requester(
+def _requester_address(
     session: Session, kind: NotificationKind, request: PrintRequest, actor: User | None
 ) -> str | None:
     """The requester's address, if the resolver tells them about `kind`; None otherwise."""
