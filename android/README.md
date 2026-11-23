@@ -33,9 +33,18 @@ The app is built in two Gradle product flavors, released together:
 - **`google`**: for phones with Google Play. It may use Google's services, such as Google's push service for phone notifications when the server has it set up.
 - **`foss`**: contains no Google code, for phones without Google Play or people who avoid Google.
 
-Pick `google` unless the phone has no Google Play or you'd rather avoid Google. For now the two behave the same.
+Pick `google` unless the phone has no Google Play or you'd rather avoid Google. For now the two behave the same: both get phone notifications through a UnifiedPush distributor (below).
 
 Both have the same app ID and are signed with the same key, so a phone switches by installing the other flavor's APK over the top: Android keeps the app's data, and the phone stays set up. A flavor's own code goes in `app/src/google/` or `app/src/foss/`, and its dependencies in `googleImplementation` or `fossImplementation`.
+
+## Phone notifications
+
+A user's phone (set up by signing in) shows the phone notifications its user chose on Account, even while the app is closed. A shared phone never gets them. For now they come through a [UnifiedPush](https://unifiedpush.org/) distributor, an app such as [ntfy](https://ntfy.sh/) installed on the phone, using the UnifiedPush connector library in both flavors:
+
+- Install ntfy (from F-Droid or Google Play). Without a distributor the phone gets no phone notifications.
+- Once signed in, the app registers with the distributor using the server's VAPID public key and sends its endpoint to the server with its session, from anywhere. A new endpoint from the distributor is sent at once, or on the next sign-in. With more than one distributor installed, it keeps the one in use, else the phone's default, else the first.
+- ntfy uses the ntfy.sh server unless set to another; the server owner can run their own (see [docs/deploy.md](../docs/deploy.md#ntfy-optional)). The server encrypts each push for the phone (RFC 8291), so the ntfy server sees only encrypted contents.
+- Each kind is its own Android notification channel, so a kind can also be muted in Android's settings. Tapping a notification opens its page, signing in first when signed out.
 
 ## Install a development build
 
@@ -191,5 +200,12 @@ Run each step with the swipe-back gesture and, where the phone has one, the Back
 **Flavors**
 
 42. On a phone set up with the `google` release, install the `foss` APK of the same or a newer version over the top: it installs without uninstalling, opens still set up (Scan, or the page chosen in 26) and a scan records. Install the `google` APK back over it: still set up.
+
+**Phone notifications**
+
+43. On a phone set up by signing in, with ntfy installed and RollCall's notifications allowed in Android's settings, close the app and turn Wi-Fi off (mobile data). From a PC, mark one of that user's print requests Done: the notification shows within a minute, and Android's settings for RollCall list a channel for each kind.
+44. Tap it: the app opens on the request's page.
+45. Sign out in the full app, then tap a new notification: the app asks to sign in, then opens its page.
+46. On a shared phone (paired with a code) with ntfy installed, sign in to the full app: ntfy lists no RollCall subscription, and no notifications arrive.
 
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.

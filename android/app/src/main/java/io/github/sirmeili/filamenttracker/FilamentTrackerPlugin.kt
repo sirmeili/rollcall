@@ -1,6 +1,7 @@
 package io.github.sirmeili.filamenttracker
 
 import android.app.Activity
+import android.content.Intent
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.os.Build
@@ -23,12 +24,20 @@ import io.github.sirmeili.filamenttracker.nfc.AndroidMifare
 import io.github.sirmeili.filamenttracker.nfc.Hex
 import io.github.sirmeili.filamenttracker.nfc.NfcState
 import io.github.sirmeili.filamenttracker.nfc.TagReader
+import io.github.sirmeili.filamenttracker.push.Notifier
+import io.github.sirmeili.filamenttracker.push.PhoneNotification
+import io.github.sirmeili.filamenttracker.push.PushEndpointInfo
+import io.github.sirmeili.filamenttracker.push.PushEvents
+import io.github.sirmeili.filamenttracker.push.PushRoutes
+import io.github.sirmeili.filamenttracker.push.UnifiedPushProvider
+import io.github.sirmeili.filamenttracker.push.pushEndpoints
 import io.github.sirmeili.filamenttracker.storage.KeystoreKey
 import io.github.sirmeili.filamenttracker.storage.PrefsValues
 import io.github.sirmeili.filamenttracker.storage.SecureStore
 
 /**
- * The phone app's native side: NFC tag reads, QR scanning and encrypted storage.
+ * The phone app's native side: NFC tag reads, QR scanning, encrypted storage, and phone
+ * notifications (the push route, registering, the endpoint and tapped notifications).
  *
  * Derived keys stay in [TagReader]; only the UID, data blocks and `readOk` reach the web view.
  * Nothing here logs tag contents, the salt or stored values.
@@ -36,6 +45,8 @@ import io.github.sirmeili.filamenttracker.storage.SecureStore
 @CapacitorPlugin(name = "FilamentTracker")
 class FilamentTrackerPlugin : Plugin() {
     private val store by lazy { SecureStore(KeystoreKey::get, PrefsValues(context)) }
+    private val endpoints by lazy { pushEndpoints(context) }
+    private val routes by lazy { PushRoutes(listOf(UnifiedPushProvider(context, endpoints))) }
     private var pending: PluginCall? = null
     private var salt: ByteArray? = null
 
@@ -186,8 +197,54 @@ class FilamentTrackerPlugin : Plugin() {
     override fun handleOnDestroy() {
         tones?.release()
         tones = null
+        PushEvents.listen(null)
         super.handleOnDestroy()
     }
+
+    override fun load() {
+        super.load()
+        PushEvents.listen { endpoint -> notifyListeners("pushEndpoint", JSObject().put("endpoint", endpoint?.toJs())) }
+        opened(activity?.intent)
+    }
+
+    override fun handleOnNewIntent(intent: Intent) {
+        super.handleOnNewIntent(intent)
+        opened(intent)
+    }
+
+    /** A tapped phone notification opened the app: tell the web app its page, once, even if
+     * it isn't listening yet. */
+    private fun opened(intent: Intent?) {
+        val path = intent?.getStringExtra(Notifier.EXTRA_PATH) ?: return
+        intent.removeExtra(Notifier.EXTRA_PATH)
+        notifyListeners("notificationOpened", JSObject().put("path", PhoneNotification.safePath(path)), true)
+    }
+
+    @PluginMethod
+    fun pushRoute(call: PluginCall) {
+        call.resolve(JSObject().put("route", routes.route()))
+    }
+
+    @PluginMethod
+    fun pushRegister(call: PluginCall) {
+        val vapidKey = call.getString("vapidKey")?.takeIf { it.isNotEmpty() } ?: return call.reject("vapidKey required")
+        runCatching { routes.register(vapidKey) }
+            .onSuccess { call.resolve() }
+            .onFailure { call.reject("push registration failed") }
+    }
+
+    @PluginMethod
+    fun pushUnregister(call: PluginCall) {
+        runCatching { routes.unregister() }
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun pushEndpoint(call: PluginCall) {
+        call.resolve(JSObject().put("endpoint", endpoints.load()?.toJs()))
+    }
+
+    private fun PushEndpointInfo.toJs(): JSObject = JSObject().put("url", url).put("p256dh", p256dh).put("auth", auth)
 
     // Google's code scanner (Play services) needs no camera permission and keeps camera code
     // out of the app.

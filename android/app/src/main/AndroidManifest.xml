@@ -25,6 +25,15 @@
 
         </activity>
 
+        <!-- Phone notifications from a UnifiedPush distributor such as ntfy. -->
+        <service
+            android:name=".push.UnifiedPushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -42,6 +51,8 @@
     <uses-permission android:name="android.permission.NFC" />
     <!-- A short buzz when a tag has been read, felt even with the sound off. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Showing phone notifications (Android 13 and later). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Optional, so phones without NFC can still install the app and use the web pages. -->
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
 </manifest>
