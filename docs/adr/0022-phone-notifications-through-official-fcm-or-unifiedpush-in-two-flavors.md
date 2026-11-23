@@ -3,7 +3,7 @@
 Phone notifications reach a user's phone by documented routes only, in two builds of the app released together from one package name and signing key (#81, #223):
 
 - **`google`** uses Google's official push service, Firebase Cloud Messaging, when the server owner has set up Firebase on the Settings page (or in `.env`, ADR-0007). The phone gets Firebase's client settings with its push configuration and starts Firebase from them at app start, with no `google-services.json`, no Analytics, automatic token creation and delivery-metrics export off. The server sends with the HTTP v1 API and an OAuth token from the service-account key, stored encrypted. A UnifiedPush distributor such as ntfy, if installed, is preferred over FCM.
-- **`foss`** contains no Google code: no Firebase, no Play services and, by the owner's decision on #227, not Google's QR code scanner either (it scans with ZXing instead). It gets phone notifications only through a UnifiedPush distributor. CI fails if its dependencies hold any Google service.
+- **`foss`** contains no Google code: no Firebase, no Play services and not Google's QR code scanner either: it scans with ZXing instead. The owner decided this while #227 was built (recorded on #227), because Google's code scanner is Play services code, which `foss` can't hold. It gets phone notifications only through a UnifiedPush distributor. CI fails if its dependencies hold any Google service.
 
 Why, from #81 and its grilling (2026-11-22):
 
