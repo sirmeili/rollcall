@@ -12,6 +12,7 @@ import android.os.VibratorManager
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.MifareClassic
+import androidx.activity.result.ActivityResult
 import androidx.core.app.NotificationManagerCompat
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
@@ -20,15 +21,15 @@ import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
+import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.Permission
 import com.getcapacitor.annotation.PermissionCallback
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import io.github.sirmeili.filamenttracker.flavor.appFlavor
 import io.github.sirmeili.filamenttracker.nfc.AndroidMifare
 import io.github.sirmeili.filamenttracker.nfc.Hex
 import io.github.sirmeili.filamenttracker.nfc.NfcState
 import io.github.sirmeili.filamenttracker.nfc.TagReader
+import io.github.sirmeili.filamenttracker.push.FirebaseSettings
 import io.github.sirmeili.filamenttracker.push.Notifier
 import io.github.sirmeili.filamenttracker.push.PhoneNotification
 import io.github.sirmeili.filamenttracker.push.PushEndpointInfo
@@ -58,7 +59,7 @@ private const val NOTIFICATIONS = "notifications"
 class FilamentTrackerPlugin : Plugin() {
     private val store by lazy { SecureStore(KeystoreKey::get, PrefsValues(context)) }
     private val endpoints by lazy { pushEndpoints(context) }
-    private val routes by lazy { PushRoutes(listOf(UnifiedPushProvider(context, endpoints))) }
+    private val routes by lazy { appFlavor.pushRoutes(context, endpoints) }
     private var pending: PluginCall? = null
     private var salt: ByteArray? = null
 
@@ -258,6 +259,7 @@ class FilamentTrackerPlugin : Plugin() {
         call.resolve(JSObject().put("endpoint", endpoints.load()?.toJs()))
     }
 
+
     /** Whether RollCall may show notifications: Android 13's permission granted, and
      * notifications not turned off for the app in Android's settings. */
     @PluginMethod
@@ -285,25 +287,57 @@ class FilamentTrackerPlugin : Plugin() {
         return JSObject().put("permission", if (granted) "granted" else "denied")
     }
 
-    /** The name people know the route by: the UnifiedPush distributor app's ("ntfy"). */
+    /** The name people know the route by: the UnifiedPush distributor app's ("ntfy"), or
+     * "Google" for Google's push service (FCM). */
     @PluginMethod
     fun pushRouteName(call: PluginCall) {
-        val name = if (routes.route() == UnifiedPushProvider.ROUTE) unifiedPush.distributorName() else null
+        val name =
+            when (routes.route()) {
+                UnifiedPushProvider.ROUTE -> unifiedPush.distributorName()
+                PushRoutes.FCM -> "Google"
+                else -> null
+            }
         call.resolve(JSObject().put("name", name))
     }
 
-    private fun PushEndpointInfo.toJs(): JSObject = JSObject().put("url", url).put("p256dh", p256dh).put("auth", auth)
+    private fun PushEndpointInfo.toJs(): JSObject =
+        JSObject().put("route", route).put("url", url).put("p256dh", p256dh).put("auth", auth)
 
-    // Google's code scanner (Play services) needs no camera permission and keeps camera code
-    // out of the app.
+    /**
+     * Use the server's Firebase client settings (absent: none), before choosing a route. When
+     * they differ from the ones Firebase is running with, the app restarts itself to use them.
+     */
+    @PluginMethod
+    fun pushConfigure(call: PluginCall) {
+        val firebase = call.getObject("firebase")?.let(::firebaseSettings)
+        if (!appFlavor.useFirebase(context, firebase)) return call.resolve()
+        call.resolve(JSObject().put("restarting", true))
+        restart()
+    }
+
+    private fun firebaseSettings(json: JSObject): FirebaseSettings? {
+        val values = listOf("project_id", "app_id", "api_key", "sender_id").map { json.getString(it) ?: return null }
+        return FirebaseSettings(values[0], values[1], values[2], values[3])
+    }
+
+    /** Start the app afresh in a new process, as Firebase starts once per process. */
+    private fun restart() {
+        val launch = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return
+        context.startActivity(Intent.makeRestartActivityTask(launch.component))
+        Runtime.getRuntime().exit(0)
+    }
+
+    // Each flavor has its own scanner (Flavors in android/README.md): some answer the call
+    // themselves, others start an activity whose result comes back to qrScanned.
     @PluginMethod
     fun scanQr(call: PluginCall) {
-        val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
-        GmsBarcodeScanning.getClient(activity, options)
-            .startScan()
-            .addOnSuccessListener { code -> call.resolve(JSObject().put("value", code.rawValue)) }
-            .addOnCanceledListener { call.resolve(JSObject().put("value", null)) }
-            .addOnFailureListener { call.reject("camera unavailable") }
+        val intent = appFlavor.qrScanner.start(activity, call) ?: return
+        startActivityForResult(call, intent, "qrScanned")
+    }
+
+    @ActivityCallback
+    private fun qrScanned(call: PluginCall?, result: ActivityResult) {
+        call?.resolve(JSObject().put("value", appFlavor.qrScanner.result(result.resultCode, result.data)))
     }
 
     @PluginMethod

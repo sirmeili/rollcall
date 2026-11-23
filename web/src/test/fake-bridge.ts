@@ -6,6 +6,7 @@
 import type {
   BackPress,
   NfcStatus,
+  FirebaseClient,
   PhoneBridge,
   PushEndpoint,
   PushPermission,
@@ -34,6 +35,12 @@ export interface FakeBridge extends PhoneBridge {
   registrations: string[];
   /** How many times the phone unregistered from the route. */
   unregistrations: number;
+  /** The Firebase settings the phone was given, in order (null: none). */
+  firebaseSettings: (FirebaseClient | null)[];
+  /** The route once given Firebase settings, as the google flavor without a distributor. */
+  routeWithFirebase: PushRoute | null;
+  /** Whether the app restarts when given Firebase settings. */
+  restartsForFirebase: boolean;
   /** The route gives a new endpoint (null: it dropped this phone). */
   changeEndpoint(endpoint: PushEndpoint | null): void;
   /** Tap a phone notification for `path`. */
@@ -65,6 +72,9 @@ export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
     endpoint: null,
     registrations: [],
     unregistrations: 0,
+    firebaseSettings: [],
+    routeWithFirebase: null,
+    restartsForFirebase: false,
     permission: "granted",
     permissionAnswer: "granted",
     permissionRequests: 0,
@@ -98,6 +108,11 @@ export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
       return Promise.resolve();
     },
     pressBack: (canGoBack) => backListeners.forEach((listener) => listener({ canGoBack })),
+    pushConfigure: (firebase) => {
+      fake.firebaseSettings.push(firebase);
+      if (firebase && fake.routeWithFirebase) fake.route = fake.routeWithFirebase;
+      return Promise.resolve({ restarting: firebase !== null && fake.restartsForFirebase });
+    },
     pushRoute: () => Promise.resolve(fake.route),
     pushRegister: (vapidKey) => {
       fake.registrations.push(vapidKey);

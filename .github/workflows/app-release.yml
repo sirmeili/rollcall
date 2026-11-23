@@ -83,7 +83,7 @@ jobs:
           fi
           export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
           base64 -d <<<"$KEYSTORE_BASE64" > "$ANDROID_KEYSTORE_FILE"
-          ./gradlew --no-daemon coverageCheck assembleRelease -PappVersion="$VERSION"
+          ./gradlew --no-daemon coverageCheck checkFossHasNoGoogleServices assembleRelease -PappVersion="$VERSION"
           rm "$ANDROID_KEYSTORE_FILE"
       # Both flavors must share the app ID and the certificate, so a phone can switch between
       # them by installing the other over the top.

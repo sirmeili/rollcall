@@ -217,6 +217,16 @@ describe("the Phone notifications line on Pairing", () => {
     await waitFor(() => expect(line()).toHaveTextContent("via UnifiedPush."));
   });
 
+  it("says via Google for Google's push service", async () => {
+    native.route = "fcm";
+    native.pushRouteName = () => Promise.resolve(null);
+    render(PairPage);
+
+    await waitFor(() =>
+      expect(line()).toHaveTextContent("Phone notifications work on this phone, via Google."),
+    );
+  });
+
   it("says the permission was refused, and how to allow it", async () => {
     native.permission = "denied";
     render(PairPage);

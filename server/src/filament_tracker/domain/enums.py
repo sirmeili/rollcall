@@ -177,3 +177,5 @@ class PushRoute(StrEnum):
 
     # RFC 8030 Web Push, through a UnifiedPush distributor such as ntfy.
     WEB_PUSH = "web_push"
+    # Google's push service, Firebase Cloud Messaging (HTTP v1), for the google app flavor.
+    FCM = "fcm"

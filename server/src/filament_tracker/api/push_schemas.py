@@ -3,9 +3,9 @@
 import binascii
 from collections.abc import Callable
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import AfterValidator, BaseModel, StringConstraints
+from pydantic import AfterValidator, BaseModel, Field, StringConstraints
 
 from filament_tracker.api.schemas import Strict
 from filament_tracker.domain.enums import PushRoute
@@ -42,20 +42,42 @@ P256dh = Annotated[
     str, StringConstraints(max_length=128), AfterValidator(_bytes(P256_POINT_BYTES, 4))
 ]
 Auth = Annotated[str, StringConstraints(max_length=64), AfterValidator(_bytes(AUTH_BYTES))]
+# FCM registration tokens: letters, digits, -, _ and :, about 150 to 200 long.
+FcmToken = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_:-]{1,4096}$")]
+
+
+class FirebaseClientOut(BaseModel):
+    """What a phone of the google flavor starts Firebase with."""
+
+    project_id: str
+    app_id: str
+    api_key: str
+    sender_id: str
 
 
 class PushConfigOut(BaseModel):
     # What the phone registers with its push distributor (the applicationServerKey).
     vapid_public_key: str
+    # Firebase's client settings when the server sends through FCM; None otherwise.
+    firebase: FirebaseClientOut | None
 
 
-class PushEndpointIn(Strict):
-    route: PushRoute
+class WebPushEndpointIn(Strict):
+    route: Literal[PushRoute.WEB_PUSH]
     # The push service's URL for this phone.
     endpoint: Endpoint
     # The phone's Web Push keys, base64url.
     p256dh: P256dh
     auth: Auth
+
+
+class FcmEndpointIn(Strict):
+    route: Literal[PushRoute.FCM]
+    # The phone's FCM registration token.
+    endpoint: FcmToken
+
+
+PushEndpointIn = Annotated[WebPushEndpointIn | FcmEndpointIn, Field(discriminator="route")]
 
 
 class PushEndpointOut(BaseModel):

@@ -8,19 +8,23 @@ exist does.
 """
 
 import logging
+from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from filament_tracker.api.push_schemas import (
+    FirebaseClientOut,
     PushConfigOut,
     PushEndpointIn,
     PushEndpointOut,
     TestPushOut,
+    WebPushEndpointIn,
 )
 from filament_tracker.auth import DbSession, SignedInUser
 from filament_tracker.db.models import Device
 from filament_tracker.db.push_models import PushEndpoint
 from filament_tracker.db.types import utcnow
+from filament_tracker.push.firebase import firebase
 from filament_tracker.push.payload import phone_payload
 from filament_tracker.push.sender import Outcome, Push, PushSender
 from filament_tracker.services.cooldown import Cooldowns
@@ -50,7 +54,9 @@ def _own_phone(session: DbSession, caller: SignedInUser, device_id: str) -> Devi
 def push_config(_: SignedInUser, request: Request, response: Response) -> PushConfigOut:
     """What a signed-in user's phone registers for phone notifications with."""
     response.headers["Cache-Control"] = "no-store"
-    return PushConfigOut(vapid_public_key=request.app.state.vapid_keys.public)
+    setup = firebase(request.app.state.settings_store)
+    client = None if setup is None else FirebaseClientOut(**asdict(setup.client))
+    return PushConfigOut(vapid_public_key=request.app.state.vapid_keys.public, firebase=client)
 
 
 @router.put("/push/devices/{device_id}", response_model=PushEndpointOut)
@@ -62,8 +68,9 @@ def register(
     endpoint = session.get(PushEndpoint, device.id) or PushEndpoint(device_id=device.id)
     endpoint.route = body.route
     endpoint.endpoint = body.endpoint
-    endpoint.p256dh = body.p256dh
-    endpoint.auth = body.auth
+    web_push = isinstance(body, WebPushEndpointIn)
+    endpoint.p256dh = body.p256dh if web_push else None
+    endpoint.auth = body.auth if web_push else None
     endpoint.registered_at = utcnow()
     endpoint.last_success_at = None
     endpoint.failures = 0

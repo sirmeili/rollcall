@@ -94,9 +94,14 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
-    implementation "com.google.android.gms:play-services-code-scanner:$codeScannerVersion"
     // Phone notifications through a UnifiedPush distributor such as ntfy, in both flavors.
     implementation "org.unifiedpush.android:connector:$unifiedPushConnectorVersion"
+    // google: Google's code scanner, and phone notifications through Google's push service
+    // (FCM), started from the server's settings: no google-services.json, no Analytics.
+    googleImplementation "com.google.android.gms:play-services-code-scanner:$codeScannerVersion"
+    googleImplementation "com.google.firebase:firebase-messaging:$firebaseMessagingVersion"
+    // foss: no Google services. QR codes are scanned with ZXing, in the app (Apache-2.0).
+    fossImplementation "com.journeyapps:zxing-android-embedded:$zxingEmbeddedVersion"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
@@ -113,7 +118,8 @@ kotlin {
 
 // Unit-test coverage, gated at 90% of lines. The Android glue (the Capacitor plugin, the
 // MifareClassic adapter, Keystore and SharedPreferences storage, the activity, the UnifiedPush
-// connector and showing notifications) needs a real phone and is covered by the phone
+// connector, showing notifications, each flavor's QR scanner and its glue, and starting Firebase
+// and FCM's service in google) needs a real phone and is covered by the phone
 // checklist instead. docs/testing.md lists these exclusions;
 // change it with this list. Each flavor is tested and gated on its own (coverageReportGoogle,
 // coverageCheckFoss, ...); coverageReport and coverageCheck run both.
@@ -122,6 +128,8 @@ def coverageExcludes = [
     '**/MainActivity*', '**/FilamentTrackerPlugin*', '**/AndroidMifare*',
     '**/KeystoreKey*', '**/PrefsValues*',
     '**/UnifiedPush*', '**/Notifier*',
+    '**/flavor/Flavor*', '**/GmsQrScanner*', '**/ZxingQrScanner*',
+    '**/FirebaseStart.*', '**/FirebaseStart$*', '**/FirebaseStartProvider*', '**/FirebaseFcm*', '**/FcmService*',
     '**/PhotoDownloader*',
 ]
 
@@ -156,6 +164,30 @@ def coverageExcludes = [
                 }
             }
         }
+    }
+}
+
+// The foss flavor holds no Google services (android/README.md, Flavors): no Play services,
+// Firebase, ML Kit or Google's data transport, which phones it is for may lack and its users
+// avoid. Open-source libraries that happen to come from Google, such as ZXing, Gson or Tink,
+// are fine. CI runs this on every change to the app.
+def googleServiceGroups = [
+    'com.google.android.gms', 'com.google.firebase', 'com.google.mlkit',
+    'com.google.android.datatransport', 'com.google.android.play', 'com.google.android.odml',
+]
+
+tasks.register('checkFossHasNoGoogleServices') {
+    def classpaths = ['fossDebugRuntimeClasspath', 'fossReleaseRuntimeClasspath'].collect { configurations.named(it) }
+    doLast {
+        def found = classpaths.collectMany { classpath ->
+            classpath.get().incoming.resolutionResult.allComponents.collect { it.moduleVersion }.findAll { module ->
+                module != null && googleServiceGroups.any { module.group == it || module.group.startsWith("${it}.") }
+            }.collect { "${it.group}:${it.name}:${it.version}" }
+        }.unique()
+        if (found) {
+            throw new GradleException("The foss flavor must hold no Google services, but has: ${found.join(', ')}")
+        }
+        logger.lifecycle('The foss flavor holds no Google services.')
     }
 }
 

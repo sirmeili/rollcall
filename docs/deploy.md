@@ -243,6 +243,25 @@ Phone notifications reach a phone through a UnifiedPush distributor app on it, u
 
 Then check: `https://ntfy.example.com` opens ntfy's web app from a phone on mobile data, and a phone with RollCall registered shows a subscription to that server in the ntfy app.
 
+### Firebase (optional)
+
+Phones with the `google` flavor of the app (see [android/README.md](../android/README.md#flavors)) can get phone notifications through Google's own push service, Firebase Cloud Messaging (FCM), with nothing else to install. RollCall uses your own Firebase project, set up once on the Settings page. Without it, phones need ntfy (above) or another UnifiedPush distributor, and a phone with one installed keeps using it either way. FCM pushes aren't end-to-end encrypted: Google sees their text.
+
+1. In the [Firebase console](https://console.firebase.google.com/), create a project, for example "RollCall". Google Analytics isn't needed: leave it off.
+2. In the project's settings, under General › Your apps, add an Android app with the package name `io.github.sirmeili.rollcall`. Skip the remaining steps of the wizard (the SDK and the build plugin are already in the app).
+3. Download that app's `google-services.json`. It isn't put in the app; it only holds four values RollCall needs. On the Settings page, under **Phone notifications**, enter:
+   - **Firebase project ID**: `project_info.project_id`;
+   - **App ID**: `client[0].client_info.mobilesdk_app_id`, like `1:123456789012:android:…`;
+   - **API key**: `client[0].api_key[0].current_key`, starting `AIza`;
+   - **Sender ID**: `project_info.project_number`.
+
+   Then delete the file. None of these is secret: Firebase puts them in apps.
+4. In the project's settings, under Cloud Messaging, check that **Firebase Cloud Messaging API (V1)** is enabled.
+5. Under Service accounts, choose **Generate new private key**. Paste the whole downloaded JSON file into **Service-account key** on the Settings page, and Save. It is stored encrypted and never shown again; delete the downloaded file and keep no other copy. (Or set all five as `FIREBASE_*` in `.env`; see [configuration.md](configuration.md).)
+6. Open RollCall on each `google` phone, signed in. The app restarts itself once to start Firebase with the new settings.
+
+Then check, on a `google` phone without ntfy: its Settings say phone notifications work via Google, and **Send a test notification** arrives. A development build (`io.github.sirmeili.rollcall.debug`) needs its own Android app in the same project, added as in step 2; RollCall's settings hold one App ID, so test it with the debug app's App ID and put the release one back afterwards.
+
 ## 6. Scanners, the phone app and Home Assistant
 
 - **Phone app and scanners**: on the Devices page, register a scanner and pair the phone with its QR code, from home. For the phone, use the `https://` hostname if you set up HTTPS at home (above), so the app works at home and away; otherwise `http://<server>:8000`, which works only at home. Scanners stay on the LAN.

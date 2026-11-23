@@ -12,6 +12,7 @@ import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor
 import {
   setBridge,
   type NfcStatus,
+  type FirebaseClient,
   type PhoneBridge,
   type PushEndpoint,
   type PushPermission,
@@ -28,6 +29,7 @@ export interface FilamentTrackerPlugin {
   secureGet(options: { key: string }): Promise<{ value: string | null }>;
   secureSet(options: { key: string; value: string }): Promise<void>;
   secureRemove(options: { key: string }): Promise<void>;
+  pushConfigure(options: { firebase: FirebaseClient | null }): Promise<{ restarting?: boolean }>;
   pushRoute(): Promise<{ route: PushRoute }>;
   pushRegister(options: { vapidKey: string }): Promise<void>;
   pushUnregister(): Promise<void>;
@@ -99,6 +101,9 @@ export function nativeBridge(
     onBack: (listener) =>
       stopping(app.addListener("backButton", ({ canGoBack }) => listener({ canGoBack }))),
     background: () => app.minimizeApp(),
+    pushConfigure: async (firebase) => ({
+      restarting: (await plugin.pushConfigure({ firebase })).restarting === true,
+    }),
     pushRoute: async () => (await plugin.pushRoute()).route,
     pushRegister: (vapidKey) => plugin.pushRegister({ vapidKey }),
     pushUnregister: () => plugin.pushUnregister(),

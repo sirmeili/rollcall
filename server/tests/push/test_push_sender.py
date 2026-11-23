@@ -8,7 +8,7 @@ from collections.abc import Callable, Iterator
 from datetime import timedelta
 
 import pytest
-from fake_push_outbox import FakePushOutbox, TestPhone
+from fake_push_outbox import FakePushOutbox, TestPhone, service_account
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -18,6 +18,8 @@ from filament_tracker.db.models import Device, User
 from filament_tracker.db.push_models import PushEndpoint
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import PushRoute, Role
+from filament_tracker.push.fcm_account import parse_service_account
+from filament_tracker.push.firebase import Firebase, FirebaseClient
 from filament_tracker.push.keys import vapid_keys
 from filament_tracker.push.sender import RETRIES, Outcome, Push, PushSender
 
@@ -244,3 +246,28 @@ def test_stopping_ends_retries(sessions: sessionmaker[Session], phone: TestPhone
 
     assert time.monotonic() - started < 2
     assert pushes.attempts == 1
+
+
+def test_an_fcm_phone_follows_the_same_failure_rules(
+    sessions: sessionmaker[Session], phone: TestPhone, pushes: FakePushOutbox
+) -> None:
+    with sessions() as session:
+        endpoint = session.get(PushEndpoint, PHONE)
+        endpoint.route, endpoint.endpoint = PushRoute.FCM, "fcm-token"
+        endpoint.p256dh = endpoint.auth = None
+        endpoint.last_success_at = utcnow() - timedelta(days=31)
+        session.commit()
+    setup = Firebase(
+        FirebaseClient("rollcall-test", "1:1:android:ab", "AIzaKey", "1"),
+        parse_service_account(service_account().json),
+    )
+    keys = vapid_keys(sessions, SecretBox(parse_key(new_key_text())))
+    sender = PushSender(pushes, sessions, keys, firebase=lambda: setup, retries=SHORT)
+    sender.start()
+    pushes.answer(503, 503, 503, 503)
+
+    sender.send_later([PUSH])
+
+    wait_for(lambda: pushes.attempts == 4)
+    wait_for(lambda: _endpoint(sessions) is None)
+    sender.stop()

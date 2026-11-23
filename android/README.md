@@ -1,6 +1,6 @@
 # RollCall Android app
 
-The phone app: a Capacitor wrapper around the web app in `web/`, with a Kotlin plugin for NFC tag reading, QR scanning and Keystore storage, and Capacitor's official App plugin for the Back button and sending the app to the background. It works only on phones whose NFC chip reads MIFARE Classic, such as Google Pixel phones. See ADR-0010 (`docs/adr/0010-phone-app-capacitor-and-kotlin-nfc.md`) for why it is built this way.
+The phone app: a Capacitor wrapper around the web app in `web/`, with a Kotlin plugin for NFC tag reading, QR scanning, phone notifications and Keystore storage, and Capacitor's official App plugin for the Back button and sending the app to the background. It works only on phones whose NFC chip reads MIFARE Classic, such as Google Pixel phones. See ADR-0010 (`docs/adr/0010-phone-app-capacitor-and-kotlin-nfc.md`) for why it is built this way.
 
 ## Build
 
@@ -13,6 +13,7 @@ npx cap sync android
 
 # From android/, with JAVA_HOME set to JDK 21
 ./gradlew coverageCheck    # Kotlin tests of both flavors, each with the 90% coverage gate
+./gradlew checkFossHasNoGoogleServices   # foss holds no Google services (Flavors, below)
 ./gradlew assembleDebug    # Writes app/build/outputs/apk/<flavor>/debug/app-<flavor>-debug.apk for google and foss
 ```
 
@@ -30,25 +31,26 @@ Debug builds are **RollCall (dev)** (`io.github.sirmeili.rollcall.debug`, versio
 
 The app is built in two Gradle product flavors, released together:
 
-- **`google`**: for phones with Google Play. It may use Google's services, such as Google's push service for phone notifications when the server has it set up.
-- **`foss`**: contains no Google code, for phones without Google Play or people who avoid Google.
+- **`google`**: for phones with Google Play. It gets phone notifications through Google's push service (FCM) when the server has Firebase set up, with nothing else to install, and scans QR codes with Google's code scanner, which needs no camera permission.
+- **`foss`**: contains no Google code, for phones without Google Play or people who avoid Google. It gets phone notifications only through a UnifiedPush distributor such as ntfy, and scans QR codes in the app with ZXing, asking for the camera the first time.
 
-Pick `google` unless the phone has no Google Play or you'd rather avoid Google. For now the two behave the same: both get phone notifications through a UnifiedPush distributor (below).
+Pick `google` unless the phone has no Google Play or you'd rather avoid Google. `./gradlew checkFossHasNoGoogleServices` fails if `foss`'s dependencies hold Play services, Firebase, ML Kit or Google's data transport; CI and the release workflow run it. Open-source libraries that come from Google, such as ZXing or Gson, are allowed. See [ADR 0022](../docs/adr/0022-phone-notifications-through-official-fcm-or-unifiedpush-in-two-flavors.md) for why there are two flavors.
 
 Both have the same app ID and are signed with the same key, so a phone switches by installing the other flavor's APK over the top: Android keeps the app's data, and the phone stays set up. A flavor's own code goes in `app/src/google/` or `app/src/foss/`, and its dependencies in `googleImplementation` or `fossImplementation`.
 
 ## Phone notifications
 
-A user's phone (set up by signing in) shows the phone notifications its user chose on Account, even while the app is closed. A shared phone never gets them. For now they come through a [UnifiedPush](https://unifiedpush.org/) distributor, an app such as [ntfy](https://ntfy.sh/) installed on the phone, using the UnifiedPush connector library in both flavors:
+A user's phone (set up by signing in) shows the phone notifications its user chose on Account, even while the app is closed. A shared phone never gets them. They come through a [UnifiedPush](https://unifiedpush.org/) distributor, an app such as [ntfy](https://ntfy.sh/) installed on the phone, using the UnifiedPush connector library in both flavors, or, in `google` without a distributor, through Google's push service (FCM):
 
-- Install ntfy (from F-Droid or Google Play). Without a distributor the phone gets no phone notifications.
+- **`google` with Firebase set up on the server** ([docs/deploy.md](../docs/deploy.md#firebase-optional)): nothing to install. The app gets Firebase's client settings from the server once signed in, and starts Firebase from them at app start, with no `google-services.json`, no Analytics, and automatic token creation and delivery-metrics export off. It sends its FCM token to the server as its endpoint. New Firebase settings, or pairing with another server, take effect after an app restart, which the app does by itself the next time it reads them. An installed distributor is still preferred over FCM.
+- Otherwise, install ntfy (from F-Droid or Google Play). Without a distributor, and without FCM, the phone gets no phone notifications.
 - Once signed in, the app registers with the distributor using the server's VAPID public key and sends its endpoint to the server with its session, from anywhere. A new endpoint from the distributor is sent at once, or on the next sign-in. With more than one distributor installed, it keeps the one in use, else the phone's default, else the first.
 - ntfy uses the ntfy.sh server unless set to another; the server owner can run their own (see [docs/deploy.md](../docs/deploy.md#ntfy-optional)). The server encrypts each push for the phone (RFC 8291), so the ntfy server sees only encrypted contents.
 - Each kind is its own Android notification channel, so a kind can also be muted in Android's settings. Tapping a notification opens its page, signing in first when signed out.
 - Done and New photo show the print's first photo as a large picture. The app downloads it from the paired server with its signed-in session and the Cloudflare Access service token, as its other calls do; signed out, or if the download fails, the notification shows its text only.
 - Android 13 and later ask once for permission to show notifications: after setting the phone up by signing in, or on the first open of a phone set up before phone notifications came. Refusing it changes no setting on Account.
-- Pairing's **Phone notifications** line says whether they work on this phone and by which route ("via ntfy"), that RollCall isn't allowed to show notifications and how to allow it, or that the phone has no distributor and ntfy should be installed. **Send a test notification** asks the server to send one to this phone.
-- Unlink and sign-out first unregister from the distributor, so the phone stops getting them even away from home, then remove its endpoint on the server if it answers, then sign out or forget the pairing.
+- Pairing's **Phone notifications** line says whether they work on this phone and by which route ("via Google" or "via ntfy"), that RollCall isn't allowed to show notifications and how to allow it, or that the phone has no distributor and ntfy should be installed. **Send a test notification** asks the server to send one to this phone.
+- Unlink and sign-out first unregister from the route (the distributor, or deleting the FCM token), so the phone stops getting them even away from home, then remove its endpoint on the server if it answers, then sign out or forget the pairing.
 
 ## Install a development build
 
@@ -216,5 +218,10 @@ Run each step with the swipe-back gesture and, where the phone has one, the Back
 49. On Pairing, tap Send a test notification: "Sent a test notification to this phone" shows, and the notification arrives. Uninstall ntfy and open Pairing: it says to install ntfy.
 50. Away from home (mobile data), unlink the phone: ntfy no longer lists a RollCall subscription, and marking one of that user's print requests Done from a PC shows no notification on it.
 51. On Wi-Fi at home, with the app closed, mark one of that user's print requests Done with a photo from a PC: the notification shows the photo, and expanding it shows it large. Do it again away from home (mobile data), with Cloudflare Access in front of the server: the photo shows too. Sign out in the full app and do it once more: the notification shows its text only.
+52. `google` via FCM: with Firebase set up on the Settings page, on a `google` phone without ntfy (or any other distributor), sign in: the app restarts itself once, then Pairing says phone notifications work via Google. Close the app, turn Wi-Fi off and mark one of the user's requests Done with a photo from a PC: the notification shows with the photo, and tapping it opens the request.
+53. `google` with ntfy installed uses ntfy: install ntfy on the phone from 52 and open RollCall: ntfy lists a RollCall subscription, Pairing says via ntfy, and the next notification arrives through ntfy.
+54. `foss` via ntfy: on a `foss` phone with ntfy, steps 43 and 44 pass, and Firebase set up on the server changes nothing (no restart).
+55. Change a Firebase setting on the Settings page (or pair the `google` phone with another server): the next time the app opens signed in it restarts itself once, and FCM notifications still arrive.
+56. `foss` QR code: on a `foss` phone, Pair with a code instead and scan the Devices page's QR code: the app asks for the camera the first time, the ZXing scanner reads the code held upright, and pairing finishes as in 3. Back out of the scanner: the app returns to Pairing with nothing scanned.
 
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.

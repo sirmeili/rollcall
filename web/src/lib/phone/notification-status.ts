@@ -12,6 +12,7 @@ export type PhoneNotificationStatus =
 /** Each route's name, for when the phone gives none. */
 const ROUTE_NAMES: Record<Exclude<PushRoute, "none">, string> = {
   unifiedpush: "UnifiedPush",
+  fcm: "Google",
 };
 
 export async function phoneNotificationStatus(
