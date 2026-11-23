@@ -76,6 +76,17 @@ export function onUnauthorized(listener: Listener): () => void {
   return () => unauthorizedListeners.delete(listener);
 }
 
+/** Told as each write (any request but a GET) starts; returns what to call if the server
+ * accepts that write. */
+export type WriteListener = () => () => void;
+const writeListeners = new Set<WriteListener>();
+
+/** Listen for writes, until the returned function is called. */
+export function onWrite(listener: WriteListener): () => void {
+  writeListeners.add(listener);
+  return () => writeListeners.delete(listener);
+}
+
 /** The message in a FastAPI error body: a string, or a list of validation errors. */
 export function errorMessage(body: unknown, fallback: string): string {
   if (body && typeof body === "object" && "detail" in body) {
@@ -126,6 +137,7 @@ export async function api<T>(
     headers,
     signal: options.signal,
   };
+  const accepted = init.method === "GET" ? [] : [...writeListeners].map((listener) => listener());
   if (options.body !== undefined) {
     headers["Content-Type"] = "application/json";
     init.body = JSON.stringify(options.body);
@@ -168,5 +180,6 @@ export async function api<T>(
       detail,
     );
   }
+  accepted.forEach((done) => done());
   return body as T;
 }

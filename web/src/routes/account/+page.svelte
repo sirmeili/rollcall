@@ -8,6 +8,7 @@
   import ChangePassword from "#lib/components/account/ChangePassword.svelte";
   import EmailAddress from "#lib/components/account/EmailAddress.svelte";
   import EmailSwitches from "#lib/components/account/EmailSwitches.svelte";
+  import { askToLeave } from "#lib/leave-warning.svelte.ts";
   import { bridge } from "#lib/phone/bridge.ts";
   import { phone } from "#lib/phone/phone-state.svelte.ts";
   import { ROLE_LABELS } from "#lib/roles.ts";
@@ -18,6 +19,7 @@
   let changing = $state(false);
 
   async function signOut(): Promise<void> {
+    if (!(await askToLeave())) return;
     busy = true;
     try {
       await session.logout();

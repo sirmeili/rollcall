@@ -8,6 +8,7 @@
   import type { Choice, Move, RequestStatus } from "#lib/api/requests.ts";
   import PhotoInput from "#lib/components/requests/PhotoInput.svelte";
   import { keepTabInside } from "#lib/focus-trap.ts";
+  import { backClosesAsking } from "#lib/phone/back-layer.svelte.ts";
   import { GRAMS_MAX, isReprint, moveWords, NOTE_MAX } from "#lib/requests/labels.ts";
   import { MAX_PHOTOS, pickPhotos } from "#lib/requests/photos.ts";
 
@@ -45,6 +46,12 @@
     onconfirm,
     onclose,
   }: Props = $props();
+
+  // The phone's Back closes it too, as Escape does, asking first if it has unsaved changes.
+  backClosesAsking(
+    () => box,
+    () => onclose(),
+  );
 
   const words = $derived(moveWords(move.to_status, status));
   const label = $derived(move.reason_required ? "Reason" : "Note (optional)");

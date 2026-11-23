@@ -9,10 +9,12 @@
   import { session } from "#lib/auth/session.svelte.ts";
   import Forbidden from "#lib/components/Forbidden.svelte";
   import Header from "#lib/components/Header.svelte";
+  import LeaveWarning from "#lib/components/LeaveWarning.svelte";
   import StartScreen from "#lib/components/phone/StartScreen.svelte";
   import PhoneNav from "#lib/components/shell/PhoneNav.svelte";
   import PhoneTopBar from "#lib/components/shell/PhoneTopBar.svelte";
   import { mayOpen, pageTitle } from "#lib/nav.ts";
+  import { listenForBack } from "#lib/phone/back.ts";
   import { isPhonePath, phone } from "#lib/phone/phone-state.svelte.ts";
   import { seesEveryRequest } from "#lib/requests/access.ts";
   import { requestsBadge } from "#lib/requests-badge.svelte.ts";
@@ -71,6 +73,9 @@
   $effect(() => {
     if (phone.app && !phone.loaded) void phone.load();
   });
+
+  // The phone's Back button and swipe-back gesture. A browser's Back is its own.
+  $effect(() => listenForBack(() => phone.app && !started));
 
   $effect(() => {
     if (!phone.app || !phone.loaded) return;
@@ -131,6 +136,8 @@
     else requestsBadge.clear();
   });
 </script>
+
+<LeaveWarning />
 
 {#if phone.app && !started}
   <StartScreen ready={startReady} ondone={() => (started = true)} />

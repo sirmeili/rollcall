@@ -13,7 +13,7 @@ const nav = vi.hoisted(() => ({
   goto: vi.fn(),
 }));
 vi.mock("$app/state", () => ({ page: nav.page }));
-vi.mock("$app/navigation", () => ({ goto: nav.goto }));
+vi.mock("$app/navigation", () => ({ goto: nav.goto, beforeNavigate: vi.fn() }));
 
 const { session } = await import("#lib/auth/session.svelte.ts");
 const { phone } = await import("#lib/phone/phone-state.svelte.ts");
@@ -290,13 +290,14 @@ async function renderByCode(): Promise<void> {
 }
 
 describe("pairing page", () => {
-  it("pairs by scanning the code from the Devices page", async () => {
+  it("pairs by scanning the code from the Devices page, putting Scan in Pairing's place", async () => {
     native.qr.push(CODE);
     await renderByCode();
 
     await userEvent.click(screen.getByRole("button", { name: "Scan pairing code" }));
 
-    await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/scan"));
+    await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/scan", { replaceState: true }));
+    expect(nav.goto).toHaveBeenCalledTimes(1);
     expect(phone.paired).toBe(true);
     expect(native.storage.get("kdf_salt")).toBe("AABB");
     expect(server.calls[0].url).toBe("https://filament.example.com/api/v1/devices/provisioning");
@@ -315,7 +316,7 @@ describe("pairing page", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/camera could not be opened/);
   });
 
-  it("pairs with typed details", async () => {
+  it("pairs with typed details, putting Scan in Pairing's place", async () => {
     await renderByCode();
     await userEvent.click(screen.getByRole("button", { name: "Type the details instead" }));
     await userEvent.type(screen.getByLabelText("Server address"), "filament");
@@ -329,6 +330,8 @@ describe("pairing page", () => {
     await userEvent.click(screen.getByRole("button", { name: "Pair" }));
 
     await waitFor(() => expect(phone.paired).toBe(true));
+    await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/scan", { replaceState: true }));
+    expect(nav.goto).toHaveBeenCalledTimes(1);
   }, 15_000); // types a full token
 
   it("explains a server that has no tag key constant", async () => {

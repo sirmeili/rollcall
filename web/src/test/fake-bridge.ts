@@ -1,6 +1,7 @@
-/** A fake Android bridge for tests: in-memory secure storage, scripted tag reads and QR codes. */
+/** A fake Android bridge for tests: in-memory secure storage, scripted tag reads and QR
+ * codes, Back presses and a record of being sent to the background. */
 
-import type { NfcStatus, PhoneBridge, TagRead } from "#lib/phone/bridge.ts";
+import type { BackPress, NfcStatus, PhoneBridge, TagRead } from "#lib/phone/bridge.ts";
 
 export interface FakeBridge extends PhoneBridge {
   storage: Map<string, string>;
@@ -11,10 +12,15 @@ export interface FakeBridge extends PhoneBridge {
   /** Make the pending readTag call fail, as when a tag is pulled away. */
   fail(): void;
   reads: number;
+  /** Press Back, with or without history before the current page. */
+  pressBack(canGoBack: boolean): void;
+  /** How many times the app was sent to the background. */
+  backgrounded: number;
 }
 
 export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
   let pending: { resolve: (read: TagRead) => void; reject: (error: Error) => void } | null = null;
+  const backListeners = new Set<(press: BackPress) => void>();
   const fake: FakeBridge = {
     app: true,
     appVersion: "app-test",
@@ -22,6 +28,7 @@ export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
     status,
     qr: [],
     reads: 0,
+    backgrounded: 0,
     nfcStatus: () => Promise.resolve(fake.status),
     readTag: (_salt, signal) =>
       new Promise<TagRead>((resolve, reject) => {
@@ -42,6 +49,15 @@ export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
       fake.storage.delete(key);
       return Promise.resolve();
     },
+    onBack: (listener) => {
+      backListeners.add(listener);
+      return () => void backListeners.delete(listener);
+    },
+    background: () => {
+      fake.backgrounded += 1;
+      return Promise.resolve();
+    },
+    pressBack: (canGoBack) => backListeners.forEach((listener) => listener({ canGoBack })),
     tap: (read) => {
       const current = pending;
       pending = null;

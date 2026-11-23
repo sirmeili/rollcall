@@ -10,7 +10,7 @@ const nav = vi.hoisted(() => ({
   goto: vi.fn(),
 }));
 vi.mock("$app/state", () => ({ page: nav.page }));
-vi.mock("$app/navigation", () => ({ goto: nav.goto }));
+vi.mock("$app/navigation", () => ({ goto: nav.goto, beforeNavigate: vi.fn() }));
 vi.mock("#lib/review-badge.svelte.ts", () => ({
   reviewBadge: { count: 3, refresh: vi.fn() },
 }));
