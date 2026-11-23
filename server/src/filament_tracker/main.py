@@ -46,6 +46,8 @@ from filament_tracker.mail.sender import MailSender
 from filament_tracker.mail.settings import smtp_server
 from filament_tracker.mail.smtp import SmtpSender
 from filament_tracker.mail.transport import MailTransport
+from filament_tracker.notifications.low_stock import LowStockEmails
+from filament_tracker.poll import Poll
 from filament_tracker.print_requests import retrying
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
 from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
@@ -107,6 +109,13 @@ def create_app(
         mail = MailSender(mail_transport, lambda: smtp_server(store))
         app.state.mail = mail
         mail.start()
+        # Always running, Home Assistant or not (ADR-0009).
+        poll = Poll(
+            app.state.session_factory,
+            [LowStockEmails(mail, lambda: store.text("public_url"))],
+        )
+        app.state.poll = poll
+        poll.start()
         catalog = CatalogSyncer(app.state.session_factory, transport=catalog_transport)
         app.state.catalog = catalog
         catalog_scheduler = CatalogScheduler(
@@ -120,6 +129,7 @@ def create_app(
             if backups is not None:
                 backups.stop()
             catalog_scheduler.stop()
+            poll.stop()
             mail.stop()
             home_assistant.stop()
             printer_links.stop()
