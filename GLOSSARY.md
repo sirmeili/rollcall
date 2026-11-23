@@ -314,3 +314,16 @@ One try at printing a print request. A reprint starts the next one.
 
 **Home Assistant event**:
 A message RollCall fires to Home Assistant for automations, such as a spool emptied or low stock. Always named in full.
+
+### Notifications
+
+**Notification**:
+A message RollCall sends a person about something they chose to hear about, by email or to their phone.
+_Avoid_: Alert. Not a Home Assistant event.
+
+**Phone notification**:
+A notification shown by the phone app, even while the app is closed. Only a user's phone gets them.
+_Avoid_: Push (except for how it is delivered)
+
+**Notification settings**:
+A user's choice of which notifications they get, and how: by email, to their phone, or both.
