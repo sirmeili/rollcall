@@ -1,6 +1,7 @@
-"""The stale-endpoint sweep: a phone's endpoint with no success in 30 days (since it was
-registered, when it never had one) is dropped, at start and then every hour, whether or not
-anything was sent to it meanwhile."""
+"""The stale-endpoint sweep: a failing phone's endpoint (a notification to it given up since
+its last success) with no success in 30 days (since it was registered, when it never had one)
+is dropped, at start and then every hour. A quiet phone, never failing, is kept however long
+nothing was sent to it."""
 
 from datetime import datetime, timedelta
 
@@ -28,7 +29,11 @@ def _phone(
     device_id: str,
     registered: datetime,
     success: datetime | None = None,
+    *,
+    failing: bool = True,
 ) -> None:
+    """A user's phone; failing unless `failing` is False: a notification to it was given up
+    since its last success."""
     with sessions() as session:
         user = User(username=device_id, password_hash="x", role=Role.VIEWER)  # noqa: S106 - test value
         session.add(Device(id=device_id, name=device_id, token_hash=device_id, user=user))
@@ -39,6 +44,8 @@ def _phone(
                 endpoint=f"token-{device_id}",
                 registered_at=registered,
                 last_success_at=success,
+                failures=1 if failing else 0,
+                failing_since=registered + DAY if failing else None,
             )
         )
         session.commit()
@@ -53,7 +60,16 @@ def _sweep_once(sessions: sessionmaker[Session]) -> None:
     StaleSweep(sessions, clock=lambda: NOW, wait=lambda seconds: True).run()
 
 
-def test_an_endpoint_with_no_success_in_30_days_is_dropped(
+def test_a_quiet_phone_with_no_failures_is_kept(sessions: sessionmaker[Session]) -> None:
+    _phone(sessions, "never-sent", NOW - 90 * DAY, failing=False)
+    _phone(sessions, "quiet-since", NOW - 90 * DAY, success=NOW - 60 * DAY, failing=False)
+
+    _sweep_once(sessions)
+
+    assert _kept(sessions) == {"never-sent", "quiet-since"}
+
+
+def test_a_failing_endpoint_with_no_success_in_30_days_is_dropped(
     sessions: sessionmaker[Session],
 ) -> None:
     _phone(sessions, "old-success", NOW - 90 * DAY, success=NOW - 30 * DAY)

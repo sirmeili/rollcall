@@ -1,6 +1,8 @@
-"""The stale-endpoint sweep: a phone's endpoint with no success in 30 days is dropped, counted
-from its last success, or from when it was registered if it never had one. It runs in a
-background thread like the catalog sync (ADR-0005): at start, then every hour.
+"""The stale-endpoint sweep: a failing phone's endpoint (a notification to it was given up
+since its last success) with no success in 30 days is dropped, counted from its last success,
+or from when it was registered if it never had one. A quiet phone, sent nothing or never
+failing, is kept. It runs in a background thread like the catalog sync (ADR-0005): at start,
+then every hour.
 
 The app sends its endpoint again on every start and sign-in, and the same endpoint keeps
 its history (api/push.py), so a dropped phone that is still in use registers again the next
@@ -26,11 +28,13 @@ STOP_TIMEOUT = 5.0
 
 
 def drop_stale(session: Session, now: datetime) -> list[str]:
-    """Drop every endpoint with no success in 30 days; the devices whose were dropped."""
+    """Drop every failing endpoint with no success in 30 days; the devices whose were
+    dropped."""
     cutoff = now - STALE_AFTER
     last = func.coalesce(PushEndpoint.last_success_at, PushEndpoint.registered_at)
+    stale = select(PushEndpoint).where(PushEndpoint.failing_since.is_not(None), last <= cutoff)
     dropped = []
-    for endpoint in session.scalars(select(PushEndpoint).where(last <= cutoff)):
+    for endpoint in session.scalars(stale):
         dropped.append(endpoint.device_id)
         session.delete(endpoint)
     session.commit()

@@ -7,7 +7,8 @@ built by its phone's route (messages.py), which also says what each answer means
   retried 3 times over about 15 minutes, then given up and counted on the endpoint.
 - Any other failure (another 4xx) is given up at once and counted.
 
-An endpoint with no success in 30 days is dropped by the stale-endpoint sweep (stale.py).
+A failing endpoint with no success in 30 days is dropped by the stale-endpoint sweep
+(stale.py).
 
 There is no stored outbox, so pushes still waiting are lost on a restart. Logs name the
 device only: never the endpoint URL, its keys or the payload.
