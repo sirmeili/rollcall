@@ -1,7 +1,7 @@
 # Publishes the Android app (android/README.md, Releases). Pushing a tag such as app-v1.2.0
-# on a commit in main builds the app at that version, signs it with the release key from the
-# repository's secrets, checks it and attaches it to a GitHub Release, where Obtainium on the
-# phones finds it.
+# on a commit in main builds both flavors of the app (google and foss) at that version, signs
+# them with the release key from the repository's secrets, checks them and attaches them to a
+# GitHub Release, where Obtainium on each phone finds the flavor it uses.
 #
 # Run by hand from the Actions page ("Run workflow"), it is a dry run: the same build, signing
 # and checks with the release key, publishing nothing, to check the secrets before a tag.
@@ -71,7 +71,7 @@ jobs:
           npm ci
           npm run build
           npx cap sync android
-      - name: Build the signed release
+      - name: Build the signed release (both flavors)
         working-directory: android
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -85,25 +85,33 @@ jobs:
           base64 -d <<<"$KEYSTORE_BASE64" > "$ANDROID_KEYSTORE_FILE"
           ./gradlew --no-daemon coverageCheck assembleRelease -PappVersion="$VERSION"
           rm "$ANDROID_KEYSTORE_FILE"
-      - name: Check the APK
+      # Both flavors must share the app ID and the certificate, so a phone can switch between
+      # them by installing the other over the top.
+      - name: Check the APKs
         working-directory: android
         env:
           RELEASE_CERT_SHA256: ${{ vars.RELEASE_CERT_SHA256 }}
         run: |
-          apk="$RUNNER_TEMP/rollcall-$VERSION.apk"
-          cp app/build/outputs/apk/release/app-release.apk "$apk"
-          scripts/verify-release.sh "$apk" "$VERSION" "$RELEASE_CERT_SHA256" | tee "$RUNNER_TEMP/verify.txt"
-          echo "APK=$apk" >> "$GITHUB_ENV"
+          for flavor in google foss; do
+            apk="$RUNNER_TEMP/rollcall-$VERSION-$flavor.apk"
+            cp "app/build/outputs/apk/$flavor/release/app-$flavor-release.apk" "$apk"
+            scripts/verify-release.sh "$apk" "$VERSION" "$RELEASE_CERT_SHA256" | tee -a "$RUNNER_TEMP/verify.txt"
+          done
+          certs=$(sed -n 's/.*certificate SHA-256 //p' "$RUNNER_TEMP/verify.txt" | sort -u | wc -l)
+          if [[ "$certs" != 1 ]]; then
+            echo "The two flavors are signed with different certificates" >&2
+            exit 1
+          fi
       - name: Report the dry run
         if: github.event_name == 'workflow_dispatch'
         env:
           RELEASE_CERT_SHA256: ${{ vars.RELEASE_CERT_SHA256 }}
         run: |
-          cert=$(sed -n 's/.*certificate SHA-256 //p' "$RUNNER_TEMP/verify.txt")
+          cert=$(sed -n 's/.*certificate SHA-256 //p' "$RUNNER_TEMP/verify.txt" | head -n 1)
           {
             echo "### Dry run passed: nothing was published"
             echo
-            echo "The release key secrets decode, unlock and sign a build of version $VERSION."
+            echo "The release key secrets decode, unlock and sign both flavors (google and foss) of version $VERSION."
             echo
             echo "- Signing certificate SHA-256: \`$cert\`"
             if [[ -n "$RELEASE_CERT_SHA256" ]]; then
@@ -118,15 +126,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          cert=$(sed -n 's/.*certificate SHA-256 //p' "$RUNNER_TEMP/verify.txt")
-          sum=$(sha256sum "$APK" | cut -d' ' -f1)
+          cert=$(sed -n 's/.*certificate SHA-256 //p' "$RUNNER_TEMP/verify.txt" | head -n 1)
+          google="$RUNNER_TEMP/rollcall-$VERSION-google.apk"
+          foss="$RUNNER_TEMP/rollcall-$VERSION-foss.apk"
           {
-            echo "RollCall Android app $VERSION."
+            echo "RollCall Android app $VERSION, in two flavors: \`google\` and \`foss\` (no Google code)."
             echo
             echo "Install or update it with Obtainium (android/README.md, Installing on a phone)."
             echo
-            echo "- APK SHA-256: \`$sum\`"
+            echo "- \`rollcall-$VERSION-google.apk\` SHA-256: \`$(sha256sum "$google" | cut -d' ' -f1)\`"
+            echo "- \`rollcall-$VERSION-foss.apk\` SHA-256: \`$(sha256sum "$foss" | cut -d' ' -f1)\`"
             echo "- Signing certificate SHA-256: \`$cert\`"
           } > "$RUNNER_TEMP/notes.md"
-          gh release create "$TAG" "$APK" --title "RollCall app $VERSION" \
+          gh release create "$TAG" "$google" "$foss" --title "RollCall app $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md" --generate-notes --verify-tag
