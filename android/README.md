@@ -168,6 +168,7 @@ Run each step with the swipe-back gesture and, where the phone has one, the Back
 35. After saving a form (a new print request, an edited request, a new spool), Back from the page it opens skips the form.
 36. The menu sheet closes first: on Inventory open the menu, then press Back. The menu closes and Inventory stays. Open the filter sheet, then the menu over it: Back closes the menu only, and Back again the filter sheet.
 37. A filter sheet closes first: on Spools open the filter sheet and choose a state, then press Back. The sheet closes, Spools stays, and the filters are as they were. Do the same on Catalog.
-38. A dialog closes first: as an Admin, open a submitted print request, tap Reject and type a reason, then press Back. The dialog closes, the request stays Submitted, and Back again leaves the page.
+38. A dialog closes first: as an Admin, open a submitted print request, tap Reject, then press Back. The dialog closes, the request stays Submitted, and Back again leaves the page.
+45. The leave warning: start a new print request and type a title, then press Back. "Leave without saving?" shows: Back on it, or Stay, keeps the form with the title. Press Back again and choose Leave: the previous page shows. Open a submitted request as an Admin, tap Reject, type a reason and press Back: the warning shows, Stay keeps the dialog and the reason, and Leave closes it.
 
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.
