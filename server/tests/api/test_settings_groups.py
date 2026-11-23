@@ -108,6 +108,7 @@ def test_a_salt_saved_in_the_app_is_served_to_devices_and_never_shown(
         "kdf_salt": SALT,
         "access": None,
         "records": True,
+        "user_phone": False,
     }
     assert SALT not in user.get("/api/v1/settings/scanners").text.upper()
     assert SALT not in caplog.text.upper()
