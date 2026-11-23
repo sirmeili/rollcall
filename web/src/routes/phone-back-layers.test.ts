@@ -211,8 +211,7 @@ describe("Back with a layer open", () => {
     await openAt("/requests/41", ADMIN);
     render(RequestPage);
     await userEvent.click(await screen.findByRole("button", { name: "Reject" }));
-    const dialog = screen.getByRole("dialog", { name: "Reject this request?" });
-    await userEvent.type(within(dialog).getByRole("textbox"), "Out of PLA");
+    expect(screen.getByRole("dialog", { name: "Reject this request?" })).toBeInTheDocument();
 
     native.pressBack(true);
     await vi.waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

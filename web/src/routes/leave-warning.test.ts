@@ -297,3 +297,132 @@ describe("Signing out with unsaved changes", () => {
     expect(warning()).toBeNull();
   });
 });
+
+describe("The phone's Back", () => {
+  const ADMIN = me("admin", { id: 1, username: "frank" });
+  let native: FakeBridge;
+  let back: MockInstance<() => void>;
+
+  /** As `openAt`, for a paired phone past the start screen. */
+  async function openOnPhone(path: string, user: Me, Page: typeof NewRequestPage): Promise<void> {
+    await savePairing(PAIRING, "AABB");
+    await openAt(path, user, Page);
+  }
+
+  beforeEach(() => {
+    native = fakeBridge();
+    setBridge(native);
+    back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    routes["GET /devices/provisioning"] = { kdf_salt: "AABB" };
+    routes["POST /devices/heartbeat"] = () => new Response(null, { status: 204 });
+  });
+
+  afterEach(async () => {
+    cleanup();
+    back.mockRestore();
+    await phone.unpair();
+    phone.loaded = false;
+    setBridge(browserBridge);
+  });
+
+  it("asks before going back a page from a changed form, and Back on the warning Stays", async () => {
+    await openOnPhone("/requests/new", SAM, NewRequestPage);
+    await userEvent.type(await screen.findByLabelText("Title"), "Dragon");
+
+    native.pressBack(true);
+    // Going back a page is history.back(), which reaches the guard as the browser's Back.
+    expect(back).toHaveBeenCalledOnce();
+    expect(navigate("popstate", "/requests", -1)).toBe(false);
+    await screen.findByRole("alertdialog", { name: "Leave without saving?" });
+
+    native.pressBack(true);
+
+    await vi.waitFor(() => expect(warning()).toBeNull());
+    expect(back).toHaveBeenCalledOnce();
+    expect(go).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Title")).toHaveValue("Dragon");
+  });
+
+  it("sends the app to the background without asking", async () => {
+    await openOnPhone("/requests/new", SAM, NewRequestPage);
+    await userEvent.type(await screen.findByLabelText("Title"), "Dragon");
+
+    native.pressBack(false);
+
+    expect(native.backgrounded).toBe(1);
+    expect(warning()).toBeNull();
+    expect(screen.getByLabelText("Title")).toHaveValue("Dragon");
+  });
+
+  describe("on the Move dialog", () => {
+    beforeEach(() => {
+      nav.page.params = { id: "41" };
+      routes["GET /requests/41"] = request({
+        moves: [{ to_status: "rejected", reason_required: true, photos: false }],
+      });
+    });
+
+    async function openReject(): Promise<HTMLElement> {
+      await openOnPhone("/requests/41", ADMIN, RequestPage);
+      await userEvent.click(await screen.findByRole("button", { name: "Reject" }));
+      return screen.getByRole("dialog", { name: "Reject this request?" });
+    }
+
+    it("asks before closing it with changes, keeping it on Stay", async () => {
+      const dialog = await openReject();
+      await userEvent.type(within(dialog).getByRole("textbox"), "Out of PLA");
+
+      native.pressBack(true);
+      await answer("Stay");
+
+      expect(screen.getByRole("dialog", { name: "Reject this request?" })).toBe(dialog);
+      expect(within(dialog).getByRole("textbox")).toHaveValue("Out of PLA");
+      expect(back).not.toHaveBeenCalled();
+    });
+
+    it("closes it on Leave, without moving the request", async () => {
+      const dialog = await openReject();
+      await userEvent.type(within(dialog).getByRole("textbox"), "Out of PLA");
+
+      native.pressBack(true);
+      await answer("Leave");
+
+      await vi.waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
+      expect(back).not.toHaveBeenCalled();
+    });
+
+    it("closes it straight away without changes", async () => {
+      await openReject();
+
+      native.pressBack(true);
+
+      await vi.waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(warning()).toBeNull();
+    });
+  });
+
+  it("asks before closing the Holds dialog with changes", async () => {
+    nav.page.params = { id: "41" };
+    routes["GET /requests/41"] = request({
+      status: "queued",
+      can_change_holds: true,
+      choices: [choice({ id: 1, name: "Blue PLA", product_id: 7, held: true, grams: 300 })],
+    });
+    routes["GET /spools?state=sealed&state=open&limit=200"] = {
+      items: [spoolRow({ id: 12 })],
+      total: 1,
+    };
+    await openOnPhone("/requests/41", ADMIN, RequestPage);
+    await userEvent.click(await screen.findByRole("button", { name: "Edit holds for Blue PLA" }));
+    const dialog = screen.getByRole("dialog", { name: "Holds for Blue PLA" });
+    const spool = within(dialog).getByRole("combobox", { name: "Spool to hold" });
+    await within(spool).findByRole("option", { name: /^#12 / });
+    await userEvent.selectOptions(spool, "#12 Black PLA Basic · about 620 g left");
+
+    native.pressBack(true);
+    await answer("Stay");
+
+    expect(screen.getByRole("dialog", { name: "Holds for Blue PLA" })).toBe(dialog);
+  });
+});
