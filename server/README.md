@@ -15,6 +15,8 @@ uv run pytest                  # Run tests with the 90% coverage gate
 
 Inner loop, with coverage off: `uv run pytest <test files> --no-cov`.
 
+Changed-file coverage, without the 90% gate: `uv run pytest <test files> -o addopts="" --cov=<module> --cov-branch --cov-report=term-missing`, with one `--cov` per changed module (for example `--cov=filament_tracker.net`). Clearing `addopts` stops `pyproject.toml` from measuring the whole package.
+
 Run the server with live reload: `uv run uvicorn filament_tracker.main:create_app --factory --reload`. It upgrades the database on startup; [Run it](#run-it) has the settings it needs.
 
 **Migrations.** Apply them by hand with `uv run alembic upgrade head`. After changing `db/models.py`, create one with `uv run alembic revision --autogenerate -m "describe the change"`, then review the generated file. Never edit a migration that has been merged. `uv run alembic check` checks that the models and migrations match.
