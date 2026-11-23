@@ -257,7 +257,7 @@ def make_move(
     send_after_commit(
         http,
         lambda public_url: emails.move_emails(
-            moved, public_url, stored_photos(http).email_copies(added)
+            session, moved, public_url, stored_photos(http).email_copies(added)
         ),
     )
     session.refresh(found)

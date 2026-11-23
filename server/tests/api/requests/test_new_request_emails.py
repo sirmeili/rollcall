@@ -1,10 +1,11 @@
-"""New-request emails: every Admin with an address and the switch on is emailed about each
-new request, except the one who submitted it."""
+"""New-request emails: every Editor and Admin with an address who gets New request by email
+(on by default for Admins, off for Editors) is emailed about each new request, except the one
+who submitted it."""
 
 from datetime import date, timedelta
 
 from api_helpers import CSRF, admin
-from email_helpers import email_on, sent
+from email_helpers import email_on, notify, sent
 from fake_outbox import FakeOutbox, html_of, text_of
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -14,6 +15,7 @@ from filament_tracker.domain.enums import Role
 
 TITLE = "Lithophane lamp shade"
 ACCOUNT = "/api/v1/auth/me"
+FOOTER = "You can change these on your Account page."
 
 
 def _person(app: FastAPI, username: str, role: Role, *, requester: bool = False) -> TestClient:
@@ -46,11 +48,13 @@ def test_each_admin_is_emailed_about_a_new_request(
         f"Needed by: {day}\n"
         "\n"
         f"Open the request: {link}\n"
+        "\n"
+        f"{FOOTER}\n"
     )
     html = html_of(message)
     assert "<strong>Priority:</strong> Urgent" in html
     assert f'<a href="{link}">Open the request</a>' in html
-    assert "Account page" not in text_of(message)
+    assert f"<p>{FOOTER}</p>" in html
 
 
 def test_no_needed_by_line_without_a_date(
@@ -64,7 +68,7 @@ def test_no_needed_by_line_without_a_date(
 
     [message] = sent(app, outbox)
     assert text_of(message) == (
-        f'sam submitted a new print request: "{TITLE}".\n\nPriority: Normal\n'
+        f'sam submitted a new print request: "{TITLE}".\n\nPriority: Normal\n\n{FOOTER}\n'
     )
     assert "http" not in html_of(message)
 
@@ -88,7 +92,7 @@ def test_only_admins_who_can_and_want_to_be_emailed_are(
     _person(app, "frank", Role.ADMIN)
     person(app, "no_address", Role.ADMIN, requester=False)
     switched_off = _person(app, "switched_off", Role.ADMIN)
-    switched_off.patch(ACCOUNT, json={"email_on_new_request": False}, headers=CSRF)
+    notify(switched_off, "new_request", False)
     disabled = _person(app, "disabled", Role.ADMIN)
     disabled_id = disabled.get(ACCOUNT).json()["id"]
     client.patch(f"/api/v1/users/{disabled_id}", json={"disabled": True}, headers=admin())
@@ -98,6 +102,20 @@ def test_only_admins_who_can_and_want_to_be_emailed_are(
     submitted(sam)
 
     assert [m["To"] for m in sent(app, outbox)] == ["frank@example.com"]
+
+
+def test_an_editor_who_chose_new_requests_is_emailed(
+    app: FastAPI, client: TestClient, outbox: FakeOutbox
+) -> None:
+    email_on(client)
+    eddie = _person(app, "eddie", Role.EDITOR)
+    notify(eddie, "new_request", True)
+    _person(app, "ella", Role.EDITOR)
+    sam = _person(app, "sam", Role.VIEWER, requester=True)
+
+    submitted(sam)
+
+    assert [m["To"] for m in sent(app, outbox)] == ["eddie@example.com"]
 
 
 def test_a_failing_transport_never_fails_a_submit(

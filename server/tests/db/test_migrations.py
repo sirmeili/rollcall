@@ -502,3 +502,72 @@ def test_spools_already_here_count_as_arrived_and_new_ones_do_not(tmp_path: Path
     engine.dispose()
     assert [tuple(row) for row in counted] == [(1, 1), (2, 0)]
     assert [tuple(row) for row in products] == [(0,)]
+
+
+def test_the_email_switches_carry_over_as_notification_choices(tmp_path: Path) -> None:
+    # Only a switch that was off is stored; one that was on matches the default.
+    url = f"sqlite:///{tmp_path / 'switches.db'}"
+    upgrade(url, "f643878a99ce")
+    engine = create_db_engine(url)
+    when = "2026-11-22 12:00:00.000000"
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO user (id, username, password_hash, role, password_changed_at,"
+                " created_at, email_on_request_change, email_on_new_request) VALUES"
+                " (1, 'both_on', 'x', 'admin', :w, :w, 1, 1),"
+                " (2, 'changes_off', 'x', 'admin', :w, :w, 0, 1),"
+                " (3, 'new_off', 'x', 'admin', :w, :w, 1, 0),"
+                " (4, 'both_off', 'x', 'viewer', :w, :w, 0, 0)"
+            ),
+            {"w": when},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO session (token_hash, user_id, created_at, expires_at, last_seen_at)"
+                " VALUES (:t, 4, :w, :w, :w)"
+            ),
+            {"t": "a" * 64, "w": when},
+        )
+    engine.dispose()
+
+    upgrade(url)
+
+    engine = create_db_engine(url)
+    with engine.connect() as connection:
+        choices = connection.execute(
+            text('SELECT user_id, kind, channel, "on" FROM notification_choice ORDER BY 1, 2')
+        ).all()
+        sessions = connection.execute(text("SELECT count(*) FROM session")).scalar()
+    columns = [c["name"] for c in inspect(engine).get_columns("user")]
+    engine.dispose()
+    assert [tuple(row) for row in choices] == [
+        (2, "new_photo", "email", 0),
+        (2, "request_update", "email", 0),
+        (3, "new_request", "email", 0),
+        (4, "new_photo", "email", 0),
+        (4, "new_request", "email", 0),
+        (4, "request_update", "email", 0),
+    ]
+    assert sessions == 1
+    assert not [c for c in columns if c.startswith("email_on_")]
+
+    downgrade(url, "f643878a99ce")
+
+    engine = create_db_engine(url)
+    with engine.connect() as connection:
+        switches = connection.execute(
+            text(
+                "SELECT username, email_on_request_change, email_on_new_request FROM user"
+                " ORDER BY id"
+            )
+        ).all()
+    tables = inspect(engine).get_table_names()
+    engine.dispose()
+    assert [tuple(row) for row in switches] == [
+        ("both_on", 1, 1),
+        ("changes_off", 0, 1),
+        ("new_off", 1, 0),
+        ("both_off", 0, 0),
+    ]
+    assert "notification_choice" not in tables

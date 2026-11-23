@@ -1,10 +1,13 @@
-"""The emails print requests send: to the requester when a move emails them (the pipeline's
-`emails_requester`), and to every other Admin when a request is submitted. No one is
-emailed about a move they made, or photos they added, themselves.
+"""The emails print requests send: Request update to the requester when a move emails them
+(the pipeline's `emails_requester`), New photo to the requester when photos are added
+later, and New request to Editors and Admins when a request is submitted.
 
-Each is sent only to a person with an address, the matching Account switch on, and an
-account that isn't disabled. Links use PUBLIC_URL only, never the incoming request's Host
-header; without it, emails have no link. The Done email shows the photos saved with the
+Who gets each is the notification resolver's to say (notifications/recipients.py): it
+applies the role, the person's notification settings, a disabled account and that no one is
+told about what they did themselves. Each goes only to a person with an address.
+
+Links use PUBLIC_URL only, never the incoming request's Host header; without it, emails have
+no link. The Done email shows the photos saved with the
 move, and a photo added later emails the requester "New photo of your print"; each shows
 the photos as inline images in the HTML part, from their email copies.
 """
@@ -14,13 +17,13 @@ from datetime import date
 from email.utils import make_msgid
 from html import escape
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
-from filament_tracker.domain.enums import Priority, RequestStatus, Role
+from filament_tracker.domain.enums import NotificationKind, Priority, RequestStatus
 from filament_tracker.mail.message import Email, InlineImage
+from filament_tracker.notifications.recipients import email_recipients
 from filament_tracker.print_requests.pipeline import Moved
 
 # The subject and the one sentence saying what happened, for each status a move that
@@ -59,7 +62,7 @@ NEW_PHOTO_SENTENCE = 'A new photo of your print "{title}" was added.'
 NEW_REQUEST_SUBJECT = "New print request from {requester}: {title}"
 NEW_REQUEST_SENTENCE = '{requester} submitted a new print request: "{title}".'
 OPEN = "Open the request"
-FOOTER = "You can turn these emails off on your Account page."
+FOOTER = "You can change these on your Account page."
 PRIORITY_LABELS = {
     Priority.URGENT: "Urgent",
     Priority.NORMAL: "Normal",
@@ -67,13 +70,15 @@ PRIORITY_LABELS = {
 }
 
 
-def move_emails(moved: Moved, public_url: str | None, photos: Sequence[bytes] = ()) -> list[Email]:
-    """The requester's email about a move, if the move emails them, they didn't make it and
-    they want it, showing `photos` (the email copies of those saved with the move)."""
+def move_emails(
+    session: Session, moved: Moved, public_url: str | None, photos: Sequence[bytes] = ()
+) -> list[Email]:
+    """The requester's Request update email about a move, if the move emails them and the
+    resolver tells them, showing `photos` (the email copies of those saved with the move)."""
     request = moved.request
-    if not moved.move.emails_requester or _by_requester(request, moved.user):
+    if not moved.move.emails_requester:
         return []
-    to = _address(request.requester, request.requester.email_on_request_change)
+    to = _requester(session, NotificationKind.REQUEST_UPDATE, request, moved.user)
     if to is None:
         return []
     subject, sentence = MOVE_WORDING[moved.move.to_status]
@@ -94,14 +99,17 @@ def move_emails(moved: Moved, public_url: str | None, photos: Sequence[bytes] = 
 
 
 def new_photo_emails(
-    request: PrintRequest, user: User | None, photos: Sequence[bytes], public_url: str | None
+    session: Session,
+    request: PrintRequest,
+    user: User | None,
+    photos: Sequence[bytes],
+    public_url: str | None,
 ) -> list[Email]:
-    """The requester's email about photos `user` added after the Done move, showing their
-    email copies, unless the requester added them or doesn't want it."""
-    requester = request.requester
-    if not photos or _by_requester(request, user):
+    """The requester's New photo email about photos `user` added after the Done move,
+    showing their email copies, if the resolver tells them."""
+    if not photos:
         return []
-    to = _address(requester, requester.email_on_request_change)
+    to = _requester(session, NotificationKind.NEW_PHOTO, request, user)
     if to is None:
         return []
     return [
@@ -119,44 +127,31 @@ def new_photo_emails(
 def new_request_emails(
     session: Session, request: PrintRequest, public_url: str | None
 ) -> list[Email]:
-    """An email to every Admin who wants one about a new request, other than its requester."""
-    admins = session.scalars(
-        select(User).where(User.role == Role.ADMIN, User.id != request.requester_id)
-    )
+    """A New request email to each Editor and Admin the resolver tells, which is never its
+    requester."""
     requester = request.requester.username
     details = [("Priority", PRIORITY_LABELS[request.priority])]
     if request.needed_by is not None:
         details.append(("Needed by", _day(request.needed_by)))
-    emails = []
-    for user in admins:
-        to = _address(user, user.email_on_new_request)
-        if to is None:
-            continue
-        emails.append(
-            _compose(
-                to,
-                subject=NEW_REQUEST_SUBJECT.format(
-                    requester=requester, title=_one_line(request.title)
-                ),
-                sentence=NEW_REQUEST_SENTENCE.format(requester=requester, title=request.title),
-                details=details,
-                link=_link(request, public_url),
-            )
+    return [
+        _compose(
+            to,
+            subject=NEW_REQUEST_SUBJECT.format(requester=requester, title=_one_line(request.title)),
+            sentence=NEW_REQUEST_SENTENCE.format(requester=requester, title=request.title),
+            details=details,
+            link=_link(request, public_url),
+            footer=FOOTER,
         )
-    return emails
+        for to in email_recipients(session, NotificationKind.NEW_REQUEST, actor=request.requester)
+    ]
 
 
-def _by_requester(request: PrintRequest, user: User | None) -> bool:
-    """Whether the request's own requester did it; no one is emailed about what they did."""
-    return user is not None and user.id == request.requester_id
-
-
-def _address(user: User, wants_it: bool) -> str | None:
-    """Where to email the user, or None when they have no address, don't want it, or are
-    disabled."""
-    if not wants_it or user.disabled_at is not None:
-        return None
-    return user.email
+def _requester(
+    session: Session, kind: NotificationKind, request: PrintRequest, actor: User | None
+) -> str | None:
+    """The requester's address, if the resolver tells them about `kind`; None otherwise."""
+    found = email_recipients(session, kind, actor=actor, among=[request.requester])
+    return found[0] if found else None
 
 
 def _link(request: PrintRequest, public_url: str | None) -> str | None:

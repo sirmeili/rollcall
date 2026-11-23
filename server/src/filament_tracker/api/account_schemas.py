@@ -3,10 +3,10 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints
 
 from filament_tracker.api.schemas import Strict
-from filament_tracker.domain.enums import Role
+from filament_tracker.domain.enums import Channel, NotificationKind, Role
 from filament_tracker.services.accounts import MAX_PASSWORD
 
 # Length limits here only stop absurd input; the password rules are checked by the service
@@ -27,6 +27,20 @@ class PasswordChange(Strict):
     new_password: Password
 
 
+class NotificationSetting(BaseModel):
+    kind: NotificationKind
+    channel: Channel
+    on: bool
+    # True while the user hasn't chosen: `on` is the default.
+    default: bool
+
+
+class NotificationChoiceIn(Strict):
+    kind: NotificationKind
+    channel: Channel
+    on: bool
+
+
 class UserBase(BaseModel):
     id: int
     username: str
@@ -42,9 +56,8 @@ class Me(UserBase):
     time_zone: str
     # Has made a print request, so keeps the Requests page even when no longer a Requester.
     has_requests: bool
-    # The Account switches: emails about one's own requests, and (Admins) about new ones.
-    email_on_request_change: bool
-    email_on_new_request: bool
+    # Notification settings for each kind the user may choose, in the order to list them.
+    notifications: list[NotificationSetting]
     # Whether this server can send email at all (an SMTP host is saved).
     email_set_up: bool
 
@@ -76,5 +89,5 @@ class AccountUpdate(Strict):
 
     # An empty value (or null) clears it.
     email: EmailText | None = None
-    email_on_request_change: bool | None = None
-    email_on_new_request: bool | None = None
+    # The user's own notification choices; kinds not given keep what they have.
+    notifications: list[NotificationChoiceIn] = Field(default_factory=list, max_length=64)

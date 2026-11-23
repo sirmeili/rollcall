@@ -102,7 +102,7 @@ def add_photos(
     send_after_commit(
         http,
         lambda public_url: emails.new_photo_emails(
-            found, caller.user, stored_photos(http).email_copies(added), public_url
+            session, found, caller.user, stored_photos(http).email_copies(added), public_url
         ),
     )
     session.refresh(found)
