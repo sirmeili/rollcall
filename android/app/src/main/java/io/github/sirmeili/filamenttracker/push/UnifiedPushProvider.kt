@@ -15,10 +15,7 @@ class UnifiedPushProvider(private val context: Context, private val endpoints: P
     override fun usable() = UnifiedPush.getDistributors(context).isNotEmpty()
 
     override fun register(vapidKey: String) {
-        val default = (UnifiedPush.resolveDefaultDistributor(context) as? ResolvedDistributor.Found)?.packageName
-        val distributor =
-            Distributors.choose(UnifiedPush.getAckDistributor(context), default, UnifiedPush.getDistributors(context))
-                ?: return
+        val distributor = distributor() ?: return
         UnifiedPush.saveDistributor(context, distributor)
         UnifiedPush.register(context, INSTANCE, DISTRIBUTOR_MESSAGE, vapidKey)
     }
@@ -26,6 +23,19 @@ class UnifiedPushProvider(private val context: Context, private val endpoints: P
     override fun unregister() {
         UnifiedPush.unregister(context, INSTANCE)
         endpoints.clear()
+    }
+
+    /** The distributor app in use, or that would be, by its name on the phone ("ntfy"). */
+    fun distributorName(): String? {
+        val distributor = distributor() ?: return null
+        val packages = context.packageManager
+        return runCatching { packages.getApplicationLabel(packages.getApplicationInfo(distributor, 0)).toString() }
+            .getOrNull()
+    }
+
+    private fun distributor(): String? {
+        val default = (UnifiedPush.resolveDefaultDistributor(context) as? ResolvedDistributor.Found)?.packageName
+        return Distributors.choose(UnifiedPush.getAckDistributor(context), default, UnifiedPush.getDistributors(context))
     }
 
     companion object {

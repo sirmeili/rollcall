@@ -36,6 +36,9 @@ function fakePlugin() {
     pushRegister: vi.fn(async (_options: { vapidKey: string }) => {}),
     pushUnregister: vi.fn(async () => {}),
     pushEndpoint: vi.fn(async () => ({ endpoint: ENDPOINT as typeof ENDPOINT | null })),
+    pushPermission: vi.fn(async () => ({ permission: "denied" as "granted" | "denied" })),
+    requestPushPermission: vi.fn(async () => ({ permission: "granted" as "granted" | "denied" })),
+    pushRouteName: vi.fn(async () => ({ name: "ntfy" as string | null })),
     addListener: vi.fn(async (event: string, listener: (event: never) => void) => {
       const set = listeners.get(event) ?? new Set();
       set.add(listener);
@@ -199,6 +202,24 @@ describe("phone notifications, through the plugin", () => {
     expect(seen).toEqual([ENDPOINT, null, null]);
   });
 
+  it("reports and asks for Android's notification permission", async () => {
+    const fake = fakePlugin();
+    const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
+
+    expect(await native.pushPermission()).toBe("denied");
+    expect(await native.requestPushPermission()).toBe("granted");
+    expect(fake.plugin.requestPushPermission).toHaveBeenCalledOnce();
+  });
+
+  it("reports the name the route is known by", async () => {
+    const fake = fakePlugin();
+    const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
+
+    expect(await native.pushRouteName()).toBe("ntfy");
+    fake.plugin.pushRouteName.mockResolvedValue({} as { name: null });
+    expect(await native.pushRouteName()).toBeNull();
+  });
+
   it("passes on the page of each tapped notification", async () => {
     const fake = fakePlugin();
     const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
@@ -257,6 +278,9 @@ describe("the browser bridge", () => {
     await expect(browserBridge.pushUnregister()).rejects.toThrow(/Android app/);
     browserBridge.onPushEndpoint(() => {})();
     browserBridge.onNotificationOpen(() => {})();
+    expect(await browserBridge.pushPermission()).toBe("denied");
+    expect(await browserBridge.requestPushPermission()).toBe("denied");
+    expect(await browserBridge.pushRouteName()).toBeNull();
   });
 
   it("never reports Back, and does nothing when asked to background", async () => {
