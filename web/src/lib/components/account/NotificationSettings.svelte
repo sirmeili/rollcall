@@ -41,35 +41,33 @@
   }
 </script>
 
-{#if rows.length > 0}
-  <section class="card" aria-labelledby="notifications-h">
-    <h2 id="notifications-h" class="label">Notifications</h2>
-    <ul>
-      {#each rows as setting (setting.kind)}
-        {@const kind = NOTIFICATION_KINDS[setting.kind]}
-        <li>
-          <div class="grow">
-            <span class="name">{kind.label}</span>
-            <span class="muted">{kind.when}</span>
-          </div>
-          <label class="check">
-            <input
-              type="checkbox"
-              aria-label={`Email: ${kind.label}`}
-              checked={setting.on}
-              disabled={busy || unavailable !== null}
-              onchange={(e) => change(setting, e.currentTarget)}
-            />
-            Email
-          </label>
-        </li>
-      {/each}
-    </ul>
-    {#if unavailable}<p class="muted">{unavailable}</p>{/if}
-    {#if problem}<p role="alert" class="error">{problem}</p>{/if}
-    {#if done}<p role="status">{done}</p>{/if}
-  </section>
-{/if}
+<section class="card" aria-labelledby="notifications-h">
+  <h2 id="notifications-h" class="label">Notifications</h2>
+  <ul>
+    {#each rows as setting (setting.kind)}
+      {@const kind = NOTIFICATION_KINDS[setting.kind]}
+      <li>
+        <div class="grow">
+          <span class="name">{kind.label}</span>
+          <span class="muted">{kind.when}</span>
+        </div>
+        <label class="check">
+          <input
+            type="checkbox"
+            aria-label={`Email: ${kind.label}`}
+            checked={setting.on}
+            disabled={busy || unavailable !== null}
+            onchange={(e) => change(setting, e.currentTarget)}
+          />
+          Email
+        </label>
+      </li>
+    {/each}
+  </ul>
+  {#if unavailable}<p class="muted">{unavailable}</p>{/if}
+  {#if problem}<p role="alert" class="error">{problem}</p>{/if}
+  {#if done}<p role="status">{done}</p>{/if}
+</section>
 
 <style>
   section {

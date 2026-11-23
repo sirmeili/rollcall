@@ -1,8 +1,9 @@
 """The kinds of notification: who may choose each, and what each channel defaults to.
 
-This is the one list. The account API gives the web app the kinds a user may choose, in
-this order, and the resolver (recipients.py) sends each only to people who may choose it.
-A kind is listed only once something sends it (`sent`); until then nobody sees it.
+This is the server's list, and the source of truth: the account API gives the web app the
+kinds a user may choose, in this order, and the resolver (recipients.py) sends each only to
+people who may choose it. The web app mirrors the kinds in `web/src/lib/api/types.ts`, and
+how it names each in `web/src/lib/notifications.ts`.
 """
 
 from collections.abc import Callable, Mapping
@@ -44,28 +45,25 @@ class Kind:
     may_choose: Callable[[User], bool]
     # What each channel is for a user who hasn't chosen.
     defaults: Mapping[Channel, Callable[[User], bool]]
-    # Something sends it; a kind is hidden from everyone until then.
-    sent: bool = False
 
 
 KINDS: dict[NotificationKind, Kind] = {
     k.kind: k
     for k in (
-        Kind(NotificationKind.NEW_REQUEST, _editors, {Channel.EMAIL: _admins}, sent=True),
-        Kind(NotificationKind.REQUEST_UPDATE, _requesters, {Channel.EMAIL: _on}, sent=True),
-        Kind(NotificationKind.NEW_PHOTO, _requesters, {Channel.EMAIL: _on}, sent=True),
-        Kind(NotificationKind.LOW_STOCK, _everyone, {Channel.EMAIL: _off}, sent=True),
-        Kind(NotificationKind.SUGGESTION, _editors, {Channel.EMAIL: _off}, sent=True),
-        Kind(NotificationKind.NEARLY_OUT, _everyone, {Channel.EMAIL: _off}, sent=True),
-        Kind(NotificationKind.BACKUP_FAILED, _admins, {Channel.EMAIL: _off}, sent=True),
+        Kind(NotificationKind.NEW_REQUEST, _editors, {Channel.EMAIL: _admins}),
+        Kind(NotificationKind.REQUEST_UPDATE, _requesters, {Channel.EMAIL: _on}),
+        Kind(NotificationKind.NEW_PHOTO, _requesters, {Channel.EMAIL: _on}),
+        Kind(NotificationKind.LOW_STOCK, _everyone, {Channel.EMAIL: _off}),
+        Kind(NotificationKind.SUGGESTION, _editors, {Channel.EMAIL: _off}),
+        Kind(NotificationKind.NEARLY_OUT, _everyone, {Channel.EMAIL: _off}),
+        Kind(NotificationKind.BACKUP_FAILED, _admins, {Channel.EMAIL: _off}),
     )
 }
 
 
 def may_choose(user: User, kind: NotificationKind) -> bool:
-    """Whether the kind is listed for the user: it is sent, and their role may choose it."""
-    found = KINDS[kind]
-    return found.sent and found.may_choose(user)
+    """Whether the kind is listed for the user: their role (or Requester) may choose it."""
+    return KINDS[kind].may_choose(user)
 
 
 def default(user: User, kind: NotificationKind, channel: Channel) -> bool:

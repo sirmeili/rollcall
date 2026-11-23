@@ -1014,13 +1014,6 @@ describe("Account page", () => {
     expect(screen.getByText("A print request is submitted.")).toBeInTheDocument();
   });
 
-  it("leaves the list out when the role has nothing to choose", async () => {
-    session.user = me("viewer", { notifications: [] });
-    render(AccountPage);
-
-    expect(screen.queryByRole("region", { name: "Notifications" })).toBeNull();
-  });
-
   it("turns a notification off and on", async () => {
     session.user = me("admin", {
       email: "frank@example.com",

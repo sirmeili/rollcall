@@ -1,15 +1,11 @@
 """Notification settings on the account: the kinds the user's role can see, each with an Email
 switch that is on or off by default until the user chooses."""
 
-from dataclasses import replace
-
-import pytest
 from api_helpers import CSRF, admin, signed_in
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from filament_tracker.domain.enums import NotificationKind, Role
-from filament_tracker.notifications.kinds import KINDS
+from filament_tracker.domain.enums import Role
 
 ACCOUNT = "/api/v1/auth/me"
 
@@ -175,22 +171,6 @@ def test_a_kind_outside_the_role_is_refused_and_nothing_changes(
         _setting("low_stock", False),
         _setting("nearly_out", False),
     ]
-
-
-def test_a_kind_nothing_sends_yet_is_refused(
-    app: FastAPI, client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    unsent = replace(KINDS[NotificationKind.BACKUP_FAILED], sent=False)
-    monkeypatch.setitem(KINDS, NotificationKind.BACKUP_FAILED, unsent)
-    boss = signed_in(app, Role.ADMIN)
-
-    response = boss.patch(
-        ACCOUNT,
-        json={"notifications": [{"kind": "backup_failed", "channel": "email", "on": True}]},
-        headers=CSRF,
-    )
-
-    assert response.status_code == 403
 
 
 def test_an_unknown_kind_or_channel_is_refused(app: FastAPI, client: TestClient) -> None:
