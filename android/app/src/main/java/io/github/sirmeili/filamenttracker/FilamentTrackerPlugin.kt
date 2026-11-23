@@ -254,14 +254,14 @@ class FilamentTrackerPlugin : Plugin() {
     /** Whether RollCall may show notifications: Android 13's permission granted, and
      * notifications not turned off for the app in Android's settings. */
     @PluginMethod
-    fun pushPermission(call: PluginCall) {
+    fun notificationPermission(call: PluginCall) {
         call.resolve(permission())
     }
 
     /** Ask for Android 13's permission to show notifications. Earlier Android versions have
      * none to ask, and say only whether notifications are turned on. */
     @PluginMethod
-    fun requestPushPermission(call: PluginCall) {
+    fun requestNotificationPermission(call: PluginCall) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || getPermissionState(NOTIFICATIONS) == PermissionState.GRANTED) {
             return call.resolve(permission())
         }

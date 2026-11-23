@@ -15,6 +15,6 @@ const ASKED_KEY = "notification_permission_asked";
 export async function askPermissionOnce(native: PhoneBridge): Promise<void> {
   if ((await native.secureGet(ASKED_KEY)) === "true") return;
   await native.secureSet(ASKED_KEY, "true");
-  if ((await native.pushPermission()) === "granted") return;
-  await native.requestPushPermission();
+  if ((await native.notificationPermission()) === "granted") return;
+  await native.requestNotificationPermission();
 }

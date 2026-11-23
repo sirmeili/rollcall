@@ -9,7 +9,7 @@ from collections.abc import Callable
 # Send test email: one test every 30 seconds, whatever its result.
 TEST_EMAIL_GAP = 30.0
 # A test phone notification: one every 30 seconds for each phone.
-TEST_PUSH_GAP = 30.0
+TEST_PHONE_NOTIFICATION_GAP = 30.0
 
 
 class Cooldown:

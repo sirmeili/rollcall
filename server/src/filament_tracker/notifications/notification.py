@@ -1,6 +1,7 @@
 """A notification, said once for every channel: what happened, the page it is about, and who
 may be told. Each channel asks the resolver who is told on it, then sends its own way: an
-email to each address (notifications/email.py), a Web Push to each phone (phone.py)."""
+email to each address (notifications/email.py), a push to each phone by Web Push or FCM
+(phone.py)."""
 
 from dataclasses import dataclass
 

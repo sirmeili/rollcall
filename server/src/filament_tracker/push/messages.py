@@ -37,7 +37,7 @@ ACCESS_REFUSED = "Firebase refused the access token; a new one is asked for."
 
 @dataclass(frozen=True)
 class Push:
-    """A phone notification for one phone."""
+    """One phone notification to deliver to one phone: the payload its push carries."""
 
     device_id: str
     payload: bytes

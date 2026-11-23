@@ -65,7 +65,12 @@ from filament_tracker.push.transport import HttpPushTransport, PushTransport
 from filament_tracker.services.backup import BackupScheduler
 from filament_tracker.services.catalog_schedule import CatalogScheduler
 from filament_tracker.services.catalog_sync import CatalogSyncer
-from filament_tracker.services.cooldown import TEST_EMAIL_GAP, TEST_PUSH_GAP, Cooldown, Cooldowns
+from filament_tracker.services.cooldown import (
+    TEST_EMAIL_GAP,
+    TEST_PHONE_NOTIFICATION_GAP,
+    Cooldown,
+    Cooldowns,
+)
 from filament_tracker.services.printers import seed_printers
 from filament_tracker.services.setup import SetupGate
 from filament_tracker.services.stock_changes import on_change
@@ -179,7 +184,7 @@ def create_app(
     app.state.setup_throttle = LoginThrottle()
     app.state.setup_gate = SetupGate()
     app.state.test_email_cooldown = Cooldown(TEST_EMAIL_GAP)
-    app.state.test_push_cooldowns = Cooldowns(TEST_PUSH_GAP)
+    app.state.test_phone_notification_cooldowns = Cooldowns(TEST_PHONE_NOTIFICATION_GAP)
     app.state.model_files = ModelFiles(files_dir(settings.database_url))
     # Spool detail names the requests holding a spool through this (ADR-0020).
     app.state.holder_reader = request_holders.holding_requests

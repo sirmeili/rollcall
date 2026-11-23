@@ -17,7 +17,7 @@ from filament_tracker.api.push_schemas import (
     PushConfigOut,
     PushEndpointIn,
     PushEndpointOut,
-    TestPushOut,
+    TestPhoneNotificationOut,
     WebPushEndpointIn,
 )
 from filament_tracker.auth import DbSession, SignedInUser
@@ -108,21 +108,21 @@ def remove(device_id: str, caller: SignedInUser, session: DbSession) -> Response
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/push/devices/{device_id}/test", response_model=TestPushOut)
+@router.post("/push/devices/{device_id}/test", response_model=TestPhoneNotificationOut)
 def send_test(
     device_id: str, caller: SignedInUser, session: DbSession, request: Request
-) -> TestPushOut:
+) -> TestPhoneNotificationOut:
     """Send a test phone notification to the caller's own phone and wait for the result; at
     most one every 30 seconds for each phone."""
     device = _own_phone(session, caller, device_id)
     if session.get(PushEndpoint, device.id) is None:
         raise HTTPException(status.HTTP_409_CONFLICT, NOT_REGISTERED)
-    cooldowns: Cooldowns = request.app.state.test_push_cooldowns
+    cooldowns: Cooldowns = request.app.state.test_phone_notification_cooldowns
     if not cooldowns.start(device.id):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, TOO_SOON)
     sender: PushSender = request.app.state.push
     payload = phone_payload(TEST_KIND, TEST_TITLE, TEST_TEXT, "/")
     result = sender.send_now(Push(device.id, payload))
     if result.outcome == Outcome.SENT:
-        return TestPushOut(ok=True, message=SENT)
-    return TestPushOut(ok=False, message=result.message or NOT_REGISTERED)
+        return TestPhoneNotificationOut(ok=True, message=SENT)
+    return TestPhoneNotificationOut(ok=False, message=result.message or NOT_REGISTERED)

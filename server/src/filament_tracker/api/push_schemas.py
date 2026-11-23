@@ -86,6 +86,6 @@ class PushEndpointOut(BaseModel):
     registered_at: datetime
 
 
-class TestPushOut(BaseModel):
+class TestPhoneNotificationOut(BaseModel):
     ok: bool
     message: str

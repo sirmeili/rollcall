@@ -20,7 +20,7 @@ export async function phoneNotificationStatus(
 ): Promise<PhoneNotificationStatus> {
   const route = await native.pushRoute();
   if (route === "none") return { state: "no_route" };
-  if ((await native.pushPermission()) !== "granted") return { state: "refused" };
+  if ((await native.notificationPermission()) !== "granted") return { state: "refused" };
   return { state: "working", via: (await native.pushRouteName()) || ROUTE_NAMES[route] };
 }
 

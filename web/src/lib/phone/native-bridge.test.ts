@@ -39,8 +39,10 @@ function fakePlugin() {
     pushRegister: vi.fn(async (_options: { vapidKey: string }) => {}),
     pushUnregister: vi.fn(async () => {}),
     pushEndpoint: vi.fn(async () => ({ endpoint: ENDPOINT as typeof ENDPOINT | null })),
-    pushPermission: vi.fn(async () => ({ permission: "denied" as "granted" | "denied" })),
-    requestPushPermission: vi.fn(async () => ({ permission: "granted" as "granted" | "denied" })),
+    notificationPermission: vi.fn(async () => ({ permission: "denied" as "granted" | "denied" })),
+    requestNotificationPermission: vi.fn(async () => ({
+      permission: "granted" as "granted" | "denied",
+    })),
     pushRouteName: vi.fn(async () => ({ name: "ntfy" as string | null })),
     addListener: vi.fn(async (event: string, listener: (event: never) => void) => {
       const set = listeners.get(event) ?? new Set();
@@ -222,9 +224,9 @@ describe("phone notifications, through the plugin", () => {
     const fake = fakePlugin();
     const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
 
-    expect(await native.pushPermission()).toBe("denied");
-    expect(await native.requestPushPermission()).toBe("granted");
-    expect(fake.plugin.requestPushPermission).toHaveBeenCalledOnce();
+    expect(await native.notificationPermission()).toBe("denied");
+    expect(await native.requestNotificationPermission()).toBe("granted");
+    expect(fake.plugin.requestNotificationPermission).toHaveBeenCalledOnce();
   });
 
   it("reports the name the route is known by", async () => {
@@ -294,8 +296,8 @@ describe("the browser bridge", () => {
     await expect(browserBridge.pushUnregister()).rejects.toThrow(/Android app/);
     browserBridge.onPushEndpoint(() => {})();
     browserBridge.onNotificationOpen(() => {})();
-    expect(await browserBridge.pushPermission()).toBe("denied");
-    expect(await browserBridge.requestPushPermission()).toBe("denied");
+    expect(await browserBridge.notificationPermission()).toBe("denied");
+    expect(await browserBridge.requestNotificationPermission()).toBe("denied");
     expect(await browserBridge.pushRouteName()).toBeNull();
   });
 

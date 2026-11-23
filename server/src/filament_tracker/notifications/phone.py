@@ -1,7 +1,7 @@
-"""The phone channel: a Web Push about each notification to each registered phone of each
-person told about it by Phone. A shared phone, a revoked one and a disabled user's never get
-one. The push carries the kind, the email's subject and sentence, the page's path and the
-photo to show, if any."""
+"""The phone channel: a push, by Web Push or FCM, about each notification to each registered
+phone of each person told about it by Phone. A shared phone, a revoked one and a disabled
+user's never get one. The push carries the kind, the email's subject and sentence, the page's
+path and the photo to show, if any."""
 
 from collections.abc import Iterable
 

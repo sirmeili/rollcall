@@ -9,7 +9,7 @@ import type {
   FirebaseClient,
   PhoneBridge,
   PushEndpoint,
-  PushPermission,
+  PhoneNotificationPermission,
   PushRoute,
   TagRead,
 } from "#lib/phone/bridge.ts";
@@ -46,9 +46,9 @@ export interface FakeBridge extends PhoneBridge {
   /** Tap a phone notification for `path`. */
   openNotification(path: string): void;
   /** Whether Android lets the app show notifications: granted unless a test says not. */
-  permission: PushPermission;
+  permission: PhoneNotificationPermission;
   /** What the person answers when asked for the permission: allow unless a test says not. */
-  permissionAnswer: PushPermission;
+  permissionAnswer: PhoneNotificationPermission;
   /** How many times Android was asked for the permission. */
   permissionRequests: number;
   /** The route's name, as the distributor app is called. */
@@ -137,8 +137,8 @@ export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
       endpointListeners.forEach((listener) => listener(endpoint));
     },
     openNotification: (path) => openListeners.forEach((listener) => listener(path)),
-    pushPermission: () => Promise.resolve(fake.permission),
-    requestPushPermission: () => {
+    notificationPermission: () => Promise.resolve(fake.permission),
+    requestNotificationPermission: () => {
       fake.permissionRequests += 1;
       fake.permission = fake.permissionAnswer;
       return Promise.resolve(fake.permission);
