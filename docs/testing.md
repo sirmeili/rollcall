@@ -16,8 +16,8 @@ The server is fully testable without hardware. Firmware logic is unit tested on 
 | Web app | Components, API client, role-based visibility | Vitest with Testing Library; 90% coverage; `svelte-check` and `npm audit` in CI |
 | Web end to end | Sign in as each role, inventory, record and undo an action, review | Playwright against the real server with a database seeded by the scan simulator |
 | Phone app | Scan flow, offline queue, on-phone decode, pairing | Vitest; 90% coverage |
-| Phone NFC plugin | Key derivation (matching the server), block assembly, trailer stripping, encrypted storage | Kotlin unit tests with a fake tag; 90% line coverage (JaCoCo), excluding the Android glue that needs a phone (see [Coverage exclusions](#coverage-exclusions)) |
-| Phone on hardware | Reading on a real phone, MIFARE Classic detection, QR pairing, offline queue, sign-in | Manual checklist per release |
+| Phone NFC plugin | Key derivation (matching the server), block assembly, trailer stripping, encrypted storage | Kotlin unit tests with a fake tag, run in both app flavors (`google` and `foss`); 90% line coverage (JaCoCo) in each, excluding the Android glue that needs a phone (see [Coverage exclusions](#coverage-exclusions)) |
+| Phone on hardware | Reading on a real phone, MIFARE Classic detection, QR pairing, offline queue, sign-in, switching flavors without losing the pairing | Manual checklist per release |
 | AMS ingest | Report messages produce the right events | Fake printer replaying recorded or documentation-based messages, including a report captured from a P1S with its identifiers replaced |
 | Printer on hardware | Connection and pin, every AMS and AMS HT slot, tray UID matching a scanned tag, automatic Opened, remaining % | `ft-printer check` and a manual checklist, before a release that changes the printer link |
 | Home Assistant on hardware | The five entities and their values, unavailable on stop, back after a Home Assistant restart, events, the low-stock automation, the Settings page Test and Save | `ft-ha check` and a manual checklist, before a release that changes the Home Assistant link |
