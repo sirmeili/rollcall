@@ -1,12 +1,14 @@
 /** A fake Android bridge for tests: in-memory secure storage, scripted tag reads and QR
  * codes, Back presses, a record of being sent to the background, and a push route whose
- * endpoint changes and tapped notifications the test sends. */
+ * endpoint changes and tapped notifications the test sends, and Android's notification
+ * permission. */
 
 import type {
   BackPress,
   NfcStatus,
   PhoneBridge,
   PushEndpoint,
+  PushPermission,
   PushRoute,
   TagRead,
 } from "#lib/phone/bridge.ts";
@@ -36,6 +38,14 @@ export interface FakeBridge extends PhoneBridge {
   changeEndpoint(endpoint: PushEndpoint | null): void;
   /** Tap a phone notification for `path`. */
   openNotification(path: string): void;
+  /** Whether Android lets the app show notifications: granted unless a test says not. */
+  permission: PushPermission;
+  /** What the person answers when asked for the permission: allow unless a test says not. */
+  permissionAnswer: PushPermission;
+  /** How many times Android was asked for the permission. */
+  permissionRequests: number;
+  /** The route's name, as the distributor app is called. */
+  routeName: string;
 }
 
 export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
@@ -55,6 +65,10 @@ export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
     endpoint: null,
     registrations: [],
     unregistrations: 0,
+    permission: "granted",
+    permissionAnswer: "granted",
+    permissionRequests: 0,
+    routeName: "ntfy",
     nfcStatus: () => Promise.resolve(fake.status),
     readTag: (_salt, signal) =>
       new Promise<TagRead>((resolve, reject) => {
@@ -108,6 +122,13 @@ export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
       endpointListeners.forEach((listener) => listener(endpoint));
     },
     openNotification: (path) => openListeners.forEach((listener) => listener(path)),
+    pushPermission: () => Promise.resolve(fake.permission),
+    requestPushPermission: () => {
+      fake.permissionRequests += 1;
+      fake.permission = fake.permissionAnswer;
+      return Promise.resolve(fake.permission);
+    },
+    pushRouteName: () => Promise.resolve(fake.route === "none" ? null : fake.routeName),
     tap: (read) => {
       const current = pending;
       pending = null;

@@ -106,6 +106,15 @@ export class PhonePush {
     }
   }
 
+  /** Stop phone notifications on this phone, for Unlink and sign-out: unregister from the
+   * route first, so they stop even away from home, then remove the endpoint on the server,
+   * best effort. A shared phone has neither. */
+  async leave(): Promise<void> {
+    if (!this.userPhone()) return;
+    await this.native.pushUnregister().catch(() => {});
+    await this.remove();
+  }
+
   /** The route dropped this phone: so does the server, best effort. */
   private async remove(): Promise<void> {
     await api(this.path(), { method: "DELETE" }, this.fetchFn).catch(() => {});

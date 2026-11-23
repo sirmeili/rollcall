@@ -46,6 +46,9 @@ A user's phone (set up by signing in) shows the phone notifications its user cho
 - ntfy uses the ntfy.sh server unless set to another; the server owner can run their own (see [docs/deploy.md](../docs/deploy.md#ntfy-optional)). The server encrypts each push for the phone (RFC 8291), so the ntfy server sees only encrypted contents.
 - Each kind is its own Android notification channel, so a kind can also be muted in Android's settings. Tapping a notification opens its page, signing in first when signed out.
 - Done and New photo show the print's first photo as a large picture. The app downloads it from the paired server with its signed-in session and the Cloudflare Access service token, as its other calls do; signed out, or if the download fails, the notification shows its text only.
+- Android 13 and later ask once for permission to show notifications: after setting the phone up by signing in, or on the first open of a phone set up before phone notifications came. Refusing it changes no setting on Account.
+- Pairing's **Phone notifications** line says whether they work on this phone and by which route ("via ntfy"), that RollCall isn't allowed to show notifications and how to allow it, or that the phone has no distributor and ntfy should be installed. **Send a test notification** asks the server to send one to this phone.
+- Unlink and sign-out first unregister from the distributor, so the phone stops getting them even away from home, then remove its endpoint on the server if it answers, then sign out or forget the pairing.
 
 ## Install a development build
 
@@ -208,6 +211,10 @@ Run each step with the swipe-back gesture and, where the phone has one, the Back
 44. Tap it: the app opens on the request's page.
 45. Sign out in the full app, then tap a new notification: the app asks to sign in, then opens its page.
 46. On a shared phone (paired with a code) with ntfy installed, sign in to the full app: ntfy lists no RollCall subscription, and no notifications arrive.
-47. On Wi-Fi at home, with the app closed, mark one of that user's print requests Done with a photo from a PC: the notification shows the photo, and expanding it shows it large. Do it again away from home (mobile data), with Cloudflare Access in front of the server: the photo shows too. Sign out in the full app and do it once more: the notification shows its text only.
+47. On an Android 13 or later phone, set it up by signing in: Android asks once whether RollCall may show notifications. Refuse: Pairing says RollCall isn't allowed to show notifications and how to allow it, and Account's Phone switches are unchanged. Allow notifications in Android's settings and come back: Pairing says they work, via ntfy. Close and reopen the app: it doesn't ask again.
+48. Install this release over a phone set up by signing in with the previous one: on the first open (at home), Android asks once whether RollCall may show notifications; reopening doesn't ask again.
+49. On Pairing, tap Send a test notification: "Sent a test notification to this phone" shows, and the notification arrives. Uninstall ntfy and open Pairing: it says to install ntfy.
+50. Away from home (mobile data), unlink the phone: ntfy no longer lists a RollCall subscription, and marking one of that user's print requests Done from a PC shows no notification on it.
+51. On Wi-Fi at home, with the app closed, mark one of that user's print requests Done with a photo from a PC: the notification shows the photo, and expanding it shows it large. Do it again away from home (mobile data), with Cloudflare Access in front of the server: the photo shows too. Sign out in the full app and do it once more: the notification shows its text only.
 
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.
