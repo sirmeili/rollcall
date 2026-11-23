@@ -37,7 +37,6 @@ def compose(
     details: Iterable[tuple[str, str]] = (),
     link: str | None,
     link_text: str,
-    footer: str | None = FOOTER,
     photos: Sequence[bytes] = (),
 ) -> Email:
     """The sentence, the labelled details, the link and the footer, as text and HTML, with
@@ -58,9 +57,8 @@ def compose(
     if link is not None:
         text.append(f"{link_text}: {link}")
         html.append(f'<p><a href="{escape(link)}">{escape(link_text)}</a></p>')
-    if footer is not None:
-        text.append(footer)
-        html.append(f"<p>{escape(footer)}</p>")
+    text.append(FOOTER)
+    html.append(f"<p>{escape(FOOTER)}</p>")
     return Email(
         to=to,
         subject=subject,
