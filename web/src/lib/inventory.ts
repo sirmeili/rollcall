@@ -15,7 +15,8 @@ export function filamentTypes(items: ProductSummary[]): string[] {
 }
 
 /** What the Inventory page is narrowed to: search, picked types, the quick filters and the
- * sort (docs/mockups/mobile-web/). Not saved: the page opens unfiltered. */
+ * sort (docs/mockups/mobile-web/). Not saved: the page opens unfiltered, or searched for
+ * its address's `?q=`. */
 export interface InventoryFilter {
   query: string;
   /** Picked filament types; none (or every one) means all. */
