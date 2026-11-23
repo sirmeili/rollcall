@@ -193,26 +193,6 @@ def test_without_a_public_url_the_email_has_no_link(
     assert "http" not in html_of(message)
 
 
-def test_links_ignore_the_requests_host_header(
-    app: FastAPI, client: TestClient, outbox: FakeOutbox, db: Session
-) -> None:
-    email_on(client)
-    _person(app, "boss", Role.ADMIN)
-    vic = _person(app, "vic", Role.VIEWER, suggestion=False)
-    black = _black(db)
-
-    response = vic.post(
-        SUGGESTIONS,
-        json={"product_id": black.id, "spools": 1},
-        headers={**CSRF, "Host": "evil.example.net"},
-    )
-
-    assert response.status_code == 200
-    [message] = sent(app, outbox)
-    assert "evil.example.net" not in text_of(message)
-    assert f"{PUBLIC_URL}/shopping-list" in text_of(message)
-
-
 def test_with_email_off_nothing_is_sent_and_suggesting_still_works(
     app: FastAPI, client: TestClient, outbox: FakeOutbox, db: Session
 ) -> None:

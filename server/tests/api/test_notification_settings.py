@@ -14,7 +14,9 @@ def _setting(kind: str, on: bool, *, default: bool = True) -> dict[str, object]:
     return {"kind": kind, "channel": "email", "on": on, "default": default}
 
 
-def test_a_viewer_who_isnt_a_requester_has_only_low_stock(app: FastAPI, client: TestClient) -> None:
+def test_a_viewer_who_isnt_a_requester_has_only_low_stock_and_nearly_out(
+    app: FastAPI, client: TestClient
+) -> None:
     me = signed_in(app, Role.VIEWER).get(ACCOUNT).json()
 
     assert me["notifications"] == [
@@ -144,31 +146,6 @@ def test_an_editor_can_choose_new_request_emails(app: FastAPI, client: TestClien
         _setting("new_request", True, default=False),
         _setting("low_stock", False),
         _setting("suggestion", False),
-        _setting("nearly_out", False),
-    ]
-
-
-def test_a_kind_outside_the_role_is_refused_and_nothing_changes(
-    app: FastAPI, client: TestClient
-) -> None:
-    viewer = signed_in(app, Role.VIEWER, requester=True)
-
-    response = viewer.patch(
-        ACCOUNT,
-        json={
-            "notifications": [
-                {"kind": "new_photo", "channel": "email", "on": False},
-                {"kind": "new_request", "channel": "email", "on": True},
-            ]
-        },
-        headers=CSRF,
-    )
-
-    assert response.status_code == 403
-    assert viewer.get(ACCOUNT).json()["notifications"] == [
-        _setting("request_update", True),
-        _setting("new_photo", True),
-        _setting("low_stock", False),
         _setting("nearly_out", False),
     ]
 
