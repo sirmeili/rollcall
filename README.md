@@ -110,6 +110,13 @@ Secrets such as the tag key-derivation constant, tokens and the printer access c
 
 ## Development
 
+Text files are checked out with LF line endings on every platform (`.bat` and `.cmd` files with CRLF), as set in [.gitattributes](.gitattributes). A Windows clone made before that file was added may still hold CRLF files; fix it once, from the repository root. **This throws away all uncommitted work**, so commit or stash it first:
+
+```sh
+git rm --cached -r .
+git reset --hard
+```
+
 Each area's README lists all its commands, including the checks to run before a review and the inner-loop test command to run after each edit: [server/README.md](server/README.md) (with the Docker image), [web/README.md](web/README.md) and [android/README.md](android/README.md). The basics:
 
 The server needs Python 3.12 and [uv](https://docs.astral.sh/uv/). From `server/`:
