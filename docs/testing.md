@@ -34,7 +34,8 @@ Every automated layer with a coverage gate holds 90%. Code is excluded only when
 
 | Excluded | Why it needs a phone |
 | --- | --- |
-| `FilamentTrackerPlugin` | NFC reader mode, the camera, push registration and Capacitor calls |
+| `FilamentTrackerPlugin` | NFC reader mode, the camera, Android's notification permission and Capacitor calls |
+| `PushBridge` | The plugin's phone notification calls: the flavor's routes, stored endpoint and Firebase start for this phone, Capacitor's JS objects, and restarting the app |
 | `AndroidMifare` | The MIFARE Classic adapter over Android's NFC API |
 | `KeystoreKey` | Android Keystore storage |
 | `PrefsValues` | SharedPreferences storage |

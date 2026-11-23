@@ -26,6 +26,8 @@ class FcmRoute(
 
     override fun usable() = firebase.load() != null && playServices()
 
+    override fun displayName() = NAME
+
     override fun register(vapidKey: String) = fcm.token(::given)
 
     override fun unregister() {
@@ -50,5 +52,8 @@ class FcmRoute(
     companion object {
         /** What the web app shows as "via Google". */
         const val ROUTE = PushRoutes.FCM
+
+        /** What people know Google's push service by. */
+        const val NAME = "Google"
     }
 }
