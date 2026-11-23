@@ -37,12 +37,28 @@ def test_new_requests_are_on_for_admins_and_off_for_editors(
     editor = signed_in(app, Role.EDITOR).get(ACCOUNT).json()
     boss = signed_in(app, Role.ADMIN, requester=True).get(ACCOUNT).json()
 
-    assert editor["notifications"] == [_setting("new_request", False)]
+    assert editor["notifications"] == [
+        _setting("new_request", False),
+        _setting("suggestion", False),
+    ]
     assert boss["notifications"] == [
         _setting("new_request", True),
         _setting("request_update", True),
         _setting("new_photo", True),
+        _setting("suggestion", False),
     ]
+
+
+def test_suggestions_are_for_editors_and_admins_and_off_by_default(
+    app: FastAPI, client: TestClient
+) -> None:
+    viewer = signed_in(app, Role.VIEWER, requester=True).get(ACCOUNT).json()
+    editor = signed_in(app, Role.EDITOR).get(ACCOUNT).json()
+    boss = signed_in(app, Role.ADMIN).get(ACCOUNT).json()
+
+    assert _setting("suggestion", False) not in viewer["notifications"]
+    assert _setting("suggestion", False) in editor["notifications"]
+    assert _setting("suggestion", False) in boss["notifications"]
 
 
 def test_the_old_switches_are_gone(app: FastAPI, client: TestClient) -> None:
@@ -81,6 +97,7 @@ def test_a_user_turns_a_notification_off_and_on(app: FastAPI, client: TestClient
         _setting("new_request", False, default=False),
         _setting("request_update", True),
         _setting("new_photo", False, default=False),
+        _setting("suggestion", False),
     ]
     back = user.patch(
         ACCOUNT,
@@ -100,7 +117,10 @@ def test_an_editor_can_choose_new_request_emails(app: FastAPI, client: TestClien
         headers=CSRF,
     ).json()
 
-    assert me["notifications"] == [_setting("new_request", True, default=False)]
+    assert me["notifications"] == [
+        _setting("new_request", True, default=False),
+        _setting("suggestion", False),
+    ]
 
 
 def test_a_kind_outside_the_role_is_refused_and_nothing_changes(
@@ -163,7 +183,8 @@ def test_choices_kept_when_the_role_changes_apply_again(app: FastAPI, client: Te
     client.patch(f"/api/v1/users/{editor_id}", json={"role": "editor"}, headers=admin())
 
     assert editor.get(ACCOUNT).json()["notifications"] == [
-        _setting("new_request", True, default=False)
+        _setting("new_request", True, default=False),
+        _setting("suggestion", False),
     ]
 
 
