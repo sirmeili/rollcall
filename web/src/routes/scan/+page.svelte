@@ -69,14 +69,17 @@
 
   // A scan card (the spool with its keys, or what was recorded) is a layer for the phone's
   // Back button: Back closes it the way Next does, so before an action is chosen nothing is
-  // recorded, and a recorded action is kept, never undone.
+  // recorded, and a recorded action is kept, never undone. While an action is sending, Back
+  // does nothing until the send finishes.
   const cardShowing = $derived(
     view !== null && view.phase !== "idle" && view.phase !== "looking_up",
   );
   $effect(() => {
     if (!cardShowing || !flow) return;
     const shown = flow;
-    return openLayer(() => shown.dismiss());
+    return openLayer(() => {
+      if (shown.view.phase !== "sending") shown.dismiss();
+    });
   });
   const delivery = phone.delivery;
 </script>

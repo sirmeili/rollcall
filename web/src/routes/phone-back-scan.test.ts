@@ -144,6 +144,40 @@ describe("Back on Scan with a scan card showing", () => {
     expect(recorded()).toEqual(["opened"]);
     expect(undone()).toBe(false);
   });
+
+  it("does nothing while an action is sending, until the send finishes", async () => {
+    await openScan();
+    native.tap(tagRead(tags[0].blocks));
+    await screen.findByRole("button", { name: "Opened" });
+    // Hold the action's send until the test lets it through.
+    let send!: () => void;
+    const sent = new Promise<void>((resolve) => (send = resolve));
+    let sending = false;
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/api/v1/scans")) {
+        sending = true;
+        await sent;
+      }
+      return server(input, init);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Opened" }));
+    await vi.waitFor(() => expect(sending).toBe(true));
+
+    native.pressBack(true);
+    await new Promise((settled) => setTimeout(settled));
+
+    expect(screen.queryByText(READY)).toBeNull();
+    expect(screen.getByRole("article", { name: "Spool" })).toBeInTheDocument();
+    stayed();
+
+    send();
+    expect(await screen.findByText("Recorded just now · spool #7")).toBeInTheDocument();
+    expect(recorded()).toEqual(["opened"]);
+
+    native.pressBack(true);
+    expect(await screen.findByText(READY)).toBeInTheDocument();
+    stayed();
+  });
 });
 
 describe("Back on Scan with a scan card showing, unpacking a delivery", () => {
