@@ -200,6 +200,19 @@ describe("Leaving a changed full-page form", () => {
     expect(nav.goto).not.toHaveBeenCalled();
   });
 
+  it("stays for a second navigation while the warning shows", async () => {
+    await openAt("/requests/new", SAM, NewRequestPage);
+    await userEvent.type(await screen.findByLabelText("Title"), "Dragon");
+    navigate("link", "/spools");
+    await screen.findByRole("alertdialog");
+
+    expect(navigate("link", "/activity")).toBe(false);
+    await answer("Leave");
+
+    expect(screen.queryAllByRole("alertdialog")).toHaveLength(0);
+    expect(nav.goto).toHaveBeenCalledExactlyOnceWith(new URL("https://localhost/spools"));
+  });
+
   it("goes nowhere on Leave when the navigation had no destination", async () => {
     await openAt("/requests/new", SAM, NewRequestPage);
     await userEvent.type(await screen.findByLabelText("Title"), "Dragon");
