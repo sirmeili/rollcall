@@ -163,12 +163,18 @@ def test_setup_creates_the_admin_signs_them_in_and_closes(start: Any) -> None:
         "time_zone": "America/Chicago",
         "notifications": [
             {"kind": "new_request", "channel": "email", "on": True, "default": True},
+            {"kind": "new_request", "channel": "phone", "on": True, "default": True},
             {"kind": "low_stock", "channel": "email", "on": False, "default": True},
+            {"kind": "low_stock", "channel": "phone", "on": True, "default": True},
             {"kind": "suggestion", "channel": "email", "on": False, "default": True},
+            {"kind": "suggestion", "channel": "phone", "on": True, "default": True},
             {"kind": "nearly_out", "channel": "email", "on": False, "default": True},
+            {"kind": "nearly_out", "channel": "phone", "on": True, "default": True},
             {"kind": "backup_failed", "channel": "email", "on": False, "default": True},
+            {"kind": "backup_failed", "channel": "phone", "on": True, "default": True},
         ],
         "email_set_up": False,
+        "phone_registered": False,
     }
     assert started.client.get("/api/v1/auth/me").json()["username"] == "frank"
     assert started.client.get("/api/v1/setup").json()["open"] is False
