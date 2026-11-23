@@ -45,11 +45,11 @@ export function openLayer(close: () => void): () => void {
 }
 
 /** Handle every Back press the phone bridge reports, until the returned function is called.
- * `context` is read at each press. */
-export function listenForBack(context: () => Pick<BackContext, "starting">): () => void {
+ * `starting` (whether the start screen is showing) is read at each press. */
+export function listenForBack(starting: () => boolean): () => void {
   const phoneBridge = bridge();
   return phoneBridge.onBack((press) => {
-    const action = backAction(press, { ...context(), layerOpen: layers.size > 0 });
+    const action = backAction(press, { starting: starting(), layerOpen: layers.size > 0 });
     if (action === "layer") [...layers].at(-1)!.close();
     else if (action === "page") history.back();
     else if (action === "background") void phoneBridge.background();

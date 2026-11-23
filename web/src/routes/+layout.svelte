@@ -75,7 +75,7 @@
   });
 
   // The phone's Back button and swipe-back gesture. A browser's Back is its own.
-  $effect(() => listenForBack(() => ({ starting: phone.app && !started })));
+  $effect(() => listenForBack(() => phone.app && !started));
 
   $effect(() => {
     if (!phone.app || !phone.loaded) return;
