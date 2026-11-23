@@ -40,6 +40,18 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Two builds of the app (android/README.md, Flavors): google may use Google's services,
+    // foss holds no Google code. They share the app ID and the release key, so a phone switches
+    // by installing the other over the top and keeps its pairing.
+    flavorDimensions = ["distribution"]
+    productFlavors {
+        google {
+            dimension "distribution"
+        }
+        foss {
+            dimension "distribution"
+        }
+    }
     signingConfigs {
         if (keystoreFile) {
             release {
@@ -100,39 +112,54 @@ kotlin {
 // Unit-test coverage, gated at 90% of lines. The Android glue (the Capacitor plugin, the
 // MifareClassic adapter, Keystore and SharedPreferences storage, the activity) needs a real
 // phone and is covered by the phone checklist instead. docs/testing.md lists these exclusions;
-// change it with this list.
+// change it with this list. Each flavor is tested and gated on its own (coverageReportGoogle,
+// coverageCheckFoss, ...); coverageReport and coverageCheck run both.
 def coverageExcludes = [
     '**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*',
     '**/MainActivity*', '**/FilamentTrackerPlugin*', '**/AndroidMifare*',
     '**/KeystoreKey*', '**/PrefsValues*',
 ]
-def coverageClasses = fileTree(dir: layout.buildDirectory.dir('tmp/kotlin-classes/debug'), excludes: coverageExcludes)
-def coverageData = fileTree(dir: layout.buildDirectory, includes: ['outputs/unit_test_code_coverage/debugUnitTest/*.exec'])
 
-tasks.register('coverageReport', JacocoReport) {
-    dependsOn 'testDebugUnitTest'
-    classDirectories.setFrom(coverageClasses)
-    sourceDirectories.setFrom(files('src/main/java'))
-    executionData.setFrom(coverageData)
-    reports {
-        xml.required = true
-        html.required = true
+['google', 'foss'].each { flavor ->
+    def Flavor = flavor.capitalize()
+    def variant = "${flavor}Debug"
+    def classes = fileTree(dir: layout.buildDirectory.dir("tmp/kotlin-classes/$variant"), excludes: coverageExcludes)
+    def sources = files('src/main/java', "src/$flavor/java")
+    def data = fileTree(dir: layout.buildDirectory, includes: ["outputs/unit_test_code_coverage/${variant}UnitTest/*.exec"])
+
+    tasks.register("coverageReport$Flavor", JacocoReport) {
+        dependsOn "test${Flavor}DebugUnitTest"
+        classDirectories.setFrom(classes)
+        sourceDirectories.setFrom(sources)
+        executionData.setFrom(data)
+        reports {
+            xml.required = true
+            html.required = true
+        }
     }
-}
 
-tasks.register('coverageCheck', JacocoCoverageVerification) {
-    dependsOn 'coverageReport'
-    classDirectories.setFrom(coverageClasses)
-    sourceDirectories.setFrom(files('src/main/java'))
-    executionData.setFrom(coverageData)
-    violationRules {
-        rule {
-            limit {
-                counter = 'LINE'
-                minimum = 0.90
+    tasks.register("coverageCheck$Flavor", JacocoCoverageVerification) {
+        dependsOn "coverageReport$Flavor"
+        classDirectories.setFrom(classes)
+        sourceDirectories.setFrom(sources)
+        executionData.setFrom(data)
+        violationRules {
+            rule {
+                limit {
+                    counter = 'LINE'
+                    minimum = 0.90
+                }
             }
         }
     }
+}
+
+tasks.register('coverageReport') {
+    dependsOn 'coverageReportGoogle', 'coverageReportFoss'
+}
+
+tasks.register('coverageCheck') {
+    dependsOn 'coverageCheckGoogle', 'coverageCheckFoss'
 }
 
 try {
