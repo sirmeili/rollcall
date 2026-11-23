@@ -240,7 +240,9 @@ def make_move(
     notify_after_commit(
         http,
         session,
-        lambda: notifications.request_moved(moved, stored_photos(http).email_copies(added)),
+        lambda: notifications.request_moved(
+            moved, stored_photos(http).email_copies(added), added[0].id if added else None
+        ),
     )
     session.refresh(found)
     return request_out(http, session, caller, found)

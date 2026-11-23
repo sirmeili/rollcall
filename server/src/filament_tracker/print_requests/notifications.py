@@ -9,11 +9,13 @@ disabled account and that no one is told about what they did themselves.
 
 The Done email shows the photos saved with the move, and a photo added later tells the
 requester "New photo of your print"; each email shows the photos as inline images in the
-HTML part, from their email copies.
+HTML part, from their email copies. On a phone, each shows the first of those photos, which
+the phone downloads under the API path named here.
 """
 
 from collections.abc import Sequence
 from datetime import date
+from uuid import UUID
 
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
@@ -57,6 +59,8 @@ NEW_PHOTO_SENTENCE = 'A new photo of your print "{title}" was added.'
 NEW_REQUEST_SUBJECT = "New print request from {requester}: {title}"
 NEW_REQUEST_SENTENCE = '{requester} submitted a new print request: "{title}".'
 OPEN = "Open the request"
+# Where a photo is served (api/request_photos.py), only to those who can see its request.
+PHOTO_PATH = "/api/v1/requests/{request_id}/photos/{photo_id}"
 PRIORITY_LABELS = {
     Priority.URGENT: "Urgent",
     Priority.NORMAL: "Normal",
@@ -64,9 +68,12 @@ PRIORITY_LABELS = {
 }
 
 
-def request_moved(moved: Moved, photos: Sequence[bytes] = ()) -> list[Notification]:
+def request_moved(
+    moved: Moved, photos: Sequence[bytes] = (), first_photo: UUID | None = None
+) -> list[Notification]:
     """The requester's Request update about a move, if the move notifies them, showing
-    `photos` (the email copies of those saved with the move) in the email."""
+    `photos` (the email copies of those saved with the move) in the email, and the first of
+    them, `first_photo`, on a phone."""
     request = moved.request
     if not moved.move.emails_requester:
         return []
@@ -83,15 +90,19 @@ def request_moved(moved: Moved, photos: Sequence[bytes] = ()) -> list[Notificati
             sentence=sentence.format(title=request.title),
             details=((label, moved.note),) if moved.note else (),
             photos=tuple(photos),
+            first_photo=first_photo,
         )
     ]
 
 
 def new_photos(
-    request: PrintRequest, user: User | None, photos: Sequence[bytes]
+    request: PrintRequest,
+    user: User | None,
+    photos: Sequence[bytes],
+    first_photo: UUID | None = None,
 ) -> list[Notification]:
     """The requester's New photo about photos `user` added after the Done move, showing
-    their email copies in the email."""
+    their email copies in the email, and the first of them, `first_photo`, on a phone."""
     if not photos:
         return []
     return [
@@ -102,6 +113,7 @@ def new_photos(
             subject=NEW_PHOTO_SUBJECT.format(title=_one_line(request.title)),
             sentence=NEW_PHOTO_SENTENCE.format(title=request.title),
             photos=tuple(photos),
+            first_photo=first_photo,
         )
     ]
 
@@ -135,6 +147,7 @@ def _to_requester(
     sentence: str,
     details: tuple[tuple[str, str], ...] = (),
     photos: tuple[bytes, ...] = (),
+    first_photo: UUID | None = None,
 ) -> Notification:
     """A notification only the requester may be told."""
     return Notification(
@@ -145,6 +158,9 @@ def _to_requester(
         link_text=OPEN,
         details=details,
         photos=photos,
+        photo=None
+        if first_photo is None
+        else PHOTO_PATH.format(request_id=request.id, photo_id=first_photo),
         actor=actor,
         among=(request.requester,),
         have_requests=True,

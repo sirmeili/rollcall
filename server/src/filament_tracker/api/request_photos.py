@@ -104,7 +104,10 @@ def add_photos(
         http,
         session,
         lambda: notifications.new_photos(
-            found, caller.user, stored_photos(http).email_copies(added)
+            found,
+            caller.user,
+            stored_photos(http).email_copies(added),
+            added[0].id if added else None,
         ),
     )
     session.refresh(found)

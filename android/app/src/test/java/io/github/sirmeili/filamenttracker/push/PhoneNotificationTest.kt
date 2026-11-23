@@ -23,6 +23,29 @@ class PhoneNotificationTest {
     }
 
     @Test
+    fun readsThePhotoToShow() {
+        val read =
+            PhoneNotification.of(
+                fields(
+                    "kind" to "new_photo",
+                    "title" to "New photo of your print",
+                    "path" to "/requests/7",
+                    "photo" to "/api/v1/requests/7/photos/abc",
+                ),
+            )
+
+        assertEquals("/api/v1/requests/7/photos/abc", read?.photo)
+    }
+
+    @Test
+    fun showsNoPhotoUnlessItIsOnThisServer() {
+        assertNull(PhoneNotification.of(fields("title" to "Done"))?.photo)
+        for (outside in listOf("https://evil.example.com/x.jpg", "//evil.example.com/x.jpg", "/\\evil.example.com", "x.jpg", "")) {
+            assertNull(outside, PhoneNotification.of(fields("title" to "Done", "photo" to outside))?.photo)
+        }
+    }
+
+    @Test
     fun needsATitle() {
         assertNull(PhoneNotification.of(fields("kind" to "low_stock", "text" to "x", "path" to "/")))
         assertNull(PhoneNotification.of(fields("kind" to "low_stock", "title" to "", "path" to "/")))

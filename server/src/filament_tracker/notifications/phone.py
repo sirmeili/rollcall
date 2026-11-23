@@ -1,6 +1,7 @@
 """The phone channel: a Web Push about each notification to each registered phone of each
 person told about it by Phone. A shared phone, a revoked one and a disabled user's never get
-one. The push carries the kind, the email's subject and sentence, and the page's path."""
+one. The push carries the kind, the email's subject and sentence, the page's path and the
+photo to show, if any."""
 
 from collections.abc import Iterable
 
@@ -42,7 +43,7 @@ def phone_pushes(session: Session, notifications: Iterable[Notification]) -> lis
         told = n.told(session, Channel.PHONE)
         if not told:
             continue
-        payload = phone_payload(n.kind.value, n.subject, n.sentence, n.path)
+        payload = phone_payload(n.kind.value, n.subject, n.sentence, n.path, n.photo)
         phones = _phones(session, [user.id for user in told])
         for user in told:
             pushes.extend(Push(phone.device_id, payload) for phone in phones.get(user.id, []))

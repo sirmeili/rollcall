@@ -7,16 +7,20 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.github.sirmeili.filamenttracker.MainActivity
 import io.github.sirmeili.filamenttracker.R
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 
 /**
  * Shows a phone notification in its kind's channel. Tapping it opens the app at its page
- * ([EXTRA_PATH]); signed out, the web app asks to sign in first and then opens it.
+ * ([EXTRA_PATH]); signed out, the web app asks to sign in first and then opens it. One with a
+ * photo shows it as a large picture once downloaded ([PhotoDownloader]), or its text only if
+ * the download fails.
  */
 class Notifier(private val context: Context) {
     fun show(notification: PhoneNotification) {
@@ -25,6 +29,16 @@ class Notifier(private val context: Context) {
         ) {
             return
         }
+        val photo = notification.photo
+        if (photo == null) {
+            post(notification, null)
+        } else {
+            // Off the caller's thread: a download may not run on the main thread.
+            thread(name = "RollCallNotificationPhoto") { post(notification, PhotoDownloader(context).download(photo)) }
+        }
+    }
+
+    private fun post(notification: PhoneNotification, picture: Bitmap?) {
         createChannels()
         val id = ids.incrementAndGet()
         val open =
@@ -37,7 +51,18 @@ class Notifier(private val context: Context) {
                 .setSmallIcon(R.drawable.ic_rollcall_monochrome)
                 .setContentTitle(notification.title)
                 .setContentText(notification.text)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(notification.text))
+                .setStyle(
+                    if (picture == null) {
+                        NotificationCompat.BigTextStyle().bigText(notification.text)
+                    } else {
+                        // Expanded, the picture replaces the thumbnail beside the title.
+                        NotificationCompat.BigPictureStyle()
+                            .bigPicture(picture)
+                            .bigLargeIcon(null as Bitmap?)
+                            .setSummaryText(notification.text)
+                    },
+                )
+                .apply { if (picture != null) setLargeIcon(picture) }
                 .setContentIntent(tap)
                 .setAutoCancel(true)
                 .build()
