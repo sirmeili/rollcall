@@ -31,8 +31,40 @@ services:
         max-size: 10m
         max-file: "3"
 
+  # Optional: your own ntfy server, which the phones' ntfy app gets phone notifications
+  # through instead of ntfy.sh (docs/deploy.md, ntfy). Started only with
+  # docker compose --profile ntfy up -d, and reached through the tunnel.
+  ntfy:
+    image: binwiederhier/ntfy:v2.38.1@sha256:038da2be5e668fee6d36a62884eea48975e1b71c29a56964e5298c1b9165a573
+    container_name: rollcall-ntfy
+    profiles: ["ntfy"]
+    command: serve
+    restart: unless-stopped
+    environment:
+      # The https:// address phones and RollCall reach it at, through the tunnel.
+      NTFY_BASE_URL: ${NTFY_BASE_URL:-}
+      NTFY_LISTEN_HTTP: ":8080"
+      NTFY_BEHIND_PROXY: "true"
+      NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
+    volumes:
+      - rollcall-ntfy:/var/cache/ntfy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
 volumes:
   rollcall-data:
     name: rollcall-data
   rollcall-backups:
     name: rollcall-backups
+  rollcall-ntfy:
+    name: rollcall-ntfy

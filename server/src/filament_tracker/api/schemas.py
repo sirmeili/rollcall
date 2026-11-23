@@ -137,6 +137,11 @@ class Provisioning(BaseModel):
         default=True,
         description="Whether the device may record actions; false for a Viewer's phone",
     )
+    user_phone: bool = Field(
+        default=False,
+        description="Whether the device is a user's phone (set up by signing in), which "
+        "registers for phone notifications; false for a shared phone",
+    )
 
 
 class DeviceCreated(DeviceOut):

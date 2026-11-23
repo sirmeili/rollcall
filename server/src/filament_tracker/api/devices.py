@@ -101,7 +101,8 @@ def unlink(device: ScannerDevice, session: SessionDep) -> Response:
 def provisioning(device: ScannerDevice, request: Request, response: Response) -> Provisioning:
     """The tag key-derivation constant, for a scanner or the phone app after pairing, the
     Cloudflare Access service token for the phone app, when one is set, and whether the
-    device may record actions (a Viewer's phone only looks spools up)."""
+    device may record actions (a Viewer's phone only looks spools up), and whether it is a
+    user's phone, which registers for phone notifications (a shared phone never does)."""
     store = request.app.state.settings_store
     salt = store.secret("bambu_kdf_salt")
     if salt is None:
@@ -116,7 +117,12 @@ def provisioning(device: ScannerDevice, request: Request, response: Response) ->
         if client_id and client_secret
         else None
     )
-    return Provisioning(kdf_salt=salt.get_secret_value(), access=access, records=may_record(device))
+    return Provisioning(
+        kdf_salt=salt.get_secret_value(),
+        access=access,
+        records=may_record(device),
+        user_phone=device.user_id is not None,
+    )
 
 
 @router.post("/devices/mine", response_model=DeviceCreated, status_code=status.HTTP_201_CREATED)

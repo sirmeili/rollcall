@@ -95,6 +95,8 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     implementation "com.google.android.gms:play-services-code-scanner:$codeScannerVersion"
+    // Phone notifications through a UnifiedPush distributor such as ntfy, in both flavors.
+    implementation "org.unifiedpush.android:connector:$unifiedPushConnectorVersion"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
@@ -110,14 +112,16 @@ kotlin {
 }
 
 // Unit-test coverage, gated at 90% of lines. The Android glue (the Capacitor plugin, the
-// MifareClassic adapter, Keystore and SharedPreferences storage, the activity) needs a real
-// phone and is covered by the phone checklist instead. docs/testing.md lists these exclusions;
+// MifareClassic adapter, Keystore and SharedPreferences storage, the activity, the UnifiedPush
+// connector and showing notifications) needs a real phone and is covered by the phone
+// checklist instead. docs/testing.md lists these exclusions;
 // change it with this list. Each flavor is tested and gated on its own (coverageReportGoogle,
 // coverageCheckFoss, ...); coverageReport and coverageCheck run both.
 def coverageExcludes = [
     '**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*',
     '**/MainActivity*', '**/FilamentTrackerPlugin*', '**/AndroidMifare*',
     '**/KeystoreKey*', '**/PrefsValues*',
+    '**/UnifiedPush*', '**/Notifier*',
 ]
 
 ['google', 'foss'].each { flavor ->

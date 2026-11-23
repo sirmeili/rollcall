@@ -21,6 +21,18 @@ export interface BackPress {
   canGoBack: boolean;
 }
 
+/** How this phone gets phone notifications: through a UnifiedPush distributor such as ntfy,
+ * or not at all. */
+export type PushRoute = "unifiedpush" | "none";
+
+/** Where a push service delivers this phone's notifications, with its Web Push keys
+ * (base64url), as the route gave them. */
+export interface PushEndpoint {
+  url: string;
+  p256dh: string;
+  auth: string;
+}
+
 export interface PhoneBridge {
   /** True only inside the Android app. */
   readonly app: boolean;
@@ -39,6 +51,21 @@ export interface PhoneBridge {
   onBack(listener: (press: BackPress) => void): () => void;
   /** Send the app to the background, keeping it running (not finishing it). */
   background(): Promise<void>;
+  /** The route this phone would get phone notifications by. */
+  pushRoute(): Promise<PushRoute>;
+  /** Register with the route, for pushes signed with the server's VAPID public key. The
+   * endpoint arrives later, through `onPushEndpoint`. */
+  pushRegister(vapidKey: string): Promise<void>;
+  /** Stop getting phone notifications through the route. */
+  pushUnregister(): Promise<void>;
+  /** The endpoint the route last gave, or null when not registered. */
+  pushEndpoint(): Promise<PushEndpoint | null>;
+  /** Call `listener` each time the route gives a new endpoint, or null when it drops this
+   * phone, until the returned function is called. */
+  onPushEndpoint(listener: (endpoint: PushEndpoint | null) => void): () => void;
+  /** Call `listener` with the page of each tapped phone notification, including the one
+   * that opened the app. */
+  onNotificationOpen(listener: (path: string) => void): () => void;
 }
 
 function notInApp(): Promise<never> {
@@ -57,6 +84,13 @@ export const browserBridge: PhoneBridge = {
   // A browser's Back is its own: never reported, and there is no background to go to.
   onBack: () => () => {},
   background: () => Promise.resolve(),
+  // A browser gets no phone notifications.
+  pushRoute: () => Promise.resolve("none"),
+  pushRegister: notInApp,
+  pushUnregister: notInApp,
+  pushEndpoint: () => Promise.resolve(null),
+  onPushEndpoint: () => () => {},
+  onNotificationOpen: () => () => {},
 };
 
 let current: PhoneBridge = browserBridge;

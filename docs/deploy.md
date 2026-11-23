@@ -215,6 +215,34 @@ Then check from a phone on mobile data: the app's pages load (no Access sign-in)
 To replace the token (or before it expires): make a new one in Cloudflare, add it to the Service Auth policy, save it in RollCall's Settings, and remove the old one from the policy once every phone has been opened at home. A phone that missed the change is let in again the next time it is home. Clearing the two fields in Settings takes the token off the phones the same way.
 
 
+### ntfy (optional)
+
+Phone notifications reach a phone through a UnifiedPush distributor app on it, usually [ntfy](https://ntfy.sh/) (see [android/README.md](../android/README.md#phone-notifications)). The ntfy app uses the public ntfy.sh server unless set to another. RollCall encrypts each push for the phone, so ntfy.sh sees only encrypted contents and the push's size and time. To keep even that at home, run your own ntfy server with the optional `ntfy` service in `compose.yaml`, reached through the tunnel so phones get pushes away from home too:
+
+1. Pick a hostname for it, such as `ntfy.example.com`, and set it in `.env` (in Portainer, under the stack's Environment variables):
+
+   ```sh
+   NTFY_BASE_URL=https://ntfy.example.com
+   ```
+
+2. Add the `ntfy` service to the tunnel's network, as for RollCall in [A Cloudflare Tunnel](#a-cloudflare-tunnel), step 3:
+
+   ```yaml
+   services:
+     ntfy:
+       # ...as in compose.yaml...
+       networks:
+         - default
+         - rollcall-tunnel
+   ```
+
+3. Start it: `docker compose --profile ntfy up -d` (in Portainer, add `COMPOSE_PROFILES=ntfy` to the stack's Environment variables and Update the stack).
+4. In the Cloudflare dashboard, add a Public Hostname for `ntfy.example.com` on the same tunnel, pointing at `http://rollcall-ntfy:8080`.
+5. Do not put this hostname behind Cloudflare Access: RollCall's server sends pushes to it, and the ntfy app keeps a connection open to it, and neither can sign in to Access. RollCall's pushes go to random topics and are encrypted, and ntfy's own [access control](https://docs.ntfy.sh/config/#access-control) can lock down everything else.
+6. On each phone, in the ntfy app, set Settings › Default server to `https://ntfy.example.com`. On a phone already getting RollCall's notifications, also delete RollCall's subscription in the ntfy app. Then open RollCall: it registers with the new server.
+
+Then check: `https://ntfy.example.com` opens ntfy's web app from a phone on mobile data, and a phone with RollCall registered shows a subscription to that server in the ntfy app.
+
 ## 6. Scanners, the phone app and Home Assistant
 
 - **Phone app and scanners**: on the Devices page, register a scanner and pair the phone with its QR code, from home. For the phone, use the `https://` hostname if you set up HTTPS at home (above), so the app works at home and away; otherwise `http://<server>:8000`, which works only at home. Scanners stay on the LAN.
