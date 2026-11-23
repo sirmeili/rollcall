@@ -80,6 +80,7 @@ function serve(routes: Parameters<typeof fakeFetch>[0]) {
     "GET /settings/scanners": { group: "scanners", settings: [] },
     "GET /settings/home-assistant": { group: "home-assistant", settings: [] },
     "GET /tokens": [],
+    "GET /settings/phone-notifications": { group: "phone-notifications", settings: [] },
     "GET /settings/email": { group: "email", settings: [] },
     "GET /settings/email/status": { on: false, last_success: null, last_failure: null },
     "GET /settings/catalog": catalogSettings(),

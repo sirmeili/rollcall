@@ -1,18 +1,28 @@
 /** Registering a user's phone for phone notifications, with the signed-in session.
  *
  * On start, on signing in and when provisioning first says this is a user's phone, the phone
- * registers with its route (a UnifiedPush distributor) using the server's VAPID public key,
- * and sends the endpoint the route gave to the server. A new endpoint from the route is sent
+ * is given the server's Firebase settings, if any, then registers with its route (a
+ * UnifiedPush distributor, else FCM in the google flavor) using the server's VAPID public
+ * key, and sends the endpoint the route gave to the server. A new endpoint from the route is sent
  * at once; if the user is signed out then, it is sent on the next sign-in, which sends the
  * current endpoint again. A shared phone never registers. The routes answer from anywhere,
  * so this works away from home (server/README.md, Phone notifications).
  */
 
 import { api, ApiError } from "#lib/api/client.ts";
-import type { PhoneBridge, PushEndpoint } from "#lib/phone/bridge.ts";
+import type { FirebaseClient, PhoneBridge, PushEndpoint } from "#lib/phone/bridge.ts";
 
 /** How the server sends to an endpoint from a UnifiedPush distributor: RFC 8030 Web Push. */
 const WEB_PUSH = "web_push";
+/** How the server sends to an FCM token: Google's push service (FCM). */
+const FCM = "fcm";
+
+/** What a user's phone registers with: the server's VAPID public key, and Firebase's client
+ * settings when the server sends through FCM. */
+interface PushConfig {
+  vapid_public_key: string;
+  firebase?: FirebaseClient | null;
+}
 
 export class PhonePush {
   private running: Promise<void> | null = null;
@@ -61,18 +71,16 @@ export class PhonePush {
 
   private async register(): Promise<void> {
     if (!this.userPhone()) return;
-    if ((await this.native.pushRoute()) === "none") return;
-    let vapidKey: string;
+    let config: PushConfig;
     try {
-      ({ vapid_public_key: vapidKey } = await api<{ vapid_public_key: string }>(
-        "/push/config",
-        {},
-        this.fetchFn,
-      ));
+      config = await api<PushConfig>("/push/config", {}, this.fetchFn);
     } catch {
       return;
     }
-    await this.native.pushRegister(vapidKey);
+    // The google flavor starts Firebase from these, and may restart to use new ones.
+    if ((await this.native.pushConfigure(config.firebase ?? null)).restarting) return;
+    if ((await this.native.pushRoute()) === "none") return;
+    await this.native.pushRegister(config.vapid_public_key);
     const endpoint = await this.native.pushEndpoint();
     if (endpoint) await this.send(endpoint);
   }
@@ -91,12 +99,10 @@ export class PhonePush {
    * then this phone stops getting pushes through its route. Other failures wait for the
    * next sign-in or start. */
   private async send(endpoint: PushEndpoint): Promise<void> {
-    const body = {
-      route: WEB_PUSH,
-      endpoint: endpoint.url,
-      p256dh: endpoint.p256dh,
-      auth: endpoint.auth,
-    };
+    const body =
+      endpoint.route === FCM
+        ? { route: FCM, endpoint: endpoint.url }
+        : { route: WEB_PUSH, endpoint: endpoint.url, p256dh: endpoint.p256dh, auth: endpoint.auth };
     try {
       await api(this.path(), { method: "PUT", body }, this.fetchFn);
     } catch (error) {

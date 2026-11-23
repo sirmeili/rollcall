@@ -32,6 +32,9 @@ function fakePlugin() {
     secureRemove: vi.fn(async ({ key }: { key: string }) => {
       storage.delete(key);
     }),
+    pushConfigure: vi.fn(
+      async (_options: { firebase: unknown }): Promise<{ restarting?: boolean }> => ({}),
+    ),
     pushRoute: vi.fn(async () => ({ route: "unifiedpush" as const })),
     pushRegister: vi.fn(async (_options: { vapidKey: string }) => {}),
     pushUnregister: vi.fn(async () => {}),
@@ -170,6 +173,19 @@ describe("phone notifications, through the plugin", () => {
     expect(await native.pushEndpoint()).toBeNull();
     fake.plugin.pushRoute.mockResolvedValue({ route: "none" } as never);
     expect(await native.pushRoute()).toBe("none");
+  });
+
+  it("gives the plugin the server's Firebase settings and says when the app restarts", async () => {
+    const fake = fakePlugin();
+    const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
+    const firebase = { project_id: "p", app_id: "a", api_key: "k", sender_id: "1" };
+
+    expect(await native.pushConfigure(null)).toEqual({ restarting: false });
+    fake.plugin.pushConfigure.mockResolvedValue({ restarting: true });
+    expect(await native.pushConfigure(firebase)).toEqual({ restarting: true });
+
+    expect(fake.plugin.pushConfigure).toHaveBeenCalledWith({ firebase: null });
+    expect(fake.plugin.pushConfigure).toHaveBeenCalledWith({ firebase });
   });
 
   it("registers with the server's VAPID key, and unregisters", async () => {

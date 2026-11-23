@@ -168,14 +168,26 @@ describe("phone notifications on a user's phone", () => {
     session.stop();
   });
 
-  it("asks the server nothing when the phone has no route", async () => {
+  it("registers nothing when the phone has no route", async () => {
     native.route = "none";
     const { fetch } = server();
 
     const session = await userPhone(fetch);
 
     expect(native.registrations).toEqual([]);
-    expect(fetch.calls.some((call) => call.url.includes("/push/"))).toBe(false);
+    // Only the push configuration is read: with Firebase in it, the google flavor may then
+    // have a route.
+    expect(fetch.calls.filter((call) => call.url.includes("/push/devices/"))).toEqual([]);
+    session.stop();
+  });
+
+  it("gives the phone no Firebase settings when the server has none", async () => {
+    native.endpoint = ENDPOINT;
+    const { fetch } = server();
+
+    const session = await userPhone(fetch);
+
+    expect(native.firebaseSettings).toEqual([null]);
     session.stop();
   });
 
@@ -203,6 +215,72 @@ describe("phone notifications on a user's phone", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(sent).toEqual([]);
+  });
+});
+
+describe("phone notifications through Google's push service (FCM)", () => {
+  const FIREBASE = {
+    project_id: "rollcall-test",
+    app_id: "1:123:android:abc",
+    api_key: "AIzaKey",
+    sender_id: "123",
+  };
+  const TOKEN = { route: "fcm" as const, url: "fcm-token:abc" };
+
+  function firebaseServer() {
+    const sent: unknown[] = [];
+    const fetch = fakeFetch({
+      "POST /api/v1/devices/heartbeat": () => ({ status: 204 }),
+      "GET /api/v1/push/config": () => ({
+        status: 200,
+        body: { vapid_public_key: VAPID, firebase: FIREBASE },
+      }),
+      [`PUT ${DEVICE_PATH}`]: (body) => {
+        sent.push(body);
+        return { status: 200, body: {} };
+      },
+    });
+    return { sent, fetch };
+  }
+
+  it("gives the phone the server's Firebase settings before choosing the route", async () => {
+    // Without a distributor, the google flavor has a route only once Firebase is set up.
+    native.route = "none";
+    native.routeWithFirebase = "fcm";
+    native.endpoint = TOKEN;
+    const { sent, fetch } = firebaseServer();
+
+    const session = await userPhone(fetch);
+
+    expect(native.firebaseSettings).toEqual([FIREBASE]);
+    expect(native.registrations).toEqual([VAPID]);
+    expect(sent).toEqual([{ route: "fcm", endpoint: TOKEN.url }]);
+    session.stop();
+  });
+
+  it("sends a new FCM token at once", async () => {
+    native.route = "fcm";
+    const { sent, fetch } = firebaseServer();
+    const session = await userPhone(fetch);
+
+    native.changeEndpoint({ route: "fcm", url: "fcm-token:new" });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(sent).toEqual([{ route: "fcm", endpoint: "fcm-token:new" }]);
+    session.stop();
+  });
+
+  it("registers nothing while the app restarts for new Firebase settings", async () => {
+    native.route = "fcm";
+    native.restartsForFirebase = true;
+    native.endpoint = TOKEN;
+    const { sent, fetch } = firebaseServer();
+
+    const session = await userPhone(fetch);
+
+    expect(native.registrations).toEqual([]);
+    expect(sent).toEqual([]);
+    session.stop();
   });
 });
 

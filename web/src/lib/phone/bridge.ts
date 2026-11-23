@@ -22,15 +22,21 @@ export interface BackPress {
 }
 
 /** How this phone gets phone notifications: through a UnifiedPush distributor such as ntfy,
- * or not at all. */
-export type PushRoute = "unifiedpush" | "none";
+ * through Google's push service (FCM, "via Google", in the google flavor only), or not at
+ * all. */
+export type PushRoute = "unifiedpush" | "fcm" | "none";
 
-/** Where a push service delivers this phone's notifications, with its Web Push keys
- * (base64url), as the route gave them. */
-export interface PushEndpoint {
-  url: string;
-  p256dh: string;
-  auth: string;
+/** Where a push service delivers this phone's notifications, as the route gave them: a Web
+ * Push URL with its keys (base64url), or, for the route `fcm`, an FCM token in `url`. */
+export type PushEndpoint =
+  { route?: "web_push"; url: string; p256dh: string; auth: string } | { route: "fcm"; url: string };
+
+/** The Firebase client settings the server gives a user's phone when it sends through FCM. */
+export interface FirebaseClient {
+  project_id: string;
+  app_id: string;
+  api_key: string;
+  sender_id: string;
 }
 
 export interface PhoneBridge {
@@ -51,6 +57,9 @@ export interface PhoneBridge {
   onBack(listener: (press: BackPress) => void): () => void;
   /** Send the app to the background, keeping it running (not finishing it). */
   background(): Promise<void>;
+  /** Give the phone the server's Firebase settings (null: none), before asking its route.
+   * `restarting` when the app restarts itself to use them. */
+  pushConfigure(firebase: FirebaseClient | null): Promise<{ restarting: boolean }>;
   /** The route this phone would get phone notifications by. */
   pushRoute(): Promise<PushRoute>;
   /** Register with the route, for pushes signed with the server's VAPID public key. The
@@ -85,6 +94,7 @@ export const browserBridge: PhoneBridge = {
   onBack: () => () => {},
   background: () => Promise.resolve(),
   // A browser gets no phone notifications.
+  pushConfigure: () => Promise.resolve({ restarting: false }),
   pushRoute: () => Promise.resolve("none"),
   pushRegister: notInApp,
   pushUnregister: notInApp,

@@ -51,6 +51,7 @@ function serve(routes: Parameters<typeof fakeFetch>[0]) {
     "GET /settings/catalog": { group: "catalog", settings: [] },
     "GET /catalog/sync": { colors: 0, ofdb: NEVER_SYNCED, bambustudio: NEVER_SYNCED },
     "GET /tokens": [],
+    "GET /settings/phone-notifications": { group: "phone-notifications", settings: [] },
     "GET /settings/email": EMAIL,
     "GET /settings/email/status": NOTHING_SENT,
     ...routes,
