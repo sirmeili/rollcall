@@ -7,6 +7,7 @@ import type {
   DeviceOut,
   EventOut,
   EventSource,
+  NotificationChoice,
   Page,
   PrinterOut,
   Product,
@@ -189,11 +190,11 @@ export function updateUser(id: number, changes: UserChanges): Promise<UserOut> {
 export interface AccountChanges {
   /** Empty removes it. */
   email?: string;
-  email_on_request_change?: boolean;
-  email_on_new_request?: boolean;
+  /** Notification choices to store; kinds left out keep what they have. */
+  notifications?: NotificationChoice[];
 }
 
-/** Change one's own account: the email address and the email switches. */
+/** Change one's own account: the email address and notification settings. */
 export function updateAccount(changes: AccountChanges): Promise<Me> {
   return api<Me>("/auth/me", { method: "PATCH", body: changes });
 }

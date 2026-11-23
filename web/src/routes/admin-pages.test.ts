@@ -2,7 +2,14 @@ import { render, screen, waitFor, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
-import type { DeviceOut, PrinterOut, ReviewOut, UserOut } from "#lib/api/types.ts";
+import type {
+  DeviceOut,
+  NotificationKind,
+  NotificationSetting,
+  PrinterOut,
+  ReviewOut,
+  UserOut,
+} from "#lib/api/types.ts";
 import type { Role } from "#lib/roles.ts";
 import { viewport } from "#lib/viewport.svelte.ts";
 import { event, me, product, spoolDetail, spoolRow } from "../test/fixtures.ts";
@@ -964,89 +971,135 @@ describe("Account page", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("use an email address like");
   });
 
-  it("offers every user the request-change switch, on by default", async () => {
-    session.user = me("viewer");
+  /** The user's Email setting for each kind, as the server gives them. */
+  function settings(...rows: [NotificationKind, boolean, boolean?][]): NotificationSetting[] {
+    return rows.map(([kind, on, isDefault = true]) => ({
+      kind,
+      channel: "email",
+      on,
+      default: isDefault,
+    }));
+  }
+
+  function emailSwitch(kind: string): HTMLElement {
+    return screen.getByRole("checkbox", { name: `Email: ${kind}` });
+  }
+
+  it("lists the notifications the user's role can see, each with an Email switch", async () => {
+    session.user = me("viewer", {
+      requester: true,
+      email: "sam@example.com",
+      notifications: settings(["request_update", true], ["new_photo", false, false]),
+    });
     render(AccountPage);
 
-    expect(
-      screen.getByRole("checkbox", { name: "Email me when my requests change" }),
-    ).toBeChecked();
-    expect(
-      screen.queryByRole("checkbox", { name: "Email me when a request is submitted" }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Email isn't set up on this server.")).not.toBeInTheDocument();
+    const list = screen.getByRole("region", { name: "Notifications" });
+    expect(within(list).getAllByRole("checkbox")).toHaveLength(2);
+    expect(within(list).getByText("Request update")).toBeInTheDocument();
+    expect(within(list).getByText("New photo")).toBeInTheDocument();
+    expect(emailSwitch("Request update")).toBeChecked();
+    expect(emailSwitch("New photo")).not.toBeChecked();
+    expect(emailSwitch("New photo")).toBeEnabled();
+    expect(screen.queryByRole("checkbox", { name: "Email: New request" })).toBeNull();
   });
 
-  it("offers Admins the new-request switch too", async () => {
+  it("shows New request to Editors, off unless they chose it", async () => {
+    session.user = me("editor", {
+      email: "eddie@example.com",
+      notifications: settings(["new_request", false]),
+    });
     render(AccountPage);
 
-    expect(
-      screen.getByRole("checkbox", { name: "Email me when my requests change" }),
-    ).toBeChecked();
-    expect(
-      screen.getByRole("checkbox", { name: "Email me when a request is submitted" }),
-    ).toBeChecked();
+    expect(emailSwitch("New request")).not.toBeChecked();
+    expect(screen.getByText("A print request is submitted.")).toBeInTheDocument();
   });
 
-  it("turns a switch off and on", async () => {
-    admin.updateAccount.mockResolvedValue(me("admin", { email_on_new_request: false }));
+  it("leaves the list out when the role has nothing to choose", async () => {
+    session.user = me("viewer", { notifications: [] });
     render(AccountPage);
 
-    const box = screen.getByRole("checkbox", { name: "Email me when a request is submitted" });
+    expect(screen.queryByRole("region", { name: "Notifications" })).toBeNull();
+  });
+
+  it("turns a notification off and on", async () => {
+    session.user = me("admin", {
+      email: "frank@example.com",
+      notifications: settings(["new_request", true]),
+    });
+    admin.updateAccount.mockResolvedValue(
+      me("admin", {
+        email: "frank@example.com",
+        notifications: settings(["new_request", false, false]),
+      }),
+    );
+    render(AccountPage);
+
+    const box = emailSwitch("New request");
     await userEvent.click(box);
 
-    expect(admin.updateAccount).toHaveBeenCalledWith({ email_on_new_request: false });
+    expect(admin.updateAccount).toHaveBeenCalledWith({
+      notifications: [{ kind: "new_request", channel: "email", on: false }],
+    });
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "You won't be emailed when a request is submitted.",
+      "You won't be emailed when a print request is submitted.",
     );
-    expect(session.user?.email_on_new_request).toBe(false);
+    expect(session.user?.notifications[0]?.on).toBe(false);
     expect(box).not.toBeChecked();
 
-    admin.updateAccount.mockResolvedValue(me("admin", { email_on_request_change: false }));
-    await userEvent.click(
-      screen.getByRole("checkbox", { name: "Email me when my requests change" }),
+    admin.updateAccount.mockResolvedValue(
+      me("admin", {
+        email: "frank@example.com",
+        notifications: settings(["new_request", true, false]),
+      }),
     );
+    await userEvent.click(box);
 
-    expect(admin.updateAccount).toHaveBeenLastCalledWith({ email_on_request_change: false });
+    expect(admin.updateAccount).toHaveBeenLastCalledWith({
+      notifications: [{ kind: "new_request", channel: "email", on: true }],
+    });
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "You won't be emailed when your requests change.",
+      "You'll be emailed when a print request is submitted.",
     );
-  });
-
-  it("says when turning a switch on", async () => {
-    session.user = me("viewer", { email_on_request_change: false });
-    admin.updateAccount.mockResolvedValue(me("viewer"));
-    render(AccountPage);
-
-    await userEvent.click(
-      screen.getByRole("checkbox", { name: "Email me when my requests change" }),
-    );
-
-    expect(admin.updateAccount).toHaveBeenCalledWith({ email_on_request_change: true });
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "You'll be emailed when your requests change.",
-    );
+    expect(box).toBeChecked();
   });
 
   it("explains a switch that couldn't be saved, and puts it back", async () => {
+    session.user = me("viewer", {
+      requester: true,
+      email: "sam@example.com",
+      notifications: settings(["request_update", true]),
+    });
     admin.updateAccount.mockRejectedValue(new ApiError(0, "network"));
     render(AccountPage);
 
-    const box = screen.getByRole("checkbox", { name: "Email me when my requests change" });
+    const box = emailSwitch("Request update");
     await userEvent.click(box);
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(box).toBeChecked();
   });
 
-  it("says when email isn't set up on this server", async () => {
-    session.user = me("admin", { email_set_up: false });
+  it("makes the Email switches unavailable without an address, and says why", async () => {
+    session.user = me("admin", { email: null, notifications: settings(["new_request", true]) });
     render(AccountPage);
 
-    expect(screen.getByText("Email isn't set up on this server.")).toBeInTheDocument();
+    expect(emailSwitch("New request")).toBeDisabled();
     expect(
-      screen.getByRole("checkbox", { name: "Email me when my requests change" }),
-    ).toBeChecked();
+      screen.getByText("Add an email address to get notifications by email."),
+    ).toBeInTheDocument();
+  });
+
+  it("makes the Email switches unavailable when email is off on this server", async () => {
+    session.user = me("admin", {
+      email: "frank@example.com",
+      email_set_up: false,
+      notifications: settings(["new_request", true]),
+    });
+    render(AccountPage);
+
+    expect(emailSwitch("New request")).toBeDisabled();
+    expect(screen.getByText("Email is off on this server.")).toBeInTheDocument();
+    expect(screen.queryByText("Add an email address to get notifications by email.")).toBeNull();
   });
 
   it("shows the meter's progress", async () => {
