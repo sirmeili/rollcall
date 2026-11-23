@@ -21,7 +21,10 @@ def _setting(kind: str, on: bool, *, default: bool = True) -> dict[str, object]:
 def test_a_viewer_who_isnt_a_requester_has_only_low_stock(app: FastAPI, client: TestClient) -> None:
     me = signed_in(app, Role.VIEWER).get(ACCOUNT).json()
 
-    assert me["notifications"] == [_setting("low_stock", False)]
+    assert me["notifications"] == [
+        _setting("low_stock", False),
+        _setting("nearly_out", False),
+    ]
 
 
 def test_a_requester_hears_about_their_requests_by_default(
@@ -33,6 +36,7 @@ def test_a_requester_hears_about_their_requests_by_default(
         _setting("request_update", True),
         _setting("new_photo", True),
         _setting("low_stock", False),
+        _setting("nearly_out", False),
     ]
 
 
@@ -46,6 +50,7 @@ def test_new_requests_are_on_for_admins_and_off_for_editors(
         _setting("new_request", False),
         _setting("low_stock", False),
         _setting("suggestion", False),
+        _setting("nearly_out", False),
     ]
     assert boss["notifications"] == [
         _setting("new_request", True),
@@ -53,6 +58,7 @@ def test_new_requests_are_on_for_admins_and_off_for_editors(
         _setting("new_photo", True),
         _setting("low_stock", False),
         _setting("suggestion", False),
+        _setting("nearly_out", False),
         _setting("backup_failed", False),
     ]
 
@@ -117,6 +123,7 @@ def test_a_user_turns_a_notification_off_and_on(app: FastAPI, client: TestClient
         _setting("new_photo", False, default=False),
         _setting("low_stock", False),
         _setting("suggestion", False),
+        _setting("nearly_out", False),
         _setting("backup_failed", False),
     ]
     back = user.patch(
@@ -141,6 +148,7 @@ def test_an_editor_can_choose_new_request_emails(app: FastAPI, client: TestClien
         _setting("new_request", True, default=False),
         _setting("low_stock", False),
         _setting("suggestion", False),
+        _setting("nearly_out", False),
     ]
 
 
@@ -165,6 +173,7 @@ def test_a_kind_outside_the_role_is_refused_and_nothing_changes(
         _setting("request_update", True),
         _setting("new_photo", True),
         _setting("low_stock", False),
+        _setting("nearly_out", False),
     ]
 
 
@@ -205,13 +214,17 @@ def test_choices_kept_when_the_role_changes_apply_again(app: FastAPI, client: Te
     )
 
     client.patch(f"/api/v1/users/{editor_id}", json={"role": "viewer"}, headers=admin())
-    assert editor.get(ACCOUNT).json()["notifications"] == [_setting("low_stock", False)]
+    assert editor.get(ACCOUNT).json()["notifications"] == [
+        _setting("low_stock", False),
+        _setting("nearly_out", False),
+    ]
     client.patch(f"/api/v1/users/{editor_id}", json={"role": "editor"}, headers=admin())
 
     assert editor.get(ACCOUNT).json()["notifications"] == [
         _setting("new_request", True, default=False),
         _setting("low_stock", False),
         _setting("suggestion", False),
+        _setting("nearly_out", False),
     ]
 
 

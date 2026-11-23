@@ -48,6 +48,7 @@ from filament_tracker.mail.smtp import SmtpSender
 from filament_tracker.mail.transport import MailTransport
 from filament_tracker.notifications.backup import backup_failed_sender
 from filament_tracker.notifications.low_stock import LowStockEmails
+from filament_tracker.notifications.nearly_out import NearlyOutEmails
 from filament_tracker.poll import Poll
 from filament_tracker.print_requests import retrying
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
@@ -115,7 +116,11 @@ def create_app(
         # Always running, Home Assistant or not (ADR-0009).
         poll = Poll(
             app.state.session_factory,
-            [LowStockEmails(mail, lambda: store.text("public_url")), home_assistant.changed],
+            [
+                LowStockEmails(mail, lambda: store.text("public_url")),
+                NearlyOutEmails(mail, lambda: store.text("public_url")),
+                home_assistant.changed,
+            ],
         )
         app.state.poll = poll
         poll.start()

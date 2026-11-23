@@ -44,6 +44,7 @@ def test_login_sets_a_strict_session_cookie_and_returns_the_user(
             {"kind": "new_request", "channel": "email", "on": False, "default": True},
             {"kind": "low_stock", "channel": "email", "on": False, "default": True},
             {"kind": "suggestion", "channel": "email", "on": False, "default": True},
+            {"kind": "nearly_out", "channel": "email", "on": False, "default": True},
         ],
         "email_set_up": False,
     }
