@@ -129,6 +129,22 @@ def test_a_photo_added_later_emails_the_requester_with_the_photo_inline(
     assert f'<a href="{link}">Open the request</a>' in html
 
 
+def test_a_photo_added_later_emails_a_former_requester(
+    app: FastAPI,
+    client: TestClient,
+    sam: TestClient,
+    frank: TestClient,
+    outbox: FakeOutbox,
+    done_id: int,
+) -> None:
+    sam_id = sam.get("/api/v1/auth/me").json()["id"]
+    client.patch(f"/api/v1/users/{sam_id}", json={"requester": False}, headers=admin())
+
+    assert add_photos(frank, done_id, uploaded_photo(frank, jpeg((800, 600)))).status_code == 200
+
+    assert [m["To"] for m in sent(app, outbox)] == ["sam@example.com"]
+
+
 def test_a_photo_added_after_pick_up_emails_the_requester(
     app: FastAPI, frank: TestClient, outbox: FakeOutbox, done_id: int
 ) -> None:

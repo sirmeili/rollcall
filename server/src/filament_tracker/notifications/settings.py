@@ -34,8 +34,9 @@ class Choice:
     on: bool
 
 
-def notification_settings(session: Session, user: User) -> list[Setting]:
-    """The user's setting for each kind they may choose, on each channel, in kind order."""
+def notification_settings(session: Session, user: User, *, has_requests: bool) -> list[Setting]:
+    """The user's setting for each kind they may choose, on each channel, in kind order.
+    `has_requests` says whether they have made a request."""
     chosen = {
         (row.kind, row.channel): row.on
         for row in session.scalars(
@@ -44,7 +45,7 @@ def notification_settings(session: Session, user: User) -> list[Setting]:
     }
     settings = []
     for kind in KINDS:
-        if not may_choose(user, kind):
+        if not may_choose(user, kind, has_requests=has_requests):
             continue
         for channel in Channel:
             on = chosen.get((kind, channel))
@@ -55,10 +56,11 @@ def notification_settings(session: Session, user: User) -> list[Setting]:
     return settings
 
 
-def choose(session: Session, user: User, choices: Iterable[Choice]) -> None:
-    """Store the user's own choices. Refuses them all if any is a kind they can't see."""
+def choose(session: Session, user: User, choices: Iterable[Choice], *, has_requests: bool) -> None:
+    """Store the user's own choices. Refuses them all if any is a kind they can't see.
+    `has_requests` says whether they have made a request."""
     choices = list(choices)
-    if not all(may_choose(user, c.kind) for c in choices):
+    if not all(may_choose(user, c.kind, has_requests=has_requests) for c in choices):
         raise NotChoosable(NOT_YOURS_TO_CHOOSE)
     for choice in choices:
         session.merge(
