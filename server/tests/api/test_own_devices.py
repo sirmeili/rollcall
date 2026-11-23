@@ -215,6 +215,18 @@ def test_provisioning_tells_a_phone_whether_it_records(db_url: str) -> None:
         assert client.get(url, headers=bearer(shared)).json()["records"] is True
 
 
+def test_provisioning_tells_a_phone_whether_it_is_a_users_phone(db_url: str) -> None:
+    # Only a user's phone registers for phone notifications; a shared phone never does.
+    app = salted_app(db_url)
+    with TestClient(app, base_url=BASE_URL, client=LAN_CLIENT) as client:
+        own = set_up(signed_in(app, Role.VIEWER))
+        shared = register(client)
+        url = "/api/v1/devices/provisioning"
+
+        assert client.get(url, headers=bearer(own["token"])).json()["user_phone"] is True
+        assert client.get(url, headers=bearer(shared)).json()["user_phone"] is False
+
+
 # --- Sessions in use stay alive ---------------------------------------------------------
 
 
