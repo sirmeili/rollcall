@@ -57,7 +57,7 @@ KINDS: dict[NotificationKind, Kind] = {
         Kind(NotificationKind.LOW_STOCK, _everyone, {Channel.EMAIL: _off}),
         Kind(NotificationKind.SUGGESTION, _editors, {Channel.EMAIL: _off}),
         Kind(NotificationKind.NEARLY_OUT, _everyone, {Channel.EMAIL: _off}),
-        Kind(NotificationKind.BACKUP_FAILED, _admins, {Channel.EMAIL: _off}),
+        Kind(NotificationKind.BACKUP_FAILED, _admins, {Channel.EMAIL: _off}, sent=True),
     )
 }
 
