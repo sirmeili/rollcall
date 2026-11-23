@@ -27,6 +27,8 @@ class PushEndpoint(Base):
     last_success_at: Mapped[datetime | None]
     # Notifications given up on since the last success (or registering).
     failures: Mapped[int] = mapped_column(default=0)
+    # When the first of those was given up; None while there are none.
+    failing_since: Mapped[datetime | None]
 
     device: Mapped[Device] = relationship()
 

@@ -225,6 +225,7 @@ class PushSender:
     def _succeeded(self, session: Session, endpoint: PushEndpoint) -> None:
         endpoint.last_success_at = self._clock()
         endpoint.failures = 0
+        endpoint.failing_since = None
 
     def _drop(self, session: Session, endpoint: PushEndpoint) -> None:
         session.delete(endpoint)
@@ -239,6 +240,8 @@ class PushSender:
 
         def count(session: Session, endpoint: PushEndpoint) -> None:
             endpoint.failures += 1
+            if endpoint.failing_since is None:
+                endpoint.failing_since = self._clock()
             since = endpoint.last_success_at or endpoint.registered_at
             if self._clock() - since >= STALE_AFTER:
                 session.delete(endpoint)

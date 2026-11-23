@@ -271,3 +271,26 @@ def test_an_fcm_phone_follows_the_same_failure_rules(
     wait_for(lambda: pushes.attempts == 4)
     wait_for(lambda: _endpoint(sessions) is None)
     sender.stop()
+
+
+def test_the_start_of_failures_since_the_last_success_is_kept(
+    sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session]
+) -> None:
+    pushes.answer(*[503] * 8)
+
+    sender.send_later([PUSH])
+    wait_for(lambda: pushes.attempts == 4)
+    wait_for(sender.idle)
+    first = _endpoint(sessions)
+    assert first is not None and first.failing_since is not None
+    sender.send_later([PUSH])
+    wait_for(lambda: pushes.attempts == 8)
+    wait_for(sender.idle)
+    second = _endpoint(sessions)
+    assert second is not None and second.failures == 2
+    assert second.failing_since == first.failing_since
+
+    sender.send_later([PUSH])
+    wait_for(sender.idle)
+    cleared = _endpoint(sessions)
+    assert cleared is not None and cleared.failing_since is None
