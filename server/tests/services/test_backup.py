@@ -21,6 +21,7 @@ from filament_tracker.services.backup import (
     backup_name,
     backups,
     next_run,
+    one_line,
     prune,
 )
 
@@ -228,6 +229,46 @@ def test_a_failed_backup_is_logged_and_tried_the_next_night(
 
     assert scheduler.run_once(at("2026-11-10T03:00:00Z")) is None
     assert "nightly backup failed" in caplog.text
+
+
+def test_a_failed_backup_tells_the_reason_in_one_line(tmp_path: Path) -> None:
+    told: list[str] = []
+    database = tmp_path / "filament.db"
+    database.write_text("not a database\nat all")
+    scheduler = BackupScheduler(database, tmp_path / "b", lambda: "UTC", on_failure=told.append)
+
+    assert scheduler.run_once(at("2026-11-10T03:00:00Z")) is None
+
+    assert told == ["file is not a database"]
+
+
+def test_telling_never_affects_the_backups(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    def broken(reason: str) -> None:
+        raise RuntimeError("the mail went wrong")
+
+    folder = tmp_path / "backups"
+    folder.write_text("a file where the folder should be")
+    scheduler = BackupScheduler(
+        _database(tmp_path / "filament.db"), folder, lambda: "UTC", on_failure=broken
+    )
+
+    assert scheduler.run_once(at("2026-11-10T03:00:00Z")) is None
+    assert "couldn't tell anyone the backup failed" in caplog.text
+    folder.unlink()
+    assert scheduler.run_once(at("2026-11-11T03:00:00Z")) is not None
+
+
+@pytest.mark.parametrize(
+    ("error", "reason"),
+    [
+        (OSError("Disk full.\nTry again"), "Disk full"),
+        (sqlite3.Error(), "Error"),
+    ],
+)
+def test_the_reason_is_the_first_line_without_a_full_stop(error: Exception, reason: str) -> None:
+    assert one_line(error) == reason
 
 
 def test_start_and_stop_run_a_real_thread(tmp_path: Path) -> None:

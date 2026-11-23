@@ -93,8 +93,11 @@ class BackupScheduler:
         keep: int = KEEP,
         clock: Callable[[], datetime] = utcnow,
         wait: Callable[[float], bool] | None = None,
+        on_failure: Callable[[str], None] | None = None,
     ) -> None:
         self.source, self.folder, self.keep = source, folder, keep
+        # Told the one-line reason when a backup fails (the Backup failed emails).
+        self._on_failure = on_failure
         self._time_zone = time_zone
         self._clock = clock
         self._stopped = threading.Event()
@@ -126,12 +129,29 @@ class BackupScheduler:
             self.run_once(now)
 
     def run_once(self, now: datetime) -> Path | None:
-        """One backup and prune. A failure is logged and retried the next night."""
+        """One backup and prune. A failure is logged, told to `on_failure`, and retried the
+        next night."""
         try:
             path = backup_database(self.source, self.folder, now)
             removed = prune(self.folder, self.keep)
         except (OSError, sqlite3.Error) as error:
             logger.error("nightly backup failed: %s", error)
+            self._tell(one_line(error))
             return None
         logger.info("backup written: %s (%d old removed)", path.name, len(removed))
         return path
+
+    def _tell(self, reason: str) -> None:
+        """Tell `on_failure`. Telling never affects the backups: its failure is only logged."""
+        if self._on_failure is None:
+            return
+        try:
+            self._on_failure(reason)
+        except Exception:
+            logger.exception("couldn't tell anyone the backup failed")
+
+
+def one_line(error: BaseException) -> str:
+    """The error's first line, without a closing full stop (the sentence adds its own)."""
+    lines = str(error).strip().splitlines()
+    return (lines[0] if lines else type(error).__name__).rstrip(".")

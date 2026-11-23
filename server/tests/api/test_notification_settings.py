@@ -1,11 +1,15 @@
 """Notification settings on the account: the kinds the user's role can see, each with an Email
 switch that is on or off by default until the user chooses."""
 
+from dataclasses import replace
+
+import pytest
 from api_helpers import CSRF, admin, signed_in
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from filament_tracker.domain.enums import Role
+from filament_tracker.domain.enums import NotificationKind, Role
+from filament_tracker.notifications.kinds import KINDS
 
 ACCOUNT = "/api/v1/auth/me"
 
@@ -46,6 +50,7 @@ def test_new_requests_are_on_for_admins_and_off_for_editors(
         _setting("request_update", True),
         _setting("new_photo", True),
         _setting("suggestion", False),
+        _setting("backup_failed", False),
     ]
 
 
@@ -59,6 +64,16 @@ def test_suggestions_are_for_editors_and_admins_and_off_by_default(
     assert _setting("suggestion", False) not in viewer["notifications"]
     assert _setting("suggestion", False) in editor["notifications"]
     assert _setting("suggestion", False) in boss["notifications"]
+
+
+def test_backup_failed_is_for_admins_only_and_off_by_default(
+    app: FastAPI, client: TestClient
+) -> None:
+    editor = signed_in(app, Role.EDITOR).get(ACCOUNT).json()
+    boss = signed_in(app, Role.ADMIN).get(ACCOUNT).json()
+
+    assert "backup_failed" not in [s["kind"] for s in editor["notifications"]]
+    assert _setting("backup_failed", False) in boss["notifications"]
 
 
 def test_the_old_switches_are_gone(app: FastAPI, client: TestClient) -> None:
@@ -98,6 +113,7 @@ def test_a_user_turns_a_notification_off_and_on(app: FastAPI, client: TestClient
         _setting("request_update", True),
         _setting("new_photo", False, default=False),
         _setting("suggestion", False),
+        _setting("backup_failed", False),
     ]
     back = user.patch(
         ACCOUNT,
@@ -146,7 +162,11 @@ def test_a_kind_outside_the_role_is_refused_and_nothing_changes(
     ]
 
 
-def test_a_kind_nothing_sends_yet_is_refused(app: FastAPI, client: TestClient) -> None:
+def test_a_kind_nothing_sends_yet_is_refused(
+    app: FastAPI, client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    unsent = replace(KINDS[NotificationKind.BACKUP_FAILED], sent=False)
+    monkeypatch.setitem(KINDS, NotificationKind.BACKUP_FAILED, unsent)
     boss = signed_in(app, Role.ADMIN)
 
     response = boss.patch(
