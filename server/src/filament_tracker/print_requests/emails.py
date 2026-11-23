@@ -12,17 +12,16 @@ move, and a photo added later emails the requester "New photo of your print"; ea
 the photos as inline images in the HTML part, from their email copies.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from datetime import date
-from email.utils import make_msgid
-from html import escape
 
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import NotificationKind, Priority, RequestStatus
-from filament_tracker.mail.message import Email, InlineImage
+from filament_tracker.mail.message import Email
+from filament_tracker.notifications.email import compose
 from filament_tracker.notifications.recipients import email_recipients
 from filament_tracker.print_requests.pipeline import Moved
 
@@ -62,7 +61,6 @@ NEW_PHOTO_SENTENCE = 'A new photo of your print "{title}" was added.'
 NEW_REQUEST_SUBJECT = "New print request from {requester}: {title}"
 NEW_REQUEST_SENTENCE = '{requester} submitted a new print request: "{title}".'
 OPEN = "Open the request"
-FOOTER = "You can change these on your Account page."
 PRIORITY_LABELS = {
     Priority.URGENT: "Urgent",
     Priority.NORMAL: "Normal",
@@ -86,13 +84,13 @@ def move_emails(
         sentence = f"{sentence} {THEN_WORDING[moved.then]}"
     label = "Reason" if moved.move.needs_reason else "Note"
     return [
-        _compose(
+        compose(
             to,
             subject=subject.format(title=_one_line(request.title)),
             sentence=sentence.format(title=request.title),
             details=[(label, moved.note)] if moved.note else [],
             link=_link(request, public_url),
-            footer=FOOTER,
+            link_text=OPEN,
             photos=photos,
         )
     ]
@@ -113,12 +111,12 @@ def new_photo_emails(
     if to is None:
         return []
     return [
-        _compose(
+        compose(
             to,
             subject=NEW_PHOTO_SUBJECT.format(title=_one_line(request.title)),
             sentence=NEW_PHOTO_SENTENCE.format(title=request.title),
             link=_link(request, public_url),
-            footer=FOOTER,
+            link_text=OPEN,
             photos=photos,
         )
     ]
@@ -134,13 +132,13 @@ def new_request_emails(
     if request.needed_by is not None:
         details.append(("Needed by", _day(request.needed_by)))
     return [
-        _compose(
+        compose(
             to,
             subject=NEW_REQUEST_SUBJECT.format(requester=requester, title=_one_line(request.title)),
             sentence=NEW_REQUEST_SENTENCE.format(requester=requester, title=request.title),
             details=details,
             link=_link(request, public_url),
-            footer=FOOTER,
+            link_text=OPEN,
         )
         for to in email_recipients(session, NotificationKind.NEW_REQUEST, actor=request.requester)
     ]
@@ -166,43 +164,3 @@ def _one_line(text: str) -> str:
 def _day(day: date) -> str:
     """'4 Dec 2026', as the web app shows dates."""
     return f"{day.day} {day:%b %Y}"
-
-
-def _compose(
-    to: str,
-    *,
-    subject: str,
-    sentence: str,
-    details: Iterable[tuple[str, str]] = (),
-    link: str | None,
-    footer: str | None = None,
-    photos: Sequence[bytes] = (),
-) -> Email:
-    """The sentence, the labelled details, the link and the footer, as text and HTML, with
-    the photos shown inline in the HTML after the details."""
-    details = list(details)
-    text = [sentence]
-    html = [f"<p>{escape(sentence)}</p>"]
-    if details:
-        text.append("\n".join(f"{label}: {value}" for label, value in details))
-        lines = (f"<strong>{escape(label)}:</strong> {escape(value)}" for label, value in details)
-        html.append(f"<p>{'<br>'.join(lines)}</p>")
-    images = tuple(InlineImage(make_msgid("photo")[1:-1], photo) for photo in photos)
-    for number, image in enumerate(images, 1):
-        html.append(
-            f'<p><img src="cid:{escape(image.content_id)}" alt="Photo {number} of your print"'
-            ' style="max-width: 100%; height: auto;"></p>'
-        )
-    if link is not None:
-        text.append(f"{OPEN}: {link}")
-        html.append(f'<p><a href="{escape(link)}">{OPEN}</a></p>')
-    if footer is not None:
-        text.append(footer)
-        html.append(f"<p>{escape(footer)}</p>")
-    return Email(
-        to=to,
-        subject=subject,
-        text="\n\n".join(text) + "\n",
-        html=f"<!doctype html><html><body>{''.join(html)}</body></html>",
-        images=images,
-    )
