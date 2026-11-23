@@ -175,9 +175,9 @@ jobs:
           npm ci
           npm run build
           npx cap sync android
-      - name: Run Kotlin tests with the 90% coverage gate and build the APKs (both flavors)
+      - name: Run Kotlin tests with the 90% coverage gate, check foss holds no Google services, and build the APKs (both flavors)
         working-directory: android
-        run: ./gradlew --no-daemon coverageCheck assembleDebug
+        run: ./gradlew --no-daemon coverageCheck checkFossHasNoGoogleServices assembleDebug
       # The release build as the release job makes it, signed with a key made for this run,
       # so a broken release setup shows up before a tag is pushed.
       - name: Build and check a test release

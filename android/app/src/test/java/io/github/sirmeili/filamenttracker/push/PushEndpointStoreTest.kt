@@ -53,4 +53,22 @@ class PushEndpointStoreTest {
 
         assertNull(store.load())
     }
+
+    @Test
+    fun keepsAnFcmTokenWithItsRoute() {
+        val token = PushEndpointInfo.fcm("fcm-token:abc")
+
+        store.save(token)
+
+        assertEquals(token, PushEndpointStore(values).load())
+        assertEquals("fcm", PushEndpointStore(values).load()?.route)
+        assertNull(token.p256dh)
+    }
+
+    @Test
+    fun aWebPushEndpointIsTheDefaultRoute() {
+        store.save(endpoint)
+
+        assertEquals("web_push", store.load()?.route)
+    }
 }

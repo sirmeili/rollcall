@@ -14,5 +14,7 @@ ext {
     androidxEspressoCoreVersion = '3.7.0'
     codeScannerVersion = '16.1.0'
     unifiedPushConnectorVersion = '3.3.5'
+    firebaseMessagingVersion = '26.0.2'
+    zxingEmbeddedVersion = '4.3.0'
     cordovaAndroidVersion = '14.0.1'
 }
