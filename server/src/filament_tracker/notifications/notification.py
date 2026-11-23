@@ -27,6 +27,9 @@ class Notification:
     details: tuple[tuple[str, str], ...] = ()
     # JPEGs shown in the email.
     photos: tuple[bytes, ...] = ()
+    # The server path of the photo a phone notification shows, which the phone downloads
+    # with its sign-in; None for none.
+    photo: str | None = None
     # Who did it, and is never told; None when nobody did.
     actor: User | None = None
     # Only these may be told (everyone, when None).

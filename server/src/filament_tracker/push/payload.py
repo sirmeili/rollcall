@@ -1,6 +1,6 @@
-"""What a phone notification carries: its kind, title, text and the path of the page it opens,
-as JSON. It stays well under the 4 KB a Web Push may carry once encrypted: a long text, then
-a long title, is cut short to fit."""
+"""What a phone notification carries: its kind, title, text, the path of the page it opens and,
+for some, the server path of a photo to show, as JSON. It stays well under the 4 KB a Web Push
+may carry once encrypted: a long text, then a long title, is cut short to fit."""
 
 import json
 
@@ -20,9 +20,12 @@ def _cut(value: str, over: int) -> str:
     return raw[:keep].decode(errors="ignore") + ELLIPSIS
 
 
-def phone_payload(kind: str, title: str, text: str, path: str) -> bytes:
-    """The payload, with the text and then the title cut short if it would be too long."""
+def phone_payload(kind: str, title: str, text: str, path: str, photo: str | None = None) -> bytes:
+    """The payload, with the text and then the title cut short if it would be too long. A
+    `photo` is named only when there is one."""
     fields = {"kind": kind, "title": title, "text": text, "path": path}
+    if photo is not None:
+        fields["photo"] = photo
     encoded = _encoded(fields)
     for name in ("text", "title"):
         while len(encoded) > MAX_PAYLOAD_BYTES and fields[name] not in ("", ELLIPSIS):
