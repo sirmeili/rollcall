@@ -235,7 +235,7 @@ Steps 1 to 4 work the same in Portainer, through its web UI:
 
 ## Backups
 
-Every night at 03:00 in the server's time zone, RollCall copies its database to the backup volume with SQLite's online backup, and keeps the newest 14. Files are named by their UTC time, like `filament-20261110T090000Z.db`. A failed backup is logged and tried again the next night.
+Every night at 03:00 in the server's time zone, RollCall copies its database to the backup volume with SQLite's online backup, and keeps the newest 14. Files are named by their UTC time, like `filament-20261110T090000Z.db`. A failed backup is logged and tried again the next night, and each Admin who chose Backup failed in the Notifications list on Account is emailed the reason.
 
 ```sh
 docker compose exec rollcall ls -l /backups          # list them

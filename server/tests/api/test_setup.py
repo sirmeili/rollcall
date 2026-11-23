@@ -161,7 +161,10 @@ def test_setup_creates_the_admin_signs_them_in_and_closes(start: Any) -> None:
         "email": None,
         "has_requests": False,
         "time_zone": "America/Chicago",
-        "notifications": [{"kind": "new_request", "channel": "email", "on": True, "default": True}],
+        "notifications": [
+            {"kind": "new_request", "channel": "email", "on": True, "default": True},
+            {"kind": "backup_failed", "channel": "email", "on": False, "default": True},
+        ],
         "email_set_up": False,
     }
     assert started.client.get("/api/v1/auth/me").json()["username"] == "frank"
