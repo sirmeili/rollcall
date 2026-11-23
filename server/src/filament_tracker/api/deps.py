@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.mail.message import Email
 from filament_tracker.mail.sender import MailSender
+from filament_tracker.notifications.email import build_and_send
 
 
 def get_session(request: Request) -> Iterator[Session]:
@@ -28,6 +29,4 @@ def _public_url(request: Request) -> str | None:
 def send_after_commit(request: Request, build: Callable[[str | None], list[Email]]) -> None:
     """Build the emails once the change has committed, from the public URL, and hand them to
     the background sender; nothing is built while email is off."""
-    mail = mail_sender(request)
-    if mail.on:
-        mail.send_later(build(_public_url(request)))
+    build_and_send(mail_sender(request), build, lambda: _public_url(request))

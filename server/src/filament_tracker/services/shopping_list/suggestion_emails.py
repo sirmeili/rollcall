@@ -9,7 +9,7 @@ from filament_tracker.db.models import Product, User
 from filament_tracker.db.shopping_models import Suggestion
 from filament_tracker.domain.enums import NotificationKind
 from filament_tracker.mail.message import Email
-from filament_tracker.notifications.email import compose
+from filament_tracker.notifications.email import compose, link
 from filament_tracker.notifications.recipients import email_recipients
 from filament_tracker.services.catalog_links import load_index
 
@@ -34,9 +34,9 @@ def suggestion_emails(
     else:
         subject = SUBJECT.format(user=user.username, name=name)
         sentence = SENTENCE.format(user=user.username, spools=spools, name=name)
-    link = None if public_url is None else f"{public_url}/shopping-list"
+    to_list = link(public_url, "/shopping-list")
     return [
-        compose(to, subject=subject, sentence=sentence, link=link, link_text=OPEN)
+        compose(to, subject=subject, sentence=sentence, link=to_list, link_text=OPEN)
         for to in email_recipients(session, NotificationKind.SUGGESTION, actor=user)
     ]
 

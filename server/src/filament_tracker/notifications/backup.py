@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from filament_tracker.domain.enums import NotificationKind
 from filament_tracker.mail.message import Email
 from filament_tracker.mail.sender import MailSender
-from filament_tracker.notifications.email import compose
+from filament_tracker.notifications.email import build_and_send, compose, link
 from filament_tracker.notifications.recipients import email_recipients
 
 BACKUP_FAILED_SUBJECT = "Backup failed"
@@ -19,13 +19,12 @@ OPEN_SETTINGS = "Open Settings"
 def backup_failed_emails(session: Session, reason: str, public_url: str | None) -> list[Email]:
     """One email to each person told about a failed backup. Nobody did it, so nobody is left
     out for having done it."""
-    link = None if public_url is None else f"{public_url}/settings"
     return [
         compose(
             to,
             subject=BACKUP_FAILED_SUBJECT,
             sentence=BACKUP_FAILED_SENTENCE.format(reason=reason),
-            link=link,
+            link=link(public_url, "/settings"),
             link_text=OPEN_SETTINGS,
         )
         for to in email_recipients(session, NotificationKind.BACKUP_FAILED, actor=None)
@@ -39,10 +38,10 @@ def backup_failed_sender(
     handed to the background sender, and nothing is built while email is off."""
 
     def send(reason: str) -> None:
-        if not mail.on:
-            return
-        with sessions() as session:
-            emails = backup_failed_emails(session, reason, public_url())
-        mail.send_later(emails)
+        def build(url: str | None) -> list[Email]:
+            with sessions() as session:
+                return backup_failed_emails(session, reason, url)
+
+        build_and_send(mail, build, public_url)
 
     return send

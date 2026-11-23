@@ -13,7 +13,7 @@ from filament_tracker.domain.enums import NotificationKind
 from filament_tracker.ha.snapshot import ProductState
 from filament_tracker.mail.message import Email
 from filament_tracker.mail.sender import MailSender
-from filament_tracker.notifications.email import compose
+from filament_tracker.notifications.email import build_and_send, compose, link
 from filament_tracker.notifications.recipients import email_recipients
 from filament_tracker.poll import Changes
 
@@ -32,17 +32,13 @@ def low_stock_emails(
             address,
             subject=LOW_STOCK_SUBJECT.format(product=product.name),
             sentence=LOW_STOCK_SENTENCE.format(product=product.name, n=product.sealed),
-            link=_inventory_link(public_url, product.name),
+            # Inventory, searched for the product.
+            link=link(public_url, f"/?q={quote(product.name, safe='')}"),
             link_text=OPEN_INVENTORY,
         )
         for product in products
         for address in to
     ]
-
-
-def _inventory_link(public_url: str | None, name: str) -> str | None:
-    """Inventory, searched for the product (`?q=`)."""
-    return None if public_url is None else f"{public_url}/?q={quote(name, safe='')}"
 
 
 class LowStockEmails:
@@ -54,5 +50,9 @@ class LowStockEmails:
         self._public_url = public_url
 
     def __call__(self, session: Session, changes: Changes) -> None:
-        if changes.became_low and self._mail.on:
-            self._mail.send_later(low_stock_emails(session, changes.became_low, self._public_url()))
+        if changes.became_low:
+            build_and_send(
+                self._mail,
+                lambda url: low_stock_emails(session, changes.became_low, url),
+                self._public_url,
+            )

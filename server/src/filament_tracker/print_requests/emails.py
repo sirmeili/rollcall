@@ -21,7 +21,7 @@ from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import NotificationKind, Priority, RequestStatus
 from filament_tracker.mail.message import Email
-from filament_tracker.notifications.email import compose
+from filament_tracker.notifications.email import compose, link
 from filament_tracker.notifications.recipients import email_recipients
 from filament_tracker.print_requests.pipeline import Moved
 
@@ -153,7 +153,7 @@ def _requester(
 
 
 def _link(request: PrintRequest, public_url: str | None) -> str | None:
-    return None if public_url is None else f"{public_url}/requests/{request.id}"
+    return link(public_url, f"/requests/{request.id}")
 
 
 def _one_line(text: str) -> str:

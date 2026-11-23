@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.domain.enums import NotificationKind
 from filament_tracker.mail.message import Email
 from filament_tracker.mail.sender import MailSender
-from filament_tracker.notifications.email import compose
+from filament_tracker.notifications.email import build_and_send, compose, link
 from filament_tracker.notifications.recipients import email_recipients
 from filament_tracker.poll import Changes, NearlyOutSpool
 
@@ -32,7 +32,7 @@ def nearly_out_emails(
             sentence=NEARLY_OUT_SENTENCE.format(
                 product=spool.product, slot=spool.slot, n=spool.remaining_pct
             ),
-            link=None if public_url is None else f"{public_url}/spools/{spool.id}",
+            link=link(public_url, f"/spools/{spool.id}"),
             link_text=OPEN_SPOOL,
         )
         for spool in spools
@@ -49,6 +49,9 @@ class NearlyOutEmails:
         self._public_url = public_url
 
     def __call__(self, session: Session, changes: Changes) -> None:
-        if changes.became_nearly_out and self._mail.on:
-            emails = nearly_out_emails(session, changes.became_nearly_out, self._public_url())
-            self._mail.send_later(emails)
+        if changes.became_nearly_out:
+            build_and_send(
+                self._mail,
+                lambda url: nearly_out_emails(session, changes.became_nearly_out, url),
+                self._public_url,
+            )

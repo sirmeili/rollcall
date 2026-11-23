@@ -2,13 +2,31 @@
 details, a link to the page it is about (built from PUBLIC_URL only) and the footer saying
 where to change notification settings."""
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from email.utils import make_msgid
 from html import escape
 
 from filament_tracker.mail.message import Email, InlineImage
+from filament_tracker.mail.sender import MailSender
 
 FOOTER = "You can change these on your Account page."
+
+
+def link(public_url: str | None, path: str) -> str | None:
+    """The web app's page at `path` ("/settings"), under PUBLIC_URL; None without it, so the
+    email has no link. Never built from an incoming request's Host header."""
+    return None if public_url is None else f"{public_url}{path}"
+
+
+def build_and_send(
+    mail: MailSender,
+    build: Callable[[str | None], list[Email]],
+    public_url: Callable[[], str | None],
+) -> None:
+    """While email is on, build the emails with PUBLIC_URL as it is now and hand them to the
+    background sender; nothing is built while email is off."""
+    if mail.on:
+        mail.send_later(build(public_url()))
 
 
 def compose(

@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from functools import partial
 
 import httpx
 from fastapi import FastAPI
@@ -113,12 +114,14 @@ def create_app(
         mail = MailSender(mail_transport, lambda: smtp_server(store))
         app.state.mail = mail
         mail.start()
+        # Where emails link to: PUBLIC_URL, read when each is built.
+        public_url = partial(store.text, "public_url")
         # Always running, Home Assistant or not (ADR-0009).
         poll = Poll(
             app.state.session_factory,
             [
-                LowStockEmails(mail, lambda: store.text("public_url")),
-                NearlyOutEmails(mail, lambda: store.text("public_url")),
+                LowStockEmails(mail, public_url),
+                NearlyOutEmails(mail, public_url),
                 home_assistant.changed,
             ],
         )
@@ -130,9 +133,7 @@ def create_app(
             catalog, schedule=store.catalog_sync, time_zone=store.time_zone
         )
         catalog_scheduler.start()
-        backup_failed = backup_failed_sender(
-            app.state.session_factory, mail, lambda: store.text("public_url")
-        )
+        backup_failed = backup_failed_sender(app.state.session_factory, mail, public_url)
         backups = _backups(settings, store, backup_failed)
         app.state.backups = backups
         try:
