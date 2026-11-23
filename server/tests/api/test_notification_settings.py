@@ -42,14 +42,31 @@ def test_new_requests_are_on_for_admins_and_off_for_editors(
     editor = signed_in(app, Role.EDITOR).get(ACCOUNT).json()
     boss = signed_in(app, Role.ADMIN, requester=True).get(ACCOUNT).json()
 
-    assert editor["notifications"] == [_setting("new_request", False), _setting("low_stock", False)]
+    assert editor["notifications"] == [
+        _setting("new_request", False),
+        _setting("low_stock", False),
+        _setting("suggestion", False),
+    ]
     assert boss["notifications"] == [
         _setting("new_request", True),
         _setting("request_update", True),
         _setting("new_photo", True),
         _setting("low_stock", False),
+        _setting("suggestion", False),
         _setting("backup_failed", False),
     ]
+
+
+def test_suggestions_are_for_editors_and_admins_and_off_by_default(
+    app: FastAPI, client: TestClient
+) -> None:
+    viewer = signed_in(app, Role.VIEWER, requester=True).get(ACCOUNT).json()
+    editor = signed_in(app, Role.EDITOR).get(ACCOUNT).json()
+    boss = signed_in(app, Role.ADMIN).get(ACCOUNT).json()
+
+    assert _setting("suggestion", False) not in viewer["notifications"]
+    assert _setting("suggestion", False) in editor["notifications"]
+    assert _setting("suggestion", False) in boss["notifications"]
 
 
 def test_backup_failed_is_for_admins_only_and_off_by_default(
@@ -99,6 +116,7 @@ def test_a_user_turns_a_notification_off_and_on(app: FastAPI, client: TestClient
         _setting("request_update", True),
         _setting("new_photo", False, default=False),
         _setting("low_stock", False),
+        _setting("suggestion", False),
         _setting("backup_failed", False),
     ]
     back = user.patch(
@@ -122,6 +140,7 @@ def test_an_editor_can_choose_new_request_emails(app: FastAPI, client: TestClien
     assert me["notifications"] == [
         _setting("new_request", True, default=False),
         _setting("low_stock", False),
+        _setting("suggestion", False),
     ]
 
 
@@ -192,6 +211,7 @@ def test_choices_kept_when_the_role_changes_apply_again(app: FastAPI, client: Te
     assert editor.get(ACCOUNT).json()["notifications"] == [
         _setting("new_request", True, default=False),
         _setting("low_stock", False),
+        _setting("suggestion", False),
     ]
 
 

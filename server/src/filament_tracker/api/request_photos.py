@@ -17,10 +17,11 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from starlette.requests import ClientDisconnect
 
+from filament_tracker.api.deps import send_after_commit
 from filament_tracker.api.request_files import content_disposition
 from filament_tracker.api.request_schemas import PhotosIn, PhotoUploadOut, RequestOut
 from filament_tracker.api.request_views import model_files, request_out, stored_photos
-from filament_tracker.api.requests import RequestsCaller, find_request, send_after_commit
+from filament_tracker.api.requests import RequestsCaller, find_request
 from filament_tracker.auth import AnyPrincipal, DbSession, forbidden, problems
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import FILE_NAME_MAX, PrintRequest, RequestPhoto

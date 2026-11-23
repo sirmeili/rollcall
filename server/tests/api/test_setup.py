@@ -164,6 +164,7 @@ def test_setup_creates_the_admin_signs_them_in_and_closes(start: Any) -> None:
         "notifications": [
             {"kind": "new_request", "channel": "email", "on": True, "default": True},
             {"kind": "low_stock", "channel": "email", "on": False, "default": True},
+            {"kind": "suggestion", "channel": "email", "on": False, "default": True},
             {"kind": "backup_failed", "channel": "email", "on": False, "default": True},
         ],
         "email_set_up": False,
