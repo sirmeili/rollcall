@@ -78,7 +78,9 @@ def vapid_keys(sessions: sessionmaker[Session], box: SecretBox) -> VapidKeys:
                 return VapidKeys(_opened(box, row.private_key), row.public_key)
             except Unreadable:
                 keys = _new(session, box)
-                session.execute(delete(PushEndpoint).where(PushEndpoint.route == PushRoute.WEB_PUSH))
+                session.execute(
+                    delete(PushEndpoint).where(PushEndpoint.route == PushRoute.WEB_PUSH)
+                )
                 logger.warning(
                     "the VAPID key can't be opened with this settings key, so a new one was "
                     "made; every phone registers for phone notifications again"

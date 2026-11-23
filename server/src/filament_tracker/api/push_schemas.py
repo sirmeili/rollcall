@@ -38,7 +38,9 @@ def _bytes(length: int, first: int | None = None) -> Callable[[str], str]:
 
 
 Endpoint = Annotated[str, StringConstraints(max_length=2048), AfterValidator(_https)]
-P256dh = Annotated[str, StringConstraints(max_length=128), AfterValidator(_bytes(P256_POINT_BYTES, 4))]
+P256dh = Annotated[
+    str, StringConstraints(max_length=128), AfterValidator(_bytes(P256_POINT_BYTES, 4))
+]
 Auth = Annotated[str, StringConstraints(max_length=64), AfterValidator(_bytes(AUTH_BYTES))]
 
 

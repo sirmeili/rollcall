@@ -79,9 +79,7 @@ def reachable(endpoint: PushEndpoint) -> bool:
     """Whether the endpoint's phone may get phone notifications: a user's phone, not
     revoked, whose user isn't disabled. A shared phone never does."""
     device = endpoint.device
-    return (
-        device.revoked_at is None and device.user is not None and device.user.disabled_at is None
-    )
+    return device.revoked_at is None and device.user is not None and device.user.disabled_at is None
 
 
 class PushSender:

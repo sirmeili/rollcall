@@ -48,17 +48,18 @@ from filament_tracker.mail.sender import MailSender
 from filament_tracker.mail.settings import smtp_server
 from filament_tracker.mail.smtp import SmtpSender
 from filament_tracker.mail.transport import MailTransport
-from filament_tracker.push.keys import vapid_keys
-from filament_tracker.push.sender import PushSender
-from filament_tracker.push.transport import HttpPushTransport, PushTransport
 from filament_tracker.notifications.backup import backup_failed_sender
-from filament_tracker.notifications.low_stock import LowStockEmails
-from filament_tracker.notifications.nearly_out import NearlyOutEmails
+from filament_tracker.notifications.low_stock import LowStockNotifications
+from filament_tracker.notifications.nearly_out import NearlyOutNotifications
+from filament_tracker.notifications.notifier import Notifier
 from filament_tracker.poll import Poll
 from filament_tracker.print_requests import retrying
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
 from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
 from filament_tracker.printer.manager import PrinterManager
+from filament_tracker.push.keys import vapid_keys
+from filament_tracker.push.sender import PushSender
+from filament_tracker.push.transport import HttpPushTransport, PushTransport
 from filament_tracker.services.backup import BackupScheduler
 from filament_tracker.services.catalog_schedule import CatalogScheduler
 from filament_tracker.services.catalog_sync import CatalogSyncer
@@ -126,13 +127,14 @@ def create_app(
         app.state.push = phones
         phones.start()
         # Where emails link to: PUBLIC_URL, read when each is built.
-        public_url = partial(store.text, "public_url")
+        notifier = Notifier(mail, phones, partial(store.text, "public_url"))
+        app.state.notifier = notifier
         # Always running, Home Assistant or not (ADR-0009).
         poll = Poll(
             app.state.session_factory,
             [
-                LowStockEmails(mail, public_url),
-                NearlyOutEmails(mail, public_url),
+                LowStockNotifications(notifier),
+                NearlyOutNotifications(notifier),
                 home_assistant.changed,
             ],
         )
@@ -144,7 +146,7 @@ def create_app(
             catalog, schedule=store.catalog_sync, time_zone=store.time_zone
         )
         catalog_scheduler.start()
-        backup_failed = backup_failed_sender(app.state.session_factory, mail, public_url)
+        backup_failed = backup_failed_sender(app.state.session_factory, notifier)
         backups = _backups(settings, store, backup_failed)
         app.state.backups = backups
         try:

@@ -60,6 +60,8 @@ class Me(UserBase):
     notifications: list[NotificationSetting]
     # Whether this server can send email at all (an SMTP host is saved).
     email_set_up: bool
+    # Whether the user has a phone registered for phone notifications.
+    phone_registered: bool
 
 
 class UserOut(UserBase):

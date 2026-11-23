@@ -21,6 +21,8 @@ from phone_helpers import endpoint_path, register_phone, set_up_phone
 
 from filament_tracker.domain.enums import Role
 
+ACCOUNT = "/api/v1/auth/me"
+
 
 def _test(user: TestClient, device_id: str) -> object:
     return user.post(f"{endpoint_path(device_id)}/test", headers=CSRF)
@@ -47,6 +49,50 @@ def test_a_user_registers_their_phone_and_gets_a_test_notification(
         "text": "Phone notifications work on this phone.",
         "path": "/",
     }
+
+
+def test_a_test_notification_is_allowed_once_every_30_seconds_per_phone(
+    app: FastAPI, client: TestClient, pushes: FakePushOutbox
+) -> None:
+    user = signed_in(app, Role.VIEWER)
+    first, second = set_up_phone(user, "Pixel"), set_up_phone(user, "Tablet")
+    for device_id in (first, second):
+        register_phone(user, device_id, TestPhone())
+
+    assert _test(user, first).json()["ok"] is True
+    too_soon = _test(user, first)
+    assert too_soon.status_code == 429
+    assert (
+        too_soon.json()["detail"] == "Wait a few seconds before sending another test notification."
+    )
+    # Each phone has its own limit.
+    assert _test(user, second).json()["ok"] is True
+    assert pushes.attempts == 2
+
+
+@pytest.mark.parametrize(
+    ("status", "message", "kept"),
+    [
+        (503, "The push service answered 503.", True),
+        (None, "The push service didn't answer in time.", True),
+        (410, "This phone's push endpoint is gone.", False),
+    ],
+)
+def test_a_failed_test_notification_says_why(
+    app: FastAPI,
+    client: TestClient,
+    pushes: FakePushOutbox,
+    status: int | None,
+    message: str,
+    kept: bool,
+) -> None:
+    user = signed_in(app, Role.VIEWER)
+    device_id = set_up_phone(user)
+    register_phone(user, device_id, TestPhone())
+    pushes.answer(status)
+
+    assert _test(user, device_id).json() == {"ok": False, "message": message}
+    assert user.get(ACCOUNT).json()["phone_registered"] is kept
 
 
 def test_registering_and_removing_work_from_outside_the_lan(
@@ -162,3 +208,18 @@ def test_a_bad_registration_is_refused(
     response = user.put(endpoint_path(device_id), json=body, headers=CSRF)
 
     assert response.status_code == 422
+
+
+def test_account_says_whether_the_user_has_a_registered_phone(
+    app: FastAPI, client: TestClient
+) -> None:
+    user = signed_in(app, Role.VIEWER)
+    assert user.get(ACCOUNT).json()["phone_registered"] is False
+    device_id = set_up_phone(user)
+    assert user.get(ACCOUNT).json()["phone_registered"] is False
+
+    register_phone(user, device_id, TestPhone())
+    assert user.get(ACCOUNT).json()["phone_registered"] is True
+
+    user.delete(endpoint_path(device_id), headers=CSRF)
+    assert user.get(ACCOUNT).json()["phone_registered"] is False

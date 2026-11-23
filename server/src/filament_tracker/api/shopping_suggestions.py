@@ -1,15 +1,15 @@
 """Suggestions on the shopping list: every role suggests spools of a product or a catalog
-color, which emails the Editors and Admins who chose it, and Editors and Admins add or
+color, which notifies the Editors and Admins who chose it, and Editors and Admins add or
 dismiss them."""
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from filament_tracker.api.deps import send_after_commit
+from filament_tracker.api.deps import notify_after_commit
 from filament_tracker.api.shopping_schemas import ShoppingListOut, SuggestionIn
 from filament_tracker.api.shopping_views import find_product, list_out
 from filament_tracker.auth import DbSession, Editor, Viewer, problems
 from filament_tracker.db.types import utcnow
-from filament_tracker.notifications.suggestion import suggestion_emails
+from filament_tracker.notifications.suggestion import suggested
 from filament_tracker.services import shopping_list
 from filament_tracker.services.catalog_links import UnknownColor
 from filament_tracker.services.shopping_list import NoSuchSuggestion, SuggestionDecided
@@ -32,9 +32,7 @@ def suggest(
     except UnknownColor:
         raise problems({"catalog_color": "No such catalog color."}) from None
     session.commit()
-    send_after_commit(
-        request, lambda public_url: suggestion_emails(session, suggestion, public_url)
-    )
+    notify_after_commit(request, session, lambda: [suggested(session, suggestion)])
     return list_out(session, request, caller)
 
 

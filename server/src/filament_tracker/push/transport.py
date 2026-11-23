@@ -26,16 +26,20 @@ class PushTransport(Protocol):
 
 
 class HttpPushTransport:
+    """Posts with httpx; `transport` replaces the network in tests."""
+
+    def __init__(self, transport: httpx.BaseTransport | None = None) -> None:
+        self._transport = transport
+
     def post(self, message: PushMessage) -> int:
         try:
             # Redirects aren't followed, so a push goes only to the URL the phone gave.
-            response = httpx.post(
-                message.endpoint,
-                content=message.body,
-                headers=message.headers,
-                timeout=TIMEOUT_SECONDS,
-                follow_redirects=False,
-            )
+            with httpx.Client(
+                transport=self._transport, timeout=TIMEOUT_SECONDS, follow_redirects=False
+            ) as client:
+                response = client.post(
+                    message.endpoint, content=message.body, headers=message.headers
+                )
         except httpx.TimeoutException:
             raise PushError("The push service didn't answer in time.") from None
         except httpx.HTTPError:
