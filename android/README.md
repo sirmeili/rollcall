@@ -45,6 +45,7 @@ A user's phone (set up by signing in) shows the phone notifications its user cho
 - Once signed in, the app registers with the distributor using the server's VAPID public key and sends its endpoint to the server with its session, from anywhere. A new endpoint from the distributor is sent at once, or on the next sign-in. With more than one distributor installed, it keeps the one in use, else the phone's default, else the first.
 - ntfy uses the ntfy.sh server unless set to another; the server owner can run their own (see [docs/deploy.md](../docs/deploy.md#ntfy-optional)). The server encrypts each push for the phone (RFC 8291), so the ntfy server sees only encrypted contents.
 - Each kind is its own Android notification channel, so a kind can also be muted in Android's settings. Tapping a notification opens its page, signing in first when signed out.
+- Done and New photo show the print's first photo as a large picture. The app downloads it from the paired server with its signed-in session and the Cloudflare Access service token, as its other calls do; signed out, or if the download fails, the notification shows its text only.
 
 ## Install a development build
 
@@ -207,5 +208,6 @@ Run each step with the swipe-back gesture and, where the phone has one, the Back
 44. Tap it: the app opens on the request's page.
 45. Sign out in the full app, then tap a new notification: the app asks to sign in, then opens its page.
 46. On a shared phone (paired with a code) with ntfy installed, sign in to the full app: ntfy lists no RollCall subscription, and no notifications arrive.
+47. On Wi-Fi at home, with the app closed, mark one of that user's print requests Done with a photo from a PC: the notification shows the photo, and expanding it shows it large. Do it again away from home (mobile data), with Cloudflare Access in front of the server: the photo shows too. Sign out in the full app and do it once more: the notification shows its text only.
 
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.
