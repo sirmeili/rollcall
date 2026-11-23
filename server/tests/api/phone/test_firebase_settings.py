@@ -123,3 +123,18 @@ def test_only_an_admin_reads_or_saves_them(app: Any, client: TestClient) -> None
 
     assert editor.get(URL).status_code == 403
     assert editor.put(URL, json={"values": FIREBASE}, headers=CSRF).status_code == 403
+
+
+def test_a_bad_key_from_env_leaves_firebase_off(db_url: str) -> None:
+    settings = Settings(
+        database_url=db_url,
+        admin_token=ADMIN_TOKEN,
+        **FIREBASE,
+        firebase_service_account=SecretStr('{"type": "service_account"}'),
+        _env_file=None,
+    )
+    app = create_app(settings, push_transport=FakePushOutbox())
+    with TestClient(app, base_url=BASE_URL, client=LAN_CLIENT):
+        user = signed_in(app, Role.VIEWER)
+
+        assert user.get("/api/v1/push/config").json()["firebase"] is None
