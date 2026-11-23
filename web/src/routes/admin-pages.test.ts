@@ -1095,6 +1095,89 @@ describe("Account page", () => {
     expect(screen.queryByText("Add an email address to get notifications by email.")).toBeNull();
   });
 
+  /** Each kind's Email and Phone settings, as the server gives them. */
+  function bothChannels(...rows: [NotificationKind, boolean, boolean][]): NotificationSetting[] {
+    return rows.flatMap(([kind, email, phone]) => [
+      { kind, channel: "email" as const, on: email, default: true },
+      { kind, channel: "phone" as const, on: phone, default: true },
+    ]);
+  }
+
+  function phoneSwitch(kind: string): HTMLElement {
+    return screen.getByRole("checkbox", { name: `Phone: ${kind}` });
+  }
+
+  it("shows a Phone switch beside each Email switch", async () => {
+    session.user = me("viewer", {
+      email: "vera@example.com",
+      phone_registered: true,
+      notifications: bothChannels(["low_stock", false, true], ["nearly_out", false, false]),
+    });
+    render(AccountPage);
+
+    const list = screen.getByRole("region", { name: "Notifications" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+    expect(emailSwitch("Low stock")).not.toBeChecked();
+    expect(phoneSwitch("Low stock")).toBeChecked();
+    expect(phoneSwitch("Nearly out")).not.toBeChecked();
+    expect(phoneSwitch("Low stock")).toBeEnabled();
+    expect(screen.queryByText("Phone notifications need the phone app.")).toBeNull();
+  });
+
+  it("turns a phone notification off, apart from email", async () => {
+    session.user = me("viewer", {
+      email: "vera@example.com",
+      phone_registered: true,
+      notifications: bothChannels(["low_stock", true, true]),
+    });
+    admin.updateAccount.mockResolvedValue(
+      me("viewer", {
+        email: "vera@example.com",
+        phone_registered: true,
+        notifications: bothChannels(["low_stock", true, false]),
+      }),
+    );
+    render(AccountPage);
+
+    await userEvent.click(phoneSwitch("Low stock"));
+
+    expect(admin.updateAccount).toHaveBeenCalledWith({
+      notifications: [{ kind: "low_stock", channel: "phone", on: false }],
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "You won't get a phone notification when a product becomes low stock.",
+    );
+    expect(phoneSwitch("Low stock")).not.toBeChecked();
+    expect(emailSwitch("Low stock")).toBeChecked();
+
+    admin.updateAccount.mockResolvedValue(
+      me("viewer", {
+        email: "vera@example.com",
+        phone_registered: true,
+        notifications: bothChannels(["low_stock", true, true]),
+      }),
+    );
+    await userEvent.click(phoneSwitch("Low stock"));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "You'll get a phone notification when a product becomes low stock.",
+    );
+  });
+
+  it("says phone notifications need the phone app when no phone is registered", async () => {
+    session.user = me("viewer", {
+      email: null,
+      phone_registered: false,
+      notifications: bothChannels(["low_stock", false, true]),
+    });
+    render(AccountPage);
+
+    expect(screen.getByText("Phone notifications need the phone app.")).toBeInTheDocument();
+    // Still chosen ahead, for when the phone app is set up.
+    expect(phoneSwitch("Low stock")).toBeEnabled();
+    expect(emailSwitch("Low stock")).toBeDisabled();
+  });
+
   it("shows the meter's progress", async () => {
     await openAccount();
 
