@@ -2,6 +2,8 @@
 anywhere; only for the user's own phone that isn't revoked, never with a device token alone.
 Whether a phone is registered shows in whether its test notification is sent."""
 
+from datetime import timedelta
+
 import pytest
 from api_helpers import (
     CSRF,
@@ -19,6 +21,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from phone_helpers import endpoint_path, register_phone, set_up_phone
 
+from filament_tracker.db.push_models import PushEndpoint
+from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import Role
 
 ACCOUNT = "/api/v1/auth/me"
@@ -223,3 +227,66 @@ def test_account_says_whether_the_user_has_a_registered_phone(
 
     user.delete(endpoint_path(device_id), headers=CSRF)
     assert user.get(ACCOUNT).json()["phone_registered"] is False
+
+
+def _record(app: FastAPI, device_id: str, **values: object) -> PushEndpoint:
+    """Set `values` on the phone's stored endpoint, and return what is stored."""
+    with app.state.session_factory() as session:
+        endpoint = session.get(PushEndpoint, device_id)
+        for name, value in values.items():
+            setattr(endpoint, name, value)
+        session.commit()
+        session.refresh(endpoint)
+        session.expunge(endpoint)
+        return endpoint
+
+
+def test_sending_the_same_endpoint_again_keeps_its_history(
+    app: FastAPI, client: TestClient
+) -> None:
+    user = signed_in(app, Role.VIEWER)
+    phone = TestPhone()
+    device_id = set_up_phone(user)
+    register_phone(user, device_id, phone)
+    long_ago = utcnow() - timedelta(days=20)
+    before = _record(app, device_id, registered_at=long_ago, failures=2, failing_since=long_ago)
+
+    response = register_phone(user, device_id, phone)
+
+    assert response.status_code == 200
+    after = _record(app, device_id)
+    assert after.registered_at == before.registered_at
+    assert after.last_success_at is None
+    assert after.failures == 2
+    assert after.failing_since == long_ago
+
+
+@pytest.mark.parametrize(
+    "change", [{"endpoint": "https://push.example.com/up/new"}, {"auth": "AAAAAAAAAAAAAAAAAAAAAA"}]
+)
+def test_a_changed_endpoint_starts_afresh(
+    app: FastAPI, client: TestClient, change: dict[str, str]
+) -> None:
+    user = signed_in(app, Role.VIEWER)
+    phone = TestPhone()
+    device_id = set_up_phone(user)
+    register_phone(user, device_id, phone)
+    long_ago = utcnow() - timedelta(days=20)
+    _record(
+        app,
+        device_id,
+        registered_at=long_ago,
+        last_success_at=long_ago,
+        failures=2,
+        failing_since=long_ago,
+    )
+
+    body = {**phone.subscription(), **change}
+    response = user.put(endpoint_path(device_id), json=body, headers=CSRF)
+
+    assert response.status_code == 200
+    after = _record(app, device_id)
+    assert after.registered_at > long_ago
+    assert after.last_success_at is None
+    assert after.failures == 0
+    assert after.failing_since is None
