@@ -269,3 +269,31 @@ describe("Closing or reloading the tab", () => {
     expect(warning()).toBeNull();
   });
 });
+
+describe("Signing out with unsaved changes", () => {
+  it("asks first, staying signed in on Stay and signing out on Leave", async () => {
+    routes["POST /auth/logout"] = new Response(null, { status: 204 });
+    await openAt("/account", me("editor"), AccountPage);
+    await userEvent.type(screen.getByLabelText("Email address"), "frank@example.com");
+
+    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await answer("Stay");
+    expect(session.user).not.toBeNull();
+    expect(screen.getByLabelText("Email address")).toHaveValue("frank@example.com");
+
+    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await answer("Leave");
+    await vi.waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/login", { replaceState: true }));
+    expect(session.user).toBeNull();
+  });
+
+  it("signs out straight away without changes", async () => {
+    routes["POST /auth/logout"] = new Response(null, { status: 204 });
+    await openAt("/account", me("editor"), AccountPage);
+
+    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+
+    await vi.waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/login", { replaceState: true }));
+    expect(warning()).toBeNull();
+  });
+});
