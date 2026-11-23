@@ -1,5 +1,6 @@
-"""The background phone sender: Web Pushes are handed over after the work commits, so a move
-or a save never waits for a push service or fails because of it.
+"""The background phone sender: phone notifications are handed over after the work commits,
+so a move or a save never waits for a push service or fails because of it. Each goes by the
+route its phone registered: a Web Push, or an FCM message when Firebase is set up.
 
 Each push names a phone (its device) and carries the payload; the phone's endpoint is read
 when it is sent, so a phone removed, revoked or disabled in the meantime gets nothing.
@@ -28,6 +29,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from filament_tracker.db.push_models import PushEndpoint
 from filament_tracker.db.types import utcnow
+from filament_tracker.domain.enums import PushRoute
+from filament_tracker.push.fcm import AccessTokens, fcm_message
+from filament_tracker.push.firebase import Firebase
 from filament_tracker.push.keys import VapidKeys
 from filament_tracker.push.transport import PushError, PushTransport
 from filament_tracker.push.webpush import PushMessage, Subscription, web_push
@@ -41,6 +45,7 @@ STALE_AFTER = timedelta(days=30)
 STOP_TIMEOUT = 5.0
 GONE = {404, 410}
 UNEXPECTED = "The phone notification couldn't be sent."
+NO_FIREBASE = "Firebase isn't set up on this server."
 
 
 @dataclass(frozen=True)
@@ -89,10 +94,13 @@ class PushSender:
         sessions: sessionmaker[Session],
         keys: VapidKeys,
         *,
+        firebase: Callable[[], Firebase | None] = lambda: None,
         retries: tuple[float, ...] = RETRIES,
         clock: Callable[[], datetime] = utcnow,
     ) -> None:
         self._transport = transport
+        self._firebase = firebase
+        self._access_tokens = AccessTokens(transport)
         self._sessions = sessions
         self._keys = keys
         self._retries = retries
@@ -173,8 +181,8 @@ class PushSender:
     def _send(self, push: Push) -> Result:
         try:
             message = self._message(push)
-            if message is None:
-                return Result(Outcome.NOWHERE)
+            if not isinstance(message, PushMessage):
+                return message
             status = self._transport.post(message)
         except PushError as error:
             return Result(Outcome.FAILED, str(error))
@@ -191,13 +199,21 @@ class PushSender:
             return Result(Outcome.GONE, "This phone's push endpoint is gone.")
         return Result(Outcome.FAILED, f"The push service answered {status}.")
 
-    def _message(self, push: Push) -> PushMessage | None:
+    def _message(self, push: Push) -> PushMessage | Result:
+        """The message to send by the phone's route, or why there is none."""
         with self._sessions() as session:
             endpoint = session.get(PushEndpoint, push.device_id)
             if endpoint is None or not reachable(endpoint):
-                return None
-            to = Subscription(endpoint.endpoint, endpoint.p256dh or "", endpoint.auth or "")
-        return web_push(to, push.payload, self._keys)
+                return Result(Outcome.NOWHERE)
+            route, address = endpoint.route, endpoint.endpoint
+            to = Subscription(address, endpoint.p256dh or "", endpoint.auth or "")
+        if route == PushRoute.WEB_PUSH:
+            return web_push(to, push.payload, self._keys)
+        firebase = self._firebase()
+        if firebase is None:
+            return Result(Outcome.NOWHERE, NO_FIREBASE)
+        access_token = self._access_tokens.get(firebase.account)
+        return fcm_message(firebase.client.project_id, address, push.payload, access_token)
 
     def _update(self, device_id: str, change: Callable[[Session, PushEndpoint], None]) -> None:
         with self._sessions() as session:

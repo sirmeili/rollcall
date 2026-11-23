@@ -7,11 +7,12 @@ from api_helpers import (
     CSRF,
     INTERNET_CLIENT,
     LAN_CLIENT,
+    admin,
     bearer,
     browser,
     signed_in,
 )
-from fake_push_outbox import FakePushOutbox, unb64url
+from fake_push_outbox import FIREBASE, FakePushOutbox, service_account, unb64url
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from phone_helpers import CONFIG
@@ -19,6 +20,8 @@ from phone_helpers import CONFIG
 from filament_tracker.config import Settings
 from filament_tracker.domain.enums import Role
 from filament_tracker.main import create_app
+
+SETTINGS = "/api/v1/settings/phone-notifications"
 
 
 def test_a_signed_in_user_gets_the_vapid_public_key(app: FastAPI, client: TestClient) -> None:
@@ -56,3 +59,37 @@ def test_a_device_token_or_no_sign_in_is_refused(app: FastAPI, client: TestClien
 
     assert browser(app).get(CONFIG).status_code == 401
     assert browser(app).get(CONFIG, headers=bearer(token)).status_code == 403
+
+
+def test_without_firebase_the_config_names_none(app: FastAPI, client: TestClient) -> None:
+    user = signed_in(app, Role.VIEWER)
+
+    assert user.get(CONFIG).json()["firebase"] is None
+
+
+def test_with_firebase_set_up_the_phone_gets_its_client_settings(
+    app: FastAPI, client: TestClient
+) -> None:
+    key = service_account().json
+    values = {**FIREBASE, "firebase_service_account": key}
+    assert client.put(SETTINGS, json={"values": values}, headers=admin()).status_code == 200
+    user = signed_in(app, Role.VIEWER)
+
+    response = user.get(CONFIG)
+
+    assert response.json()["firebase"] == {
+        "project_id": FIREBASE["firebase_project_id"],
+        "app_id": FIREBASE["firebase_app_id"],
+        "api_key": FIREBASE["firebase_api_key"],
+        "sender_id": FIREBASE["firebase_sender_id"],
+    }
+    assert "PRIVATE KEY" not in response.text
+
+
+def test_firebase_counts_as_set_up_only_with_all_five_settings(
+    app: FastAPI, client: TestClient
+) -> None:
+    client.put(SETTINGS, json={"values": FIREBASE}, headers=admin())
+    user = signed_in(app, Role.VIEWER)
+
+    assert user.get(CONFIG).json()["firebase"] is None

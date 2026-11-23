@@ -57,6 +57,7 @@ from filament_tracker.print_requests import retrying
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
 from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
 from filament_tracker.printer.manager import PrinterManager
+from filament_tracker.push.firebase import firebase
 from filament_tracker.push.keys import vapid_keys
 from filament_tracker.push.sender import PushSender
 from filament_tracker.push.transport import HttpPushTransport, PushTransport
@@ -123,7 +124,12 @@ def create_app(
         app.state.mail = mail
         mail.start()
         app.state.vapid_keys = vapid_keys(app.state.session_factory, box)
-        phones = PushSender(push_transport, app.state.session_factory, app.state.vapid_keys)
+        phones = PushSender(
+            push_transport,
+            app.state.session_factory,
+            app.state.vapid_keys,
+            firebase=lambda: firebase(store),
+        )
         app.state.push = phones
         phones.start()
         # Where emails link to: PUBLIC_URL, read when each is built.
