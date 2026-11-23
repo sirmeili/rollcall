@@ -10,12 +10,12 @@ from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from filament_tracker.domain.enums import NotificationKind
-from filament_tracker.ha.snapshot import ProductState
 from filament_tracker.mail.message import Email
 from filament_tracker.mail.sender import MailSender
 from filament_tracker.notifications.email import build_and_send, compose, link
 from filament_tracker.notifications.recipients import email_recipients
 from filament_tracker.poll import Changes
+from filament_tracker.services.stock_snapshot import ProductState
 
 LOW_STOCK_SUBJECT = "Low stock: {product}"
 LOW_STOCK_SENTENCE = "{product} is low: {n} Sealed spools left."

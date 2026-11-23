@@ -28,8 +28,8 @@ from filament_tracker.db.models import Event, Spool
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import EventType
 from filament_tracker.ha.rest import HaRest, HaRestError, Problem
-from filament_tracker.ha.snapshot import ProductState
 from filament_tracker.poll import Changes
+from filament_tracker.services.stock_snapshot import ProductState
 
 logger = logging.getLogger(__name__)
 

@@ -13,9 +13,9 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session, sessionmaker
 
 from filament_tracker.db.models import Spool
-from filament_tracker.ha.snapshot import ProductState, take_snapshot
 from filament_tracker.printer.report import slot_name
 from filament_tracker.services.queries import nearly_out_in_ams
+from filament_tracker.services.stock_snapshot import ProductState, product_states
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class StockWatch:
         self._nearly_out: set[int] = set()
 
     def changes(self, session: Session) -> Changes:
-        low_now = take_snapshot(session).low_stock
+        low_now = [p for p in product_states(session) if p.low_stock]
         nearly_out_now = nearly_out_in_ams(session)
         low_before, self._low = self._low, {p.id for p in low_now}
         nearly_out_before, self._nearly_out = self._nearly_out, {s.id for s in nearly_out_now}

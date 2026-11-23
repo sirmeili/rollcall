@@ -13,7 +13,8 @@ The entities are unavailable while the server is not connected to the broker.
 import json
 from typing import Any
 
-from filament_tracker.ha.snapshot import ProductState, Snapshot
+from filament_tracker.ha.snapshot import Snapshot
+from filament_tracker.services.stock_snapshot import ProductState
 
 NODE = "filament_tracker"
 BASE = "filament_tracker"
