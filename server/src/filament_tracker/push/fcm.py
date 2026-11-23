@@ -3,7 +3,7 @@ sent with an OAuth access token from the service-account key.
 
 The payload is the Web Push one, as FCM data, which the app shows itself. The access token is
 asked for with an assertion signed by the key (RFC 7523) and kept until 5 minutes before it
-expires; a different key asks again.
+expires; a different key, or FCM refusing it, asks again.
 """
 
 import base64
@@ -74,6 +74,13 @@ class AccessTokens:
                 self._token = answer.token
                 self._until = now + answer.expires_in - EARLY_SECONDS
             return self._token
+
+    def forget(self) -> None:
+        """Forget the token FCM refused, so the next send asks for a new one."""
+        with self._lock:
+            self._for = None
+            self._token = ""
+            self._until = 0.0
 
 
 def fcm_message(project_id: str, token: str, payload: bytes, access_token: str) -> PushMessage:

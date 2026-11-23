@@ -12,8 +12,8 @@ from filament_tracker.db.models import Device, User
 from filament_tracker.db.push_models import PushEndpoint
 from filament_tracker.domain.enums import Channel
 from filament_tracker.notifications.notification import Notification
+from filament_tracker.push.messages import Push, reachable
 from filament_tracker.push.payload import phone_payload
-from filament_tracker.push.sender import Push, reachable
 
 
 def _phones(session: Session, user_ids: list[int]) -> dict[int, list[PushEndpoint]]:

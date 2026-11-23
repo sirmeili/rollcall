@@ -21,7 +21,8 @@ from filament_tracker.domain.enums import PushRoute, Role
 from filament_tracker.push.fcm_account import parse_service_account
 from filament_tracker.push.firebase import Firebase, FirebaseClient
 from filament_tracker.push.keys import vapid_keys
-from filament_tracker.push.sender import RETRIES, Outcome, Push, PushSender
+from filament_tracker.push.messages import Outcome, Push
+from filament_tracker.push.sender import RETRIES, PushSender
 
 SHORT = (0.01, 0.01, 0.01)
 PHONE = "phone-1"
@@ -271,6 +272,94 @@ def test_an_fcm_phone_follows_the_same_failure_rules(
     wait_for(lambda: pushes.attempts == 4)
     wait_for(lambda: _endpoint(sessions) is None)
     sender.stop()
+
+
+@pytest.fixture
+def fcm_sender(
+    sessions: sessionmaker[Session], pushes: FakePushOutbox, phone: TestPhone
+) -> Iterator[PushSender]:
+    """A sender with Firebase set up, and the phone registered with an FCM token."""
+    with sessions() as session:
+        endpoint = session.get(PushEndpoint, PHONE)
+        endpoint.route, endpoint.endpoint = PushRoute.FCM, "fcm-token"
+        endpoint.p256dh = endpoint.auth = None
+        session.commit()
+    setup = Firebase(
+        FirebaseClient("rollcall-test", "1:1:android:ab", "AIzaKey", "1"),
+        parse_service_account(service_account().json),
+    )
+    keys = vapid_keys(sessions, SecretBox(parse_key(new_key_text())))
+    sender = PushSender(pushes, sessions, keys, firebase=lambda: setup, retries=SHORT)
+    sender.start()
+    yield sender
+    sender.stop()
+
+
+def _given_up_at_once(
+    sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session]
+) -> None:
+    sender.send_later([PUSH])
+
+    wait_for(lambda: pushes.attempts == 1)
+    wait_for(sender.idle)
+    assert pushes.attempts == 1
+    endpoint = _endpoint(sessions)
+    assert endpoint is not None and endpoint.failures == 1
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 413])
+def test_another_4xx_is_given_up_at_once_and_counted(
+    sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session], status: int
+) -> None:
+    pushes.answer(status)
+
+    _given_up_at_once(sender, pushes, sessions)
+
+
+@pytest.mark.parametrize("status", [400, 403])
+def test_another_4xx_from_fcm_is_given_up_at_once_and_counted(
+    fcm_sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session], status: int
+) -> None:
+    pushes.answer(status)
+
+    _given_up_at_once(fcm_sender, pushes, sessions)
+
+
+def test_fcm_refusing_the_access_token_asks_for_a_new_one_and_tries_again(
+    fcm_sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session]
+) -> None:
+    pushes.answer(401)
+
+    fcm_sender.send_later([PUSH])
+
+    wait_for(lambda: len(pushes.sent) == 1)
+    assert pushes.attempts == 2
+    assert len(pushes.assertions) == 2
+    [sent] = pushes.sent
+    assert sent.headers["Authorization"] == "Bearer fake-access-token-2"
+
+
+def test_fcm_answering_404_drops_the_token_at_once(
+    fcm_sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session]
+) -> None:
+    pushes.answer(404)
+
+    fcm_sender.send_later([PUSH])
+
+    wait_for(lambda: _endpoint(sessions) is None)
+    assert pushes.attempts == 1
+
+
+@pytest.mark.parametrize("failure", [None, 500, 429])
+def test_fcm_retries_a_timeout_5xx_or_429(
+    fcm_sender: PushSender, pushes: FakePushOutbox, failure: int | None
+) -> None:
+    pushes.answer(failure, failure)
+
+    fcm_sender.send_later([PUSH])
+
+    wait_for(lambda: len(pushes.sent) == 1)
+    assert pushes.attempts == 3
 
 
 def test_the_start_of_failures_since_the_last_success_is_kept(

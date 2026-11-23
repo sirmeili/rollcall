@@ -25,8 +25,9 @@ from filament_tracker.db.models import Device
 from filament_tracker.db.push_models import PushEndpoint
 from filament_tracker.db.types import utcnow
 from filament_tracker.push.firebase import firebase
+from filament_tracker.push.messages import Outcome, Push
 from filament_tracker.push.payload import phone_payload
-from filament_tracker.push.sender import Outcome, Push, PushSender
+from filament_tracker.push.sender import PushSender
 from filament_tracker.services.cooldown import Cooldowns
 
 logger = logging.getLogger(__name__)
