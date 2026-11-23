@@ -50,9 +50,9 @@ Keep `README.md` accurate. A change to what it describes (status, components, se
 
 Narrow while working, complete before the PR, with evidence both times.
 
-- **Inner loop**: after each edit, run the tests for the code you changed, with coverage off, using the inner-loop command in that area's README. When the edit touches shared code, widen the loop to the tests of the code that uses it.
+- **Inner loop**: after each edit, run the tests for the code you changed, with coverage off, using the inner-loop command in that area's README. When the edit touches shared code, widen the loop to the tests of the code that uses it. To see the coverage of the code you changed, use that README's changed-file coverage command.
 - **Final gate**: when the branch is ready for a PR, run the checks that the README of each area the branch changes lists to run before a review, with coverage on. Run it again only if code changes after it; a clean merge of tested code needs no new run.
-- **Ticket gate**: under `/implement-spec`, a ticket's branch merges into the integration branch, not a PR. When the ticket is done, run those same checks with coverage off. The final gate runs once, on the integration branch, after the code-review fixes merge.
+- **Ticket gate**: under `/implement-spec`, a ticket's branch merges into the integration branch, not a PR. When the ticket is done, run those same checks with coverage off, and the changed-file coverage command for the files the ticket changed. The final gate runs once, on the integration branch, after the code-review fixes merge. A prompt to a ticket implementer asks for the ticket gate.
 - **A failing test**: rerun that test alone, not the suite. A test that passes only on retry is flaky: report it with the first failure's output.
 - **Fix the code, or report the failure.** Tests, skips, timeouts and thresholds change only as `CODING_STANDARDS.md` allows.
 

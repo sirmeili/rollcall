@@ -17,6 +17,8 @@ npm run build          # Build to web/build
 
 Inner loop, with coverage off: `npx vitest run <test files>`.
 
+Changed-file coverage, without the 90% gate: `npx vitest run <test files> --coverage --coverage.include=<source file> --coverage.thresholds.lines=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0 --coverage.thresholds.statements=0`, with one `--coverage.include` per changed source file. A fully covered file prints only in the summary.
+
 - **Build**: `npm run build` writes `web/build`. The server serves it at `/`.
 - **Live reload**: start the server on port 8000 (see [server/README.md](../server/README.md#development)), then `npm run dev`. Vite proxies `/api` to it.
 - **End-to-end tests**: `npx playwright install chromium` once, then `npm run build` and `npm run test:e2e`. They start the real server on a scratch database.
