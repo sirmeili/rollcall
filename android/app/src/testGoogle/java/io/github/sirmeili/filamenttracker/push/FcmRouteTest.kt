@@ -37,7 +37,7 @@ class FcmRouteTest {
     private val firebase = FirebaseSettingsStore(MemoryValues())
     private val endpoints = PushEndpointStore(MemoryValues())
     private val fcm = FakeFcm()
-    private val events = mutableListOf<PushEndpointInfo?>()
+    private val events = mutableListOf<PushEndpoint?>()
     private var playServices = true
     private val route = FcmRoute(firebase, { playServices }, fcm, endpoints) { events += it }
 
@@ -56,9 +56,9 @@ class FcmRouteTest {
     fun registeringKeepsAndPassesOnTheToken() {
         route.register("BVapid")
 
-        val token = PushEndpointInfo.fcm("fcm-token:1")
+        val token = PushEndpoint.fcm("fcm-token:1")
         assertEquals(token, endpoints.load())
-        assertEquals(listOf<PushEndpointInfo?>(token), events)
+        assertEquals(listOf<PushEndpoint?>(token), events)
         assertEquals("fcm", route.route)
     }
 
@@ -68,19 +68,19 @@ class FcmRouteTest {
 
         route.tokenRefreshed("fcm-token:2")
 
-        assertEquals(PushEndpointInfo.fcm("fcm-token:2"), endpoints.load())
-        assertEquals(PushEndpointInfo.fcm("fcm-token:2"), events.last())
+        assertEquals(PushEndpoint.fcm("fcm-token:2"), endpoints.load())
+        assertEquals(PushEndpoint.fcm("fcm-token:2"), events.last())
     }
 
     @Test
     fun aRefreshedTokenIsIgnoredWhileADistributorIsInUse() {
-        val distributor = PushEndpointInfo("https://ntfy.example.com/upAbc", "BKey", "auth")
+        val distributor = PushEndpoint("https://ntfy.example.com/upAbc", "BKey", "auth")
         endpoints.save(distributor)
 
         route.tokenRefreshed("fcm-token:2")
 
         assertEquals(distributor, endpoints.load())
-        assertEquals(emptyList<PushEndpointInfo?>(), events)
+        assertEquals(emptyList<PushEndpoint?>(), events)
     }
 
     @Test
@@ -100,7 +100,7 @@ class FcmRouteTest {
 
     @Test
     fun unregisteringKeepsADistributorsEndpoint() {
-        val distributor = PushEndpointInfo("https://ntfy.example.com/upAbc", "BKey", "auth")
+        val distributor = PushEndpoint("https://ntfy.example.com/upAbc", "BKey", "auth")
         endpoints.save(distributor)
 
         route.unregister()

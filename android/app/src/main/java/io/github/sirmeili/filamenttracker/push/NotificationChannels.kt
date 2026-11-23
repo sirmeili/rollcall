@@ -1,7 +1,8 @@
 package io.github.sirmeili.filamenttracker.push
 
-/** An Android notification channel: one per kind, so each can be muted in Android's settings. */
-data class Channel(val id: String, val name: String)
+/** An Android notification channel: one per kind, so each can be muted in Android's settings.
+ * Not a channel in the glossary's sense (email or phone). */
+data class AndroidChannel(val id: String, val name: String)
 
 /**
  * The channel for each kind of phone notification. The kinds are the server's
@@ -9,22 +10,22 @@ data class Channel(val id: String, val name: String)
  * app doesn't know yet shows under [OTHER] until it gets its own channel here.
  */
 object NotificationChannels {
-    val OTHER = Channel("other", "Other notifications")
+    val OTHER = AndroidChannel("other", "Other notifications")
 
     private val KINDS =
         listOf(
-            Channel("new_request", "New requests"),
-            Channel("request_update", "Request updates"),
-            Channel("new_photo", "New photos"),
-            Channel("low_stock", "Low stock"),
-            Channel("suggestion", "Suggestions"),
-            Channel("nearly_out", "Nearly out"),
-            Channel("backup_failed", "Backup failed"),
-            Channel("test", "Test notifications"),
+            AndroidChannel("new_request", "New requests"),
+            AndroidChannel("request_update", "Request updates"),
+            AndroidChannel("new_photo", "New photos"),
+            AndroidChannel("low_stock", "Low stock"),
+            AndroidChannel("suggestion", "Suggestions"),
+            AndroidChannel("nearly_out", "Nearly out"),
+            AndroidChannel("backup_failed", "Backup failed"),
+            AndroidChannel("test", "Test notifications"),
         )
 
     /** Every channel, to create when the app shows its first notification. */
-    val ALL: List<Channel> = KINDS + OTHER
+    val ALL: List<AndroidChannel> = KINDS + OTHER
 
-    fun of(kind: String): Channel = KINDS.firstOrNull { it.id == kind } ?: OTHER
+    fun of(kind: String): AndroidChannel = KINDS.firstOrNull { it.id == kind } ?: OTHER
 }

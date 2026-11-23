@@ -6,7 +6,7 @@ import io.github.sirmeili.filamenttracker.storage.PrefsValues
 import org.json.JSONObject
 import org.unifiedpush.android.connector.FailedReason
 import org.unifiedpush.android.connector.PushService
-import org.unifiedpush.android.connector.data.PushEndpoint
+import org.unifiedpush.android.connector.data.PushEndpoint as UnifiedPushEndpoint
 import org.unifiedpush.android.connector.data.PushMessage
 
 /**
@@ -17,10 +17,10 @@ import org.unifiedpush.android.connector.data.PushMessage
 class UnifiedPushService : PushService() {
     private val endpoints by lazy { pushEndpoints(this) }
 
-    override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
+    override fun onNewEndpoint(endpoint: UnifiedPushEndpoint, instance: String) {
         // Without Web Push keys the server cannot encrypt for this phone, so it isn't used.
         val keys = endpoint.pubKeySet ?: return
-        val info = PushEndpointInfo(endpoint.url, keys.pubKey, keys.auth)
+        val info = PushEndpoint(endpoint.url, keys.pubKey, keys.auth)
         endpoints.save(info)
         PushEvents.endpointChanged(info)
     }

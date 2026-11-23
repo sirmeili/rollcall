@@ -35,7 +35,7 @@ class PushBridge(private val context: Context) {
      * when they differ from the ones Firebase is running with, so the app must [restart].
      */
     fun configure(firebase: JSObject?): Boolean {
-        val settings = firebase?.let { json -> FirebaseSettings.fromServer { json.getString(it) } }
+        val settings = firebase?.let { json -> FirebaseSettings.read { json.getString(it) } }
         return appFlavor.useFirebase(context, settings)
     }
 
@@ -46,7 +46,7 @@ class PushBridge(private val context: Context) {
         Runtime.getRuntime().exit(0)
     }
 
-    private fun endpointJs(endpoint: PushEndpointInfo?): JSObject =
+    private fun endpointJs(endpoint: PushEndpoint?): JSObject =
         JSObject().put(
             "endpoint",
             endpoint?.let {

@@ -6,15 +6,15 @@ package io.github.sirmeili.filamenttracker.push
  * next registers.
  */
 object PushEvents {
-    @Volatile private var listener: ((PushEndpointInfo?) -> Unit)? = null
+    @Volatile private var listener: ((PushEndpoint?) -> Unit)? = null
 
     /** Follow endpoint changes, or stop (null). One listener: the open app's plugin. */
-    fun listen(next: ((PushEndpointInfo?) -> Unit)?) {
+    fun listen(next: ((PushEndpoint?) -> Unit)?) {
         listener = next
     }
 
     /** The route gave a new endpoint, or dropped this phone (null). */
-    fun endpointChanged(endpoint: PushEndpointInfo?) {
+    fun endpointChanged(endpoint: PushEndpoint?) {
         listener?.invoke(endpoint)
     }
 }

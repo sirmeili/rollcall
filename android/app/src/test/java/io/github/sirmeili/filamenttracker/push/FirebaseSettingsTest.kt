@@ -18,7 +18,7 @@ class FirebaseSettingsTest {
     fun readsTheServersFourSettings() {
         assertEquals(
             FirebaseSettings("rollcall-test", "1:1:android:ab", "AIzaKey", "1"),
-            FirebaseSettings.fromServer(server::get),
+            FirebaseSettings.read(server::get),
         )
     }
 
@@ -26,7 +26,7 @@ class FirebaseSettingsTest {
     fun isNoneWhenAnyIsMissing() {
         for (missing in server.keys) {
             val given = server - missing
-            assertNull(missing, FirebaseSettings.fromServer(given::get))
+            assertNull(missing, FirebaseSettings.read(given::get))
         }
     }
 }

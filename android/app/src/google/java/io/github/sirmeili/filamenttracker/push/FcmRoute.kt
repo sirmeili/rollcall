@@ -20,7 +20,7 @@ class FcmRoute(
     private val playServices: () -> Boolean,
     private val fcm: FcmClient,
     private val endpoints: PushEndpointStore,
-    private val changed: (PushEndpointInfo?) -> Unit = PushEvents::endpointChanged,
+    private val changed: (PushEndpoint?) -> Unit = PushEvents::endpointChanged,
 ) : PushProvider {
     override val route = ROUTE
 
@@ -41,10 +41,10 @@ class FcmRoute(
         if (inUse()) given(token)
     }
 
-    private fun inUse() = endpoints.load()?.route == PushEndpointInfo.FCM
+    private fun inUse() = endpoints.load()?.route == PushEndpoint.FCM
 
     private fun given(token: String) {
-        val endpoint = PushEndpointInfo.fcm(token)
+        val endpoint = PushEndpoint.fcm(token)
         endpoints.save(endpoint)
         changed(endpoint)
     }

@@ -22,7 +22,7 @@ class PushEndpointStoreTest {
 
     private val values = MemoryValues()
     private val store = PushEndpointStore(values)
-    private val endpoint = PushEndpointInfo("https://ntfy.example.com/upAbc", "BKey", "auth")
+    private val endpoint = PushEndpoint("https://ntfy.example.com/upAbc", "BKey", "auth")
 
     @Test
     fun keepsTheLastEndpoint() {
@@ -56,7 +56,7 @@ class PushEndpointStoreTest {
 
     @Test
     fun keepsAnFcmTokenWithItsRoute() {
-        val token = PushEndpointInfo.fcm("fcm-token:abc")
+        val token = PushEndpoint.fcm("fcm-token:abc")
 
         store.save(token)
 
