@@ -1,7 +1,15 @@
 /** A fake Android bridge for tests: in-memory secure storage, scripted tag reads and QR
- * codes, Back presses and a record of being sent to the background. */
+ * codes, Back presses, a record of being sent to the background, and a push route whose
+ * endpoint changes and tapped notifications the test sends. */
 
-import type { BackPress, NfcStatus, PhoneBridge, TagRead } from "#lib/phone/bridge.ts";
+import type {
+  BackPress,
+  NfcStatus,
+  PhoneBridge,
+  PushEndpoint,
+  PushRoute,
+  TagRead,
+} from "#lib/phone/bridge.ts";
 
 export interface FakeBridge extends PhoneBridge {
   storage: Map<string, string>;
@@ -16,11 +24,25 @@ export interface FakeBridge extends PhoneBridge {
   pressBack(canGoBack: boolean): void;
   /** How many times the app was sent to the background. */
   backgrounded: number;
+  /** The route for phone notifications: UnifiedPush unless a test says none. */
+  route: PushRoute;
+  /** The endpoint the route has given, if any. */
+  endpoint: PushEndpoint | null;
+  /** The VAPID key of each registration, in order. */
+  registrations: string[];
+  /** How many times the phone unregistered from the route. */
+  unregistrations: number;
+  /** The route gives a new endpoint (null: it dropped this phone). */
+  changeEndpoint(endpoint: PushEndpoint | null): void;
+  /** Tap a phone notification for `path`. */
+  openNotification(path: string): void;
 }
 
 export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
   let pending: { resolve: (read: TagRead) => void; reject: (error: Error) => void } | null = null;
   const backListeners = new Set<(press: BackPress) => void>();
+  const endpointListeners = new Set<(endpoint: PushEndpoint | null) => void>();
+  const openListeners = new Set<(path: string) => void>();
   const fake: FakeBridge = {
     app: true,
     appVersion: "app-test",
@@ -29,6 +51,10 @@ export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
     qr: [],
     reads: 0,
     backgrounded: 0,
+    route: "unifiedpush",
+    endpoint: null,
+    registrations: [],
+    unregistrations: 0,
     nfcStatus: () => Promise.resolve(fake.status),
     readTag: (_salt, signal) =>
       new Promise<TagRead>((resolve, reject) => {
@@ -58,6 +84,30 @@ export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
       return Promise.resolve();
     },
     pressBack: (canGoBack) => backListeners.forEach((listener) => listener({ canGoBack })),
+    pushRoute: () => Promise.resolve(fake.route),
+    pushRegister: (vapidKey) => {
+      fake.registrations.push(vapidKey);
+      return Promise.resolve();
+    },
+    pushUnregister: () => {
+      fake.unregistrations += 1;
+      fake.endpoint = null;
+      return Promise.resolve();
+    },
+    pushEndpoint: () => Promise.resolve(fake.endpoint),
+    onPushEndpoint: (listener) => {
+      endpointListeners.add(listener);
+      return () => void endpointListeners.delete(listener);
+    },
+    onNotificationOpen: (listener) => {
+      openListeners.add(listener);
+      return () => void openListeners.delete(listener);
+    },
+    changeEndpoint: (endpoint) => {
+      fake.endpoint = endpoint;
+      endpointListeners.forEach((listener) => listener(endpoint));
+    },
+    openNotification: (path) => openListeners.forEach((listener) => listener(path)),
     tap: (read) => {
       const current = pending;
       pending = null;
