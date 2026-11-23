@@ -45,14 +45,19 @@ class Kind:
     may_choose: Callable[[User], bool]
     # What each channel is for a user who hasn't chosen.
     defaults: Mapping[Channel, Callable[[User], bool]]
+    # Whether anyone who has made a request may choose it too: their requests stay theirs
+    # after they lose Requester, so they still hear about them (ADR-0017).
+    request_owners: bool = False
 
 
 KINDS: dict[NotificationKind, Kind] = {
     k.kind: k
     for k in (
         Kind(NotificationKind.NEW_REQUEST, _editors, {Channel.EMAIL: _admins}),
-        Kind(NotificationKind.REQUEST_UPDATE, _requesters, {Channel.EMAIL: _on}),
-        Kind(NotificationKind.NEW_PHOTO, _requesters, {Channel.EMAIL: _on}),
+        Kind(
+            NotificationKind.REQUEST_UPDATE, _requesters, {Channel.EMAIL: _on}, request_owners=True
+        ),
+        Kind(NotificationKind.NEW_PHOTO, _requesters, {Channel.EMAIL: _on}, request_owners=True),
         Kind(NotificationKind.LOW_STOCK, _everyone, {Channel.EMAIL: _off}),
         Kind(NotificationKind.SUGGESTION, _editors, {Channel.EMAIL: _off}),
         Kind(NotificationKind.NEARLY_OUT, _everyone, {Channel.EMAIL: _off}),
@@ -61,9 +66,12 @@ KINDS: dict[NotificationKind, Kind] = {
 }
 
 
-def may_choose(user: User, kind: NotificationKind) -> bool:
-    """Whether the kind is listed for the user: their role (or Requester) may choose it."""
-    return KINDS[kind].may_choose(user)
+def may_choose(user: User, kind: NotificationKind, *, has_requests: bool) -> bool:
+    """Whether the kind is listed for the user: their role (or Requester) may choose it, or
+    it is about requests and they have made one. Notifications never reads print requests
+    (ADR-0014), so the caller says whether they have."""
+    found = KINDS[kind]
+    return found.may_choose(user) or (has_requests and found.request_owners)
 
 
 def default(user: User, kind: NotificationKind, channel: Channel) -> bool:

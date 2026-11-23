@@ -148,7 +148,9 @@ def _requester_address(
     session: Session, kind: NotificationKind, request: PrintRequest, actor: User | None
 ) -> str | None:
     """The requester's address, if the resolver tells them about `kind`; None otherwise."""
-    found = email_recipients(session, kind, actor=actor, among=[request.requester])
+    found = email_recipients(
+        session, kind, actor=actor, among=[request.requester], have_requests=True
+    )
     return found[0] if found else None
 
 

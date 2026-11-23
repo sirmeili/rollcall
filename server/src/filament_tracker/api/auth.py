@@ -62,16 +62,17 @@ def _store(request: Request) -> SettingsStore:
 
 
 def me_out(request: Request, session: Session, user: User) -> Me:
+    owns_requests = has_requests(session, user)
     return Me(
         id=user.id,
         username=user.username,
         role=user.role,
         requester=user.requester,
         email=user.email,
-        has_requests=has_requests(session, user),
+        has_requests=owns_requests,
         notifications=[
             NotificationSetting(kind=s.kind, channel=s.channel, on=s.on, default=s.default)
-            for s in notification_settings(session, user)
+            for s in notification_settings(session, user, has_requests=owns_requests)
         ],
         email_set_up=mail_sender(request).on,
         time_zone=_store(request).time_zone(),
@@ -135,7 +136,12 @@ def update_account(
     except AccountError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     try:
-        choose(session, user, (Choice(c.kind, c.channel, c.on) for c in body.notifications))
+        choose(
+            session,
+            user,
+            (Choice(c.kind, c.channel, c.on) for c in body.notifications),
+            has_requests=has_requests(session, user),
+        )
     except NotChoosable as exc:
         session.rollback()
         raise forbidden(str(exc)) from exc

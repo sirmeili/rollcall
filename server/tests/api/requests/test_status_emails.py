@@ -343,3 +343,42 @@ def test_a_failing_transport_never_fails_a_move(
         assert time.monotonic() < deadline, "the email was never tried"
         time.sleep(0.005)
     assert outbox.sent == []
+
+
+def _no_longer_a_requester(client: TestClient, user: TestClient) -> None:
+    user_id = user.get("/api/v1/auth/me").json()["id"]
+    response = client.patch(f"/api/v1/users/{user_id}", json={"requester": False}, headers=admin())
+    assert response.status_code == 200, response.text
+
+
+def test_a_former_requester_is_still_emailed_about_their_request(
+    app: FastAPI,
+    client: TestClient,
+    sam: TestClient,
+    frank: TestClient,
+    outbox: FakeOutbox,
+    request_id: int,
+) -> None:
+    _no_longer_a_requester(client, sam)
+
+    assert move(frank, request_id, "submitted", "approved").status_code == 200
+
+    assert [m["To"] for m in sent(app, outbox)] == ["sam@example.com"]
+
+
+def test_a_former_requester_still_chooses_emails_about_their_requests(
+    app: FastAPI,
+    client: TestClient,
+    sam: TestClient,
+    frank: TestClient,
+    outbox: FakeOutbox,
+    request_id: int,
+) -> None:
+    _no_longer_a_requester(client, sam)
+
+    kinds = [s["kind"] for s in sam.get("/api/v1/auth/me").json()["notifications"]]
+    assert kinds[:2] == ["request_update", "new_photo"]
+    notify(sam, "request_update", False)
+    assert move(frank, request_id, "submitted", "approved").status_code == 200
+
+    assert sent(app, outbox) == []
