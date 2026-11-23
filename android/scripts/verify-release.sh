@@ -26,7 +26,7 @@ if [[ $badging != "$want"* ]]; then
   exit 1
 fi
 
-signing=$("$apksigner" verify --verbose --print-certs "$apk" 2>&1 | tr -d '')
+signing=$("$apksigner" verify --verbose --print-certs "$apk" 2>&1 | tr -d '\r')
 grep -q "Verified using v2 scheme (APK Signature Scheme v2): true" <<<"$signing" || {
   echo "not signed with APK Signature Scheme v2" >&2
   exit 1

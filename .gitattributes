@@ -1,0 +1,23 @@
+# Text files are stored and checked out with LF, on every platform.
+* text=auto eol=lf
+
+# cmd.exe can misread labels and gotos in LF batch files.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files are never converted.
+*.png binary
+*.gif binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.jar binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.3mf binary
+*.stl binary
+*.jks binary
+*.keystore binary
