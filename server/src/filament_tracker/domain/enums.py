@@ -149,3 +149,22 @@ class DuplicateState(StrEnum):
     OPEN = "open"
     SAME_PRODUCT = "same_product"
     KEPT_SEPARATE = "kept_separate"
+
+
+class NotificationKind(StrEnum):
+    """What a notification is about, in the order the Account page lists them. Who may
+    choose each, and its defaults, are in notifications/kinds.py."""
+
+    NEW_REQUEST = "new_request"
+    REQUEST_UPDATE = "request_update"
+    NEW_PHOTO = "new_photo"
+    LOW_STOCK = "low_stock"
+    SUGGESTION = "suggestion"
+    NEARLY_OUT = "nearly_out"
+    BACKUP_FAILED = "backup_failed"
+
+
+class Channel(StrEnum):
+    """How a notification reaches a person. #81 adds the phone."""
+
+    EMAIL = "email"

@@ -16,11 +16,35 @@ export interface Me extends UserBase {
   time_zone: string;
   /** Has made a print request, so keeps the Requests page after Requester is turned off. */
   has_requests: boolean;
-  /** The Account switches: emails about one's own requests, and (Admins) about new ones. */
-  email_on_request_change: boolean;
-  email_on_new_request: boolean;
+  /** Notification settings for each kind the user's role can see, in the order to list them. */
+  notifications: NotificationSetting[];
   /** Whether this server can send email at all (an SMTP host is saved). */
   email_set_up: boolean;
+}
+
+/** What a notification is about: server/src/filament_tracker/notifications/kinds.py. */
+export type NotificationKind =
+  | "new_request"
+  | "request_update"
+  | "new_photo"
+  | "low_stock"
+  | "suggestion"
+  | "nearly_out"
+  | "backup_failed";
+
+/** How a notification reaches a person. */
+export type NotificationChannel = "email";
+
+/** A user's own choice for one kind on one channel. */
+export interface NotificationChoice {
+  kind: NotificationKind;
+  channel: NotificationChannel;
+  on: boolean;
+}
+
+export interface NotificationSetting extends NotificationChoice {
+  /** The user hasn't chosen: `on` is the kind's default for them. */
+  default: boolean;
 }
 
 /** Response bodies from server/src/filament_tracker/api/read_schemas.py. */

@@ -3,7 +3,7 @@
 import time
 from email.message import EmailMessage
 
-from api_helpers import admin
+from api_helpers import CSRF, admin
 from fake_outbox import FakeOutbox
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -38,3 +38,13 @@ def sent(app: FastAPI, outbox: FakeOutbox, timeout: float = 5.0) -> list[EmailMe
     found = [m for m in outbox.sent if m["To"] != _MARKER.to]
     outbox.sent.clear()
     return found
+
+
+def notify(user: TestClient, kind: str, on: bool) -> None:
+    """The signed-in user chooses whether to get `kind` by email."""
+    response = user.patch(
+        "/api/v1/auth/me",
+        json={"notifications": [{"kind": kind, "channel": "email", "on": on}]},
+        headers=CSRF,
+    )
+    assert response.status_code == 200, response.text

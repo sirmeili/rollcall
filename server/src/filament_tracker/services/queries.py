@@ -27,6 +27,21 @@ def is_nearly_out(spool: Spool) -> bool:
     )
 
 
+def nearly_out_in_ams(session: Session) -> list[Spool]:
+    """The spools loaded in an AMS that are nearly out, with their product and slots."""
+    loaded = select(PrinterSlot.spool_id).where(PrinterSlot.spool_id.is_not(None))
+    found = session.scalars(
+        select(Spool)
+        .where(Spool.id.in_(loaded), Spool.state == SpoolState.OPEN)
+        .options(
+            selectinload(Spool.product),
+            selectinload(Spool.slots).selectinload(PrinterSlot.printer),
+        )
+        .order_by(Spool.id)
+    )
+    return [spool for spool in found if is_nearly_out(spool)]
+
+
 @dataclass(frozen=True)
 class ProductCounts:
     product: Product

@@ -40,8 +40,12 @@ def test_login_sets_a_strict_session_cookie_and_returns_the_user(
         "email": None,
         "has_requests": False,
         "time_zone": "UTC",
-        "email_on_request_change": True,
-        "email_on_new_request": True,
+        "notifications": [
+            {"kind": "new_request", "channel": "email", "on": False, "default": True},
+            {"kind": "low_stock", "channel": "email", "on": False, "default": True},
+            {"kind": "suggestion", "channel": "email", "on": False, "default": True},
+            {"kind": "nearly_out", "channel": "email", "on": False, "default": True},
+        ],
         "email_set_up": False,
     }
     cookie = response.headers["set-cookie"].lower()

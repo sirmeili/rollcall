@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import { describeError } from "#lib/api/errors.ts";
   import { getInventory } from "#lib/api/stock.ts";
   import type { ProductSummary } from "#lib/api/types.ts";
@@ -24,7 +25,11 @@
 
   let items = $state<ProductSummary[] | null>(null);
   let failure = $state<string | null>(null);
-  let filter = $state<InventoryFilter>(noFilter());
+  // A low stock email opens this page searched for the product (?q=).
+  let filter = $state<InventoryFilter>({
+    ...noFilter(),
+    query: page.url?.searchParams.get("q") ?? "",
+  });
   let sheetOpen = $state(false);
   let view = $state<InventoryView>(savedView());
 

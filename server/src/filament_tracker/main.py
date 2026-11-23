@@ -1,5 +1,6 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from functools import partial
 
 import httpx
 from fastapi import FastAPI
@@ -46,6 +47,10 @@ from filament_tracker.mail.sender import MailSender
 from filament_tracker.mail.settings import smtp_server
 from filament_tracker.mail.smtp import SmtpSender
 from filament_tracker.mail.transport import MailTransport
+from filament_tracker.notifications.backup import backup_failed_sender
+from filament_tracker.notifications.low_stock import LowStockEmails
+from filament_tracker.notifications.nearly_out import NearlyOutEmails
+from filament_tracker.poll import Poll
 from filament_tracker.print_requests import retrying
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
 from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
@@ -63,12 +68,14 @@ from filament_tracker.webapp import default_web_dir, mount_web_app
 API_PREFIX = "/api/v1"
 
 
-def _backups(settings: Settings, store: SettingsStore) -> BackupScheduler | None:
+def _backups(
+    settings: Settings, store: SettingsStore, on_failure: Callable[[str], None] | None = None
+) -> BackupScheduler | None:
     """Start the nightly backups, if BACKUP_DIR is set and the database is a file."""
     source = database_file(settings.database_url)
     if settings.backup_dir is None or source is None:
         return None
-    scheduler = BackupScheduler(source, settings.backup_dir, store.time_zone)
+    scheduler = BackupScheduler(source, settings.backup_dir, store.time_zone, on_failure=on_failure)
     scheduler.start()
     return scheduler
 
@@ -107,19 +114,35 @@ def create_app(
         mail = MailSender(mail_transport, lambda: smtp_server(store))
         app.state.mail = mail
         mail.start()
+        # Where emails link to: PUBLIC_URL, read when each is built.
+        public_url = partial(store.text, "public_url")
+        # Always running, Home Assistant or not (ADR-0009).
+        poll = Poll(
+            app.state.session_factory,
+            [
+                LowStockEmails(mail, public_url),
+                NearlyOutEmails(mail, public_url),
+                home_assistant.changed,
+            ],
+        )
+        app.state.poll = poll
+        poll.start()
         catalog = CatalogSyncer(app.state.session_factory, transport=catalog_transport)
         app.state.catalog = catalog
         catalog_scheduler = CatalogScheduler(
             catalog, schedule=store.catalog_sync, time_zone=store.time_zone
         )
         catalog_scheduler.start()
-        backups = _backups(settings, store)
+        backup_failed = backup_failed_sender(app.state.session_factory, mail, public_url)
+        backups = _backups(settings, store, backup_failed)
+        app.state.backups = backups
         try:
             yield
         finally:
             if backups is not None:
                 backups.stop()
             catalog_scheduler.stop()
+            poll.stop()
             mail.stop()
             home_assistant.stop()
             printer_links.stop()

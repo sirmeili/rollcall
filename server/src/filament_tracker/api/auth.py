@@ -1,9 +1,16 @@
-"""Sign in, sign out, the current user, and changing one's own email address and password."""
+"""Sign in, sign out, the current user, and changing one's own email address, notification
+settings and password."""
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
-from filament_tracker.api.account_schemas import AccountUpdate, LoginRequest, Me, PasswordChange
+from filament_tracker.api.account_schemas import (
+    AccountUpdate,
+    LoginRequest,
+    Me,
+    NotificationSetting,
+    PasswordChange,
+)
 from filament_tracker.api.deps import mail_sender
 from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import (
@@ -12,6 +19,7 @@ from filament_tracker.auth import (
     SignedInUser,
     check_csrf,
     current_session,
+    forbidden,
     set_session_cookie,
     settings_of,
     unauthorized,
@@ -19,6 +27,12 @@ from filament_tracker.auth import (
 from filament_tracker.db.models import User
 from filament_tracker.db.types import utcnow
 from filament_tracker.net import client_ip
+from filament_tracker.notifications.settings import (
+    Choice,
+    NotChoosable,
+    choose,
+    notification_settings,
+)
 from filament_tracker.print_requests.access import has_requests
 from filament_tracker.services.accounts import (
     AccountError,
@@ -55,8 +69,10 @@ def me_out(request: Request, session: Session, user: User) -> Me:
         requester=user.requester,
         email=user.email,
         has_requests=has_requests(session, user),
-        email_on_request_change=user.email_on_request_change,
-        email_on_new_request=user.email_on_new_request,
+        notifications=[
+            NotificationSetting(kind=s.kind, channel=s.channel, on=s.on, default=s.default)
+            for s in notification_settings(session, user)
+        ],
         email_set_up=mail_sender(request).on,
         time_zone=_store(request).time_zone(),
     )
@@ -109,7 +125,8 @@ def me(caller: SignedInUser, request: Request, session: DbSession) -> Me:
 def update_account(
     body: AccountUpdate, caller: SignedInUser, request: Request, session: DbSession
 ) -> Me:
-    """Change one's own account: the email address and the email switches."""
+    """Change one's own account: the email address and notification settings. Only the
+    signed-in user's own; a kind their role can't see is refused, and nothing changes."""
     user = caller.user
     assert user is not None  # noqa: S101 - guaranteed by SignedInUser
     try:
@@ -117,10 +134,11 @@ def update_account(
             user.email = email_address(body.email)
     except AccountError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
-    if body.email_on_request_change is not None:
-        user.email_on_request_change = body.email_on_request_change
-    if body.email_on_new_request is not None:
-        user.email_on_new_request = body.email_on_new_request
+    try:
+        choose(session, user, (Choice(c.kind, c.channel, c.on) for c in body.notifications))
+    except NotChoosable as exc:
+        session.rollback()
+        raise forbidden(str(exc)) from exc
     session.commit()
     return me_out(request, session, user)
 

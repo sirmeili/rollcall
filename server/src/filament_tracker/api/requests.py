@@ -6,7 +6,6 @@ needs Editor; moving a request is for the people the pipeline names. Another use
 answers 404, so its existence isn't revealed.
 """
 
-from collections.abc import Callable
 from datetime import date, datetime
 from typing import Annotated
 from zoneinfo import ZoneInfo
@@ -14,7 +13,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
-from filament_tracker.api.deps import mail_sender
+from filament_tracker.api.deps import send_after_commit
 from filament_tracker.api.request_schemas import (
     MoveIn,
     PriorityIn,
@@ -30,7 +29,6 @@ from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.mail.message import Email
 from filament_tracker.print_requests import emails, holding, photos, pipeline, service
 from filament_tracker.print_requests.access import is_admin, may_open_requests, may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
@@ -113,19 +111,6 @@ def _fields(body: RequestIn) -> RequestFields:
         upload_id=body.upload_id,
         remove_file=isinstance(body, RequestEdit) and body.remove_file,
     )
-
-
-def _public_url(http: Request) -> str | None:
-    """Where emails link to: PUBLIC_URL only, never this request's Host header."""
-    return http.app.state.settings_store.text("public_url")
-
-
-def send_after_commit(http: Request, build: Callable[[str | None], list[Email]]) -> None:
-    """Build the emails once the change has committed, from the public URL, and hand them to
-    the background sender; nothing is built while email is off."""
-    mail = mail_sender(http)
-    if mail.on:
-        mail.send_later(build(_public_url(http)))
 
 
 def _refused(error: Exception) -> HTTPException:
@@ -257,7 +242,7 @@ def make_move(
     send_after_commit(
         http,
         lambda public_url: emails.move_emails(
-            moved, public_url, stored_photos(http).email_copies(added)
+            session, moved, public_url, stored_photos(http).email_copies(added)
         ),
     )
     session.refresh(found)

@@ -20,6 +20,7 @@ from filament_tracker.ha.events import (
     HaEventSender,
 )
 from filament_tracker.ha.rest import HaRest, HaRestError, Problem
+from filament_tracker.poll import Poll
 from filament_tracker.services.events import append_event, revert_event
 
 TOKEN = SecretStr("ha-long-lived-token")
@@ -119,7 +120,24 @@ def test_forgets_fired_events_after_the_lookback(sessions: sessionmaker[Session]
         assert feed.fired == {}
 
 
-def test_fires_low_stock_when_a_product_goes_low(sessions: sessionmaker[Session]) -> None:
+def sender(sessions: sessionmaker[Session], rest: HaRest | None) -> HaEventSender:
+    return HaEventSender(rest, sessions, poll_seconds=0.01, retries=(0.0, 0.0))
+
+
+def test_fires_low_stock_when_the_database_poll_sees_a_product_go_low(
+    sessions: sessionmaker[Session],
+) -> None:
+    rest = FakeRest()
+    events = sender(sessions, rest)
+    poll = Poll(sessions, [events.changed])
+
+    def fired() -> list[tuple[str, dict[str, Any]]]:
+        poll.step()
+        events.step()
+        found = list(rest.sent)  # type: ignore[attr-defined]
+        rest.sent.clear()  # type: ignore[attr-defined]
+        return found
+
     with sessions() as session:
         black = add_product(session, low_stock_threshold=1)
         white = add_product(session, "White PETG", filament_type="PETG", color_rgba="ffffffff")
@@ -127,13 +145,12 @@ def test_fires_low_stock_when_a_product_goes_low(sessions: sessionmaker[Session]
         add_spools(session, white, SpoolState.SEALED, 1)
         white.low_stock_threshold = 1  # already low when the server starts
         session.commit()
-        feed = EventFeed(started_at=datetime.now(UTC))
-        assert feed.poll(session, datetime.now(UTC)) == []  # the first poll sets the baseline
+        assert fired() == []  # the first poll sets the baseline
 
         black.low_stock_threshold = 2
         session.commit()
-        assert feed.poll(session, datetime.now(UTC)) == [
-            HaEvent(
+        assert fired() == [
+            (
                 "filament_tracker_low_stock",
                 {
                     "product_id": black.id,
@@ -145,20 +162,14 @@ def test_fires_low_stock_when_a_product_goes_low(sessions: sessionmaker[Session]
                 },
             )
         ]
-        assert feed.poll(session, datetime.now(UTC)) == []  # still low: not again
+        assert fired() == []  # still low: not again
 
         black.low_stock_threshold = 0
         session.commit()
-        assert feed.poll(session, datetime.now(UTC)) == []  # recovered
+        assert fired() == []  # recovered
         black.low_stock_threshold = 2
         session.commit()
-        assert [e.data["product"] for e in feed.poll(session, datetime.now(UTC))] == [
-            "Black PLA Basic"
-        ]
-
-
-def sender(sessions: sessionmaker[Session], rest: HaRest | None) -> HaEventSender:
-    return HaEventSender(rest, sessions, poll_seconds=0.01, retries=(0.0, 0.0))
+        assert [data["product"] for _, data in fired()] == ["Black PLA Basic"]
 
 
 def test_sends_new_events(sessions: sessionmaker[Session]) -> None:

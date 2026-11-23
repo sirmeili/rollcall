@@ -18,7 +18,6 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     false,
-    true,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -231,12 +230,6 @@ class User(Base):
     requester: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Optional and never verified: checked for shape only (mail/address.py).
     email: Mapped[str | None] = mapped_column(String(254))
-    # The Account switches: emails about the user's own requests, and (for Admins) about
-    # each new request. Both on by default; only the user changes them.
-    email_on_request_change: Mapped[bool] = mapped_column(
-        Boolean, default=True, server_default=true()
-    )
-    email_on_new_request: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     disabled_at: Mapped[datetime | None]
     last_login_at: Mapped[datetime | None]
     password_changed_at: Mapped[datetime] = mapped_column(default=utcnow)
@@ -352,6 +345,12 @@ class SeededPrinter(Base):
     seeded_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
-# The catalog's, the shopping list's and print requests' tables are in their own modules;
-# importing them here puts them on Base, so migrations and create_all see every table.
-from filament_tracker.db import catalog_models, request_models, shopping_models  # noqa: E402, F401
+# The catalog's, notification settings', the shopping list's and print requests' tables are in
+# their own modules; importing them here puts them on Base, so migrations and create_all see
+# every table.
+from filament_tracker.db import (  # noqa: E402, F401
+    catalog_models,
+    notification_models,
+    request_models,
+    shopping_models,
+)

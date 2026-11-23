@@ -4,21 +4,9 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from filament_tracker.domain.enums import SpoolState
 from filament_tracker.services import queries
 from filament_tracker.services.shopping_list import duplicates
-
-
-@dataclass(frozen=True)
-class ProductState:
-    id: int
-    name: str
-    filament_type: str
-    color_rgba: str
-    sealed: int
-    open: int
-    low_stock: bool
-    low_stock_threshold: int
+from filament_tracker.services.stock_snapshot import ProductState, product_states
 
 
 @dataclass(frozen=True)
@@ -39,19 +27,7 @@ class Snapshot:
 
 
 def take_snapshot(session: Session) -> Snapshot:
-    products = tuple(
-        ProductState(
-            id=item.product.id,
-            name=item.product.display_name,
-            filament_type=item.product.filament_type,
-            color_rgba=item.product.color_rgba,
-            sealed=item.counts.get(SpoolState.SEALED, 0),
-            open=item.counts.get(SpoolState.OPEN, 0),
-            low_stock=item.low_stock,
-            low_stock_threshold=item.product.low_stock_threshold,
-        )
-        for item in queries.inventory(session)
-    )
+    products = product_states(session)
     # The same total as the Review page's badge, possible duplicates included.
     in_review = (
         len(queries.flagged_events(session))

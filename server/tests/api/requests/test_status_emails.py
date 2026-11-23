@@ -6,7 +6,7 @@ from email.message import EmailMessage
 
 import pytest
 from api_helpers import CSRF, admin
-from email_helpers import email_on, sent
+from email_helpers import email_on, notify, sent
 from fake_outbox import FakeOutbox, html_of, text_of
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -17,7 +17,7 @@ from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import RequestStatus, Role
 
 TITLE = "Lithophane lamp shade"
-FOOTER = "You can turn these emails off on your Account page."
+FOOTER = "You can change these on your Account page."
 
 
 @pytest.fixture
@@ -246,14 +246,24 @@ def test_no_email_to_a_requester_with_no_address(
     assert sent(app, outbox) == []
 
 
-def test_no_email_to_a_requester_whose_switch_is_off(
+def test_no_email_to_a_requester_who_turned_request_updates_off(
     app: FastAPI, sam: TestClient, frank: TestClient, outbox: FakeOutbox, request_id: int
 ) -> None:
-    sam.patch("/api/v1/auth/me", json={"email_on_request_change": False}, headers=CSRF)
+    notify(sam, "request_update", False)
 
     assert move(frank, request_id, "submitted", "approved").status_code == 200
 
     assert sent(app, outbox) == []
+
+
+def test_turning_new_photos_off_keeps_request_update_emails(
+    app: FastAPI, sam: TestClient, frank: TestClient, outbox: FakeOutbox, request_id: int
+) -> None:
+    notify(sam, "new_photo", False)
+
+    assert move(frank, request_id, "submitted", "approved").status_code == 200
+
+    assert [m["To"] for m in sent(app, outbox)] == ["sam@example.com"]
 
 
 def test_no_email_to_a_disabled_requester(

@@ -68,6 +68,20 @@ describe("Inventory page", () => {
     expect(screen.getByRole("button", { name: "Nearly out 1" })).toBeInTheDocument();
   });
 
+  it("opens searched for ?q=, from a low stock email's link", async () => {
+    nav.page.url = new URL("https://localhost/?q=Gray%20PETG");
+    try {
+      render(InventoryPage);
+
+      expect(await screen.findByRole("heading", { name: "Gray PETG" })).toBeInTheDocument();
+      expect(screen.getByRole("searchbox")).toHaveValue("Gray PETG");
+      expect(screen.queryByRole("heading", { name: "Black PLA Basic" })).toBeNull();
+      expect(screen.getByText("1 of 2")).toBeInTheDocument();
+    } finally {
+      nav.page.url = new URL("https://localhost/");
+    }
+  });
+
   it("searches, filters, sorts and switches to a list", async () => {
     stock.getInventory.mockResolvedValue([PETG, BLACK]);
     render(InventoryPage);

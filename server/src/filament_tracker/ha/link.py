@@ -18,6 +18,7 @@ from filament_tracker.ha.broker import BrokerConfig, broker_config
 from filament_tracker.ha.events import HaEventSender
 from filament_tracker.ha.publisher import HaPublisher
 from filament_tracker.ha.rest import HaRest
+from filament_tracker.poll import Changes
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,13 @@ class HomeAssistantLink:
     def stop(self) -> None:
         with self._lock:
             self._stop()
+
+    def changed(self, session: Session, changes: Changes) -> None:
+        """The database poll's listener: hands what it saw to the event sender in use."""
+        with self._lock:
+            sender = self.sender
+        if sender is not None:
+            sender.changed(session, changes)
 
     def reload(self) -> None:
         """Stop both links and start them with the settings in use now."""

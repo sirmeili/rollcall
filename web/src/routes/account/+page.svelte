@@ -1,13 +1,13 @@
 <script lang="ts">
   // Account (docs/mockups/mobile-web/PhoneAccount.dc.html): Appearance, the email address
-  // and switches, the password, this phone (in the app) and Sign out, at every screen size.
+  // and notification settings, the password, this phone (in the app) and Sign out, at every screen size.
   import { goto } from "$app/navigation";
   import { LOGIN_PATH } from "#lib/auth/redirect.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import AppearanceChoice from "#lib/components/account/AppearanceChoice.svelte";
   import ChangePassword from "#lib/components/account/ChangePassword.svelte";
   import EmailAddress from "#lib/components/account/EmailAddress.svelte";
-  import EmailSwitches from "#lib/components/account/EmailSwitches.svelte";
+  import NotificationSettings from "#lib/components/account/NotificationSettings.svelte";
   import { askToLeave } from "#lib/leave-warning.svelte.ts";
   import { bridge } from "#lib/phone/bridge.ts";
   import { phone } from "#lib/phone/phone-state.svelte.ts";
@@ -47,7 +47,7 @@
 
   {#if session.user}
     <EmailAddress />
-    <EmailSwitches />
+    <NotificationSettings />
   {/if}
 
   <section class="card rows" aria-label="Account actions">
