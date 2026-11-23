@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from filament_tracker.api.deps import get_session
@@ -33,6 +33,7 @@ from filament_tracker.auth import (
     settings_of,
 )
 from filament_tracker.db.models import Device
+from filament_tracker.db.push_models import PushEndpoint
 from filament_tracker.db.types import utcnow
 from filament_tracker.net import is_trusted
 from filament_tracker.services.scans import may_record
@@ -45,6 +46,12 @@ SessionDep = Annotated[Session, Depends(get_session)]
 ONLINE_WINDOW = timedelta(minutes=15)
 # Phones one user may have set up at once; unlinking or revoking one frees its place.
 MAX_OWN_DEVICES = 5
+
+
+def _stop_phone_notifications(session: Session, device: Device) -> None:
+    """A revoked or unlinked phone's push endpoint goes, so it gets no more phone
+    notifications, even if it is re-enabled, until it registers again."""
+    session.execute(delete(PushEndpoint).where(PushEndpoint.device_id == device.id))
 
 
 def is_online(device: Device, now: datetime) -> bool:
@@ -84,6 +91,7 @@ def unlink(device: ScannerDevice, session: SessionDep) -> Response:
     """A scanner revokes its own token, as the phone app does when it is unlinked. The
     device stays listed, like one an admin revoked; rotating its token re-enables it."""
     device.revoked_at = utcnow()
+    _stop_phone_notifications(session, device)
     session.commit()
     logger.info("device %s unlinked itself", device.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -172,6 +180,7 @@ def revoke_device(device_id: str, _: Admin, session: SessionDep) -> Response:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such device")
     if device.revoked_at is None:
         device.revoked_at = utcnow()
+        _stop_phone_notifications(session, device)
         session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

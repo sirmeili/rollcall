@@ -376,7 +376,8 @@ def test_a_former_requester_still_chooses_emails_about_their_requests(
 ) -> None:
     _no_longer_a_requester(client, sam)
 
-    kinds = [s["kind"] for s in sam.get("/api/v1/auth/me").json()["notifications"]]
+    settings = sam.get("/api/v1/auth/me").json()["notifications"]
+    kinds = [s["kind"] for s in settings if s["channel"] == "email"]
     assert kinds[:2] == ["request_update", "new_photo"]
     notify(sam, "request_update", False)
     assert move(frank, request_id, "submitted", "approved").status_code == 200

@@ -49,21 +49,3 @@ def recipients(
         ).all()
     )
     return [user for user in candidates if chosen.get(user.id, default(user, kind, channel))]
-
-
-def email_recipients(
-    session: Session,
-    kind: NotificationKind,
-    *,
-    actor: User | None,
-    among: Iterable[User] | None = None,
-    have_requests: bool = False,
-) -> list[str]:
-    """The addresses to email about `kind`: its recipients by email who have an address."""
-    return [
-        user.email
-        for user in recipients(
-            session, kind, Channel.EMAIL, actor=actor, among=among, have_requests=have_requests
-        )
-        if user.email is not None
-    ]

@@ -27,6 +27,7 @@ from filament_tracker.auth import (
 from filament_tracker.db.models import User
 from filament_tracker.db.types import utcnow
 from filament_tracker.net import client_ip
+from filament_tracker.notifications.phone import has_phone
 from filament_tracker.notifications.settings import (
     Choice,
     NotChoosable,
@@ -75,6 +76,7 @@ def me_out(request: Request, session: Session, user: User) -> Me:
             for s in notification_settings(session, user, has_requests=owns_requests)
         ],
         email_set_up=mail_sender(request).on,
+        phone_registered=has_phone(session, user),
         time_zone=_store(request).time_zone(),
     )
 

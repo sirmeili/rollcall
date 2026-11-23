@@ -22,6 +22,7 @@ export function me(role: Me["role"], overrides: Partial<Me> = {}): Me {
     time_zone: "UTC",
     notifications: [],
     email_set_up: true,
+    phone_registered: false,
     ...overrides,
   };
 }

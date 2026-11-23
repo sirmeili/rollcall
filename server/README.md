@@ -295,6 +295,16 @@ RollCall emails users through your mail provider's SMTP server. Set it in the **
 - **In the background**: emails are handed to a background sender, so nothing waits for the mail server. A failed send is retried 3 times over about 15 minutes, then logged and dropped. Emails still waiting are lost on a restart. The Email group shows the last success and the last failure.
 - The password is stored encrypted, and never shown or logged. Errors are short descriptions such as "The mail server refused the user name or password", never the mail server's own text.
 
+## Phone notifications
+
+The server also sends each notification to the phones of the people told about it: a Web Push (RFC 8030), encrypted for each phone (RFC 8291) and signed with the server's VAPID key (RFC 8292), carrying the kind, the email's subject and sentence, and the path of the page it is about. Each user chooses them with the Phone switch beside each Email switch in the Notifications list on Account; Phone is on by default for every kind their role can see. The same resolver as for email decides who is told.
+
+- **Only a user's own phones**: a phone set up by signing in registers its push endpoint with the signed-in session (`PUT /api/v1/push/devices/{device_id}`, with the VAPID public key from `GET /api/v1/push/config`), from anywhere, not only the LAN. Only a phone that belongs to the signed-in user and isn't revoked is accepted; a shared phone, another user's or a revoked one answers 404, and a device token alone is refused. `DELETE` on the same path removes it. Revoking or unlinking a phone drops its endpoint, and a disabled user's phones get nothing.
+- **The VAPID key pair** is made on first start and stored with the private key encrypted by the settings key, never shown or logged. It never changes. A database restored without its settings key can't open it: a new pair is made and every phone registers again.
+- **In the background**: pushes are handed to a background sender after the change commits, so a push service that is down never fails a change. A 404 or 410 drops that phone's endpoint at once. Any other failure (a timeout, a 5xx, a 429) is retried 3 times over about 15 minutes, then given up and counted; a phone with no success in 30 days is then dropped. Pushes still waiting are lost on a restart. Each push lives a week at the push service, with normal urgency, and stays under 4 KB.
+- **Test**: `POST /api/v1/push/devices/{device_id}/test` sends a test notification to the caller's own phone and says whether it went, at most once every 30 seconds per phone.
+- Logs name the phone's device only, never its endpoint URL, its keys or what was sent.
+
 ## Fake printer
 
 Test the printer link without a printer: a Mosquitto broker in Docker stands in for the printer's MQTT server, and `ft-fakeprinter` plays the printer on it. Needs Docker and `openssl`; run from `server/` in Git Bash or WSL for the first command.

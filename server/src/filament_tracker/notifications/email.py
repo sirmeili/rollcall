@@ -1,13 +1,17 @@
-"""The shape every notification email shares: one sentence saying what happened, labelled
-details, a link to the page it is about (built from PUBLIC_URL only) and the footer saying
-where to change notification settings."""
+"""The email channel. Every notification email has the same shape: one sentence saying what
+happened, labelled details, a link to the page it is about (built from PUBLIC_URL only) and
+the footer saying where to change notification settings. Each goes to a person told by email
+who has an address."""
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Iterable, Sequence
 from email.utils import make_msgid
 from html import escape
 
+from sqlalchemy.orm import Session
+
+from filament_tracker.domain.enums import Channel
 from filament_tracker.mail.message import Email, InlineImage
-from filament_tracker.mail.sender import MailSender
+from filament_tracker.notifications.notification import Notification
 
 FOOTER = "You can change these on your Account page."
 
@@ -18,15 +22,25 @@ def link(public_url: str | None, path: str) -> str | None:
     return None if public_url is None else f"{public_url}{path}"
 
 
-def build_and_send(
-    mail: MailSender,
-    build: Callable[[str | None], list[Email]],
-    public_url: Callable[[], str | None],
-) -> None:
-    """While email is on, build the emails with PUBLIC_URL as it is now and hand them to the
-    background sender; nothing is built while email is off."""
-    if mail.on:
-        mail.send_later(build(public_url()))
+def emails(
+    session: Session, notifications: Iterable[Notification], public_url: str | None
+) -> list[Email]:
+    """An email about each notification to each person told about it by email who has an
+    address."""
+    return [
+        compose(
+            user.email,
+            subject=n.subject,
+            sentence=n.sentence,
+            details=n.details,
+            link=link(public_url, n.path),
+            link_text=n.link_text,
+            photos=n.photos,
+        )
+        for n in notifications
+        for user in n.told(session, Channel.EMAIL)
+        if user.email is not None
+    ]
 
 
 def compose(
