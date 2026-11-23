@@ -1,6 +1,7 @@
-"""The background phone sender: a 404 or 410 drops the phone's endpoint at once; any other
-failure is retried 3 times with backoff, then given up and counted; an endpoint failing with no
-success in 30 days is dropped. It never makes the caller wait."""
+"""The background phone sender: a 404 or 410 drops the phone's endpoint at once; a timeout, a
+5xx or a 429 is retried 3 times with backoff, then given up and counted; another 4xx is given
+up at once and counted; FCM refusing its access token gets a new one for the retry. It never
+makes the caller wait."""
 
 import logging
 import time
@@ -21,7 +22,8 @@ from filament_tracker.domain.enums import PushRoute, Role
 from filament_tracker.push.fcm_account import parse_service_account
 from filament_tracker.push.firebase import Firebase, FirebaseClient
 from filament_tracker.push.keys import vapid_keys
-from filament_tracker.push.sender import RETRIES, Outcome, Push, PushSender
+from filament_tracker.push.messages import Outcome, Push
+from filament_tracker.push.sender import RETRIES, PushSender
 
 SHORT = (0.01, 0.01, 0.01)
 PHONE = "phone-1"
@@ -152,7 +154,7 @@ def test_after_3_retries_it_is_given_up_and_counted(
     assert endpoint is not None and endpoint.failures == 0
 
 
-def test_an_endpoint_with_no_success_in_30_days_is_dropped_when_given_up(
+def test_giving_up_counts_but_leaves_dropping_a_stale_endpoint_to_the_sweep(
     sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session]
 ) -> None:
     with sessions() as session:
@@ -163,22 +165,9 @@ def test_an_endpoint_with_no_success_in_30_days_is_dropped_when_given_up(
     sender.send_later([PUSH])
 
     wait_for(lambda: pushes.attempts == 4)
-    wait_for(lambda: _endpoint(sessions) is None)
-
-
-def test_an_endpoint_with_a_recent_success_is_kept_when_given_up(
-    sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session]
-) -> None:
-    with sessions() as session:
-        session.get(PushEndpoint, PHONE).last_success_at = utcnow() - timedelta(days=29)
-        session.commit()
-    pushes.answer(503, 503, 503, 503)
-
-    sender.send_later([PUSH])
-
-    wait_for(lambda: pushes.attempts == 4)
     wait_for(sender.idle)
-    assert _endpoint(sessions) is not None
+    endpoint = _endpoint(sessions)
+    assert endpoint is not None and endpoint.failures == 1
 
 
 def test_a_revoked_phone_or_a_disabled_user_gets_nothing(
@@ -248,14 +237,15 @@ def test_stopping_ends_retries(sessions: sessionmaker[Session], phone: TestPhone
     assert pushes.attempts == 1
 
 
-def test_an_fcm_phone_follows_the_same_failure_rules(
-    sessions: sessionmaker[Session], phone: TestPhone, pushes: FakePushOutbox
-) -> None:
+@pytest.fixture
+def fcm_sender(
+    sessions: sessionmaker[Session], pushes: FakePushOutbox, phone: TestPhone
+) -> Iterator[PushSender]:
+    """A sender with Firebase set up, and the phone registered with an FCM token."""
     with sessions() as session:
         endpoint = session.get(PushEndpoint, PHONE)
         endpoint.route, endpoint.endpoint = PushRoute.FCM, "fcm-token"
         endpoint.p256dh = endpoint.auth = None
-        endpoint.last_success_at = utcnow() - timedelta(days=31)
         session.commit()
     setup = Firebase(
         FirebaseClient("rollcall-test", "1:1:android:ab", "AIzaKey", "1"),
@@ -264,10 +254,108 @@ def test_an_fcm_phone_follows_the_same_failure_rules(
     keys = vapid_keys(sessions, SecretBox(parse_key(new_key_text())))
     sender = PushSender(pushes, sessions, keys, firebase=lambda: setup, retries=SHORT)
     sender.start()
-    pushes.answer(503, 503, 503, 503)
+    yield sender
+    sender.stop()
 
+
+def _given_up_at_once(
+    sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session]
+) -> None:
     sender.send_later([PUSH])
 
-    wait_for(lambda: pushes.attempts == 4)
+    wait_for(lambda: pushes.attempts == 1)
+    wait_for(sender.idle)
+    assert pushes.attempts == 1
+    endpoint = _endpoint(sessions)
+    assert endpoint is not None and endpoint.failures == 1
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 413])
+def test_another_4xx_is_given_up_at_once_and_counted(
+    sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session], status: int
+) -> None:
+    pushes.answer(status)
+
+    _given_up_at_once(sender, pushes, sessions)
+
+
+@pytest.mark.parametrize("status", [400, 403])
+def test_another_4xx_from_fcm_is_given_up_at_once_and_counted(
+    fcm_sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session], status: int
+) -> None:
+    pushes.answer(status)
+
+    _given_up_at_once(fcm_sender, pushes, sessions)
+
+
+def test_fcm_refusing_the_access_token_asks_for_a_new_one_and_tries_again(
+    fcm_sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session]
+) -> None:
+    pushes.answer(401)
+
+    fcm_sender.send_later([PUSH])
+
+    wait_for(lambda: len(pushes.sent) == 1)
+    assert pushes.attempts == 2
+    assert len(pushes.assertions) == 2
+    [sent] = pushes.sent
+    assert sent.headers["Authorization"] == "Bearer fake-access-token-2"
+
+
+def test_fcm_answering_404_drops_the_token_at_once(
+    fcm_sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session]
+) -> None:
+    pushes.answer(404)
+
+    fcm_sender.send_later([PUSH])
+
     wait_for(lambda: _endpoint(sessions) is None)
-    sender.stop()
+    assert pushes.attempts == 1
+
+
+@pytest.mark.parametrize("failure", [None, 500, 429])
+def test_fcm_retries_a_timeout_5xx_or_429(
+    fcm_sender: PushSender, pushes: FakePushOutbox, failure: int | None
+) -> None:
+    pushes.answer(failure, failure)
+
+    fcm_sender.send_later([PUSH])
+
+    wait_for(lambda: len(pushes.sent) == 1)
+    assert pushes.attempts == 3
+
+
+def test_fcm_gives_up_after_3_retries_and_counts_it(
+    fcm_sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session]
+) -> None:
+    pushes.answer(503, 503, 503, 503)
+
+    fcm_sender.send_later([PUSH])
+
+    wait_for(lambda: pushes.attempts == 4)
+    wait_for(fcm_sender.idle)
+    endpoint = _endpoint(sessions)
+    assert endpoint is not None and endpoint.failures == 1
+
+
+def test_the_start_of_failures_since_the_last_success_is_kept(
+    sender: PushSender, pushes: FakePushOutbox, sessions: sessionmaker[Session]
+) -> None:
+    pushes.answer(*[503] * 8)
+
+    sender.send_later([PUSH])
+    wait_for(lambda: pushes.attempts == 4)
+    wait_for(sender.idle)
+    first = _endpoint(sessions)
+    assert first is not None and first.failing_since is not None
+    sender.send_later([PUSH])
+    wait_for(lambda: pushes.attempts == 8)
+    wait_for(sender.idle)
+    second = _endpoint(sessions)
+    assert second is not None and second.failures == 2
+    assert second.failing_since == first.failing_since
+
+    sender.send_later([PUSH])
+    wait_for(sender.idle)
+    cleared = _endpoint(sessions)
+    assert cleared is not None and cleared.failing_since is None

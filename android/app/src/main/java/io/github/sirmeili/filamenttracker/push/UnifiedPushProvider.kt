@@ -26,7 +26,7 @@ class UnifiedPushProvider(private val context: Context, private val endpoints: P
     }
 
     /** The distributor app in use, or that would be, by its name on the phone ("ntfy"). */
-    fun distributorName(): String? {
+    override fun displayName(): String? {
         val distributor = distributor() ?: return null
         val packages = context.packageManager
         return runCatching { packages.getApplicationLabel(packages.getApplicationInfo(distributor, 0)).toString() }

@@ -7,6 +7,10 @@ interface PushProvider {
     /** Whether this route works on this phone now, such as a distributor being installed. */
     fun usable(): Boolean
 
+    /** The name people know this route by, such as the distributor app's ("ntfy"); null
+     * when it can't be told. */
+    fun displayName(): String?
+
     /** Register for pushes signed with the server's VAPID public key. The endpoint arrives
      * later, through [PushEvents]. */
     fun register(vapidKey: String)
@@ -24,6 +28,9 @@ class PushRoutes(private val providers: List<PushProvider>) {
 
     /** The route in use, or [NONE]. */
     fun route(): String = chosen()?.route ?: NONE
+
+    /** The name people know the route in use by, or null with none. */
+    fun routeName(): String? = chosen()?.displayName()
 
     /** Register with the chosen route; false when there is none. */
     fun register(vapidKey: String): Boolean {

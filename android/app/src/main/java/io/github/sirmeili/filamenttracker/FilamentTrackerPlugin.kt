@@ -29,14 +29,9 @@ import io.github.sirmeili.filamenttracker.nfc.AndroidMifare
 import io.github.sirmeili.filamenttracker.nfc.Hex
 import io.github.sirmeili.filamenttracker.nfc.NfcState
 import io.github.sirmeili.filamenttracker.nfc.TagReader
-import io.github.sirmeili.filamenttracker.push.FirebaseSettings
 import io.github.sirmeili.filamenttracker.push.Notifier
 import io.github.sirmeili.filamenttracker.push.PhoneNotification
-import io.github.sirmeili.filamenttracker.push.PushEndpointInfo
-import io.github.sirmeili.filamenttracker.push.PushEvents
-import io.github.sirmeili.filamenttracker.push.PushRoutes
-import io.github.sirmeili.filamenttracker.push.UnifiedPushProvider
-import io.github.sirmeili.filamenttracker.push.pushEndpoints
+import io.github.sirmeili.filamenttracker.push.PushBridge
 import io.github.sirmeili.filamenttracker.storage.KeystoreKey
 import io.github.sirmeili.filamenttracker.storage.PrefsValues
 import io.github.sirmeili.filamenttracker.storage.SecureStore
@@ -46,8 +41,8 @@ private const val NOTIFICATIONS = "notifications"
 
 /**
  * The phone app's native side: NFC tag reads, QR scanning, encrypted storage, and phone
- * notifications (the push route and its name, registering, the endpoint, Android's permission to
- * show them and tapped notifications).
+ * notifications (Android's permission to show them and tapped notifications here; the push
+ * route, registering and the endpoint in [PushBridge]).
  *
  * Derived keys stay in [TagReader]; only the UID, data blocks and `readOk` reach the web view.
  * Nothing here logs tag contents, the salt or stored values.
@@ -58,12 +53,9 @@ private const val NOTIFICATIONS = "notifications"
 )
 class FilamentTrackerPlugin : Plugin() {
     private val store by lazy { SecureStore(KeystoreKey::get, PrefsValues(context)) }
-    private val endpoints by lazy { pushEndpoints(context) }
-    private val routes by lazy { appFlavor.pushRoutes(context, endpoints) }
+    private val push by lazy { PushBridge(context) }
     private var pending: PluginCall? = null
     private var salt: ByteArray? = null
-
-    private val unifiedPush by lazy { UnifiedPushProvider(context, endpoints) }
 
     private companion object {
         const val TONE_VOLUME = 80
@@ -212,13 +204,13 @@ class FilamentTrackerPlugin : Plugin() {
     override fun handleOnDestroy() {
         tones?.release()
         tones = null
-        PushEvents.listen(null)
+        push.listen(null)
         super.handleOnDestroy()
     }
 
     override fun load() {
         super.load()
-        PushEvents.listen { endpoint -> notifyListeners("pushEndpoint", JSObject().put("endpoint", endpoint?.toJs())) }
+        push.listen { endpoint -> notifyListeners("pushEndpoint", endpoint) }
         opened(activity?.intent)
     }
 
@@ -237,28 +229,27 @@ class FilamentTrackerPlugin : Plugin() {
 
     @PluginMethod
     fun pushRoute(call: PluginCall) {
-        call.resolve(JSObject().put("route", routes.route()))
+        call.resolve(push.route())
     }
 
     @PluginMethod
     fun pushRegister(call: PluginCall) {
         val vapidKey = call.getString("vapidKey")?.takeIf { it.isNotEmpty() } ?: return call.reject("vapidKey required")
-        runCatching { routes.register(vapidKey) }
+        runCatching { push.register(vapidKey) }
             .onSuccess { call.resolve() }
             .onFailure { call.reject("push registration failed") }
     }
 
     @PluginMethod
     fun pushUnregister(call: PluginCall) {
-        runCatching { routes.unregister() }
+        runCatching { push.unregister() }
         call.resolve()
     }
 
     @PluginMethod
     fun pushEndpoint(call: PluginCall) {
-        call.resolve(JSObject().put("endpoint", endpoints.load()?.toJs()))
+        call.resolve(push.endpoint())
     }
-
 
     /** Whether RollCall may show notifications: Android 13's permission granted, and
      * notifications not turned off for the app in Android's settings. */
@@ -291,17 +282,8 @@ class FilamentTrackerPlugin : Plugin() {
      * "Google" for Google's push service (FCM). */
     @PluginMethod
     fun pushRouteName(call: PluginCall) {
-        val name =
-            when (routes.route()) {
-                UnifiedPushProvider.ROUTE -> unifiedPush.distributorName()
-                PushRoutes.FCM -> "Google"
-                else -> null
-            }
-        call.resolve(JSObject().put("name", name))
+        call.resolve(push.routeName())
     }
-
-    private fun PushEndpointInfo.toJs(): JSObject =
-        JSObject().put("route", route).put("url", url).put("p256dh", p256dh).put("auth", auth)
 
     /**
      * Use the server's Firebase client settings (absent: none), before choosing a route. When
@@ -309,22 +291,9 @@ class FilamentTrackerPlugin : Plugin() {
      */
     @PluginMethod
     fun pushConfigure(call: PluginCall) {
-        val firebase = call.getObject("firebase")?.let(::firebaseSettings)
-        if (!appFlavor.useFirebase(context, firebase)) return call.resolve()
+        if (!push.configure(call.getObject("firebase"))) return call.resolve()
         call.resolve(JSObject().put("restarting", true))
-        restart()
-    }
-
-    private fun firebaseSettings(json: JSObject): FirebaseSettings? {
-        val values = listOf("project_id", "app_id", "api_key", "sender_id").map { json.getString(it) ?: return null }
-        return FirebaseSettings(values[0], values[1], values[2], values[3])
-    }
-
-    /** Start the app afresh in a new process, as Firebase starts once per process. */
-    private fun restart() {
-        val launch = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return
-        context.startActivity(Intent.makeRestartActivityTask(launch.component))
-        Runtime.getRuntime().exit(0)
+        push.restart()
     }
 
     // Each flavor has its own scanner (Flavors in android/README.md): some answer the call

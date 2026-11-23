@@ -25,8 +25,9 @@ from filament_tracker.db.models import Device
 from filament_tracker.db.push_models import PushEndpoint
 from filament_tracker.db.types import utcnow
 from filament_tracker.push.firebase import firebase
+from filament_tracker.push.messages import Outcome, Push
 from filament_tracker.push.payload import phone_payload
-from filament_tracker.push.sender import Outcome, Push, PushSender
+from filament_tracker.push.sender import PushSender
 from filament_tracker.services.cooldown import Cooldowns
 
 logger = logging.getLogger(__name__)
@@ -63,20 +64,33 @@ def push_config(_: SignedInUser, request: Request, response: Response) -> PushCo
 def register(
     device_id: str, body: PushEndpointIn, caller: SignedInUser, session: DbSession
 ) -> PushEndpointOut:
-    """Register, or replace, the phone's push endpoint."""
+    """Register, or replace, the phone's push endpoint. The app sends it on every start and
+    sign-in: the same endpoint again keeps when it was registered and its successes and
+    failures, so a phone that stopped getting them is still dropped after 30 days."""
     device = _own_phone(session, caller, device_id)
-    endpoint = session.get(PushEndpoint, device.id) or PushEndpoint(device_id=device.id)
-    endpoint.route = body.route
-    endpoint.endpoint = body.endpoint
     web_push = isinstance(body, WebPushEndpointIn)
-    endpoint.p256dh = body.p256dh if web_push else None
-    endpoint.auth = body.auth if web_push else None
-    endpoint.registered_at = utcnow()
-    endpoint.last_success_at = None
-    endpoint.failures = 0
-    session.add(endpoint)
-    session.commit()
-    logger.info("phone %s registered for phone notifications", device.id)
+    given = (
+        body.route,
+        body.endpoint,
+        body.p256dh if web_push else None,
+        body.auth if web_push else None,
+    )
+    endpoint = session.get(PushEndpoint, device.id)
+    if endpoint is None or given != (
+        endpoint.route,
+        endpoint.endpoint,
+        endpoint.p256dh,
+        endpoint.auth,
+    ):
+        endpoint = endpoint or PushEndpoint(device_id=device.id)
+        endpoint.route, endpoint.endpoint, endpoint.p256dh, endpoint.auth = given
+        endpoint.registered_at = utcnow()
+        endpoint.last_success_at = None
+        endpoint.failures = 0
+        endpoint.failing_since = None
+        session.add(endpoint)
+        session.commit()
+        logger.info("phone %s registered for phone notifications", device.id)
     return PushEndpointOut(
         device_id=device.id, route=endpoint.route, registered_at=endpoint.registered_at
     )

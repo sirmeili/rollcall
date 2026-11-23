@@ -2,6 +2,7 @@ package io.github.sirmeili.filamenttracker.push
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,6 +13,8 @@ class PushRoutesTest {
         var unregistrations = 0
 
         override fun usable() = usable
+
+        override fun displayName() = "$route app"
 
         override fun register(vapidKey: String) {
             registrations += vapidKey
@@ -59,6 +62,17 @@ class PushRoutesTest {
         routes.register("BVapid")
         assertEquals(listOf("BVapid"), first.registrations)
         assertEquals(emptyList<String>(), second.registrations)
+    }
+
+    @Test
+    fun namesTheChosenRouteByItsOwnName() {
+        val first = FakeProvider("unifiedpush", usable = false)
+        val second = FakeProvider("other", usable = true)
+        val routes = PushRoutes(listOf(first, second))
+
+        assertEquals("other app", routes.routeName())
+        second.usable = false
+        assertNull(routes.routeName())
     }
 
     @Test

@@ -35,7 +35,7 @@ def emails(
             details=n.details,
             link=link(public_url, n.path),
             link_text=n.link_text,
-            photos=n.photos,
+            photos=n.email_photos,
         )
         for n in notifications
         for user in n.told(session, Channel.EMAIL)

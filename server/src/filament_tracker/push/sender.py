@@ -1,15 +1,14 @@
 """The background phone sender: phone notifications are handed over after the work commits,
-so a move or a save never waits for a push service or fails because of it. Each goes by the
-route its phone registered: a Web Push, or an FCM message when Firebase is set up.
+so a move or a save never waits for a push service or fails because of it. Each message is
+built by its phone's route (messages.py), which also says what each answer means.
 
-Each push names a phone (its device) and carries the payload; the phone's endpoint is read
-when it is sent, so a phone removed, revoked or disabled in the meantime gets nothing.
+- A gone endpoint (404 or 410) is dropped at once.
+- A failure worth trying again (a timeout, a 5xx, a 429, or FCM refusing its access token) is
+  retried 3 times over about 15 minutes, then given up and counted on the endpoint.
+- Any other failure (another 4xx) is given up at once and counted.
 
-- A 404 or 410 means the phone's endpoint is gone (the app uninstalled, or its data cleared):
-  it is dropped at once.
-- Any other failure (a timeout, a 5xx, a 429) is retried 3 times over about 15 minutes, then
-  given up and counted on the endpoint. An endpoint failing with no success in 30 days is
-  dropped.
+A failing endpoint with no success in 30 days is dropped by the stale-endpoint sweep
+(stale.py).
 
 There is no stored outbox, so pushes still waiting are lost on a restart. Logs name the
 device only: never the endpoint URL, its keys or the payload.
@@ -22,54 +21,23 @@ import threading
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from enum import StrEnum
+from datetime import datetime
 
 from sqlalchemy.orm import Session, sessionmaker
 
 from filament_tracker.db.push_models import PushEndpoint
 from filament_tracker.db.types import utcnow
-from filament_tracker.domain.enums import PushRoute
-from filament_tracker.push.fcm import AccessTokens, fcm_message
 from filament_tracker.push.firebase import Firebase
 from filament_tracker.push.keys import VapidKeys
+from filament_tracker.push.messages import Messages, Outcome, Push, Result
 from filament_tracker.push.transport import PushError, PushTransport
-from filament_tracker.push.webpush import PushMessage, Subscription, web_push
 
 logger = logging.getLogger(__name__)
 
 # The waits before each retry: 1, 4 and 10 minutes, so 15 minutes in all.
 RETRIES = (60.0, 240.0, 600.0)
-# An endpoint with no success for this long is dropped when a push to it is given up.
-STALE_AFTER = timedelta(days=30)
 STOP_TIMEOUT = 5.0
-GONE = {404, 410}
 UNEXPECTED = "The phone notification couldn't be sent."
-NO_FIREBASE = "Firebase isn't set up on this server."
-
-
-@dataclass(frozen=True)
-class Push:
-    """A phone notification for one phone."""
-
-    device_id: str
-    payload: bytes
-
-
-class Outcome(StrEnum):
-    SENT = "sent"
-    # The endpoint is gone, and was dropped.
-    GONE = "gone"
-    FAILED = "failed"
-    # The phone has no endpoint, or may no longer get phone notifications.
-    NOWHERE = "nowhere"
-
-
-@dataclass(frozen=True)
-class Result:
-    outcome: Outcome
-    # Safe to show: never the push service's own text.
-    message: str = ""
 
 
 @dataclass(order=True)
@@ -78,13 +46,6 @@ class _Pending:
     order: int
     push: Push
     attempt: int = 0
-
-
-def reachable(endpoint: PushEndpoint) -> bool:
-    """Whether the endpoint's phone may get phone notifications: a user's phone, not
-    revoked, whose user isn't disabled. A shared phone never does."""
-    device = endpoint.device
-    return device.revoked_at is None and device.user is not None and device.user.disabled_at is None
 
 
 class PushSender:
@@ -99,10 +60,8 @@ class PushSender:
         clock: Callable[[], datetime] = utcnow,
     ) -> None:
         self._transport = transport
-        self._firebase = firebase
-        self._access_tokens = AccessTokens(transport)
+        self._messages = Messages(transport, sessions, keys, firebase)
         self._sessions = sessions
-        self._keys = keys
         self._retries = retries
         self._clock = clock
         self._pending: list[_Pending] = []
@@ -167,9 +126,9 @@ class PushSender:
 
     def _attempt(self, item: _Pending) -> None:
         result = self._send(item.push)
-        if result.outcome != Outcome.FAILED:
+        if result.outcome not in (Outcome.FAILED, Outcome.REFUSED):
             return
-        if item.attempt < len(self._retries):
+        if result.outcome == Outcome.FAILED and item.attempt < len(self._retries):
             with self._wake:
                 item.due = time.monotonic() + self._retries[item.attempt]
                 item.attempt += 1
@@ -180,40 +139,23 @@ class PushSender:
 
     def _send(self, push: Push) -> Result:
         try:
-            message = self._message(push)
-            if not isinstance(message, PushMessage):
-                return message
-            status = self._transport.post(message)
+            built = self._messages.build(push)
+            if isinstance(built, Result):
+                return built
+            status = self._transport.post(built.message)
         except PushError as error:
             return Result(Outcome.FAILED, str(error))
         except Exception as error:
             # Only the type: an unexpected error's text could hold anything.
             logger.warning("phone notification: unexpected %s while sending", type(error).__name__)
             return Result(Outcome.FAILED, UNEXPECTED)
-        if 200 <= status < 300:
+        result = self._messages.answered(built.route, status)
+        if result.outcome == Outcome.SENT:
             self._update(push.device_id, self._succeeded)
-            return Result(Outcome.SENT)
-        if status in GONE:
+        elif result.outcome == Outcome.GONE:
             self._update(push.device_id, self._drop)
             logger.info("phone %s's push endpoint is gone, so it was dropped", push.device_id)
-            return Result(Outcome.GONE, "This phone's push endpoint is gone.")
-        return Result(Outcome.FAILED, f"The push service answered {status}.")
-
-    def _message(self, push: Push) -> PushMessage | Result:
-        """The message to send by the phone's route, or why there is none."""
-        with self._sessions() as session:
-            endpoint = session.get(PushEndpoint, push.device_id)
-            if endpoint is None or not reachable(endpoint):
-                return Result(Outcome.NOWHERE)
-            route, address = endpoint.route, endpoint.endpoint
-            to = Subscription(address, endpoint.p256dh or "", endpoint.auth or "")
-        if route == PushRoute.WEB_PUSH:
-            return web_push(to, push.payload, self._keys)
-        firebase = self._firebase()
-        if firebase is None:
-            return Result(Outcome.NOWHERE, NO_FIREBASE)
-        access_token = self._access_tokens.get(firebase.account)
-        return fcm_message(firebase.client.project_id, address, push.payload, access_token)
+        return result
 
     def _update(self, device_id: str, change: Callable[[Session, PushEndpoint], None]) -> None:
         with self._sessions() as session:
@@ -225,6 +167,7 @@ class PushSender:
     def _succeeded(self, session: Session, endpoint: PushEndpoint) -> None:
         endpoint.last_success_at = self._clock()
         endpoint.failures = 0
+        endpoint.failing_since = None
 
     def _drop(self, session: Session, endpoint: PushEndpoint) -> None:
         session.delete(endpoint)
@@ -239,9 +182,7 @@ class PushSender:
 
         def count(session: Session, endpoint: PushEndpoint) -> None:
             endpoint.failures += 1
-            since = endpoint.last_success_at or endpoint.registered_at
-            if self._clock() - since >= STALE_AFTER:
-                session.delete(endpoint)
-                logger.info("phone %s had no success in 30 days, so it was dropped", device_id)
+            if endpoint.failing_since is None:
+                endpoint.failing_since = self._clock()
 
         self._update(device_id, count)

@@ -157,8 +157,8 @@ def _to_requester(
         path=_path(request),
         link_text=OPEN,
         details=details,
-        photos=photos,
-        photo=None
+        email_photos=photos,
+        phone_photo=None
         if first_photo is None
         else PHOTO_PATH.format(request_id=request.id, photo_id=first_photo),
         actor=actor,

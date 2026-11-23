@@ -13,6 +13,8 @@ class GoogleRoutesTest {
 
         override fun usable() = usable
 
+        override fun displayName() = route
+
         override fun register(vapidKey: String) {
             registrations += vapidKey
         }

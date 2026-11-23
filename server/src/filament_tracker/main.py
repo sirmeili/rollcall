@@ -60,6 +60,7 @@ from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.push.firebase import firebase
 from filament_tracker.push.keys import vapid_keys
 from filament_tracker.push.sender import PushSender
+from filament_tracker.push.stale import StaleSweep
 from filament_tracker.push.transport import HttpPushTransport, PushTransport
 from filament_tracker.services.backup import BackupScheduler
 from filament_tracker.services.catalog_schedule import CatalogScheduler
@@ -124,16 +125,18 @@ def create_app(
         app.state.mail = mail
         mail.start()
         app.state.vapid_keys = vapid_keys(app.state.session_factory, box)
-        phones = PushSender(
+        push_sender = PushSender(
             push_transport,
             app.state.session_factory,
             app.state.vapid_keys,
             firebase=lambda: firebase(store),
         )
-        app.state.push = phones
-        phones.start()
+        app.state.push = push_sender
+        push_sender.start()
+        stale_sweep = StaleSweep(app.state.session_factory)
+        stale_sweep.start()
         # Where emails link to: PUBLIC_URL, read when each is built.
-        notifier = Notifier(mail, phones, partial(store.text, "public_url"))
+        notifier = Notifier(mail, push_sender, partial(store.text, "public_url"))
         app.state.notifier = notifier
         # Always running, Home Assistant or not (ADR-0009).
         poll = Poll(
@@ -162,7 +165,8 @@ def create_app(
                 backups.stop()
             catalog_scheduler.stop()
             poll.stop()
-            phones.stop()
+            stale_sweep.stop()
+            push_sender.stop()
             mail.stop()
             home_assistant.stop()
             printer_links.stop()

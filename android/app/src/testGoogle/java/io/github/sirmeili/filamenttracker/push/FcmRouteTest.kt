@@ -94,6 +94,11 @@ class FcmRouteTest {
     }
 
     @Test
+    fun isKnownAsGoogle() {
+        assertEquals("Google", route.displayName())
+    }
+
+    @Test
     fun unregisteringKeepsADistributorsEndpoint() {
         val distributor = PushEndpointInfo("https://ntfy.example.com/upAbc", "BKey", "auth")
         endpoints.save(distributor)

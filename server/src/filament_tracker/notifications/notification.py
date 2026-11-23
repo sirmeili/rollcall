@@ -25,11 +25,11 @@ class Notification:
     link_text: str
     # Labelled details, in the email only.
     details: tuple[tuple[str, str], ...] = ()
-    # JPEGs shown in the email.
-    photos: tuple[bytes, ...] = ()
+    # The JPEG bytes of the photos shown in the email.
+    email_photos: tuple[bytes, ...] = ()
     # The server path of the photo a phone notification shows, which the phone downloads
     # with its sign-in; None for none.
-    photo: str | None = None
+    phone_photo: str | None = None
     # Who did it, and is never told; None when nobody did.
     actor: User | None = None
     # Only these may be told (everyone, when None).
