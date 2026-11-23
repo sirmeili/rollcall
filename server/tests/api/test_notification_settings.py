@@ -1,5 +1,7 @@
 """Notification settings on the account: the kinds the user's role can see, each with an Email
-switch that is on or off by default until the user chooses."""
+and a Phone switch that is on or off by default until the user chooses."""
+
+from typing import Any
 
 from api_helpers import CSRF, admin, signed_in
 from fastapi import FastAPI
@@ -14,12 +16,21 @@ def _setting(kind: str, on: bool, *, default: bool = True) -> dict[str, object]:
     return {"kind": kind, "channel": "email", "on": on, "default": default}
 
 
+def _email(me: dict[str, Any]) -> list[dict[str, object]]:
+    """The Email settings; the Phone ones are checked on their own."""
+    return [s for s in me["notifications"] if s["channel"] == "email"]
+
+
+def _phone(me: dict[str, Any]) -> list[tuple[str, bool]]:
+    return [(s["kind"], s["on"]) for s in me["notifications"] if s["channel"] == "phone"]
+
+
 def test_a_viewer_who_isnt_a_requester_has_only_low_stock_and_nearly_out(
     app: FastAPI, client: TestClient
 ) -> None:
     me = signed_in(app, Role.VIEWER).get(ACCOUNT).json()
 
-    assert me["notifications"] == [
+    assert _email(me) == [
         _setting("low_stock", False),
         _setting("nearly_out", False),
     ]
@@ -30,7 +41,7 @@ def test_a_requester_hears_about_their_requests_by_default(
 ) -> None:
     me = signed_in(app, Role.VIEWER, requester=True).get(ACCOUNT).json()
 
-    assert me["notifications"] == [
+    assert _email(me) == [
         _setting("request_update", True),
         _setting("new_photo", True),
         _setting("low_stock", False),
@@ -44,13 +55,13 @@ def test_new_requests_are_on_for_admins_and_off_for_editors(
     editor = signed_in(app, Role.EDITOR).get(ACCOUNT).json()
     boss = signed_in(app, Role.ADMIN, requester=True).get(ACCOUNT).json()
 
-    assert editor["notifications"] == [
+    assert _email(editor) == [
         _setting("new_request", False),
         _setting("low_stock", False),
         _setting("suggestion", False),
         _setting("nearly_out", False),
     ]
-    assert boss["notifications"] == [
+    assert _email(boss) == [
         _setting("new_request", True),
         _setting("request_update", True),
         _setting("new_photo", True),
@@ -115,7 +126,7 @@ def test_a_user_turns_a_notification_off_and_on(app: FastAPI, client: TestClient
     )
 
     assert off.status_code == 200
-    assert off.json()["notifications"] == [
+    assert _email(off.json()) == [
         _setting("new_request", False, default=False),
         _setting("request_update", True),
         _setting("new_photo", False, default=False),
@@ -129,7 +140,7 @@ def test_a_user_turns_a_notification_off_and_on(app: FastAPI, client: TestClient
         json={"notifications": [{"kind": "new_request", "channel": "email", "on": True}]},
         headers=CSRF,
     ).json()
-    assert back["notifications"][0] == _setting("new_request", True, default=False)
+    assert _email(back)[0] == _setting("new_request", True, default=False)
     assert user.get(ACCOUNT).json()["notifications"] == back["notifications"]
 
 
@@ -142,12 +153,47 @@ def test_an_editor_can_choose_new_request_emails(app: FastAPI, client: TestClien
         headers=CSRF,
     ).json()
 
-    assert me["notifications"] == [
+    assert _email(me) == [
         _setting("new_request", True, default=False),
         _setting("low_stock", False),
         _setting("suggestion", False),
         _setting("nearly_out", False),
     ]
+
+
+def test_every_kind_the_role_can_see_is_on_for_phone_by_default(
+    app: FastAPI, client: TestClient
+) -> None:
+    viewer = signed_in(app, Role.VIEWER).get(ACCOUNT).json()
+    boss = signed_in(app, Role.ADMIN, requester=True).get(ACCOUNT).json()
+
+    assert _phone(viewer) == [("low_stock", True), ("nearly_out", True)]
+    assert _phone(boss) == [
+        ("new_request", True),
+        ("request_update", True),
+        ("new_photo", True),
+        ("low_stock", True),
+        ("suggestion", True),
+        ("nearly_out", True),
+        ("backup_failed", True),
+    ]
+    assert all(s["default"] for s in boss["notifications"])
+
+
+def test_a_user_chooses_phone_apart_from_email(app: FastAPI, client: TestClient) -> None:
+    user = signed_in(app, Role.ADMIN)
+
+    me = user.patch(
+        ACCOUNT,
+        json={"notifications": [{"kind": "new_request", "channel": "phone", "on": False}]},
+        headers=CSRF,
+    ).json()
+
+    assert ("new_request", False) in _phone(me)
+    assert _email(me)[0] == _setting("new_request", True)
+    assert {"kind": "new_request", "channel": "phone", "on": False, "default": False} in (
+        user.get(ACCOUNT).json()["notifications"]
+    )
 
 
 def test_an_unknown_kind_or_channel_is_refused(app: FastAPI, client: TestClient) -> None:
@@ -171,13 +217,13 @@ def test_choices_kept_when_the_role_changes_apply_again(app: FastAPI, client: Te
     )
 
     client.patch(f"/api/v1/users/{editor_id}", json={"role": "viewer"}, headers=admin())
-    assert editor.get(ACCOUNT).json()["notifications"] == [
+    assert _email(editor.get(ACCOUNT).json()) == [
         _setting("low_stock", False),
         _setting("nearly_out", False),
     ]
     client.patch(f"/api/v1/users/{editor_id}", json={"role": "editor"}, headers=admin())
 
-    assert editor.get(ACCOUNT).json()["notifications"] == [
+    assert _email(editor.get(ACCOUNT).json()) == [
         _setting("new_request", True, default=False),
         _setting("low_stock", False),
         _setting("suggestion", False),

@@ -50,18 +50,22 @@ class Kind:
     request_owners: bool = False
 
 
+def _email(on: Callable[[User], bool]) -> Mapping[Channel, Callable[[User], bool]]:
+    """The defaults: `on` for Email, and on for Phone for every kind the user may choose, so
+    setting up the phone app is enough to start hearing."""
+    return {Channel.EMAIL: on, Channel.PHONE: _on}
+
+
 KINDS: dict[NotificationKind, Kind] = {
     k.kind: k
     for k in (
-        Kind(NotificationKind.NEW_REQUEST, _editors, {Channel.EMAIL: _admins}),
-        Kind(
-            NotificationKind.REQUEST_UPDATE, _requesters, {Channel.EMAIL: _on}, request_owners=True
-        ),
-        Kind(NotificationKind.NEW_PHOTO, _requesters, {Channel.EMAIL: _on}, request_owners=True),
-        Kind(NotificationKind.LOW_STOCK, _everyone, {Channel.EMAIL: _off}),
-        Kind(NotificationKind.SUGGESTION, _editors, {Channel.EMAIL: _off}),
-        Kind(NotificationKind.NEARLY_OUT, _everyone, {Channel.EMAIL: _off}),
-        Kind(NotificationKind.BACKUP_FAILED, _admins, {Channel.EMAIL: _off}),
+        Kind(NotificationKind.NEW_REQUEST, _editors, _email(_admins)),
+        Kind(NotificationKind.REQUEST_UPDATE, _requesters, _email(_on), request_owners=True),
+        Kind(NotificationKind.NEW_PHOTO, _requesters, _email(_on), request_owners=True),
+        Kind(NotificationKind.LOW_STOCK, _everyone, _email(_off)),
+        Kind(NotificationKind.SUGGESTION, _editors, _email(_off)),
+        Kind(NotificationKind.NEARLY_OUT, _everyone, _email(_off)),
+        Kind(NotificationKind.BACKUP_FAILED, _admins, _email(_off)),
     )
 }
 
