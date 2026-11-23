@@ -12,7 +12,10 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from filament_tracker.db.models import Spool
 from filament_tracker.ha.snapshot import ProductState, take_snapshot
+from filament_tracker.printer.report import slot_name
+from filament_tracker.services.queries import nearly_out_in_ams
 
 logger = logging.getLogger(__name__)
 
@@ -21,14 +24,36 @@ STOP_TIMEOUT = 5.0
 
 
 @dataclass(frozen=True)
+class NearlyOutSpool:
+    """A spool in an AMS that is nearly out, and where it is loaded."""
+
+    id: int
+    product: str
+    # Where it is loaded: "AMS 1, slot 2 on P1S".
+    slot: str
+    remaining_pct: int
+
+    @classmethod
+    def of(cls, spool: Spool) -> "NearlyOutSpool":
+        # Normally in one slot; if a stale one lingers, the latest report wins.
+        slot = max(spool.slots, key=lambda s: s.updated_at)
+        where = f"{slot_name(slot.ams_index, slot.tray_index)} on {slot.printer.name}"
+        # Never None: a spool is nearly out only once the AMS has reported its remaining %.
+        left = spool.remaining_pct or 0
+        return cls(spool.id, spool.product.display_name, where, left)
+
+
+@dataclass(frozen=True)
 class Changes:
     """What changed since the last poll."""
 
     # Products that went from not low to low stock.
     became_low: tuple[ProductState, ...] = ()
+    # Spools in an AMS that went from not nearly out to nearly out.
+    became_nearly_out: tuple[NearlyOutSpool, ...] = ()
 
     def __bool__(self) -> bool:
-        return bool(self.became_low)
+        return bool(self.became_low or self.became_nearly_out)
 
 
 # Acts on the changes, reading anything else it needs in the poll's session.
@@ -39,14 +64,24 @@ class StockWatch:
     """Where things stood at the last poll, to tell what changed. Not thread-safe."""
 
     def __init__(self) -> None:
-        self._low: set[int] | None = None  # None before the first poll
+        # The products low and the spools nearly out at the last poll, by ID. The first poll
+        # (`_low` still None) only records them.
+        self._low: set[int] | None = None
+        self._nearly_out: set[int] = set()
 
     def changes(self, session: Session) -> Changes:
         low_now = take_snapshot(session).low_stock
-        before, self._low = self._low, {p.id for p in low_now}
-        if before is None:
+        nearly_out_now = nearly_out_in_ams(session)
+        low_before, self._low = self._low, {p.id for p in low_now}
+        nearly_out_before, self._nearly_out = self._nearly_out, {s.id for s in nearly_out_now}
+        if low_before is None:
             return Changes()
-        return Changes(became_low=tuple(p for p in low_now if p.id not in before))
+        return Changes(
+            became_low=tuple(p for p in low_now if p.id not in low_before),
+            became_nearly_out=tuple(
+                NearlyOutSpool.of(s) for s in nearly_out_now if s.id not in nearly_out_before
+            ),
+        )
 
 
 class Poll:
