@@ -43,7 +43,7 @@ def phone_pushes(session: Session, notifications: Iterable[Notification]) -> lis
         told = n.told(session, Channel.PHONE)
         if not told:
             continue
-        payload = phone_payload(n.kind.value, n.subject, n.sentence, n.path, n.photo)
+        payload = phone_payload(n.kind.value, n.subject, n.sentence, n.path, n.phone_photo)
         phones = _phones(session, [user.id for user in told])
         for user in told:
             pushes.extend(Push(phone.device_id, payload) for phone in phones.get(user.id, []))
