@@ -60,6 +60,7 @@ from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.push.firebase import firebase
 from filament_tracker.push.keys import vapid_keys
 from filament_tracker.push.sender import PushSender
+from filament_tracker.push.stale import StaleSweep
 from filament_tracker.push.transport import HttpPushTransport, PushTransport
 from filament_tracker.services.backup import BackupScheduler
 from filament_tracker.services.catalog_schedule import CatalogScheduler
@@ -132,6 +133,8 @@ def create_app(
         )
         app.state.push = phones
         phones.start()
+        stale_phones = StaleSweep(app.state.session_factory)
+        stale_phones.start()
         # Where emails link to: PUBLIC_URL, read when each is built.
         notifier = Notifier(mail, phones, partial(store.text, "public_url"))
         app.state.notifier = notifier
@@ -162,6 +165,7 @@ def create_app(
                 backups.stop()
             catalog_scheduler.stop()
             poll.stop()
+            stale_phones.stop()
             phones.stop()
             mail.stop()
             home_assistant.stop()

@@ -7,7 +7,7 @@ built by its phone's route (messages.py), which also says what each answer means
   retried 3 times over about 15 minutes, then given up and counted on the endpoint.
 - Any other failure (another 4xx) is given up at once and counted.
 
-An endpoint failing with no success in 30 days is dropped.
+An endpoint with no success in 30 days is dropped by the stale-endpoint sweep (stale.py).
 
 There is no stored outbox, so pushes still waiting are lost on a restart. Logs name the
 device only: never the endpoint URL, its keys or the payload.
@@ -20,7 +20,7 @@ import threading
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -35,8 +35,6 @@ logger = logging.getLogger(__name__)
 
 # The waits before each retry: 1, 4 and 10 minutes, so 15 minutes in all.
 RETRIES = (60.0, 240.0, 600.0)
-# An endpoint with no success for this long is dropped when a push to it is given up.
-STALE_AFTER = timedelta(days=30)
 STOP_TIMEOUT = 5.0
 UNEXPECTED = "The phone notification couldn't be sent."
 
@@ -185,9 +183,5 @@ class PushSender:
             endpoint.failures += 1
             if endpoint.failing_since is None:
                 endpoint.failing_since = self._clock()
-            since = endpoint.last_success_at or endpoint.registered_at
-            if self._clock() - since >= STALE_AFTER:
-                session.delete(endpoint)
-                logger.info("phone %s had no success in 30 days, so it was dropped", device_id)
 
         self._update(device_id, count)
