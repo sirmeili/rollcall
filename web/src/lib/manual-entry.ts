@@ -1,5 +1,7 @@
 /** Checks for the manual entry form. */
 
+import { NAME_LENGTH } from "#lib/product-names.ts";
+
 export type ProductChoice = "existing" | "new";
 
 export interface ManualEntry {
@@ -31,7 +33,7 @@ export function entryProblem(entry: ManualEntry): string | null {
     return entry.productId === null ? "Choose a product." : null;
   }
   if (!entry.name.trim()) return "Enter the product's name.";
-  if (entry.name.trim().length > 100) return "Names are at most 100 characters.";
+  if (entry.name.trim().length > NAME_LENGTH) return `Names are at most ${NAME_LENGTH} characters.`;
   if (!entry.type.trim()) return "Enter the filament type, such as PLA.";
   if (entry.type.trim().length > 32) return "Types are at most 32 characters.";
   if (!/^#[0-9a-f]{6}$/i.test(entry.color)) return "Choose a color.";
