@@ -27,9 +27,9 @@ object KeystoreKey {
     }
 }
 
-/** Encrypted values in a private SharedPreferences file. */
-class PrefsValues(context: Context) : KeyValues {
-    private val prefs = context.getSharedPreferences("secure-store", Context.MODE_PRIVATE)
+/** Values in a private SharedPreferences file: the encrypted ones by default. */
+class PrefsValues(context: Context, file: String = "secure-store") : KeyValues {
+    private val prefs = context.getSharedPreferences(file, Context.MODE_PRIVATE)
 
     override fun get(name: String): String? = prefs.getString(name, null)
 

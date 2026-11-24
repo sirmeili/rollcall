@@ -175,9 +175,9 @@ jobs:
           npm ci
           npm run build
           npx cap sync android
-      - name: Run Kotlin tests with the 90% coverage gate and build the APK
+      - name: Run Kotlin tests with the 90% coverage gate, check foss holds no Google services, and build the APKs (both flavors)
         working-directory: android
-        run: ./gradlew --no-daemon coverageCheck assembleDebug
+        run: ./gradlew --no-daemon coverageCheck checkFossHasNoGoogleServices assembleDebug
       # The release build as the release job makes it, signed with a key made for this run,
       # so a broken release setup shows up before a tag is pushed.
       - name: Build and check a test release
@@ -187,7 +187,9 @@ jobs:
           export ANDROID_KEYSTORE_PASSWORD="$(openssl rand -hex 16)"
           keytool -genkeypair -keystore "$ANDROID_KEYSTORE_FILE" -storetype PKCS12             -alias rollcall -keyalg RSA -keysize 2048 -validity 1 -dname "CN=CI test"             -storepass "$ANDROID_KEYSTORE_PASSWORD"
           ./gradlew --no-daemon assembleRelease -PappVersion=1.2.3
-          scripts/verify-release.sh app/build/outputs/apk/release/app-release.apk 1.2.3
+          for flavor in google foss; do
+            scripts/verify-release.sh "app/build/outputs/apk/$flavor/release/app-$flavor-release.apk" 1.2.3
+          done
 
   # The check the main ruleset requires. It passes when every job above passed or was skipped
   # because its area did not change, so adding a job means adding it here, not to the ruleset.

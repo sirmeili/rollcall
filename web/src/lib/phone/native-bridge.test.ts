@@ -8,10 +8,12 @@ import {
 } from "#lib/phone/native-bridge.ts";
 
 const READ = { tagUid: "01020304", blocks: ["00".repeat(16)], readOk: true };
+const ENDPOINT = { url: "https://ntfy.example.com/upAbc", p256dh: "BKey", auth: "secret" };
 
 function fakePlugin() {
   let finishRead: { resolve: (r: typeof READ) => void; reject: (e: unknown) => void } | null = null;
   const storage = new Map<string, string>();
+  const listeners = new Map<string, Set<(event: never) => void>>();
   const plugin = {
     appInfo: vi.fn(async () => ({ version: "1.0" })),
     nfcStatus: vi.fn(async () => ({ status: "no_mifare" as const })),
@@ -30,10 +32,32 @@ function fakePlugin() {
     secureRemove: vi.fn(async ({ key }: { key: string }) => {
       storage.delete(key);
     }),
+    pushConfigure: vi.fn(
+      async (_options: { firebase: unknown }): Promise<{ restarting?: boolean }> => ({}),
+    ),
+    pushRoute: vi.fn(async () => ({ route: "unifiedpush" as const })),
+    pushRegister: vi.fn(async (_options: { vapidKey: string }) => {}),
+    pushUnregister: vi.fn(async () => {}),
+    pushEndpoint: vi.fn(async () => ({ endpoint: ENDPOINT as typeof ENDPOINT | null })),
+    notificationPermission: vi.fn(async () => ({ permission: "denied" as "granted" | "denied" })),
+    requestNotificationPermission: vi.fn(async () => ({
+      permission: "granted" as "granted" | "denied",
+    })),
+    pushRouteName: vi.fn(async () => ({ name: "ntfy" as string | null })),
+    addListener: vi.fn(async (event: string, listener: (event: never) => void) => {
+      const set = listeners.get(event) ?? new Set();
+      set.add(listener);
+      listeners.set(event, set);
+      return { remove: async () => void set.delete(listener) };
+    }),
   } satisfies FilamentTrackerPlugin;
   return {
     plugin,
     storage,
+    listeners,
+    /** Send an event from the plugin to whatever listens for it. */
+    emit: (event: string, data: unknown) =>
+      listeners.get(event)?.forEach((listener) => listener(data as never)),
     finish: (read: typeof READ) => finishRead?.resolve(read),
     fail: (error: unknown) => finishRead?.reject(error),
   };
@@ -141,6 +165,94 @@ describe("native bridge", () => {
   });
 });
 
+describe("phone notifications, through the plugin", () => {
+  it("reports the route and the current endpoint", async () => {
+    const fake = fakePlugin();
+    const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
+
+    expect(await native.pushRoute()).toBe("unifiedpush");
+    expect(await native.pushEndpoint()).toEqual(ENDPOINT);
+    fake.plugin.pushEndpoint.mockResolvedValue({ endpoint: null });
+    expect(await native.pushEndpoint()).toBeNull();
+    fake.plugin.pushEndpoint.mockResolvedValue({} as { endpoint: null });
+    expect(await native.pushEndpoint()).toBeNull();
+    fake.plugin.pushRoute.mockResolvedValue({ route: "none" } as never);
+    expect(await native.pushRoute()).toBe("none");
+  });
+
+  it("gives the plugin the server's Firebase settings and says when the app restarts", async () => {
+    const fake = fakePlugin();
+    const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
+    const firebase = { project_id: "p", app_id: "a", api_key: "k", sender_id: "1" };
+
+    expect(await native.pushConfigure(null)).toEqual({ restarting: false });
+    fake.plugin.pushConfigure.mockResolvedValue({ restarting: true });
+    expect(await native.pushConfigure(firebase)).toEqual({ restarting: true });
+
+    expect(fake.plugin.pushConfigure).toHaveBeenCalledWith({ firebase: null });
+    expect(fake.plugin.pushConfigure).toHaveBeenCalledWith({ firebase });
+  });
+
+  it("registers with the server's VAPID key, and unregisters", async () => {
+    const fake = fakePlugin();
+    const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
+
+    await native.pushRegister("BVapidKey");
+    await native.pushUnregister();
+
+    expect(fake.plugin.pushRegister).toHaveBeenCalledWith({ vapidKey: "BVapidKey" });
+    expect(fake.plugin.pushUnregister).toHaveBeenCalledOnce();
+  });
+
+  it("passes each changed endpoint on, until unsubscribed", async () => {
+    const fake = fakePlugin();
+    const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
+    const seen: unknown[] = [];
+
+    const stop = native.onPushEndpoint((endpoint) => seen.push(endpoint));
+    await vi.waitFor(() => expect(fake.listeners.get("pushEndpoint")?.size).toBe(1));
+    fake.emit("pushEndpoint", { endpoint: ENDPOINT });
+    fake.emit("pushEndpoint", { endpoint: null });
+    fake.emit("pushEndpoint", {});
+    stop();
+    await vi.waitFor(() => expect(fake.listeners.get("pushEndpoint")?.size).toBe(0));
+
+    expect(seen).toEqual([ENDPOINT, null, null]);
+  });
+
+  it("reports and asks for Android's notification permission", async () => {
+    const fake = fakePlugin();
+    const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
+
+    expect(await native.notificationPermission()).toBe("denied");
+    expect(await native.requestNotificationPermission()).toBe("granted");
+    expect(fake.plugin.requestNotificationPermission).toHaveBeenCalledOnce();
+  });
+
+  it("reports the name the route is known by", async () => {
+    const fake = fakePlugin();
+    const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
+
+    expect(await native.pushRouteName()).toBe("ntfy");
+    fake.plugin.pushRouteName.mockResolvedValue({} as { name: null });
+    expect(await native.pushRouteName()).toBeNull();
+  });
+
+  it("passes on the page of each tapped notification", async () => {
+    const fake = fakePlugin();
+    const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
+    const paths: string[] = [];
+
+    const stop = native.onNotificationOpen((path) => paths.push(path));
+    await vi.waitFor(() => expect(fake.listeners.get("notificationOpened")?.size).toBe(1));
+    fake.emit("notificationOpened", { path: "/requests/7" });
+    stop();
+    await vi.waitFor(() => expect(fake.listeners.get("notificationOpened")?.size).toBe(0));
+
+    expect(paths).toEqual(["/requests/7"]);
+  });
+});
+
 describe("Back and the background, through the App plugin", () => {
   it("passes each Back press on, with whether there is history before the page", async () => {
     const app = fakeApp();
@@ -177,6 +289,18 @@ describe("Back and the background, through the App plugin", () => {
 });
 
 describe("the browser bridge", () => {
+  it("has no route for phone notifications", async () => {
+    expect(await browserBridge.pushRoute()).toBe("none");
+    expect(await browserBridge.pushEndpoint()).toBeNull();
+    await expect(browserBridge.pushRegister("key")).rejects.toThrow(/Android app/);
+    await expect(browserBridge.pushUnregister()).rejects.toThrow(/Android app/);
+    browserBridge.onPushEndpoint(() => {})();
+    browserBridge.onNotificationOpen(() => {})();
+    expect(await browserBridge.notificationPermission()).toBe("denied");
+    expect(await browserBridge.requestNotificationPermission()).toBe("denied");
+    expect(await browserBridge.pushRouteName()).toBeNull();
+  });
+
   it("never reports Back, and does nothing when asked to background", async () => {
     const listener = vi.fn();
     const stop = browserBridge.onBack(listener);

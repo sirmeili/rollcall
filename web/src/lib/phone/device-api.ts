@@ -124,6 +124,8 @@ export interface Provisioning {
   access: AccessToken | null;
   /** Whether the phone may record actions: false for a Viewer's phone. */
   records: boolean;
+  /** Whether the device is a user's phone, which registers for phone notifications. */
+  userPhone: boolean;
 }
 
 export class DeviceApi {
@@ -157,11 +159,17 @@ export class DeviceApi {
       kdf_salt: string;
       access?: { client_id: string; client_secret: string } | null;
       records?: boolean;
+      user_phone?: boolean;
     }>("GET", "/devices/provisioning");
     const access = body.access
       ? { clientId: body.access.client_id, clientSecret: body.access.client_secret }
       : null;
-    return { salt: body.kdf_salt, access, records: body.records !== false };
+    return {
+      salt: body.kdf_salt,
+      access,
+      records: body.records !== false,
+      userPhone: body.user_phone === true,
+    };
   }
 
   private async request<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {

@@ -9,7 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from filament_tracker.app_settings.registry import GROUPS, HOME_ASSISTANT, MAX_VALUE, group
+from filament_tracker.app_settings.registry import GROUPS, HOME_ASSISTANT, LONGEST_VALUE, group
 from filament_tracker.app_settings.store import (
     Current,
     SettingsInvalid,
@@ -23,7 +23,7 @@ from filament_tracker.ha.link import HomeAssistantLink, ha_config
 
 router = APIRouter(tags=["settings"])
 
-Value = Annotated[str, Field(max_length=MAX_VALUE * 2)]
+Value = Annotated[str, Field(max_length=LONGEST_VALUE * 2)]
 
 
 class SettingOut(BaseModel):

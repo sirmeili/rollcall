@@ -117,7 +117,8 @@ def test_a_kind_outside_the_role_is_refused_and_nothing_changes(
     )
 
     assert response.status_code == 403
-    assert viewer.get(ACCOUNT).json()["notifications"] == [
+    settings = viewer.get(ACCOUNT).json()["notifications"]
+    assert [s for s in settings if s["channel"] == "email"] == [
         _setting("request_update", True),
         _setting("new_photo", True),
         _setting("low_stock", False),

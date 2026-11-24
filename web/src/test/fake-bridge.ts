@@ -1,7 +1,18 @@
 /** A fake Android bridge for tests: in-memory secure storage, scripted tag reads and QR
- * codes, Back presses and a record of being sent to the background. */
+ * codes, Back presses, a record of being sent to the background, and a push route whose
+ * endpoint changes and tapped notifications the test sends, and Android's notification
+ * permission. */
 
-import type { BackPress, NfcStatus, PhoneBridge, TagRead } from "#lib/phone/bridge.ts";
+import type {
+  BackPress,
+  NfcStatus,
+  FirebaseClient,
+  PhoneBridge,
+  PushEndpoint,
+  PhoneNotificationPermission,
+  PushRoute,
+  TagRead,
+} from "#lib/phone/bridge.ts";
 
 export interface FakeBridge extends PhoneBridge {
   storage: Map<string, string>;
@@ -16,11 +27,39 @@ export interface FakeBridge extends PhoneBridge {
   pressBack(canGoBack: boolean): void;
   /** How many times the app was sent to the background. */
   backgrounded: number;
+  /** The route for phone notifications: UnifiedPush unless a test says none. */
+  route: PushRoute;
+  /** The endpoint the route has given, if any. */
+  endpoint: PushEndpoint | null;
+  /** The VAPID key of each registration, in order. */
+  registrations: string[];
+  /** How many times the phone unregistered from the route. */
+  unregistrations: number;
+  /** The Firebase settings the phone was given, in order (null: none). */
+  firebaseSettings: (FirebaseClient | null)[];
+  /** The route once given Firebase settings, as the google flavor without a distributor. */
+  routeWithFirebase: PushRoute | null;
+  /** Whether the app restarts when given Firebase settings. */
+  restartsForFirebase: boolean;
+  /** The route gives a new endpoint (null: it dropped this phone). */
+  changeEndpoint(endpoint: PushEndpoint | null): void;
+  /** Tap a phone notification for `path`. */
+  openNotification(path: string): void;
+  /** Whether Android lets the app show notifications: granted unless a test says not. */
+  permission: PhoneNotificationPermission;
+  /** What the person answers when asked for the permission: allow unless a test says not. */
+  permissionAnswer: PhoneNotificationPermission;
+  /** How many times Android was asked for the permission. */
+  permissionRequests: number;
+  /** The route's name, as the distributor app is called. */
+  routeName: string;
 }
 
 export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
   let pending: { resolve: (read: TagRead) => void; reject: (error: Error) => void } | null = null;
   const backListeners = new Set<(press: BackPress) => void>();
+  const endpointListeners = new Set<(endpoint: PushEndpoint | null) => void>();
+  const openListeners = new Set<(path: string) => void>();
   const fake: FakeBridge = {
     app: true,
     appVersion: "app-test",
@@ -29,6 +68,17 @@ export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
     qr: [],
     reads: 0,
     backgrounded: 0,
+    route: "unifiedpush",
+    endpoint: null,
+    registrations: [],
+    unregistrations: 0,
+    firebaseSettings: [],
+    routeWithFirebase: null,
+    restartsForFirebase: false,
+    permission: "granted",
+    permissionAnswer: "granted",
+    permissionRequests: 0,
+    routeName: "ntfy",
     nfcStatus: () => Promise.resolve(fake.status),
     readTag: (_salt, signal) =>
       new Promise<TagRead>((resolve, reject) => {
@@ -58,6 +108,42 @@ export function fakeBridge(status: NfcStatus = "ready"): FakeBridge {
       return Promise.resolve();
     },
     pressBack: (canGoBack) => backListeners.forEach((listener) => listener({ canGoBack })),
+    pushConfigure: (firebase) => {
+      fake.firebaseSettings.push(firebase);
+      if (firebase && fake.routeWithFirebase) fake.route = fake.routeWithFirebase;
+      return Promise.resolve({ restarting: firebase !== null && fake.restartsForFirebase });
+    },
+    pushRoute: () => Promise.resolve(fake.route),
+    pushRegister: (vapidKey) => {
+      fake.registrations.push(vapidKey);
+      return Promise.resolve();
+    },
+    pushUnregister: () => {
+      fake.unregistrations += 1;
+      fake.endpoint = null;
+      return Promise.resolve();
+    },
+    pushEndpoint: () => Promise.resolve(fake.endpoint),
+    onPushEndpoint: (listener) => {
+      endpointListeners.add(listener);
+      return () => void endpointListeners.delete(listener);
+    },
+    onNotificationOpen: (listener) => {
+      openListeners.add(listener);
+      return () => void openListeners.delete(listener);
+    },
+    changeEndpoint: (endpoint) => {
+      fake.endpoint = endpoint;
+      endpointListeners.forEach((listener) => listener(endpoint));
+    },
+    openNotification: (path) => openListeners.forEach((listener) => listener(path)),
+    notificationPermission: () => Promise.resolve(fake.permission),
+    requestNotificationPermission: () => {
+      fake.permissionRequests += 1;
+      fake.permission = fake.permissionAnswer;
+      return Promise.resolve(fake.permission);
+    },
+    pushRouteName: () => Promise.resolve(fake.route === "none" ? null : fake.routeName),
     tap: (read) => {
       const current = pending;
       pending = null;

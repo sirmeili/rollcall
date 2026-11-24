@@ -95,6 +95,16 @@ class Settings(BaseSettings):
     # Unset: emails have no links.
     public_url: str | None = None
 
+    # Firebase, for phone notifications through Google's push service (FCM) to the google
+    # app flavor: the client settings handed to phones, and the service-account key the
+    # server sends with. Unset: phones use a UnifiedPush distributor. The key is never logged
+    # or returned.
+    firebase_project_id: str | None = None
+    firebase_app_id: str | None = None
+    firebase_api_key: str | None = None
+    firebase_sender_id: str | None = None
+    firebase_service_account: SecretStr | None = None
+
     # Home Assistant itself, for firing events through its REST API, with a long-lived
     # access token. Unset: no events are fired. The token is never logged.
     ha_url: str | None = None

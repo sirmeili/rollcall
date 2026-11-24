@@ -8,7 +8,9 @@
  *
  * At start and whenever the app comes back to the front, the first heartbeat that reaches
  * the server at home also fetches the tag key constant and the Access token again, so a
- * token replaced on the server reaches the phone without pairing again.
+ * token replaced on the server reaches the phone without pairing again. A user's phone also
+ * registers for phone notifications (push.ts), and asks once for Android's permission to show
+ * them (permission.ts).
  */
 
 import { setAccessToken, type AccessToken } from "#lib/api/client.ts";
@@ -19,11 +21,15 @@ import {
   loadPairing,
   loadRecords,
   loadSalt,
+  loadUserPhone,
   saveAccess,
   saveRecords,
   saveSalt,
+  saveUserPhone,
   type Pairing,
 } from "#lib/phone/pairing-store.ts";
+import { askPermissionOnce } from "#lib/phone/permission.ts";
+import { PhonePush } from "#lib/phone/push.ts";
 import { OfflineQueue, type QueueStore } from "#lib/phone/queue.ts";
 import { ScanFlow } from "#lib/phone/scan-flow.ts";
 
@@ -39,6 +45,10 @@ export function queueStore(native: PhoneBridge): QueueStore {
 
 export class PhoneSession {
   readonly flow: ScanFlow;
+  /** Registering for phone notifications, on a user's phone. */
+  readonly push: PhonePush;
+  /** Whether this is a user's phone; a shared phone never gets phone notifications. */
+  userPhone = false;
   /** How the last request reached the server; null until the first answer. */
   reach: Reach | null = null;
   /** The Access token sent with every request, when the server has one. */
@@ -51,6 +61,7 @@ export class PhoneSession {
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private unsubscribe: (() => void) | null = null;
   private flushing: Promise<void> | null = null;
+  private asking: Promise<void> | null = null;
   private readonly onVisible = () => {
     if (document.visibilityState !== "visible") return;
     this.refreshDue = true;
@@ -63,7 +74,9 @@ export class PhoneSession {
     readonly api: DeviceApi,
     readonly queue: OfflineQueue,
     private readonly native: PhoneBridge,
+    fetchFn?: typeof fetch,
   ) {
+    this.push = new PhonePush(native, pairing.deviceId, () => this.userPhone, fetchFn);
     this.flow = new ScanFlow({
       api,
       queue,
@@ -98,9 +111,11 @@ export class PhoneSession {
     const salt = await loadSalt();
     if (!pairing || !salt) return null;
     const queue = await OfflineQueue.open(queueStore(native));
-    const session = new PhoneSession(pairing, salt, new DeviceApi(pairing, fetchFn), queue, native);
+    const api = new DeviceApi(pairing, fetchFn);
+    const session = new PhoneSession(pairing, salt, api, queue, native, fetchFn);
     session.access = await loadAccess();
     session.records = await loadRecords();
+    session.userPhone = await loadUserPhone();
     return session;
   }
 
@@ -111,6 +126,13 @@ export class PhoneSession {
     this.heartbeatTimer = setInterval(() => void this.beat(), HEARTBEAT_MS);
     this.scheduleRetry();
     document.addEventListener("visibilitychange", this.onVisible);
+    this.push.start();
+    if (this.userPhone) this.askPermission();
+  }
+
+  /** Ask for Android's notification permission, once on a user's phone (permission.ts). */
+  private askPermission(): void {
+    this.asking ??= askPermissionOnce(this.native).catch(() => {});
   }
 
   stop(): void {
@@ -120,6 +142,7 @@ export class PhoneSession {
     this.heartbeatTimer = this.retryTimer = null;
     this.unsubscribe?.();
     this.flow.stop();
+    this.push.stop();
   }
 
   /** Send a heartbeat, then retry the queue if the server answered. */
@@ -145,7 +168,14 @@ export class PhoneSession {
       await saveSalt(fresh.salt);
       await saveAccess(fresh.access);
       await saveRecords(fresh.records);
+      await saveUserPhone(fresh.userPhone);
       this.records = fresh.records;
+      const learned = fresh.userPhone && !this.userPhone;
+      this.userPhone = fresh.userPhone;
+      if (learned) {
+        void this.push.sync();
+        this.askPermission();
+      }
       this.salt = fresh.salt;
       this.access = fresh.access;
       setAccessToken(fresh.access);

@@ -16,6 +16,7 @@ from filament_tracker.api import (
     events,
     health,
     printers,
+    push,
     request_files,
     request_holders,
     request_holds,
@@ -48,17 +49,28 @@ from filament_tracker.mail.settings import smtp_server
 from filament_tracker.mail.smtp import SmtpSender
 from filament_tracker.mail.transport import MailTransport
 from filament_tracker.notifications.backup import backup_failed_sender
-from filament_tracker.notifications.low_stock import LowStockEmails
-from filament_tracker.notifications.nearly_out import NearlyOutEmails
+from filament_tracker.notifications.low_stock import LowStockNotifications
+from filament_tracker.notifications.nearly_out import NearlyOutNotifications
+from filament_tracker.notifications.notifier import Notifier
 from filament_tracker.poll import Poll
 from filament_tracker.print_requests import retrying
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
 from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
 from filament_tracker.printer.manager import PrinterManager
+from filament_tracker.push.firebase import firebase
+from filament_tracker.push.keys import vapid_keys
+from filament_tracker.push.sender import PushSender
+from filament_tracker.push.stale import StaleSweep
+from filament_tracker.push.transport import HttpPushTransport, PushTransport
 from filament_tracker.services.backup import BackupScheduler
 from filament_tracker.services.catalog_schedule import CatalogScheduler
 from filament_tracker.services.catalog_sync import CatalogSyncer
-from filament_tracker.services.cooldown import TEST_EMAIL_GAP, Cooldown
+from filament_tracker.services.cooldown import (
+    TEST_EMAIL_GAP,
+    TEST_PHONE_NOTIFICATION_GAP,
+    Cooldown,
+    Cooldowns,
+)
 from filament_tracker.services.printers import seed_printers
 from filament_tracker.services.setup import SetupGate
 from filament_tracker.services.stock_changes import on_change
@@ -85,11 +97,14 @@ def create_app(
     *,
     catalog_transport: httpx.BaseTransport | None = None,
     mail_transport: MailTransport | None = None,
+    push_transport: PushTransport | None = None,
 ) -> FastAPI:
-    """The server. `catalog_transport` replaces the network for catalog syncs, and
-    `mail_transport` the SMTP sender for emails, in tests."""
+    """The server. `catalog_transport` replaces the network for catalog syncs,
+    `mail_transport` the SMTP sender for emails and `push_transport` the push services for
+    phone notifications, in tests."""
     settings = settings or Settings()
     mail_transport = mail_transport or SmtpSender()
+    push_transport = push_transport or HttpPushTransport()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -114,14 +129,26 @@ def create_app(
         mail = MailSender(mail_transport, lambda: smtp_server(store))
         app.state.mail = mail
         mail.start()
+        app.state.vapid_keys = vapid_keys(app.state.session_factory, box)
+        push_sender = PushSender(
+            push_transport,
+            app.state.session_factory,
+            app.state.vapid_keys,
+            firebase=lambda: firebase(store),
+        )
+        app.state.push = push_sender
+        push_sender.start()
+        stale_sweep = StaleSweep(app.state.session_factory)
+        stale_sweep.start()
         # Where emails link to: PUBLIC_URL, read when each is built.
-        public_url = partial(store.text, "public_url")
+        notifier = Notifier(mail, push_sender, partial(store.text, "public_url"))
+        app.state.notifier = notifier
         # Always running, Home Assistant or not (ADR-0009).
         poll = Poll(
             app.state.session_factory,
             [
-                LowStockEmails(mail, public_url),
-                NearlyOutEmails(mail, public_url),
+                LowStockNotifications(notifier),
+                NearlyOutNotifications(notifier),
                 home_assistant.changed,
             ],
         )
@@ -133,7 +160,7 @@ def create_app(
             catalog, schedule=store.catalog_sync, time_zone=store.time_zone
         )
         catalog_scheduler.start()
-        backup_failed = backup_failed_sender(app.state.session_factory, mail, public_url)
+        backup_failed = backup_failed_sender(app.state.session_factory, notifier)
         backups = _backups(settings, store, backup_failed)
         app.state.backups = backups
         try:
@@ -143,6 +170,8 @@ def create_app(
                 backups.stop()
             catalog_scheduler.stop()
             poll.stop()
+            stale_sweep.stop()
+            push_sender.stop()
             mail.stop()
             home_assistant.stop()
             printer_links.stop()
@@ -155,6 +184,7 @@ def create_app(
     app.state.setup_throttle = LoginThrottle()
     app.state.setup_gate = SetupGate()
     app.state.test_email_cooldown = Cooldown(TEST_EMAIL_GAP)
+    app.state.test_phone_notification_cooldowns = Cooldowns(TEST_PHONE_NOTIFICATION_GAP)
     app.state.model_files = ModelFiles(files_dir(settings.database_url))
     # Spool detail names the requests holding a spool through this (ADR-0020).
     app.state.holder_reader = request_holders.holding_requests
@@ -186,6 +216,7 @@ def create_app(
         setup,
         app_settings,
         email_settings,
+        push,
         catalog,
         shopping_list,
         shopping_suggestions,

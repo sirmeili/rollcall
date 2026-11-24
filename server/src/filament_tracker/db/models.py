@@ -345,12 +345,14 @@ class SeededPrinter(Base):
     seeded_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
-# The catalog's, notification settings', the shopping list's and print requests' tables are in
+# The catalog's, notification settings', phone push endpoints', the shopping list's and print
+# requests' tables are in
 # their own modules; importing them here puts them on Base, so migrations and create_all see
 # every table.
 from filament_tracker.db import (  # noqa: E402, F401
     catalog_models,
     notification_models,
+    push_models,
     request_models,
     shopping_models,
 )

@@ -4,6 +4,7 @@
   import GeneralSettings from "#lib/components/settings/GeneralSettings.svelte";
   import HomeAssistantSettings from "#lib/components/settings/HomeAssistantSettings.svelte";
   import MachineTokens from "#lib/components/settings/MachineTokens.svelte";
+  import PhoneNotificationSettings from "#lib/components/settings/PhoneNotificationSettings.svelte";
   import ScannerSettings from "#lib/components/settings/ScannerSettings.svelte";
 </script>
 
@@ -22,5 +23,6 @@
   <HomeAssistantSettings />
   <CatalogSettings />
   <EmailSettings />
+  <PhoneNotificationSettings />
   <MachineTokens />
 </div>

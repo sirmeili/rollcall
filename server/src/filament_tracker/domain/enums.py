@@ -165,6 +165,17 @@ class NotificationKind(StrEnum):
 
 
 class Channel(StrEnum):
-    """How a notification reaches a person. #81 adds the phone."""
+    """How a notification reaches a person."""
 
     EMAIL = "email"
+    # A phone notification, to each of the user's phones that registered for them.
+    PHONE = "phone"
+
+
+class PushRoute(StrEnum):
+    """How a user's phone gets its phone notifications."""
+
+    # RFC 8030 Web Push, through a UnifiedPush distributor such as ntfy.
+    WEB_PUSH = "web_push"
+    # Google's push service, Firebase Cloud Messaging (HTTP v1), for the google app flavor.
+    FCM = "fcm"

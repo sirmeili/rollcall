@@ -1,7 +1,9 @@
 <script lang="ts">
-  // A set-up phone on the Pairing page: where it is paired, where it opens, and Unlink.
+  // A set-up phone on the Pairing page: where it is paired, where it opens, whether phone
+  // notifications work here (on a user's phone), and Unlink.
   import { session } from "#lib/auth/session.svelte.ts";
   import OpensOn from "#lib/components/phone/OpensOn.svelte";
+  import PhoneNotifications from "#lib/components/phone/PhoneNotifications.svelte";
   import { phone } from "#lib/phone/phone-state.svelte.ts";
 
   interface Props {
@@ -14,11 +16,13 @@
   let confirming = $state(false);
   let unlinking = $state(false);
 
-  /** Unlink: sign out (the phone no longer belongs to anyone), then revoke and forget. */
+  /** Unlink: stop phone notifications, sign out (the phone no longer belongs to anyone),
+   * then revoke and forget. */
   async function unlink(): Promise<void> {
     confirming = false;
     unlinking = true;
     try {
+      await phone.session?.push.leave();
       await session.logout().catch(() => {});
       onunlinked(await phone.unlink());
     } finally {
@@ -35,6 +39,10 @@
 
   <h2 id="opens-h">This phone opens on</h2>
   <OpensOn value={phone.openOn ?? "scan"} onchoose={(value) => phone.chooseOpenOn(value)} />
+
+  {#if phone.session.userPhone}
+    <PhoneNotifications deviceId={phone.session.pairing.deviceId} />
+  {/if}
 
   {#if phone.queueSize > 0}
     <p class="warn" role="alert">

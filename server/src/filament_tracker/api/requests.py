@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
-from filament_tracker.api.deps import send_after_commit
+from filament_tracker.api.deps import notify_after_commit
 from filament_tracker.api.request_schemas import (
     MoveIn,
     PriorityIn,
@@ -29,7 +29,7 @@ from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.print_requests import emails, holding, photos, pipeline, service
+from filament_tracker.print_requests import holding, notifications, photos, pipeline, service
 from filament_tracker.print_requests.access import is_admin, may_open_requests, may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
 from filament_tracker.print_requests.read import ListFilter, Tab, visible_requests
@@ -153,9 +153,7 @@ def submit(
     except (Problems, service.NotAllowed) as error:
         raise _refused(error) from None
     session.commit()
-    send_after_commit(
-        http, lambda public_url: emails.new_request_emails(session, created, public_url)
-    )
+    notify_after_commit(http, session, lambda: notifications.new_request(created))
     session.refresh(created)
     return request_out(http, session, caller, created)
 
@@ -239,10 +237,11 @@ def make_move(
     except Problems as error:
         raise problems(error.problems) from None
     session.commit()
-    send_after_commit(
+    notify_after_commit(
         http,
-        lambda public_url: emails.move_emails(
-            session, moved, public_url, stored_photos(http).email_copies(added)
+        session,
+        lambda: notifications.request_moved(
+            moved, stored_photos(http).email_copies(added), added[0].id if added else None
         ),
     )
     session.refresh(found)

@@ -1,6 +1,7 @@
 /** The phone's pairing (server, token, device ID), the tag key constant, the Cloudflare
- * Access service token, whether the phone records actions, the server chosen before it is
- * set up and the opening screen, kept in the bridge's encrypted storage and nowhere else. */
+ * Access service token, whether the phone records actions, whether it is a user's phone, the
+ * server chosen before it is set up and the opening screen, kept in the bridge's encrypted
+ * storage and nowhere else. */
 
 import type { AccessToken } from "#lib/api/client.ts";
 import { bridge } from "#lib/phone/bridge.ts";
@@ -15,6 +16,7 @@ const PAIRING_KEY = "pairing";
 const SALT_KEY = "kdf_salt";
 const ACCESS_KEY = "cf_access";
 const RECORDS_KEY = "records";
+const USER_PHONE_KEY = "user_phone";
 const SERVER_KEY = "server";
 const OPEN_ON_KEY = "open_on";
 
@@ -81,6 +83,16 @@ export async function saveRecords(records: boolean): Promise<void> {
   await bridge().secureSet(RECORDS_KEY, String(records));
 }
 
+/** Whether this is a user's phone (set up by signing in), not a shared phone. False until
+ * told, so a phone never registers for phone notifications before the server says so. */
+export async function loadUserPhone(): Promise<boolean> {
+  return (await bridge().secureGet(USER_PHONE_KEY)) === "true";
+}
+
+export async function saveUserPhone(userPhone: boolean): Promise<void> {
+  await bridge().secureSet(USER_PHONE_KEY, String(userPhone));
+}
+
 /** The server chosen on the first-start screen, before the phone is set up. */
 export function loadServer(): Promise<string | null> {
   return bridge().secureGet(SERVER_KEY);
@@ -101,7 +113,15 @@ export async function saveOpenOn(value: OpenOn): Promise<void> {
 }
 
 export async function forgetPairing(): Promise<void> {
-  for (const key of [PAIRING_KEY, SALT_KEY, ACCESS_KEY, RECORDS_KEY, SERVER_KEY, OPEN_ON_KEY]) {
+  for (const key of [
+    PAIRING_KEY,
+    SALT_KEY,
+    ACCESS_KEY,
+    RECORDS_KEY,
+    USER_PHONE_KEY,
+    SERVER_KEY,
+    OPEN_ON_KEY,
+  ]) {
     await bridge().secureRemove(key);
   }
 }

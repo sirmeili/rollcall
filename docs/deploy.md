@@ -215,6 +215,53 @@ Then check from a phone on mobile data: the app's pages load (no Access sign-in)
 To replace the token (or before it expires): make a new one in Cloudflare, add it to the Service Auth policy, save it in RollCall's Settings, and remove the old one from the policy once every phone has been opened at home. A phone that missed the change is let in again the next time it is home. Clearing the two fields in Settings takes the token off the phones the same way.
 
 
+### ntfy (optional)
+
+Phone notifications reach a phone through a UnifiedPush distributor app on it, usually [ntfy](https://ntfy.sh/) (see [android/README.md](../android/README.md#phone-notifications)). The ntfy app uses the public ntfy.sh server unless set to another. RollCall encrypts each push for the phone, so ntfy.sh sees only encrypted contents and the push's size and time. To keep even that at home, run your own ntfy server with the optional `ntfy` service in `compose.yaml`, reached through the tunnel so phones get pushes away from home too:
+
+1. Pick a hostname for it, such as `ntfy.example.com`, and set it in `.env` (in Portainer, under the stack's Environment variables):
+
+   ```sh
+   NTFY_BASE_URL=https://ntfy.example.com
+   ```
+
+2. Add the `ntfy` service to the tunnel's network, as for RollCall in [A Cloudflare Tunnel](#a-cloudflare-tunnel), step 3:
+
+   ```yaml
+   services:
+     ntfy:
+       # ...as in compose.yaml...
+       networks:
+         - default
+         - rollcall-tunnel
+   ```
+
+3. Start it: `docker compose --profile ntfy up -d` (in Portainer, add `COMPOSE_PROFILES=ntfy` to the stack's Environment variables and Update the stack).
+4. In the Cloudflare dashboard, add a Public Hostname for `ntfy.example.com` on the same tunnel, pointing at `http://rollcall-ntfy:8080`.
+5. Do not put this hostname behind Cloudflare Access: RollCall's server sends pushes to it, and the ntfy app keeps a connection open to it, and neither can sign in to Access. RollCall's pushes go to random topics and are encrypted, and ntfy's own [access control](https://docs.ntfy.sh/config/#access-control) can lock down everything else.
+6. On each phone, in the ntfy app, set Settings › Default server to `https://ntfy.example.com`. On a phone already getting RollCall's notifications, also delete RollCall's subscription in the ntfy app. Then open RollCall: it registers with the new server.
+
+Then check: `https://ntfy.example.com` opens ntfy's web app from a phone on mobile data, and a phone with RollCall registered shows a subscription to that server in the ntfy app.
+
+### Firebase (optional)
+
+Phones with the `google` flavor of the app (see [android/README.md](../android/README.md#flavors)) can get phone notifications through Google's own push service, Firebase Cloud Messaging (FCM), with nothing else to install. RollCall uses your own Firebase project, set up once on the Settings page. Without it, phones need ntfy (above) or another UnifiedPush distributor, and a phone with one installed keeps using it either way. FCM pushes aren't end-to-end encrypted: Google sees their text.
+
+1. In the [Firebase console](https://console.firebase.google.com/), create a project, for example "RollCall". Google Analytics isn't needed: leave it off.
+2. In the project's settings, under General › Your apps, add an Android app with the package name `io.github.sirmeili.rollcall`. Skip the remaining steps of the wizard (the SDK and the build plugin are already in the app).
+3. Download that app's `google-services.json`. It isn't put in the app; it only holds four values RollCall needs. On the Settings page, under **Phone notifications**, enter:
+   - **Firebase project ID**: `project_info.project_id`;
+   - **App ID**: `client[0].client_info.mobilesdk_app_id`, like `1:123456789012:android:…`;
+   - **API key**: `client[0].api_key[0].current_key`, starting `AIza`;
+   - **Sender ID**: `project_info.project_number`.
+
+   Then delete the file. None of these is secret: Firebase puts them in apps.
+4. In the project's settings, under Cloud Messaging, check that **Firebase Cloud Messaging API (V1)** is enabled.
+5. Under Service accounts, choose **Generate new private key**. Paste the whole downloaded JSON file into **Service-account key** on the Settings page, and Save. It is stored encrypted and never shown again; delete the downloaded file and keep no other copy. (Or set all five as `FIREBASE_*` in `.env`; see [configuration.md](configuration.md).)
+6. Open RollCall on each `google` phone, signed in. The app restarts itself once to start Firebase with the new settings.
+
+Then check, on a `google` phone without ntfy: its Settings say phone notifications work via Google, and **Send a test notification** arrives. A development build (`io.github.sirmeili.rollcall.debug`) needs its own Android app in the same project, added as in step 2; RollCall's settings hold one App ID, so test it with the debug app's App ID and put the release one back afterwards.
+
 ## 6. Scanners, the phone app and Home Assistant
 
 - **Phone app and scanners**: on the Devices page, register a scanner and pair the phone with its QR code, from home. For the phone, use the `https://` hostname if you set up HTTPS at home (above), so the app works at home and away; otherwise `http://<server>:8000`, which works only at home. Scanners stay on the LAN.

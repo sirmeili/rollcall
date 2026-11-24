@@ -1,6 +1,8 @@
 package io.github.sirmeili.filamenttracker
 
+import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.os.Build
@@ -10,32 +12,48 @@ import android.os.VibratorManager
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.MifareClassic
+import androidx.activity.result.ActivityResult
+import androidx.core.app.NotificationManagerCompat
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
+import com.getcapacitor.PermissionState
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import com.getcapacitor.annotation.ActivityCallback
+import com.getcapacitor.annotation.Permission
+import com.getcapacitor.annotation.PermissionCallback
+import io.github.sirmeili.filamenttracker.flavor.appFlavor
 import io.github.sirmeili.filamenttracker.nfc.AndroidMifare
 import io.github.sirmeili.filamenttracker.nfc.Hex
 import io.github.sirmeili.filamenttracker.nfc.NfcState
 import io.github.sirmeili.filamenttracker.nfc.TagReader
+import io.github.sirmeili.filamenttracker.push.Notifier
+import io.github.sirmeili.filamenttracker.push.PhoneNotification
+import io.github.sirmeili.filamenttracker.push.PushBridge
 import io.github.sirmeili.filamenttracker.storage.KeystoreKey
 import io.github.sirmeili.filamenttracker.storage.PrefsValues
 import io.github.sirmeili.filamenttracker.storage.SecureStore
 
+/** Android 13's permission to show notifications, as the plugin names it to Capacitor. */
+private const val NOTIFICATIONS = "notifications"
+
 /**
- * The phone app's native side: NFC tag reads, QR scanning and encrypted storage.
+ * The phone app's native side: NFC tag reads, QR scanning, encrypted storage, and phone
+ * notifications (Android's permission to show them and tapped notifications here; the push
+ * route, registering and the endpoint in [PushBridge]).
  *
  * Derived keys stay in [TagReader]; only the UID, data blocks and `readOk` reach the web view.
  * Nothing here logs tag contents, the salt or stored values.
  */
-@CapacitorPlugin(name = "FilamentTracker")
+@CapacitorPlugin(
+    name = "FilamentTracker",
+    permissions = [Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = NOTIFICATIONS)],
+)
 class FilamentTrackerPlugin : Plugin() {
     private val store by lazy { SecureStore(KeystoreKey::get, PrefsValues(context)) }
+    private val push by lazy { PushBridge(context) }
     private var pending: PluginCall? = null
     private var salt: ByteArray? = null
 
@@ -186,19 +204,109 @@ class FilamentTrackerPlugin : Plugin() {
     override fun handleOnDestroy() {
         tones?.release()
         tones = null
+        push.listen(null)
         super.handleOnDestroy()
     }
 
-    // Google's code scanner (Play services) needs no camera permission and keeps camera code
-    // out of the app.
+    override fun load() {
+        super.load()
+        push.listen { endpoint -> notifyListeners("pushEndpoint", endpoint) }
+        opened(activity?.intent)
+    }
+
+    override fun handleOnNewIntent(intent: Intent) {
+        super.handleOnNewIntent(intent)
+        opened(intent)
+    }
+
+    /** A tapped phone notification opened the app: tell the web app its page, once, even if
+     * it isn't listening yet. */
+    private fun opened(intent: Intent?) {
+        val path = intent?.getStringExtra(Notifier.EXTRA_PATH) ?: return
+        intent.removeExtra(Notifier.EXTRA_PATH)
+        notifyListeners("notificationOpened", JSObject().put("path", PhoneNotification.safePath(path)), true)
+    }
+
+    @PluginMethod
+    fun pushRoute(call: PluginCall) {
+        call.resolve(push.route())
+    }
+
+    @PluginMethod
+    fun pushRegister(call: PluginCall) {
+        val vapidKey = call.getString("vapidKey")?.takeIf { it.isNotEmpty() } ?: return call.reject("vapidKey required")
+        runCatching { push.register(vapidKey) }
+            .onSuccess { call.resolve() }
+            .onFailure { call.reject("push registration failed") }
+    }
+
+    @PluginMethod
+    fun pushUnregister(call: PluginCall) {
+        runCatching { push.unregister() }
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun pushEndpoint(call: PluginCall) {
+        call.resolve(push.endpoint())
+    }
+
+    /** Whether RollCall may show notifications: Android 13's permission granted, and
+     * notifications not turned off for the app in Android's settings. */
+    @PluginMethod
+    fun notificationPermission(call: PluginCall) {
+        call.resolve(permission())
+    }
+
+    /** Ask for Android 13's permission to show notifications. Earlier Android versions have
+     * none to ask, and say only whether notifications are turned on. */
+    @PluginMethod
+    fun requestNotificationPermission(call: PluginCall) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || getPermissionState(NOTIFICATIONS) == PermissionState.GRANTED) {
+            return call.resolve(permission())
+        }
+        requestPermissionForAlias(NOTIFICATIONS, call, "permissionAnswered")
+    }
+
+    @PermissionCallback
+    private fun permissionAnswered(call: PluginCall) {
+        call.resolve(permission())
+    }
+
+    private fun permission(): JSObject {
+        val granted = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        return JSObject().put("permission", if (granted) "granted" else "denied")
+    }
+
+    /** The name people know the route by: the UnifiedPush distributor app's ("ntfy"), or
+     * "Google" for Google's push service (FCM). */
+    @PluginMethod
+    fun pushRouteName(call: PluginCall) {
+        call.resolve(push.routeName())
+    }
+
+    /**
+     * Use the server's Firebase client settings (absent: none), before choosing a route. When
+     * they differ from the ones Firebase is running with, the app restarts itself to use them.
+     */
+    @PluginMethod
+    fun pushConfigure(call: PluginCall) {
+        if (!push.configure(call.getObject("firebase"))) return call.resolve()
+        call.resolve(JSObject().put("restarting", true))
+        push.restart()
+    }
+
+    // Each flavor has its own scanner (Flavors in android/README.md): some answer the call
+    // themselves, others start an activity whose result comes back to qrScanned.
     @PluginMethod
     fun scanQr(call: PluginCall) {
-        val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
-        GmsBarcodeScanning.getClient(activity, options)
-            .startScan()
-            .addOnSuccessListener { code -> call.resolve(JSObject().put("value", code.rawValue)) }
-            .addOnCanceledListener { call.resolve(JSObject().put("value", null)) }
-            .addOnFailureListener { call.reject("camera unavailable") }
+        val intent = appFlavor.qrScanner.start(activity, call) ?: return
+        startActivityForResult(call, intent, "qrScanned")
+    }
+
+    @ActivityCallback
+    private fun qrScanned(call: PluginCall?, result: ActivityResult) {
+        call?.resolve(JSObject().put("value", appFlavor.qrScanner.result(result.resultCode, result.data)))
     }
 
     @PluginMethod

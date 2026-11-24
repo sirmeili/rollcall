@@ -128,6 +128,7 @@ describe("the Access token", () => {
       salt: "AA",
       access: ACCESS,
       records: true,
+      userPhone: false,
     });
   });
 

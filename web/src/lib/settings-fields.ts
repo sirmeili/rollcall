@@ -121,6 +121,39 @@ export const EMAIL_FIELDS: readonly FieldInfo[] = [
   },
 ];
 
+export const FIREBASE_FIELDS: readonly FieldInfo[] = [
+  {
+    key: "firebase_project_id",
+    label: "Firebase project ID",
+    help: "project_info.project_id in the Android app's google-services.json. Empty: phones use a UnifiedPush distributor such as ntfy.",
+    placeholder: "rollcall-12345",
+  },
+  {
+    key: "firebase_app_id",
+    label: "App ID",
+    help: "client_info.mobilesdk_app_id in the same file.",
+    placeholder: "1:123456789012:android:…",
+  },
+  {
+    key: "firebase_api_key",
+    label: "API key",
+    help: "api_key.current_key in the same file. It isn't secret: phones get it to start Firebase.",
+    placeholder: "AIza…",
+  },
+  {
+    key: "firebase_sender_id",
+    label: "Sender ID",
+    help: "project_info.project_number in the same file.",
+    placeholder: "123456789012",
+    inputmode: "numeric",
+  },
+  {
+    key: "firebase_service_account",
+    label: "Service-account key",
+    help: "Paste the whole key file (JSON) from the project's Service accounts, Generate new private key. The server sends with it.",
+  },
+];
+
 /** Where a value comes from, in words. */
 export function sourceText(setting: SettingOut): string {
   if (setting.unreadable) return "Needs entering again";

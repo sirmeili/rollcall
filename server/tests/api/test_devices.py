@@ -281,7 +281,12 @@ def test_a_device_gets_the_kdf_salt(db_url: str) -> None:
         response = client.get("/api/v1/devices/provisioning", headers=bearer(register(client)))
 
     assert response.status_code == 200
-    assert response.json() == {"kdf_salt": SALT, "access": None, "records": True}
+    assert response.json() == {
+        "kdf_salt": SALT,
+        "access": None,
+        "records": True,
+        "user_phone": False,
+    }
     assert response.headers["cache-control"] == "no-store"
 
 

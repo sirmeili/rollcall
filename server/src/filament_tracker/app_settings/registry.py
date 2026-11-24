@@ -17,6 +17,7 @@ from filament_tracker.ha.broker import parse_mqtt_url
 from filament_tracker.ha.rest import parse_ha_url
 from filament_tracker.mail.address import clean_address
 from filament_tracker.mail.transport import SECURITIES
+from filament_tracker.push.fcm_account import MAX_KEY_CHARS, parse_service_account
 
 MAX_VALUE = 1024
 PREFIX_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}(/[A-Za-z0-9_-]{1,64}){0,3}$")
@@ -29,6 +30,11 @@ MIN_SESSION_DAYS, MAX_SESSION_DAYS = 1, 365
 CATALOG_SYNCS = ("off", "daily", "weekly")
 MIN_CUTOFF, MAX_CUTOFF = 0.5, 50.0
 HOST_PATTERN = re.compile(r"[A-Za-z0-9.-]{1,253}|\[[0-9A-Fa-f:.]{2,45}\]")
+# Firebase's formats: a project ID, an Android app ID, a web API key and a sender ID.
+FIREBASE_PROJECT_PATTERN = re.compile(r"[a-z][a-z0-9-]{4,28}[a-z0-9]")
+FIREBASE_APP_PATTERN = re.compile(r"1:[0-9]{1,20}:android:[0-9a-f]{1,64}")
+FIREBASE_API_KEY_PATTERN = re.compile(r"[A-Za-z0-9_-]{20,100}")
+FIREBASE_SENDER_PATTERN = re.compile(r"[0-9]{1,20}")
 
 
 def _mqtt_url(value: str) -> str:
@@ -184,6 +190,35 @@ def access_client_secret(value: str) -> str:
     return value
 
 
+def _matching(pattern: re.Pattern[str], problem: str) -> Callable[[str], str]:
+    """A check that the whole value matches pattern. The error never repeats it."""
+
+    def check(value: str) -> str:
+        if not pattern.fullmatch(value):
+            raise ValueError(problem)
+        return value
+
+    return check
+
+
+firebase_project_id = _matching(
+    FIREBASE_PROJECT_PATTERN, "use the Firebase project ID, like rollcall-12345"
+)
+firebase_app_id = _matching(
+    FIREBASE_APP_PATTERN, "use the Android app's App ID from Firebase, like 1:1234:android:abcd"
+)
+firebase_api_key = _matching(FIREBASE_API_KEY_PATTERN, "use the Web API key from Firebase")
+firebase_sender_id = _matching(
+    FIREBASE_SENDER_PATTERN, "use the sender ID from Firebase: digits only"
+)
+
+
+def firebase_service_account(value: str) -> str:
+    """A Firebase service-account key file, as JSON. The error never repeats it."""
+    parse_service_account(value)
+    return value
+
+
 def _plain(value: str) -> str:
     return value
 
@@ -198,12 +233,14 @@ class SettingDef:
     # Whether the setting may be empty (meaning off or none).
     optional: bool = True
     check: Callable[[str], str] = _plain
+    # The longest value accepted.
+    max_length: int = MAX_VALUE
 
     def clean(self, value: str) -> str:
         """The value to store: trimmed and checked. Raises ValueError, never echoing it."""
         value = value.strip()
-        if len(value) > MAX_VALUE:
-            raise ValueError(f"at most {MAX_VALUE} characters")
+        if len(value) > self.max_length:
+            raise ValueError(f"at most {self.max_length} characters")
         if not value:
             if not self.optional:
                 raise ValueError("needs a value")
@@ -216,6 +253,7 @@ HOME_ASSISTANT = "home-assistant"
 SCANNERS = "scanners"
 CATALOG = "catalog"
 EMAIL = "email"
+PHONE_NOTIFICATIONS = "phone-notifications"
 
 DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("tz", GENERAL, "tz", optional=False, check=time_zone),
@@ -249,7 +287,26 @@ DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("smtp_password", EMAIL, "smtp_password", secret=True),
     SettingDef("smtp_from", EMAIL, "smtp_from", check=smtp_from),
     SettingDef("public_url", EMAIL, "public_url", check=public_url),
+    SettingDef(
+        "firebase_project_id", PHONE_NOTIFICATIONS, "firebase_project_id", check=firebase_project_id
+    ),
+    SettingDef("firebase_app_id", PHONE_NOTIFICATIONS, "firebase_app_id", check=firebase_app_id),
+    SettingDef("firebase_api_key", PHONE_NOTIFICATIONS, "firebase_api_key", check=firebase_api_key),
+    SettingDef(
+        "firebase_sender_id", PHONE_NOTIFICATIONS, "firebase_sender_id", check=firebase_sender_id
+    ),
+    SettingDef(
+        "firebase_service_account",
+        PHONE_NOTIFICATIONS,
+        "firebase_service_account",
+        secret=True,
+        check=firebase_service_account,
+        max_length=MAX_KEY_CHARS,
+    ),
 )
+
+# The longest value any setting accepts.
+LONGEST_VALUE = max(d.max_length for d in DEFINITIONS)
 
 BY_KEY = {d.key: d for d in DEFINITIONS}
 GROUPS = frozenset(d.group for d in DEFINITIONS)

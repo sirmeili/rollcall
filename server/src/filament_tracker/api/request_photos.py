@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from starlette.requests import ClientDisconnect
 
-from filament_tracker.api.deps import send_after_commit
+from filament_tracker.api.deps import notify_after_commit
 from filament_tracker.api.request_files import content_disposition
 from filament_tracker.api.request_schemas import PhotosIn, PhotoUploadOut, RequestOut
 from filament_tracker.api.request_views import model_files, request_out, stored_photos
@@ -26,7 +26,7 @@ from filament_tracker.auth import AnyPrincipal, DbSession, forbidden, problems
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import FILE_NAME_MAX, PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
-from filament_tracker.print_requests import emails, photos
+from filament_tracker.print_requests import notifications, photos
 from filament_tracker.print_requests.access import is_admin
 from filament_tracker.print_requests.rules import Problems
 
@@ -100,10 +100,14 @@ def add_photos(
     except Problems as error:
         raise problems(error.problems) from None
     session.commit()
-    send_after_commit(
+    notify_after_commit(
         http,
-        lambda public_url: emails.new_photo_emails(
-            session, found, caller.user, stored_photos(http).email_copies(added), public_url
+        session,
+        lambda: notifications.new_photos(
+            found,
+            caller.user,
+            stored_photos(http).email_copies(added),
+            added[0].id if added else None,
         ),
     )
     session.refresh(found)

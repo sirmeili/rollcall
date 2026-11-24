@@ -1,6 +1,6 @@
 # RollCall Android app
 
-The phone app: a Capacitor wrapper around the web app in `web/`, with a Kotlin plugin for NFC tag reading, QR scanning and Keystore storage, and Capacitor's official App plugin for the Back button and sending the app to the background. It works only on phones whose NFC chip reads MIFARE Classic, such as Google Pixel phones. See ADR-0010 (`docs/adr/0010-phone-app-capacitor-and-kotlin-nfc.md`) for why it is built this way.
+The phone app: a Capacitor wrapper around the web app in `web/`, with a Kotlin plugin for NFC tag reading, QR scanning, phone notifications and Keystore storage, and Capacitor's official App plugin for the Back button and sending the app to the background. It works only on phones whose NFC chip reads MIFARE Classic, such as Google Pixel phones. See ADR-0010 (`docs/adr/0010-phone-app-capacitor-and-kotlin-nfc.md`) for why it is built this way.
 
 ## Build
 
@@ -12,24 +12,50 @@ npm run build
 npx cap sync android
 
 # From android/, with JAVA_HOME set to JDK 21
-./gradlew coverageCheck    # Kotlin tests with the 90% coverage gate
-./gradlew assembleDebug    # Writes app/build/outputs/apk/debug/app-debug.apk
+./gradlew coverageCheck    # Kotlin tests of both flavors, each with the 90% coverage gate
+./gradlew checkFossHasNoGoogleServices   # foss holds no Google services (Flavors, below)
+./gradlew assembleDebug    # Writes app/build/outputs/apk/<flavor>/debug/app-<flavor>-debug.apk for google and foss
 ```
 
-Inner loop, without the coverage check, from `android/`: `./gradlew testDebugUnitTest --tests <test class>`.
+Inner loop, without the coverage check, from `android/`: `./gradlew testGoogleDebugUnitTest --tests <test class>`. For code in `app/src/foss/`, use `testFossDebugUnitTest`.
 
-Changed-file coverage, without the 90% gate, from `android/`: `./gradlew testDebugUnitTest --tests <test class> coverageReport`, then read the changed classes in `app/build/reports/jacoco/coverageReport/html/index.html`. Classes the named tests don't reach show as missed.
+Changed-file coverage, without the 90% gate, from `android/`: `./gradlew testGoogleDebugUnitTest --tests <test class> coverageReportGoogle`, then read the changed classes in `app/build/reports/jacoco/coverageReportGoogle/html/index.html` (`Foss` in both names for the `foss` flavor). Classes the named tests don't reach show as missed.
 
 Run `npm run build` and `npx cap sync android` again after any web change, before building the app.
 
 The coverage gate leaves out the Android glue that needs a phone; the list is `coverageExcludes` in `app/build.gradle`, and [docs/testing.md](../docs/testing.md#coverage-exclusions) says why each is excluded and which checklist covers it. New Android dependencies follow the same rules as npm ones: see [CODING_STANDARDS.md](../CODING_STANDARDS.md#dependencies).
 
-Debug builds are **RollCall (dev)** (`io.github.sirmeili.rollcall.debug`, version `dev`). They install next to the release app instead of replacing it, each with its own pairing.
+Debug builds are **RollCall (dev)** (`io.github.sirmeili.rollcall.debug`, version `dev`), in both flavors. They install next to the release app instead of replacing it, each with its own pairing.
+
+## Flavors
+
+The app is built in two Gradle product flavors, released together:
+
+- **`google`**: for phones with Google Play. It gets phone notifications through Google's push service (FCM) when the server has Firebase set up, with nothing else to install, and scans QR codes with Google's code scanner, which needs no camera permission.
+- **`foss`**: contains no Google code, for phones without Google Play or people who avoid Google. It gets phone notifications only through a UnifiedPush distributor such as ntfy, and scans QR codes in the app with ZXing, asking for the camera the first time.
+
+Pick `google` unless the phone has no Google Play or you'd rather avoid Google. `./gradlew checkFossHasNoGoogleServices` fails if `foss`'s dependencies hold Play services, Firebase, ML Kit or Google's data transport; CI and the release workflow run it. Open-source libraries that come from Google, such as ZXing or Gson, are allowed. See [ADR 0022](../docs/adr/0022-phone-notifications-through-official-fcm-or-unifiedpush-in-two-flavors.md) for why there are two flavors.
+
+Both have the same app ID and are signed with the same key, so a phone switches by installing the other flavor's APK over the top: Android keeps the app's data, and the phone stays set up. A flavor's own code goes in `app/src/google/` or `app/src/foss/`, and its dependencies in `googleImplementation` or `fossImplementation`.
+
+## Phone notifications
+
+A user's phone (set up by signing in) shows the phone notifications its user chose on Account, even while the app is closed. A shared phone never gets them. They come through a [UnifiedPush](https://unifiedpush.org/) distributor, an app such as [ntfy](https://ntfy.sh/) installed on the phone, using the UnifiedPush connector library in both flavors, or, in `google` without a distributor, through Google's push service (FCM):
+
+- **`google` with Firebase set up on the server** ([docs/deploy.md](../docs/deploy.md#firebase-optional)): nothing to install. The app gets Firebase's client settings from the server once signed in, and starts Firebase from them at app start, with no `google-services.json`, no Analytics, and automatic token creation and delivery-metrics export off. It sends its FCM token to the server as its endpoint. New Firebase settings, or pairing with another server, take effect after an app restart, which the app does by itself the next time it reads them. An installed distributor is still preferred over FCM.
+- Otherwise, install ntfy (from F-Droid or Google Play). Without a distributor, and without FCM, the phone gets no phone notifications.
+- Once signed in, the app registers with the distributor using the server's VAPID public key and sends its endpoint to the server with its session, from anywhere. A new endpoint from the distributor is sent at once, or on the next sign-in. With more than one distributor installed, it keeps the one in use, else the phone's default, else the first.
+- ntfy uses the ntfy.sh server unless set to another; the server owner can run their own (see [docs/deploy.md](../docs/deploy.md#ntfy-optional)). The server encrypts each push for the phone (RFC 8291), so the ntfy server sees only encrypted contents.
+- Each kind is its own Android notification channel, so a kind can also be muted in Android's settings. Tapping a notification opens its page, signing in first when signed out.
+- Done and New photo show the print's first photo as a large picture. The app downloads it from the paired server with its signed-in session and the Cloudflare Access service token, as its other calls do; signed out, or if the download fails, the notification shows its text only.
+- Android 13 and later ask once for permission to show notifications: after setting the phone up by signing in, or on the first open of a phone set up before phone notifications came. Refusing it changes no setting on Account.
+- Pairing's **Phone notifications** line says whether they work on this phone and by which route ("via Google" or "via ntfy"), that RollCall isn't allowed to show notifications and how to allow it, or that the phone has no distributor and ntfy should be installed. **Send a test notification** asks the server to send one to this phone.
+- Unlink and sign-out first unregister from the route (the distributor, or deleting the FCM token), so the phone stops getting them even away from home, then remove its endpoint on the server if it answers, then sign out or forget the pairing.
 
 ## Install a development build
 
-- **USB:** turn on Developer options and USB debugging on the phone, connect it, then run `adb install -r app/build/outputs/apk/debug/app-debug.apk`. `adb` is in the SDK's `platform-tools`.
-- **File:** copy `app-debug.apk` to the phone and open it. Allow installs from that app when Android asks.
+- **USB:** turn on Developer options and USB debugging on the phone, connect it, then run `adb install -r app/build/outputs/apk/google/debug/app-google-debug.apk` (or the `foss` one). `adb` is in the SDK's `platform-tools`.
+- **File:** copy `app-google-debug.apk` (or `app-foss-debug.apk`) to the phone and open it. Allow installs from that app when Android asks.
 
 ## Installing on a phone (releases, with Obtainium)
 
@@ -39,16 +65,18 @@ Everyday phones run the release app, **RollCall** (`io.github.sirmeili.rollcall`
 2. In Obtainium, tap **Add app** and enter `https://github.com/sirmeili/rollcall`. Before adding, set:
    - **Filter release titles by regular expression:** `^RollCall app ` (the repository may hold other releases later).
    - **Version string extraction RegEx:** `(\d+\.\d+\.\d+)`, so the tag `app-v1.2.0` reads as `1.2.0`, the version the app reports.
-   - **Filter APKs by regular expression:** `^rollcall-.*\.apk$`.
+   - **Filter APKs by regular expression**, for the flavor you picked (see [Flavors](#flavors)): `^rollcall-.*-google\.apk$` for `google`, or `^rollcall-.*-foss\.apk$` for `foss`.
 3. Tap **Add**, then **Install**. Allow installs from Obtainium when Android asks.
 4. Open RollCall **at home** and set it up by signing in (below). The server hands out the tag key and the Cloudflare Access token only on the home network.
 5. Account shows the app's version (**RollCall app 1.2.0**); Devices shows each phone's version too.
 
 Updates: Obtainium checks in the background and notifies when a release is out; tap **Update**. Android keeps the app's data, so the phone stays set up. An update must be signed with the same key as the installed app, so a phone with an app signed by another key (an old debug build) must uninstall it first.
 
+A phone added in Obtainium before the flavors has the filter `^rollcall-.*\.apk$`, which matches both APKs: edit the app in Obtainium and set the filter for one flavor, as in step 2. To switch flavors later, change the filter and install: the phone stays set up.
+
 ## Releases
 
-A release is published by pushing a tag `app-v<major>.<minor>.<patch>` (each part 0 to 99) on a commit in `main`. The **App release** workflow (`.github/workflows/app-release.yml`) then builds the web app and the Android app at that version (version code `major·10000 + minor·100 + patch`), runs the Kotlin tests, signs it with the release key, checks it with `scripts/verify-release.sh` (app ID, version, a v2 signature and, when set, the expected certificate) and attaches `rollcall-<version>.apk` to a GitHub Release named **RollCall app <version>**, with its SHA-256, the certificate's SHA-256 and the merged pull requests.
+A release is published by pushing a tag `app-v<major>.<minor>.<patch>` (each part 0 to 99) on a commit in `main`. The **App release** workflow (`.github/workflows/app-release.yml`) then builds the web app and both flavors of the Android app at that version (version code `major·10000 + minor·100 + patch`), runs the Kotlin tests, signs them with the release key, checks each with `scripts/verify-release.sh` (app ID, version, a v2 signature and, when set, the expected certificate) and that both have the same certificate, and attaches `rollcall-<version>-google.apk` and `rollcall-<version>-foss.apk` to a GitHub Release named **RollCall app <version>**, with their SHA-256s, the certificate's SHA-256 and the merged pull requests.
 
 ```sh
 git switch main && git pull
@@ -174,5 +202,26 @@ Run each step with the swipe-back gesture and, where the phone has one, the Back
 39. After pairing (QR code, typed code, or setting up by signing in), Back from the opened page sends the app to the background.
 40. After saving a form (a new print request, an edited request, a new spool), Back from the page it opens skips the form.
 41. The leave warning: start a new print request and type a title, then press Back. "Leave without saving?" shows: Back on it, or Stay, keeps the form with the title. Press Back again and choose Leave: the previous page shows. Open a submitted request as an Admin, tap Reject, type a reason and press Back: the warning shows, Stay keeps the dialog and the reason, and Leave closes it.
+
+**Flavors**
+
+42. On a phone set up with the `google` release, install the `foss` APK of the same or a newer version over the top: it installs without uninstalling, opens still set up (Scan, or the page chosen in 26) and a scan records. Install the `google` APK back over it: still set up.
+
+**Phone notifications**
+
+43. On a phone set up by signing in, with ntfy installed and RollCall's notifications allowed in Android's settings, close the app and turn Wi-Fi off (mobile data). From a PC, mark one of that user's print requests Done: the notification shows within a minute, and Android's settings for RollCall list a channel for each kind.
+44. Tap it: the app opens on the request's page.
+45. Sign out in the full app, then tap a new notification: the app asks to sign in, then opens its page.
+46. On a shared phone (paired with a code) with ntfy installed, sign in to the full app: ntfy lists no RollCall subscription, and no notifications arrive.
+47. On an Android 13 or later phone, set it up by signing in: Android asks once whether RollCall may show notifications. Refuse: Pairing says RollCall isn't allowed to show notifications and how to allow it, and Account's Phone switches are unchanged. Allow notifications in Android's settings and come back: Pairing says they work, via ntfy. Close and reopen the app: it doesn't ask again.
+48. Install this release over a phone set up by signing in with the previous one: on the first open (at home), Android asks once whether RollCall may show notifications; reopening doesn't ask again.
+49. On Pairing, tap Send a test notification: "Sent a test notification to this phone" shows, and the notification arrives. Uninstall ntfy and open Pairing: it says to install ntfy.
+50. Away from home (mobile data), unlink the phone: ntfy no longer lists a RollCall subscription, and marking one of that user's print requests Done from a PC shows no notification on it.
+51. On Wi-Fi at home, with the app closed, mark one of that user's print requests Done with a photo from a PC: the notification shows the photo, and expanding it shows it large. Do it again away from home (mobile data), with Cloudflare Access in front of the server: the photo shows too. Sign out in the full app and do it once more: the notification shows its text only.
+52. `google` via FCM: with Firebase set up on the Settings page, on a `google` phone without ntfy (or any other distributor), sign in: the app restarts itself once, then Pairing says phone notifications work via Google. Close the app, turn Wi-Fi off and mark one of the user's requests Done with a photo from a PC: the notification shows with the photo, and tapping it opens the request.
+53. `google` with ntfy installed uses ntfy: install ntfy on the phone from 52 and open RollCall: ntfy lists a RollCall subscription, Pairing says via ntfy, and the next notification arrives through ntfy.
+54. `foss` via ntfy: on a `foss` phone with ntfy, steps 43 and 44 pass, and Firebase set up on the server changes nothing (no restart).
+55. Change a Firebase setting on the Settings page (or pair the `google` phone with another server): the next time the app opens signed in it restarts itself once, and FCM notifications still arrive.
+56. `foss` QR code: on a `foss` phone, Pair with a code instead and scan the Devices page's QR code: the app asks for the camera the first time, the ZXing scanner reads the code held upright, and pairing finishes as in 3. Back out of the scanner: the app returns to Pairing with nothing scanned.
 
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.

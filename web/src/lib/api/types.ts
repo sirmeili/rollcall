@@ -20,6 +20,8 @@ export interface Me extends UserBase {
   notifications: NotificationSetting[];
   /** Whether this server can send email at all (an SMTP host is saved). */
   email_set_up: boolean;
+  /** Whether the user has a phone registered for phone notifications. */
+  phone_registered: boolean;
 }
 
 /** What a notification is about: server/src/filament_tracker/notifications/kinds.py. */
@@ -33,7 +35,7 @@ export type NotificationKind =
   | "backup_failed";
 
 /** How a notification reaches a person. */
-export type NotificationChannel = "email";
+export type NotificationChannel = "email" | "phone";
 
 /** A user's own choice for one kind on one channel. */
 export interface NotificationChoice {

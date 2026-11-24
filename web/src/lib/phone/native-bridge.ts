@@ -2,13 +2,23 @@
  *
  * The plugin (android/app/src/main/java/.../FilamentTrackerPlugin.kt) reads tags, scans QR
  * codes and keeps values encrypted with the Android Keystore. The salt goes in; derived keys
- * never come back out. Capacitor's official App plugin reports Back presses and sends the
+ * never come back out. It also registers for phone notifications through the phone's route
+ * and reports tapped ones. Capacitor's official App plugin reports Back presses and sends the
  * app to the background.
  */
 
 import { App } from "@capacitor/app";
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
-import { setBridge, type NfcStatus, type PhoneBridge, type TagRead } from "#lib/phone/bridge.ts";
+import {
+  setBridge,
+  type NfcStatus,
+  type FirebaseClient,
+  type PhoneBridge,
+  type PushEndpoint,
+  type PhoneNotificationPermission,
+  type PushRoute,
+  type TagRead,
+} from "#lib/phone/bridge.ts";
 
 export interface FilamentTrackerPlugin {
   appInfo(): Promise<{ version: string }>;
@@ -19,6 +29,27 @@ export interface FilamentTrackerPlugin {
   secureGet(options: { key: string }): Promise<{ value: string | null }>;
   secureSet(options: { key: string; value: string }): Promise<void>;
   secureRemove(options: { key: string }): Promise<void>;
+  pushConfigure(options: { firebase: FirebaseClient | null }): Promise<{ restarting?: boolean }>;
+  pushRoute(): Promise<{ route: PushRoute }>;
+  pushRegister(options: { vapidKey: string }): Promise<void>;
+  pushUnregister(): Promise<void>;
+  pushEndpoint(): Promise<{ endpoint: PushEndpoint | null }>;
+  notificationPermission(): Promise<{ permission: PhoneNotificationPermission }>;
+  requestNotificationPermission(): Promise<{ permission: PhoneNotificationPermission }>;
+  pushRouteName(): Promise<{ name?: string | null }>;
+  addListener(
+    eventName: "pushEndpoint",
+    listener: (event: { endpoint?: PushEndpoint | null }) => void,
+  ): Promise<PluginListenerHandle>;
+  addListener(
+    eventName: "notificationOpened",
+    listener: (event: { path: string }) => void,
+  ): Promise<PluginListenerHandle>;
+}
+
+/** Stop a plugin listener once it has been added. */
+function stopping(handle: Promise<PluginListenerHandle>): () => void {
+  return () => void handle.then((listening) => listening.remove());
 }
 
 /** The part of Capacitor's App plugin the bridge uses. */
@@ -67,11 +98,24 @@ export function nativeBridge(
     secureGet: async (key) => (await plugin.secureGet({ key })).value ?? null,
     secureSet: (key, value) => plugin.secureSet({ key, value }),
     secureRemove: (key) => plugin.secureRemove({ key }),
-    onBack: (listener) => {
-      const handle = app.addListener("backButton", ({ canGoBack }) => listener({ canGoBack }));
-      return () => void handle.then((listening) => listening.remove());
-    },
+    onBack: (listener) =>
+      stopping(app.addListener("backButton", ({ canGoBack }) => listener({ canGoBack }))),
     background: () => app.minimizeApp(),
+    pushConfigure: async (firebase) => ({
+      restarting: (await plugin.pushConfigure({ firebase })).restarting === true,
+    }),
+    pushRoute: async () => (await plugin.pushRoute()).route,
+    pushRegister: (vapidKey) => plugin.pushRegister({ vapidKey }),
+    pushUnregister: () => plugin.pushUnregister(),
+    pushEndpoint: async () => (await plugin.pushEndpoint()).endpoint ?? null,
+    onPushEndpoint: (listener) =>
+      stopping(plugin.addListener("pushEndpoint", ({ endpoint }) => listener(endpoint ?? null))),
+    onNotificationOpen: (listener) =>
+      stopping(plugin.addListener("notificationOpened", ({ path }) => listener(path))),
+    notificationPermission: async () => (await plugin.notificationPermission()).permission,
+    requestNotificationPermission: async () =>
+      (await plugin.requestNotificationPermission()).permission,
+    pushRouteName: async () => (await plugin.pushRouteName()).name ?? null,
   };
 }
 

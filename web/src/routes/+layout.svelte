@@ -5,7 +5,7 @@
   import type { Snippet } from "svelte";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { guardRedirect, LOGIN_PATH, SETUP_PATH } from "#lib/auth/redirect.ts";
+  import { guardRedirect, LOGIN_PATH, safeNext, SETUP_PATH } from "#lib/auth/redirect.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import Forbidden from "#lib/components/Forbidden.svelte";
   import Header from "#lib/components/Header.svelte";
@@ -15,6 +15,7 @@
   import PhoneTopBar from "#lib/components/shell/PhoneTopBar.svelte";
   import { mayOpen, pageTitle } from "#lib/nav.ts";
   import { listenForBack } from "#lib/phone/back.ts";
+  import { bridge } from "#lib/phone/bridge.ts";
   import { isPhonePath, phone } from "#lib/phone/phone-state.svelte.ts";
   import { seesEveryRequest } from "#lib/requests/access.ts";
   import { requestsBadge } from "#lib/requests-badge.svelte.ts";
@@ -76,6 +77,20 @@
 
   // The phone's Back button and swipe-back gesture. A browser's Back is its own.
   $effect(() => listenForBack(() => phone.app && !started));
+
+  // A tapped phone notification opens its page, instead of the opening screen. Signed out,
+  // the sign-in check below asks to sign in first and comes back to it.
+  $effect(() =>
+    bridge().onNotificationOpen((path) => {
+      openedAt = "";
+      void goto(safeNext(path));
+    }),
+  );
+
+  // A user's phone registers for phone notifications once its user is signed in.
+  $effect(() => {
+    if (session.user) void phone.session?.push.sync();
+  });
 
   $effect(() => {
     if (!phone.app || !phone.loaded) return;

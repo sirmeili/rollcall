@@ -16,6 +16,7 @@ import {
   savePairing,
   saveRecords,
   saveServer,
+  saveUserPhone,
   type OpenOn,
 } from "#lib/phone/pairing-store.ts";
 import { PhoneSession } from "#lib/phone/session.ts";
@@ -92,10 +93,11 @@ class PhoneState {
 
   /** Check the details with the server, fetch the tag key constant, and keep both. */
   async pair(fields: PairingFields, fetchFn?: typeof fetch): Promise<void> {
-    const { salt, access, records } = await new DeviceApi(fields, fetchFn).provisioning();
-    await savePairing(fields, salt);
-    await saveAccess(access);
-    await saveRecords(records);
+    const fresh = await new DeviceApi(fields, fetchFn).provisioning();
+    await savePairing(fields, fresh.salt);
+    await saveAccess(fresh.access);
+    await saveRecords(fresh.records);
+    await saveUserPhone(fresh.userPhone);
     this.attach(await PhoneSession.open(bridge(), fetchFn));
   }
 
