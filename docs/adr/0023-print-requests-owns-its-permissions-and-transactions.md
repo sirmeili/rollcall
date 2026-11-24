@@ -11,5 +11,6 @@ Why, from #243's grilling (2026-11-23):
 ## Consequences
 
 - Two Print Requests actions can't share one transaction, and nothing outside Print Requests can include one in its own. Two actions that don't depend on each other can still run one after the other. If an action ever has to be atomic with another, add an internal action that doesn't commit, wrapped by the public one, rather than making routes commit again.
+- The streaming upload routes keep the stream, and answer 400 for an unfinished upload. Print Requests receives the upload, checks it, saves it and commits, so no request route commits.
 - Reading a request never writes: the shopping list stage it shows no longer commits the dismissals the shopping list clears (ADR-0021).
 - `test_module_boundary.py` holds the `api/request*` routes to the interface, its dataclasses and `Refused`, so the rules don't leak back into the routes.
