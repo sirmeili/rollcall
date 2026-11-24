@@ -58,8 +58,11 @@ jobs:
           else
             version="${TAG#app-v}"
           fi
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[1-9][0-9]*)?$ ]]; then
-            refuse "The version $version must look like 1.2.3, or 1.2.3-rc.1 for a release candidate (the tag like app-v1.2.3 or app-v1.2.3-rc.1): tag the release again with a valid version (docs/releasing.md, Versioning)"
+          # major.minor.patch, each 0-99 with no leading zero and not all 0, then optionally
+          # -rc.N with N from 1 and no leading zero.
+          part='(0|[1-9][0-9]?)'
+          if [[ ! "$version" =~ ^$part\.$part\.$part(-rc\.[1-9][0-9]*)?$ || "$version" =~ ^0\.0\.0 ]]; then
+            refuse "The version $version must look like 1.2.3, or 1.2.3-rc.1 for a release candidate (the tag like app-v1.2.3 or app-v1.2.3-rc.1), each part 0 to 99 with no leading zero and not all 0, and N from 1 with no leading zero: tag the release again with a valid version (docs/releasing.md, Versioning)"
           fi
           base="${version%%-rc.*}"
           if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
@@ -71,7 +74,7 @@ jobs:
                 refuse "app-v$base is already released, so it can't have another release candidate: pick the next version (docs/releasing.md, Versioning) and tag its first release candidate (docs/releasing.md, Release candidate)"
               fi
             else
-              rc=$(git tag --list "app-v$base-rc.*" | sed -nE "s/^app-v${base//./\\.}-rc\.([1-9][0-9]*)$/\1/p" | sort -n | tail -n 1)
+              rc=$(git tag --list "app-v$base-rc.*" | sed -nE "s/^app-v${base//./[.]}-rc[.]([1-9][0-9]*)$/\1/p" | sort -n | tail -n 1)
               if [[ -z "$rc" ]]; then
                 refuse "No release candidate for $base: tag and test app-v$base-rc.1 first (docs/releasing.md, Release candidate)"
               fi
