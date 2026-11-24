@@ -27,7 +27,7 @@ from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest, RequestHistory, RequestPhoto
 from filament_tracker.domain.enums import HistoryKind, RequestStatus
 from filament_tracker.print_requests.files import UNCLAIMED_FOR, ModelFiles, clean_name
-from filament_tracker.print_requests.rules import Problems
+from filament_tracker.print_requests.refused import Refused
 
 MAX_PHOTO_BYTES = 20 * 1024 * 1024
 MAX_PIXELS = 40_000_000
@@ -52,10 +52,6 @@ NOT_NOW = "Photos can be added or removed only while the request is Done or Pick
 ADMINS_ONLY = "Only Admins add or remove photos."
 
 
-class NotAPhoto(ValueError):
-    pass
-
-
 @dataclass(frozen=True)
 class Reencoded:
     """A photo decoded and encoded again: the full photo, its extension, and the email copy."""
@@ -76,20 +72,20 @@ def _flattened(image: Image.Image) -> Image.Image:
 
 
 def reencode(data: bytes) -> Reencoded:
-    """Check and re-encode an uploaded photo; NotAPhoto if it isn't one we take."""
+    """Check and re-encode an uploaded photo; Refused if it isn't one we take."""
     try:
         image = Image.open(io.BytesIO(data), formats=list(FORMATS))
     except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
-        raise NotAPhoto(NOT_A_PHOTO) from None
+        raise Refused.invalid({PHOTO: NOT_A_PHOTO}) from None
     image_format = image.format or ""
     width, height = image.size
     if width * height > MAX_PIXELS:
-        raise NotAPhoto(TOO_MANY_PIXELS)
+        raise Refused.invalid({PHOTO: TOO_MANY_PIXELS})
     try:
         image.load()
         turned = ImageOps.exif_transpose(image)
     except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
-        raise NotAPhoto(NOT_A_PHOTO) from None
+        raise Refused.invalid({PHOTO: NOT_A_PHOTO}) from None
     # Anything Pillow kept from the file (EXIF, ICC profile, text) is left behind here.
     turned.info = {}
 
@@ -166,10 +162,10 @@ def add(
     now: datetime,
 ) -> list[RequestPhoto]:
     """Save an Admin's waiting uploads with a Done or Picked Up request, writing a
-    `photo_added` entry for each. Problems if an upload isn't theirs and waiting, or the
+    `photo_added` entry for each. Refused if an upload isn't theirs and waiting, or the
     request would have more than 4 photos."""
     if request.status not in PHOTO_STATUSES:
-        raise Problems({PHOTOS: NOT_NOW})
+        raise Refused.invalid({PHOTOS: NOT_NOW})
     found: list[RequestPhoto] = []
     for photo_id in dict.fromkeys(photo_ids):
         photo = session.get(RequestPhoto, photo_id)
@@ -179,10 +175,10 @@ def add(
             or user is None
             or photo.uploaded_by != user.id
         ):
-            raise Problems({PHOTOS: PHOTO_GONE})
+            raise Refused.invalid({PHOTOS: PHOTO_GONE})
         found.append(photo)
     if len(request.photos) + len(found) > MAX_PHOTOS:
-        raise Problems({PHOTOS: TOO_MANY_PHOTOS})
+        raise Refused.invalid({PHOTOS: TOO_MANY_PHOTOS})
     for photo in found:
         request.photos.append(photo)
         request.history.append(
@@ -199,7 +195,7 @@ def remove(
     """Take a photo off a Done or Picked Up request, writing a `photo_removed` entry. Its
     files are for the caller to delete once this is committed."""
     if request.status not in PHOTO_STATUSES:
-        raise Problems({PHOTOS: NOT_NOW})
+        raise Refused.invalid({PHOTOS: NOT_NOW})
     request.photos.remove(photo)
     session.delete(photo)
     request.history.append(

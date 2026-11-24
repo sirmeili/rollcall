@@ -54,6 +54,7 @@ from filament_tracker.poll import Poll
 from filament_tracker.print_requests import filament, holders, needs
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
 from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
+from filament_tracker.print_requests.refused import Refused
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.push.firebase import firebase
 from filament_tracker.push.keys import vapid_keys
@@ -188,6 +189,7 @@ def create_app(
     app.state.holder_reader = holders.holding_requests
     app.state.request_needs_reader = needs.request_needs
     app.add_exception_handler(RequestValidationError, validation_error)
+    app.add_exception_handler(Refused, requests.refused)
     app.add_middleware(
         BodySizeLimitMiddleware,
         larger={

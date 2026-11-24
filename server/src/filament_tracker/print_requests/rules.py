@@ -31,14 +31,6 @@ FILE = "file"
 CHOICES = "choices"
 
 
-class Problems(ValueError):
-    """The request can't be saved; each field's problem."""
-
-    def __init__(self, problems: dict[str, str]) -> None:
-        super().__init__("; ".join(problems.values()))
-        self.problems = problems
-
-
 @dataclass
 class RequestFields:
     """What a Requester sends for a new request, or for an edit (all of it again)."""

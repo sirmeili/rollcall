@@ -22,15 +22,16 @@ from filament_tracker.api.request_files import content_disposition
 from filament_tracker.api.request_schemas import PhotosIn, PhotoUploadOut, RequestOut
 from filament_tracker.api.request_views import model_files, request_out, stored_photos
 from filament_tracker.api.requests import RequestsCaller, find_request
-from filament_tracker.auth import AnyPrincipal, DbSession, forbidden, problems
+from filament_tracker.auth import AnyPrincipal, DbSession, forbidden
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import FILE_NAME_MAX, PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
 from filament_tracker.print_requests import notifications, photos
 from filament_tracker.print_requests.access import is_admin
-from filament_tracker.print_requests.rules import Problems
+from filament_tracker.print_requests.refused import Refused
 
 PHOTO_UPLOAD_PATH = "/requests/photo-uploads"
+NO_SUCH_PHOTO = "no such photo"
 
 router = APIRouter(tags=["requests"])
 
@@ -49,7 +50,7 @@ PhotoAdmin = Annotated[User, Depends(photo_admin)]
 def _photo(session: Session, found: PrintRequest, photo_id: UUID) -> RequestPhoto:
     photo = session.get(RequestPhoto, photo_id)
     if photo is None or photo.request_id != found.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such photo")
+        raise Refused.not_found(NO_SUCH_PHOTO)
     return photo
 
 
@@ -67,10 +68,7 @@ async def upload_photo(
     except ClientDisconnect:
         # Too large, or the browser went away: nothing was kept, and no one is listening.
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "upload not finished") from None
-    try:
-        photo = await run_in_threadpool(photos.reencode, body)
-    except photos.NotAPhoto as error:
-        raise problems({photos.PHOTO: str(error)}) from None
+    photo = await run_in_threadpool(photos.reencode, body)
     return await run_in_threadpool(_keep, stored_photos(http), session, user, name, photo)
 
 
@@ -95,10 +93,7 @@ def add_photos(
     """Save photo uploads with a Done or Picked Up request, up to 4 photos in all, emailing
     the requester the new photos."""
     found = find_request(session, caller, request_id)
-    try:
-        added = photos.add(session, found, body.photo_ids, caller.user, utcnow())
-    except Problems as error:
-        raise problems(error.problems) from None
+    added = photos.add(session, found, body.photo_ids, caller.user, utcnow())
     session.commit()
     notify_after_commit(
         http,
@@ -126,10 +121,7 @@ def remove_photo(
     """Remove a photo from a Done or Picked Up request, deleting its files."""
     found = find_request(session, caller, request_id)
     photo = _photo(session, found, photo_id)
-    try:
-        photos.remove(session, found, photo, caller.user, utcnow())
-    except Problems as error:
-        raise problems(error.problems) from None
+    photos.remove(session, found, photo, caller.user, utcnow())
     session.commit()
     stored_photos(http).delete(photo)
     session.refresh(found)
@@ -145,7 +137,7 @@ def photo(
     shown = _photo(session, found, photo_id)
     files = model_files(http)
     if not files.exists(shown.stored_name):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such photo")
+        raise Refused.not_found(NO_SUCH_PHOTO)
     return FileResponse(
         files.path(shown.stored_name),
         media_type=photos.media_type(shown.stored_name),

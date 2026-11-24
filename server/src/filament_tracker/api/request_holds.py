@@ -10,20 +10,19 @@ hold that isn't the request's. Nothing is saved when it is refused, and no email
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from filament_tracker.api.request_schemas import ChoiceGramsIn, HoldIn, RequestOut
 from filament_tracker.api.request_views import request_out
 from filament_tracker.api.requests import RequestsCaller, find_request
-from filament_tracker.auth import AnyPrincipal, DbSession, Principal, forbidden, problems
+from filament_tracker.auth import AnyPrincipal, DbSession, Principal, forbidden
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.print_requests import filament, pipeline
+from filament_tracker.print_requests import filament
 from filament_tracker.print_requests.access import changes_holds
-from filament_tracker.print_requests.rules import Problems
 
 ADMINS_ONLY = "Only a signed-in Admin changes holds."
 
@@ -48,16 +47,7 @@ def _change(
     change: Callable[[], None],
 ) -> RequestOut:
     """Make the change and commit it, or refuse it with nothing saved; the request after."""
-    try:
-        change()
-    except pipeline.Stale as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
-    except pipeline.NotAMove as error:
-        raise forbidden(str(error)) from None
-    except filament.NotFound as error:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from None
-    except Problems as error:
-        raise problems(error.problems) from None
+    change()
     session.commit()
     session.refresh(found)
     return request_out(http, session, caller, found)

@@ -46,7 +46,7 @@ from filament_tracker.domain.enums import HistoryKind, ReleaseReason, RequestSta
 from filament_tracker.print_requests import pipeline
 from filament_tracker.print_requests.pipeline import Moved, Mover
 from filament_tracker.print_requests.read import sort_key
-from filament_tracker.print_requests.rules import Problems
+from filament_tracker.print_requests.refused import Refused
 from filament_tracker.services import holds, shopping_list
 from filament_tracker.services.catalog_links import UnknownColor, linked_product
 
@@ -79,10 +79,6 @@ _WAITING = (RequestStatus.APPROVED, RequestStatus.WAITING_ON_FILAMENT)
 _CHANGED_BY_HAND = "holds_changed_by_hand"
 
 
-class NotFound(Exception):
-    """No such choice or hold on this request."""
-
-
 def holder(choice: FilamentChoice) -> holds.Holder:
     return holds.Holder(HOLDER_TYPE, choice.id)
 
@@ -110,7 +106,7 @@ def _grams_in_range(grams: int) -> bool:
 
 def _checked(request: PrintRequest, grams: dict[int, int]) -> None:
     if set(grams) - {choice.id for choice in request.choices}:
-        raise Problems({_GRAMS: _NOT_ITS_CHOICES})
+        raise Refused.invalid({_GRAMS: _NOT_ITS_CHOICES})
     found = {}
     for choice in request.choices:
         given = grams.get(choice.id)
@@ -119,7 +115,7 @@ def _checked(request: PrintRequest, grams: dict[int, int]) -> None:
         elif not _grams_in_range(given):
             found[_grams_problem(str(choice.id))] = _GRAMS_RANGE
     if found:
-        raise Problems(found)
+        raise Refused.invalid(found)
 
 
 def _give_products(
@@ -164,7 +160,7 @@ def _approve(
     now: datetime,
 ) -> Moved:
     """Approve with grams per choice ID, hold them and move on. Refused as `make_move` is,
-    or with Problems per choice for missing or out-of-range grams."""
+    or refused INVALID per choice for missing or out-of-range grams."""
     approved = pipeline.make_move(
         request,
         expected=expected,
@@ -249,7 +245,7 @@ def make_move(
         now=now,
     )
     if grams:
-        raise Problems({_GRAMS: _ONLY_ON_APPROVE})
+        raise Refused.invalid({_GRAMS: _ONLY_ON_APPROVE})
     reason = _RELEASES.get(to_status)
     if reason is not None:
         for choice in request.choices:
@@ -374,9 +370,9 @@ def _check(session: Session, request: PrintRequest, now: datetime) -> None:
 
 def _changing(request: PrintRequest, expected: RequestStatus) -> None:
     if request.status != expected:
-        raise pipeline.Stale(pipeline.STALE)
+        raise Refused.stale(pipeline.STALE)
     if request.status not in pipeline.HOLDING:
-        raise pipeline.NotAMove(NOT_NOW)
+        raise Refused.forbidden(NOT_NOW)
 
 
 def _changed(session: Session, request: PrintRequest, user: User, now: datetime) -> None:
@@ -392,13 +388,13 @@ def _changed(session: Session, request: PrintRequest, user: User, now: datetime)
 
 def _grams(grams: int) -> None:
     if not _grams_in_range(grams):
-        raise Problems({_GRAMS: _GRAMS_RANGE})
+        raise Refused.invalid({_GRAMS: _GRAMS_RANGE})
 
 
 def _choice_of(request: PrintRequest, choice_id: int) -> FilamentChoice:
     found = next((c for c in request.choices if c.id == choice_id), None)
     if found is None:
-        raise NotFound(_NO_SUCH_CHOICE)
+        raise Refused.not_found(_NO_SUCH_CHOICE)
     return found
 
 
@@ -423,13 +419,13 @@ def set_grams(
 
 
 def _hold_of(session: Session, request: PrintRequest, hold_id: int) -> SpoolHold:
-    """The request's hold; Stale when it was released since (changed by someone else)."""
+    """The request's hold; refused STALE when it was released since (changed by someone else)."""
     found = session.get(SpoolHold, hold_id)
     choices = {holder(c) for c in request.choices}
     if found is None or holds.Holder(found.holder_type, found.holder_id) not in choices:
-        raise NotFound(_NO_SUCH_HOLD)
+        raise Refused.not_found(_NO_SUCH_HOLD)
     if found.released_at is not None:
-        raise pipeline.Stale(pipeline.STALE)
+        raise Refused.stale(pipeline.STALE)
     return found
 
 
@@ -441,10 +437,10 @@ def _hold_by_hand(
     _grams(grams)
     spool = session.get(Spool, spool_id)
     if spool is None or spool.state not in holds.IN_STOCK:
-        raise Problems({_SPOOL: _NOT_ON_THE_SHELF})
+        raise Refused.invalid({_SPOOL: _NOT_ON_THE_SHELF})
     spool_available = holds.spool_available(session, spool)
     if spool_available is not None and grams > spool_available:
-        raise Problems({_GRAMS: f"This spool has about {spool_available:,} g available."})
+        raise Refused.invalid({_GRAMS: f"This spool has about {spool_available:,} g available."})
     holds.hold(session, holder(choice), spool, grams, now)
 
 

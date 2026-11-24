@@ -16,11 +16,10 @@ from starlette.requests import ClientDisconnect
 from filament_tracker.api.request_schemas import UploadOut
 from filament_tracker.api.request_views import model_files
 from filament_tracker.api.requests import RequesterUser, RequestsCaller, find_request
-from filament_tracker.auth import DbSession, problems
+from filament_tracker.auth import DbSession
 from filament_tracker.db.request_models import FILE_NAME_MAX
 from filament_tracker.db.types import utcnow
-from filament_tracker.print_requests.files import NotAModel
-from filament_tracker.print_requests.rules import FILE
+from filament_tracker.print_requests.refused import Refused
 
 UPLOAD_PATH = "/requests/uploads"
 
@@ -45,8 +44,6 @@ async def upload(
     sending its `id` as `upload_id`."""
     try:
         found = await model_files(http).receive(session, user, name, http.stream(), utcnow())
-    except NotAModel as error:
-        raise problems({FILE: str(error)}) from None
     except ClientDisconnect:
         # Too large, or the browser went away: nothing was kept, and no one is listening.
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "upload not finished") from None
@@ -62,7 +59,7 @@ def download(
     found = find_request(session, caller, request_id)
     files = model_files(http)
     if found.file_stored_name is None or not files.exists(found.file_stored_name):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "this request has no file")
+        raise Refused.not_found("this request has no file")
     return FileResponse(
         files.path(found.file_stored_name),
         media_type="application/octet-stream",
