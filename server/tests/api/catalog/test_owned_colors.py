@@ -90,8 +90,8 @@ def test_a_color_with_in_stock_linked_products_is_owned_with_each_listed(
             "open": 1,
         },
         {
-            "product_id": shelf["PLA Basic #000000"],
-            "name": "PLA Basic #000000",
+            "product_id": shelf["Black PLA Basic"],
+            "name": "Black PLA Basic",
             "hex": "000000",
             "material": "PLA",
             "how": "tag",

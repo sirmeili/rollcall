@@ -2,6 +2,7 @@
 faked by an injected httpx transport."""
 
 import gzip
+import json
 from types import ModuleType
 from typing import Any
 
@@ -276,7 +277,7 @@ def _reads(client: TestClient) -> dict[str, Any]:
     return {path: client.get(path, headers=admin()).json() for path in INVENTORY}
 
 
-def test_a_sync_changes_only_catalog_links(
+def test_a_sync_changes_only_catalog_links_and_names(
     client: TestClient, token: str, ofdb: FakeSource
 ) -> None:
     scan(client, token, SyntheticTag(variant_id="A00-K0"), "received")
@@ -288,9 +289,11 @@ def test_a_sync_changes_only_catalog_links(
     refresh(client)
 
     after = _reads(client)
-    assert _without_links(after) == _without_links(before)
-    # The scanned PLA Basic Black was linked: the one change a sync makes.
-    assert after != before
+    # The scanned PLA Basic Black was linked and took its catalog name: the only changes a
+    # sync makes.
+    renamed = json.loads(json.dumps(before).replace("PLA Basic #000000", "Black PLA Basic"))
+    assert _without_links(after) == _without_links(renamed)
+    assert after != renamed
 
 
 def test_refresh_now_during_a_sync_never_starts_a_second_one(

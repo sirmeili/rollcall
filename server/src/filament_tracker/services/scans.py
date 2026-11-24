@@ -29,11 +29,12 @@ from filament_tracker.domain.state import Outcome
 from filament_tracker.services import grams
 from filament_tracker.services.catalog_links import (
     catalog_color_for_tag,
+    effective_color,
     link_product,
     linked_products,
 )
 from filament_tracker.services.events import AppendResult, append_event
-from filament_tracker.services.naming import default_name
+from filament_tracker.services.naming import default_name, name_after_new_link
 from filament_tracker.services.shopping_list import duplicates
 
 logger = logging.getLogger(__name__)
@@ -210,6 +211,7 @@ def _oldest_placeholder(session: Session, product: Product) -> Spool | None:
 
 
 def _ensure_product(session: Session, product: Product | None, record: TagRecord) -> Product:
+    had_link, color_before = False, record.color_rgba
     if product is None:
         product = Product(
             material_id=record.material_id,
@@ -220,6 +222,8 @@ def _ensure_product(session: Session, product: Product | None, record: TagRecord
         )
         session.add(product)
     elif product.provisional:
+        had_link = effective_color(session, product) is not None
+        color_before = product.color_rgba
         # The first scanned tag fills in the provisional product's real identity.
         product.material_id = record.material_id
         product.variant_id = record.variant_id
@@ -228,8 +232,10 @@ def _ensure_product(session: Session, product: Product | None, record: TagRecord
         product.from_catalog = False
     else:
         return product
-    # A new product, or a provisional one now known, is linked to its catalog color at once.
+    # A new product, or a provisional one now known, is linked to its catalog color at once,
+    # and named after it when the link is new and the name still the default.
     link_product(session, product)
+    name_after_new_link(product, had_link, effective_color(session, product), color_before)
     return product
 
 
