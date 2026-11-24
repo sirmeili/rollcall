@@ -1,9 +1,8 @@
 """Uploading a model file, submitting and editing a request, and changing its priority
 (ADR-0023).
 
-Each action checks its gate and the request's own rules, commits one transaction, then runs
-the work that must wait for the commit, and returns the caller's view of the request read
-after it.
+Each action checks its gate and the request's own rules, then saves its change in one
+transaction (`Core._saved`).
 """
 
 from collections.abc import AsyncIterator
@@ -60,9 +59,9 @@ class Requesting(Core):
         user = self.check(caller, Gate.SUBMIT)
         clock = self._parts.clock
         created = service.submit(self._session, user, fields, today=clock.today(), now=clock.now())
-        self._session.commit()
-        self._parts.notifier.send(self._session, lambda: notifications.new_request(created))
-        return self._detail(caller, created)
+        return self._saved(
+            caller, created, self._notify(lambda: notifications.new_request(created))
+        )
 
     def edit(self, caller: Principal, request_id: int, fields: RequestFields) -> RequestDetail:
         """The requester sends every field again, while the request is Submitted. A model
@@ -80,9 +79,7 @@ class Requesting(Core):
             now=clock.now(),
             file_on_disk=files.exists(found.file_stored_name),
         )
-        self._session.commit()
-        files.delete(saved.old_file)
-        return self._detail(caller, found)
+        return self._saved(caller, found, lambda: files.delete(saved.old_file))
 
     def change_priority(
         self, caller: Principal, request_id: int, priority: Priority
@@ -91,8 +88,7 @@ class Requesting(Core):
         user = self.check(caller, Gate.PRIORITY)
         found = self._find(caller, request_id)
         service.change_priority(found, user, priority, now=self._parts.clock.now())
-        self._session.commit()
-        return self._detail(caller, found)
+        return self._saved(caller, found)
 
     def model_file(self, caller: Principal, request_id: int) -> StoredModel:
         """The request's model file, to download; NOT_FOUND when it has none on disk."""

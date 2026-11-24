@@ -1,6 +1,7 @@
 """What every group of Print Requests actions shares: the session, the app's parts, the
-gates, and finding a request the caller may see."""
+gates, finding a request the caller may see, and saving a change."""
 
+from collections.abc import Callable, Iterable
 from typing import overload
 
 from sqlalchemy.orm import Session
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.auth import Principal
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
+from filament_tracker.notifications.notification import Notification
 from filament_tracker.print_requests.access import may_see
 from filament_tracker.print_requests.gates import Gate, PersonGate, why_not
 from filament_tracker.print_requests.parts import Parts
@@ -46,3 +48,21 @@ class Core:
 
     def _detail(self, caller: Principal, request: PrintRequest) -> RequestDetail:
         return detail_of(self._session, self._parts, caller, request)
+
+    def _saved(
+        self,
+        caller: Principal,
+        request: PrintRequest,
+        after: Callable[[], None] = lambda: None,
+    ) -> RequestDetail:
+        """Save a change (ADR-0023): commit, run `after`, the work that waits for the commit,
+        then read the request again, with anything the commit wrote (the retry before it), and
+        answer it as the caller sees it."""
+        self._session.commit()
+        after()
+        self._session.refresh(request)
+        return self._detail(caller, request)
+
+    def _notify(self, build: Callable[[], Iterable[Notification]]) -> Callable[[], None]:
+        """Work for after the commit: hand the notifications to the notifier."""
+        return lambda: self._parts.notifier.send(self._session, build)

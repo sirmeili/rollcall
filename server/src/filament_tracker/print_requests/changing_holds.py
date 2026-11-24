@@ -127,5 +127,4 @@ class ChangingHolds(Core):
         user = self.check(caller, Gate.HOLDS)
         found = self._find(caller, request_id)
         change(found, user)
-        self._session.commit()
-        return self._detail(caller, found)
+        return self._saved(caller, found)

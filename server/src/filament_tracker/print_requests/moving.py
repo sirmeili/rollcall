@@ -6,7 +6,6 @@ notifications to the notifier and deletes a removed photo's files, and answers t
 as the caller sees it after the commit, with any move the retry made before it.
 """
 
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
@@ -14,7 +13,6 @@ from uuid import UUID
 from filament_tracker.auth import Principal
 from filament_tracker.db.request_models import PrintRequest, RequestPhoto
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.notifications.notification import Notification
 from filament_tracker.print_requests import filament, notifications, photos
 from filament_tracker.print_requests.access import movers
 from filament_tracker.print_requests.core import Core
@@ -88,7 +86,7 @@ class Moving(Core):
         return self._saved(
             caller,
             found,
-            lambda: notifications.request_moved(moved, *self._copies(added)),
+            self._notify(lambda: notifications.request_moved(moved, *self._copies(added))),
         )
 
     def add_photos(
@@ -100,7 +98,9 @@ class Moving(Core):
         found = self._find(caller, request_id)
         added = photos.add(self._session, found, photo_ids, user, self._parts.clock.now())
         return self._saved(
-            caller, found, lambda: notifications.new_photos(found, user, *self._copies(added))
+            caller,
+            found,
+            self._notify(lambda: notifications.new_photos(found, user, *self._copies(added))),
         )
 
     def remove_photo(self, caller: Principal, request_id: int, photo_id: UUID) -> RequestDetail:
@@ -110,9 +110,7 @@ class Moving(Core):
         found = self._find(caller, request_id)
         photo = self._photo(found, photo_id)
         photos.remove(self._session, found, photo, user, self._parts.clock.now())
-        self._session.commit()
-        self._parts.photos.delete(photo)
-        return self._detail(caller, found)
+        return self._saved(caller, found, lambda: self._parts.photos.delete(photo))
 
     def photo_file(self, caller: Principal, request_id: int, photo_id: UUID) -> StoredPhoto:
         """A photo of the request, for anyone who can see the request; NOT_FOUND when its
@@ -137,14 +135,3 @@ class Moving(Core):
     def _copies(self, added: list[RequestPhoto]) -> tuple[list[bytes], UUID | None]:
         """The email copies of the added photos, and the first one's id."""
         return self._parts.photos.email_copies(added), added[0].id if added else None
-
-    def _saved(
-        self,
-        caller: Principal,
-        request: PrintRequest,
-        build: Callable[[], Iterable[Notification]],
-    ) -> RequestDetail:
-        """Commit, hand the notifications to the notifier, and read the request back."""
-        self._session.commit()
-        self._parts.notifier.send(self._session, build)
-        return self._detail(caller, request)
