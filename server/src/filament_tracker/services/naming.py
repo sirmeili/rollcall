@@ -1,8 +1,12 @@
 """Product names: the default name and the catalog name (see GLOSSARY.md).
 
 Scans, the AMS and making a product from a catalog color all name products here, so the
-two forms are defined once.
+two forms are defined once. A product that gains a catalog link while it still has its
+default name takes its catalog name.
 """
+
+from filament_tracker.db.models import Product
+from filament_tracker.services.catalog_links import IndexedColor
 
 # Product.display_name is a String(100).
 NAME_LENGTH = 100
@@ -25,3 +29,18 @@ def catalog_name(color_name: str, line_name: str) -> str:
     """A catalog color's name, a space, then its filament line's name, such as Hot Pink PLA
     Basic, cut to fit a product's name."""
     return f"{color_name} {line_name}"[:NAME_LENGTH]
+
+
+def name_after_new_link(
+    product: Product,
+    linked_before: IndexedColor | None,
+    linked_now: IndexedColor | None,
+    color_before: str,
+) -> None:
+    """Give the product its catalog name when it gained an effective link (had none, has one
+    now) and still has its default name. `color_before` is its color before the link: an
+    AMS-made name ends with the AMS's color, not the tag's."""
+    if linked_before is not None or linked_now is None:
+        return
+    if is_default_name(product.display_name, color_before):
+        product.display_name = catalog_name(linked_now.name, linked_now.line)

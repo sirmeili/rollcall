@@ -206,3 +206,21 @@ def _size(uuid: str, variant_id: str, code: str) -> dict[str, Any]:
         "article_number": code,
         "discontinued": False,
     }
+
+
+# --- Catalog names -----------------------------------------------------------------------
+
+
+def _names(client: TestClient) -> list[str]:
+    return [p["display_name"] for p in client.get(PRODUCTS, headers=admin()).json()]
+
+
+def test_a_scan_that_creates_and_links_a_product_gives_it_the_catalog_name(
+    client: TestClient, token: str
+) -> None:
+    refresh(client)
+
+    result = scan(client, token, BLACK, "received")
+
+    assert result["product"]["display_name"] == "Black PLA Basic"
+    assert _names(client) == ["Black PLA Basic"]
