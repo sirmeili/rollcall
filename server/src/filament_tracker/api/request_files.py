@@ -15,7 +15,7 @@ from starlette.requests import ClientDisconnect
 
 from filament_tracker.api.request_schemas import UploadOut
 from filament_tracker.api.request_views import model_files
-from filament_tracker.api.requests import RequesterUser, RequestsCaller, find_request
+from filament_tracker.api.requests import RequestsCaller, SubmittingCaller, find_request
 from filament_tracker.auth import DbSession
 from filament_tracker.db.request_models import FILE_NAME_MAX
 from filament_tracker.db.types import utcnow
@@ -36,14 +36,14 @@ def content_disposition(name: str, disposition: str = "attachment") -> str:
 @router.post(UPLOAD_PATH, response_model=UploadOut, status_code=status.HTTP_201_CREATED)
 async def upload(
     http: Request,
-    user: RequesterUser,
+    caller: SubmittingCaller,
     session: DbSession,
     name: Annotated[str, Query(max_length=FILE_NAME_MAX)] = "",
 ) -> UploadOut:
     """Upload a 3MF or STL model file; the body is the file. Save it with a request by
     sending its `id` as `upload_id`."""
     try:
-        found = await model_files(http).receive(session, user, name, http.stream(), utcnow())
+        found = await model_files(http).receive(session, caller.user, name, http.stream(), utcnow())
     except ClientDisconnect:
         # Too large, or the browser went away: nothing was kept, and no one is listening.
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "upload not finished") from None

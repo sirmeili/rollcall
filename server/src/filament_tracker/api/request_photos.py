@@ -11,7 +11,7 @@ never treats it as anything else.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -21,30 +21,18 @@ from filament_tracker.api.deps import notify_after_commit
 from filament_tracker.api.request_files import content_disposition
 from filament_tracker.api.request_schemas import PhotosIn, PhotoUploadOut, RequestOut
 from filament_tracker.api.request_views import model_files, request_out, stored_photos
-from filament_tracker.api.requests import RequestsCaller, find_request
-from filament_tracker.auth import AnyPrincipal, DbSession, forbidden
+from filament_tracker.api.requests import PhotosCaller, Requests, RequestsCaller, find_request
+from filament_tracker.auth import DbSession
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import FILE_NAME_MAX, PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
 from filament_tracker.print_requests import notifications, photos
-from filament_tracker.print_requests.access import is_admin
 from filament_tracker.print_requests.refused import Refused
 
 PHOTO_UPLOAD_PATH = "/requests/photo-uploads"
 NO_SUCH_PHOTO = "no such photo"
 
 router = APIRouter(tags=["requests"])
-
-
-def photo_admin(principal: AnyPrincipal) -> User:
-    """A signed-in Admin, checked before the body is read. Tokens act for no one, and a photo
-    records who uploaded it."""
-    if principal.user is None or not is_admin(principal):
-        raise forbidden(photos.ADMINS_ONLY)
-    return principal.user
-
-
-PhotoAdmin = Annotated[User, Depends(photo_admin)]
 
 
 def _photo(session: Session, found: PrintRequest, photo_id: UUID) -> RequestPhoto:
@@ -57,7 +45,7 @@ def _photo(session: Session, found: PrintRequest, photo_id: UUID) -> RequestPhot
 @router.post(PHOTO_UPLOAD_PATH, response_model=PhotoUploadOut, status_code=201)
 async def upload_photo(
     http: Request,
-    user: PhotoAdmin,
+    caller: PhotosCaller,
     session: DbSession,
     name: Annotated[str, Query(max_length=FILE_NAME_MAX)] = "",
 ) -> PhotoUploadOut:
@@ -69,7 +57,7 @@ async def upload_photo(
         # Too large, or the browser went away: nothing was kept, and no one is listening.
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "upload not finished") from None
     photo = await run_in_threadpool(photos.reencode, body)
-    return await run_in_threadpool(_keep, stored_photos(http), session, user, name, photo)
+    return await run_in_threadpool(_keep, stored_photos(http), session, caller.user, name, photo)
 
 
 def _keep(
@@ -85,8 +73,8 @@ def _keep(
 def add_photos(
     request_id: int,
     body: PhotosIn,
-    _: PhotoAdmin,
-    caller: RequestsCaller,
+    caller: PhotosCaller,
+    requests: Requests,
     session: DbSession,
     http: Request,
 ) -> RequestOut:
@@ -106,15 +94,15 @@ def add_photos(
         ),
     )
     session.refresh(found)
-    return request_out(http, session, caller, found)
+    return request_out(requests.detail(caller, found.id))
 
 
 @router.delete("/requests/{request_id}/photos/{photo_id}", response_model=RequestOut)
 def remove_photo(
     request_id: int,
     photo_id: UUID,
-    _: PhotoAdmin,
-    caller: RequestsCaller,
+    caller: PhotosCaller,
+    requests: Requests,
     session: DbSession,
     http: Request,
 ) -> RequestOut:
@@ -125,7 +113,7 @@ def remove_photo(
     session.commit()
     stored_photos(http).delete(photo)
     session.refresh(found)
-    return request_out(http, session, caller, found)
+    return request_out(requests.detail(caller, found.id))
 
 
 @router.get("/requests/{request_id}/photos/{photo_id}")
