@@ -10,6 +10,9 @@ again; it holds no more for it.
 """
 
 from collections.abc import Callable
+from datetime import datetime
+
+from sqlalchemy.orm import Session
 
 from filament_tracker.auth import Principal
 from filament_tracker.db.models import User
@@ -35,14 +38,14 @@ class ChangingHolds(Core):
         return self._change_holds(
             caller,
             request_id,
-            lambda found, user: filament.set_grams(
-                self._session,
+            lambda session, found, user, now: filament.set_grams(
+                session,
                 found,
                 choice_id,
                 expected=seen,
                 grams=grams,
                 user=user,
-                now=self._parts.clock.now(),
+                now=now,
             ),
         )
 
@@ -61,15 +64,15 @@ class ChangingHolds(Core):
         return self._change_holds(
             caller,
             request_id,
-            lambda found, user: filament.add_hold(
-                self._session,
+            lambda session, found, user, now: filament.add_hold(
+                session,
                 found,
                 choice_id,
                 expected=seen,
                 spool_id=spool_id,
                 grams=grams,
                 user=user,
-                now=self._parts.clock.now(),
+                now=now,
             ),
         )
 
@@ -87,15 +90,15 @@ class ChangingHolds(Core):
         return self._change_holds(
             caller,
             request_id,
-            lambda found, user: filament.change_hold(
-                self._session,
+            lambda session, found, user, now: filament.change_hold(
+                session,
                 found,
                 hold_id,
                 expected=seen,
                 spool_id=spool_id,
                 grams=grams,
                 user=user,
-                now=self._parts.clock.now(),
+                now=now,
             ),
         )
 
@@ -106,13 +109,13 @@ class ChangingHolds(Core):
         return self._change_holds(
             caller,
             request_id,
-            lambda found, user: filament.remove_hold(
-                self._session,
+            lambda session, found, user, now: filament.remove_hold(
+                session,
                 found,
                 hold_id,
                 expected=seen,
                 user=user,
-                now=self._parts.clock.now(),
+                now=now,
             ),
         )
 
@@ -120,11 +123,11 @@ class ChangingHolds(Core):
         self,
         caller: Principal,
         request_id: int,
-        change: Callable[[PrintRequest, User], None],
+        change: Callable[[Session, PrintRequest, User, datetime], None],
     ) -> RequestDetail:
-        """Check the caller may change the request's holds, make the change and commit it;
-        the request as the caller sees it after."""
+        """Check the caller may change the request's holds, make the change with the session,
+        the request, the Admin and now, and save it."""
         user = self.check(caller, Gate.HOLDS)
         found = self._find(caller, request_id)
-        change(found, user)
+        change(self._session, found, user, self._parts.clock.now())
         return self._saved(caller, found)
