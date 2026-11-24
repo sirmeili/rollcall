@@ -33,6 +33,7 @@ from filament_tracker.services.catalog_links import (
     linked_products,
 )
 from filament_tracker.services.events import AppendResult, append_event
+from filament_tracker.services.naming import default_name
 from filament_tracker.services.shopping_list import duplicates
 
 logger = logging.getLogger(__name__)
@@ -276,7 +277,7 @@ def _feedback(result: AppendResult) -> Feedback:
 
 
 def _default_name(record: TagRecord) -> str:
-    return f"{record.detailed_filament_type or record.filament_type} #{record.color_rgba[:6]}"
+    return default_name(record.detailed_filament_type or record.filament_type, record.color_rgba)
 
 
 def _product_out(product: Product | None, record: TagRecord) -> ProductOut:
