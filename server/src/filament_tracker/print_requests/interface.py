@@ -5,7 +5,7 @@ parts built once at start. Each action takes the caller and plain inputs, checks
 permission itself and returns plain dataclasses already filtered for the caller. Every
 refusal is a `Refused`. The inputs' dataclasses and their limits are here too, for the
 routes to check a body against. Each group of actions lives in its own module: reading, requesting,
-moving and changing holds.
+moving, changing photos and changing holds.
 """
 
 from filament_tracker.db.request_models import (
@@ -16,9 +16,10 @@ from filament_tracker.db.request_models import (
     TITLE_MAX,
 )
 from filament_tracker.print_requests.changing_holds import ChangingHolds
+from filament_tracker.print_requests.changing_photos import ChangingPhotos, PhotoUpload, StoredPhoto
 from filament_tracker.print_requests.choices import ChoiceInput
 from filament_tracker.print_requests.gates import Gate
-from filament_tracker.print_requests.moving import Moving, PhotoUpload, StoredPhoto
+from filament_tracker.print_requests.moving import Moving
 from filament_tracker.print_requests.parts import Clock, Parts
 from filament_tracker.print_requests.photos import MAX_PHOTOS
 from filament_tracker.print_requests.read import Tab
@@ -41,7 +42,7 @@ from filament_tracker.print_requests.views import (
 )
 
 
-class PrintRequests(Reading, Requesting, Moving, ChangingHolds):
+class PrintRequests(Reading, Requesting, Moving, ChangingPhotos, ChangingHolds):
     """Everything a person can do to print requests, and reading them."""
 
 
