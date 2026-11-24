@@ -8,7 +8,7 @@
     type CatalogEntry,
     catalogEntries,
     type LinkPick,
-    nameForPick,
+    stagePick,
   } from "#lib/catalog-links.ts";
   import CatalogColorDialog from "#lib/components/products/CatalogColorDialog.svelte";
   import ProductTable from "#lib/components/products/ProductTable.svelte";
@@ -79,15 +79,10 @@
     opener?.focus();
   }
 
-  // A picked color also stages the product's catalog name while its row still holds its
-  // default name; clearing a link stages no name.
   function stage(change: LinkPick): void {
     if (openProduct) {
-      const draft = drafts[openProduct.id];
-      draft.catalog_color = change;
       const entry = typeof change === "string" ? byUuid.get(change) : undefined;
-      const name = nameForPick(openProduct, draft.display_name, entry);
-      if (name !== undefined) draft.display_name = name;
+      stagePick(openProduct, drafts[openProduct.id], change, entry);
     }
     closeDialog();
   }

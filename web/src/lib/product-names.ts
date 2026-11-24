@@ -9,7 +9,10 @@ export function isDefaultName(name: string, colorRgba: string): boolean {
   return name.toLowerCase().endsWith(suffix);
 }
 
-/** "Hot Pink PLA Basic": the color's name, then its filament line's, cut to 100 characters. */
+/** The longest a product's name can be, as on the server. */
+export const NAME_LENGTH = 100;
+
+/** "Hot Pink PLA Basic": the color's name, then its filament line's, cut to NAME_LENGTH. */
 export function catalogName(color: string, line: string): string {
-  return `${color} ${line}`.slice(0, 100);
+  return `${color} ${line}`.slice(0, NAME_LENGTH);
 }

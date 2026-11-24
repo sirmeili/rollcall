@@ -377,6 +377,11 @@ describe("Products page, staging the catalog name", () => {
     }),
   });
 
+  /** A product with its default name, linked by hand to a color the catalog has dropped. */
+  const DROPPED_DEFAULT = summary({
+    product: product({ ...DROPPED.product, display_name: "PLA #7FFF00" }),
+  });
+
   /** Picks a color in the product's Catalog color dialog and stages it. */
   async function pick(name: string, color: RegExp): Promise<void> {
     const dialog = await openDialog(name);
@@ -472,6 +477,51 @@ describe("Products page, staging the catalog name", () => {
     expect(stock.updateProduct).toHaveBeenCalledExactlyOnceWith(4, {
       display_name: "Green PLA Basic",
       catalog_color: "var-green",
+    });
+  });
+
+  it("follows a second pick with the staged name", async () => {
+    stock.getInventory.mockResolvedValue([DROPPED_DEFAULT]);
+    render(ProductsPage);
+
+    await pick("PLA #7FFF00", /^Green, PLA Basic/);
+    await pick("PLA #7FFF00", /^Black, PLA Basic/);
+
+    expect(screen.getByDisplayValue("Black PLA Basic")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(stock.updateProduct).toHaveBeenCalledExactlyOnceWith(4, {
+      display_name: "Black PLA Basic",
+      catalog_color: "var-black",
+    });
+  });
+
+  it("puts the saved name back when a staged pick is cleared", async () => {
+    stock.getInventory.mockResolvedValue([DROPPED_DEFAULT]);
+    render(ProductsPage);
+
+    await pick("PLA #7FFF00", /^Green, PLA Basic/);
+    const dialog = await openDialog("PLA #7FFF00");
+    await userEvent.click(dialog.getByRole("button", { name: "Clear" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByDisplayValue("PLA #7FFF00")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(stock.updateProduct).toHaveBeenCalledExactlyOnceWith(4, { catalog_color: null });
+  });
+
+  it("keeps a staged name edited in the row when another color is picked", async () => {
+    stock.getInventory.mockResolvedValue([DROPPED_DEFAULT]);
+    render(ProductsPage);
+
+    await pick("PLA #7FFF00", /^Green, PLA Basic/);
+    await userEvent.type(screen.getByDisplayValue("Green PLA Basic"), " spare");
+    await pick("PLA #7FFF00", /^Black, PLA Basic/);
+
+    expect(screen.getByDisplayValue("Green PLA Basic spare")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(stock.updateProduct).toHaveBeenCalledExactlyOnceWith(4, {
+      display_name: "Green PLA Basic spare",
+      catalog_color: "var-black",
     });
   });
 

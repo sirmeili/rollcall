@@ -268,6 +268,7 @@ def _made_by_hand(client: TestClient, name: str, color: str) -> None:
     ("name", "color", "after"),
     [
         ("PLA Basic #FF5C8D", "FF5C8DFF", "Black PLA Basic"),
+        ("PLA #FFFFFF", "FFFFFFFF", "Black PLA Basic"),
         ("PLA Basic #ff5c8d", "FF5C8DFF", "Black PLA Basic"),
         ("PLA Basic #Ff5C8d", "ff5c8dff", "Black PLA Basic"),
         ("My own name #FF5C8D", "FF5C8DFF", "Black PLA Basic"),
@@ -286,7 +287,8 @@ def test_a_scan_renames_only_a_product_with_its_default_name(
     refresh(client)
     _made_by_hand(client, name, color)
 
-    result = scan(client, token, replace(BLACK, color_rgba="FF5C8DFF"), "received")
+    # The tag reads the product's color, so the scan fills in the product made by hand.
+    result = scan(client, token, replace(BLACK, color_rgba=color.upper()), "received")
 
     assert result["product"]["display_name"] == after
     assert _names(client) == [after]
