@@ -18,9 +18,7 @@ from filament_tracker.api import (
     printers,
     push,
     request_files,
-    request_holders,
     request_holds,
-    request_needs,
     request_photos,
     requests,
     review,
@@ -53,7 +51,7 @@ from filament_tracker.notifications.low_stock import LowStockNotifications
 from filament_tracker.notifications.nearly_out import NearlyOutNotifications
 from filament_tracker.notifications.notifier import Notifier
 from filament_tracker.poll import Poll
-from filament_tracker.print_requests import retrying
+from filament_tracker.print_requests import holders, needs, retrying
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
 from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
 from filament_tracker.printer.manager import PrinterManager
@@ -187,8 +185,8 @@ def create_app(
     app.state.test_phone_notification_cooldowns = Cooldowns(TEST_PHONE_NOTIFICATION_GAP)
     app.state.model_files = ModelFiles(files_dir(settings.database_url))
     # Spool detail names the requests holding a spool through this (ADR-0020).
-    app.state.holder_reader = request_holders.holding_requests
-    app.state.request_needs_reader = request_needs.request_needs
+    app.state.holder_reader = holders.holding_requests
+    app.state.request_needs_reader = needs.request_needs
     app.add_exception_handler(RequestValidationError, validation_error)
     app.add_middleware(
         BodySizeLimitMiddleware,

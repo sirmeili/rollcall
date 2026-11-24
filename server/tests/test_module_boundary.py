@@ -10,8 +10,18 @@ import filament_tracker
 PACKAGE = Path(filament_tracker.__file__).parent
 PRINT_REQUESTS = ("filament_tracker.print_requests", "filament_tracker.db.request_models")
 
-# Print Requests' own code, and the app wiring, which sees both modules.
-NOT_INVENTORY = ("print_requests/*", "db/request_models.py", "api/request*.py", "main.py")
+# The request routes, which call Print Requests.
+REQUEST_ROUTES = (
+    "api/requests.py",
+    "api/request_files.py",
+    "api/request_holds.py",
+    "api/request_photos.py",
+    "api/request_schemas.py",
+    "api/request_views.py",
+)
+
+# Print Requests' own code, its routes, and the app wiring, which sees both modules.
+NOT_INVENTORY = ("print_requests/*", "db/request_models.py", *REQUEST_ROUTES, "main.py")
 
 # Imports that were there before this test. models.py puts every table on Base, and auth
 # answers /auth/me's has_requests. Each is allowed in that file only.

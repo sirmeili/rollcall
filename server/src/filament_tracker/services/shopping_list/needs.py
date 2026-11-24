@@ -1,7 +1,7 @@
 """What print requests are short of: the request-needs reader.
 
 Inventory never imports Print Requests (ADR-0014), so the app wires in a reader at start
-(`api/request_needs.py`) that answers each product's holding requests' shorts, asked for the
+(`print_requests/needs.py`) that answers each product's holding requests' shorts, asked for the
 viewing user (ADR-0020). It decides which requests that user may see named.
 """
 
