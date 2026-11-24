@@ -4,6 +4,7 @@ import * as settings from "#lib/api/settings.ts";
 import type { SettingOut } from "#lib/api/settings.ts";
 import {
   changedValues,
+  describeKeyFile,
   eventsResultText,
   mqttResultText,
   sourceText,
@@ -97,5 +98,23 @@ describe("setting fields", () => {
       expect(mqttResultText(result)).toMatch(/\.$/);
       expect(eventsResultText(result)).toMatch(/\.$/);
     }
+  });
+});
+
+describe("describeKeyFile", () => {
+  it("names the file and the service account it is for", () => {
+    const text = JSON.stringify({ type: "service_account", client_email: "a@b.iam" });
+    expect(describeKeyFile("key.json", text)).toBe("key.json, for a@b.iam");
+  });
+
+  it.each([
+    ["not json", "not json"],
+    ["JSON null", "null"],
+    ["a list", '["a@b.iam"]'],
+    ["no email", '{"type": "service_account"}'],
+    ["an empty email", '{"client_email": ""}'],
+    ["an email that isn't text", '{"client_email": 42}'],
+  ])("names only the file for %s", (_, text) => {
+    expect(describeKeyFile("key.json", text)).toBe("key.json");
   });
 });

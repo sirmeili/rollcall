@@ -10,6 +10,29 @@ export interface FieldInfo {
   inputmode?: "numeric" | "text";
   /** Values offered as the admin types. */
   suggestions?: readonly string[];
+  /** Chosen as a file instead of typed: its text is the value, never shown. */
+  file?: {
+    /** The file types offered. */
+    accept: string;
+    /** What shows once a file is chosen, so the admin can tell it's the right one. */
+    describe: (name: string, text: string) => string;
+  };
+}
+
+/** A Firebase key file's name and the service account it is for. Only client_email is
+ * read, and it isn't secret; whether the file is a usable key is the server's check. */
+export function describeKeyFile(name: string, text: string): string {
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return name;
+  }
+  const email =
+    typeof body === "object" && body !== null
+      ? (body as Record<string, unknown>).client_email
+      : undefined;
+  return typeof email === "string" && email ? `${name}, for ${email}` : name;
 }
 
 /** IANA time zone names this browser knows, UTC first. */
@@ -150,7 +173,8 @@ export const FIREBASE_FIELDS: readonly FieldInfo[] = [
   {
     key: "firebase_service_account",
     label: "Service-account key",
-    help: "Paste the whole key file (JSON) from the project's Service accounts, Generate new private key. The server sends with it.",
+    help: "Choose the key file (JSON) downloaded from the project's Service accounts, Generate new private key. The server sends with it.",
+    file: { accept: ".json,application/json", describe: describeKeyFile },
   },
 ];
 
