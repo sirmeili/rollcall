@@ -14,7 +14,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 
 from filament_tracker.api.request_schemas import (
     MoveIn,
@@ -27,12 +26,16 @@ from filament_tracker.api.request_schemas import (
 )
 from filament_tracker.api.request_views import request_out, row_out
 from filament_tracker.auth import AnyPrincipal, DbSession, Principal
-from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.print_requests.access import may_see
-from filament_tracker.print_requests.choices import ChoiceInput
-from filament_tracker.print_requests.interface import Gate, Kind, PrintRequests, Refused, Tab
-from filament_tracker.print_requests.rules import RequestFields
+from filament_tracker.print_requests.interface import (
+    ChoiceInput,
+    Gate,
+    Kind,
+    PrintRequests,
+    Refused,
+    RequestFields,
+    Tab,
+)
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
@@ -78,13 +81,6 @@ PriorityCaller = Annotated[Principal, Depends(allowed(Gate.PRIORITY))]
 CountingCaller = Annotated[Principal, Depends(allowed(Gate.COUNT))]
 HoldsCaller = Annotated[Principal, Depends(allowed(Gate.HOLDS))]
 PhotosCaller = Annotated[Principal, Depends(allowed(Gate.PHOTOS))]
-
-
-def find_request(session: Session, principal: Principal, request_id: int) -> PrintRequest:
-    found = session.get(PrintRequest, request_id)
-    if found is None or not may_see(principal, found):
-        raise Refused.not_found("no such request")
-    return found
 
 
 def _fields(body: RequestIn) -> RequestFields:

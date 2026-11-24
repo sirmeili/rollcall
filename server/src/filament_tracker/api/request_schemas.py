@@ -7,7 +7,6 @@ from uuid import UUID
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from filament_tracker.api.schemas import Strict
-from filament_tracker.db.request_models import CHOICE_NOTE_MAX, LINK_MAX, NOTES_MAX, TITLE_MAX
 from filament_tracker.domain.enums import (
     ChoiceKind,
     HistoryKind,
@@ -16,7 +15,13 @@ from filament_tracker.domain.enums import (
     Priority,
     RequestStatus,
 )
-from filament_tracker.print_requests.photos import MAX_PHOTOS
+from filament_tracker.print_requests.interface import (
+    CHOICE_NOTE_MAX,
+    LINK_MAX,
+    MAX_PHOTOS,
+    NOTES_MAX,
+    TITLE_MAX,
+)
 from filament_tracker.services.shopping_list import Stage
 
 # More than anyone would pick; it only stops absurd input.

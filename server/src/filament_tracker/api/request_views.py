@@ -1,8 +1,6 @@
 """Print requests as the API returns them: Print Requests' dataclasses mapped onto the
 response schemas."""
 
-from fastapi import Request
-
 from filament_tracker.api.request_schemas import (
     ChoiceOut,
     HistoryOut,
@@ -17,29 +15,13 @@ from filament_tracker.api.request_schemas import (
     SimilarOut,
     SwatchOut,
 )
-from filament_tracker.print_requests.files import ModelFiles
 from filament_tracker.print_requests.interface import (
     ChoiceDetail,
     ModelFile,
-    Parts,
     RequestDetail,
     Requester,
     RequestRow,
 )
-from filament_tracker.print_requests.photos import Photos
-
-
-def _parts(request: Request) -> Parts:
-    return request.app.state.print_requests
-
-
-def model_files(request: Request) -> ModelFiles:
-    return _parts(request).model_files
-
-
-def stored_photos(request: Request) -> Photos:
-    """Photos of finished prints, kept beside the model files."""
-    return _parts(request).photos
 
 
 def _requester_out(requester: Requester) -> RequesterOut:
