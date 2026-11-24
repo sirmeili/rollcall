@@ -179,17 +179,42 @@ jobs:
         working-directory: android
         run: ./gradlew --no-daemon coverageCheck checkFossHasNoGoogleServices assembleDebug
       # The release build as the release job makes it, signed with a key made for this run,
-      # so a broken release setup shows up before a tag is pushed.
+      # so a broken release setup shows up before a tag is pushed. A release candidate must
+      # share its final release's version code (ADR-0024), and a malformed version is refused.
       - name: Build and check a test release
         working-directory: android
         run: |
           export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/test-release.jks"
           export ANDROID_KEYSTORE_PASSWORD="$(openssl rand -hex 16)"
           keytool -genkeypair -keystore "$ANDROID_KEYSTORE_FILE" -storetype PKCS12             -alias rollcall -keyalg RSA -keysize 2048 -validity 1 -dname "CN=CI test"             -storepass "$ANDROID_KEYSTORE_PASSWORD"
+          aapt2=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)/aapt2
+          version_code() { "$aapt2" dump badging "$1" | head -n 1 | grep -oE "versionCode='[0-9]+'"; }
           ./gradlew --no-daemon assembleRelease -PappVersion=1.2.3
           for flavor in google foss; do
-            scripts/verify-release.sh "app/build/outputs/apk/$flavor/release/app-$flavor-release.apk" 1.2.3
+            apk="app/build/outputs/apk/$flavor/release/app-$flavor-release.apk"
+            scripts/verify-release.sh "$apk" 1.2.3
+            version_code "$apk" > "$RUNNER_TEMP/final-$flavor-code.txt"
           done
+          ./gradlew --no-daemon assembleRelease -PappVersion=1.2.3-rc.1
+          for flavor in google foss; do
+            apk="app/build/outputs/apk/$flavor/release/app-$flavor-release.apk"
+            scripts/verify-release.sh "$apk" 1.2.3-rc.1
+            rc_code=$(version_code "$apk")
+            final_code=$(cat "$RUNNER_TEMP/final-$flavor-code.txt")
+            if [[ -z "$rc_code" || "$rc_code" != "$final_code" ]]; then
+              echo "$flavor: 1.2.3-rc.1 has $rc_code, but 1.2.3 has $final_code" >&2
+              exit 1
+            fi
+          done
+          if ./gradlew --no-daemon help -PappVersion=1.2.3-rc.01 > "$RUNNER_TEMP/malformed.txt" 2>&1; then
+            echo "Gradle accepted the malformed version 1.2.3-rc.01" >&2
+            exit 1
+          fi
+          grep -q "appVersion must look like" "$RUNNER_TEMP/malformed.txt" || {
+            echo "Gradle failed on 1.2.3-rc.01, but not by refusing the version:" >&2
+            cat "$RUNNER_TEMP/malformed.txt" >&2
+            exit 1
+          }
 
   # The check the main ruleset requires. It passes when every job above passed or was skipped
   # because its area did not change, so adding a job means adding it here, not to the ruleset.

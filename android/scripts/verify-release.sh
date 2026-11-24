@@ -3,7 +3,7 @@
 # later), RollCall's app ID, and the version and version code the tag asks for. Prints the
 # signing certificate's SHA-256, which every release must share.
 #
-#   verify-release.sh <apk> <version, e.g. 1.2.3> [expected certificate SHA-256]
+#   verify-release.sh <apk> <version, e.g. 1.2.3 or 1.2.3-rc.1> [expected certificate SHA-256]
 set -euo pipefail
 
 apk=$1
@@ -15,7 +15,14 @@ aapt2=$tools/aapt2
 apksigner=$tools/apksigner
 # On Windows (Git Bash) the tools are aapt2.exe and apksigner.bat.
 [[ -e $apksigner ]] || apksigner=$tools/apksigner.bat
-IFS=. read -r major minor patch <<<"$version"
+# A release candidate (1.2.3-rc.1) shares its final release's version code (ADR-0024).
+if [[ ! $version =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.[1-9][0-9]*)?$ ]]; then
+  echo "the version must look like 1.2.3 or 1.2.3-rc.1, got: $version" >&2
+  exit 1
+fi
+major=$((10#${BASH_REMATCH[1]}))
+minor=$((10#${BASH_REMATCH[2]}))
+patch=$((10#${BASH_REMATCH[3]}))
 code=$((major * 10000 + minor * 100 + patch))
 
 badging=$("$aapt2" dump badging "$apk" | head -n 1)
