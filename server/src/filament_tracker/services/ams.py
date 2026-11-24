@@ -24,6 +24,7 @@ from filament_tracker.domain.enums import EventSource, EventType, SpoolState
 from filament_tracker.printer.report import TrayReport
 from filament_tracker.services import grams
 from filament_tracker.services.events import append_event
+from filament_tracker.services.naming import default_name
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ def _match_product(session: Session, tray: TrayReport) -> Product:
         material_id=tray.material_id or None,
         filament_type=tray.filament_type or UNKNOWN_TYPE,
         color_rgba=color,
-        display_name=f"{kind} #{color[:6]}",
+        display_name=default_name(kind, color),
         provisional=True,
         from_ams=True,
     )
