@@ -29,6 +29,8 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import FILE_NAME_MAX, RequestUpload
 from filament_tracker.domain.enums import ModelFileKind
+from filament_tracker.print_requests.refused import Refused
+from filament_tracker.print_requests.rules import FILE
 
 # Under Cloudflare's 100 MB request cap. The upload route's body limit enforces it.
 MAX_MODEL_BYTES = 95 * 1024 * 1024
@@ -39,10 +41,6 @@ STL_TRIANGLE = 50
 # Uploads never saved with a request are removed after this long.
 UNCLAIMED_FOR = timedelta(days=1)
 PARTIAL = ".part"
-
-
-class NotAModel(ValueError):
-    pass
 
 
 NOT_A_MODEL = "That isn't a 3MF or STL file. Upload a .3mf or .stl model."
@@ -71,16 +69,16 @@ def clean_name(name: str, fallback: str) -> str:
 
 
 def kind_of(path: Path, size: int) -> ModelFileKind:
-    """What the file is, from its contents; NotAModel if neither."""
+    """What the file is, from its contents; Refused if neither."""
     if zipfile.is_zipfile(path):
         try:
             with zipfile.ZipFile(path) as archive:
                 names = {n.lower() for n in archive.namelist()}
         except zipfile.BadZipFile:
-            raise NotAModel(NOT_A_MODEL) from None
+            raise Refused.invalid({FILE: NOT_A_MODEL}) from None
         if THREE_MF_MODEL in names:
             return ModelFileKind.THREE_MF
-        raise NotAModel(NOT_A_MODEL)
+        raise Refused.invalid({FILE: NOT_A_MODEL})
     with path.open("rb") as file:
         head = file.read(STL_HEADER + 4)
     if size >= STL_HEADER + 4:
@@ -89,7 +87,7 @@ def kind_of(path: Path, size: int) -> ModelFileKind:
             return ModelFileKind.STL
     if head.lstrip().lower().startswith(b"solid"):
         return ModelFileKind.STL
-    raise NotAModel(NOT_A_MODEL)
+    raise Refused.invalid({FILE: NOT_A_MODEL})
 
 
 class ModelFiles:

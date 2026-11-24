@@ -19,7 +19,7 @@ from enum import StrEnum
 from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest, RequestHistory
 from filament_tracker.domain.enums import HistoryKind, RequestStatus
-from filament_tracker.print_requests.rules import Problems
+from filament_tracker.print_requests.refused import Refused
 
 NOTE_MAX = 500
 NOTE = "note"
@@ -118,14 +118,6 @@ PIPELINE: tuple[Move, ...] = (
 )
 
 
-class Stale(Exception):
-    """The request is no longer in the status the move expected."""
-
-
-class NotAMove(Exception):
-    """The pipeline has no such move, or none this caller may make."""
-
-
 @dataclass(frozen=True)
 class Moved:
     """A move that was made: which one, by whom (None for a token or an automatic move), its
@@ -181,12 +173,12 @@ def _as_owner(rule: Move) -> Move:
 
 
 def clean_note(note: str, rule: Move) -> str:
-    """The note trimmed; Problems if it is too long, or empty where a reason is needed."""
+    """The note trimmed; refused INVALID if it is too long, or empty where a reason is needed."""
     cleaned = note.strip()
     if len(cleaned) > NOTE_MAX:
-        raise Problems({NOTE: NOTE_TOO_LONG})
+        raise Refused.invalid({NOTE: NOTE_TOO_LONG})
     if rule.needs_reason and not cleaned:
-        raise Problems({NOTE: REASON_NEEDED})
+        raise Refused.invalid({NOTE: REASON_NEEDED})
     return cleaned
 
 
@@ -198,14 +190,14 @@ def check_move(
     movers: set[Mover],
     note: str,
 ) -> tuple[Move, str]:
-    """The move the caller asks for and its trimmed note, or a refusal: Stale when the
-    request has left `expected`, NotAMove when the caller may not make this move, and
-    Problems for the note."""
+    """The move the caller asks for and its trimmed note, or a refusal: STALE when the
+    request has left `expected`, FORBIDDEN when the caller may not make this move, and
+    INVALID for the note."""
     if request.status != expected:
-        raise Stale(STALE)
+        raise Refused.stale(STALE)
     rule = next((m for m in allowed_moves(request, movers) if m.to_status == to_status), None)
     if rule is None:
-        raise NotAMove(NOT_YOURS_TO_MOVE)
+        raise Refused.forbidden(NOT_YOURS_TO_MOVE)
     return rule, clean_note(note, rule)
 
 

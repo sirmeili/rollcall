@@ -4,16 +4,17 @@ The Requests pages are for Editors and Admins (every request), Requesters, and a
 has made a request (their own). Submitting and editing need Requester; changing priority
 needs Editor; moving a request is for the people the pipeline names. Another user's request
 answers 404, so its existence isn't revealed.
+
+A Print Requests refusal answers, from every request route, with its kind's status code
+(`refused`): its message, or for INVALID each field's problem under `problems`.
 """
 
-from datetime import date, datetime
+from collections.abc import Callable
 from typing import Annotated
-from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.responses import JSONResponse
 
-from filament_tracker.api.deps import notify_after_commit
 from filament_tracker.api.request_schemas import (
     MoveIn,
     PriorityIn,
@@ -23,80 +24,63 @@ from filament_tracker.api.request_schemas import (
     RequestRowOut,
     SubmittedCountOut,
 )
-from filament_tracker.api.request_views import model_files, request_out, row_out, stored_photos
-from filament_tracker.auth import AnyPrincipal, DbSession, Editor, Principal, forbidden, problems
-from filament_tracker.db.models import User
-from filament_tracker.db.request_models import PrintRequest, RequestPhoto
-from filament_tracker.db.types import utcnow
+from filament_tracker.api.request_views import request_out, row_out
+from filament_tracker.auth import AnyPrincipal, DbSession, Principal
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.print_requests import holding, notifications, photos, pipeline, service
-from filament_tracker.print_requests.access import is_admin, may_open_requests, may_see, movers
-from filament_tracker.print_requests.choices import ChoiceInput
-from filament_tracker.print_requests.read import ListFilter, Tab, visible_requests
-from filament_tracker.print_requests.rules import Problems, RequestFields
+from filament_tracker.print_requests.interface import (
+    ChoiceInput,
+    Gate,
+    Kind,
+    PrintRequests,
+    Refused,
+    RequestFields,
+    Tab,
+)
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
-NO_ACCESS = "requires Requester or the editor role"
-NOT_OPEN = "Filter by open statuses only."
-NO_PHOTOS = "Photos can be added only when moving a request to Done."
+STATUS = {
+    Kind.NOT_FOUND: status.HTTP_404_NOT_FOUND,
+    Kind.FORBIDDEN: status.HTTP_403_FORBIDDEN,
+    Kind.STALE: status.HTTP_409_CONFLICT,
+    Kind.INVALID: status.HTTP_422_UNPROCESSABLE_CONTENT,
+}
 
 
-def requests_user(principal: AnyPrincipal, session: DbSession) -> Principal:
-    """A caller the Requests pages are for."""
-    if not may_open_requests(session, principal):
-        raise forbidden(NO_ACCESS)
-    return principal
+async def refused(request: Request, exc: Exception) -> JSONResponse:
+    """The app's handler for a Print Requests refusal."""
+    assert isinstance(exc, Refused)  # noqa: S101 - registered for this type
+    detail = {"problems": exc.problems} if exc.kind is Kind.INVALID else exc.message
+    return JSONResponse(status_code=STATUS[exc.kind], content={"detail": detail})
 
 
-RequestsCaller = Annotated[Principal, Depends(requests_user)]
+def print_requests(http: Request, session: DbSession) -> PrintRequests:
+    """Print Requests for this HTTP request, bound to its session."""
+    return PrintRequests(session, http.app.state.print_requests)
 
 
-def _person(principal: Principal) -> User:
-    """Only a person submits or edits; tokens act for no one."""
-    if principal.user is None:
-        raise forbidden(service.NOT_A_REQUESTER)
-    return principal.user
+Requests = Annotated[PrintRequests, Depends(print_requests)]
 
 
-def requester(principal: AnyPrincipal) -> User:
-    """A signed-in Requester, checked before the body is read."""
-    user = _person(principal)
-    if not user.requester:
-        raise forbidden(service.NOT_A_REQUESTER)
-    return user
+def allowed(gate: Gate) -> Callable[..., Principal]:
+    """A dependency that refuses a caller Print Requests doesn't let through the gate, before
+    the body is read."""
+
+    def dependency(caller: AnyPrincipal, requests: Requests) -> Principal:
+        requests.check(caller, gate)
+        return caller
+
+    return dependency
 
 
-def requests_person(principal: RequestsCaller) -> Principal:
-    """A signed-in user the Requests pages are for (an edit's own rules come after)."""
-    _person(principal)
-    return principal
-
-
-def mover(principal: RequestsCaller) -> Principal:
-    """A caller who might move a request: an Admin, or a person who might own one. Which
-    moves they may make is the pipeline's to say."""
-    if principal.user is None and not is_admin(principal):
-        raise forbidden(pipeline.NOT_YOURS_TO_MOVE)
-    return principal
-
-
-RequesterUser = Annotated[User, Depends(requester)]
-MovingCaller = Annotated[Principal, Depends(mover)]
-RequestsPerson = Annotated[Principal, Depends(requests_person)]
-
-
-def find_request(session: Session, principal: Principal, request_id: int) -> PrintRequest:
-    found = session.get(PrintRequest, request_id)
-    if found is None or not may_see(principal, found):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such request")
-    return found
-
-
-def today(http: Request) -> date:
-    """Today in the server's time zone, which needed-by dates are judged in."""
-    zone = ZoneInfo(http.app.state.settings_store.time_zone())
-    return datetime.now(zone).date()
+RequestsCaller = Annotated[Principal, Depends(allowed(Gate.OPEN))]
+SubmittingCaller = Annotated[Principal, Depends(allowed(Gate.SUBMIT))]
+EditingCaller = Annotated[Principal, Depends(allowed(Gate.EDIT))]
+MovingCaller = Annotated[Principal, Depends(allowed(Gate.MOVE))]
+PriorityCaller = Annotated[Principal, Depends(allowed(Gate.PRIORITY))]
+CountingCaller = Annotated[Principal, Depends(allowed(Gate.COUNT))]
+HoldsCaller = Annotated[Principal, Depends(allowed(Gate.HOLDS))]
+PhotosCaller = Annotated[Principal, Depends(allowed(Gate.PHOTOS))]
 
 
 def _fields(body: RequestIn) -> RequestFields:
@@ -113,16 +97,10 @@ def _fields(body: RequestIn) -> RequestFields:
     )
 
 
-def _refused(error: Exception) -> HTTPException:
-    if isinstance(error, Problems):
-        return problems(error.problems)
-    return forbidden(str(error))
-
-
 @router.get("", response_model=list[RequestRowOut])
 def list_requests(
     caller: RequestsCaller,
-    session: DbSession,
+    requests: Requests,
     tab: Tab = Tab.ACTIVE,
     status_: Annotated[list[RequestStatus] | None, Query(alias="status")] = None,
     mine: bool = False,
@@ -131,118 +109,57 @@ def list_requests(
     most urgent first, then by needed-by date (no date last), then oldest first; the Closed
     tab is the latest move first. Editors and Admins may keep only some open statuses
     (`status`, repeated) or only their own requests (`mine`)."""
-    statuses = status_ or []
-    if any(s.closed for s in statuses):
-        raise problems({"status": NOT_OPEN})
-    wanted = ListFilter(tab=tab, statuses=statuses, mine=mine)
-    return [row_out(item) for item in visible_requests(session, caller, wanted)]
+    return [row_out(row) for row in requests.list(caller, tab, status_ or [], mine)]
 
 
 @router.get("/count", response_model=SubmittedCountOut)
-def submitted_count(_: Editor, session: DbSession) -> SubmittedCountOut:
+def submitted_count(caller: CountingCaller, requests: Requests) -> SubmittedCountOut:
     """The Submitted requests, for the Requests link's count."""
-    return SubmittedCountOut(submitted=service.submitted_count(session))
+    return SubmittedCountOut(submitted=requests.submitted_count(caller))
 
 
 @router.post("", response_model=RequestOut, status_code=status.HTTP_201_CREATED)
-def submit(
-    body: RequestIn, user: RequesterUser, caller: AnyPrincipal, session: DbSession, http: Request
-) -> RequestOut:
-    try:
-        created = service.submit(session, user, _fields(body), today=today(http), now=utcnow())
-    except (Problems, service.NotAllowed) as error:
-        raise _refused(error) from None
-    session.commit()
-    notify_after_commit(http, session, lambda: notifications.new_request(created))
-    session.refresh(created)
-    return request_out(http, session, caller, created)
+def submit(body: RequestIn, caller: SubmittingCaller, requests: Requests) -> RequestOut:
+    return request_out(requests.submit(caller, _fields(body)))
 
 
 @router.get("/{request_id}", response_model=RequestOut)
-def read(request_id: int, caller: RequestsCaller, session: DbSession, http: Request) -> RequestOut:
-    return request_out(http, session, caller, find_request(session, caller, request_id))
+def read(request_id: int, caller: RequestsCaller, requests: Requests) -> RequestOut:
+    return request_out(requests.detail(caller, request_id))
 
 
 @router.patch("/{request_id}", response_model=RequestOut)
 def edit(
-    request_id: int, body: RequestEdit, caller: RequestsPerson, session: DbSession, http: Request
+    request_id: int, body: RequestEdit, caller: EditingCaller, requests: Requests
 ) -> RequestOut:
     """The requester edits every field again, while the request is Submitted."""
-    found = find_request(session, caller, request_id)
-    user = _person(caller)
-    try:
-        saved = service.edit(
-            session,
-            found,
-            user,
-            _fields(body),
-            today=today(http),
-            now=utcnow(),
-            file_on_disk=model_files(http).exists(found.file_stored_name),
-        )
-    except (Problems, service.NotAllowed) as error:
-        raise _refused(error) from None
-    session.commit()
-    model_files(http).delete(saved.old_file)
-    session.refresh(found)
-    return request_out(http, session, caller, found)
+    return request_out(requests.edit(caller, request_id, _fields(body)))
 
 
 @router.post("/{request_id}/priority", response_model=RequestOut)
 def change_priority(
-    request_id: int, body: PriorityIn, caller: Editor, session: DbSession, http: Request
+    request_id: int, body: PriorityIn, caller: PriorityCaller, requests: Requests
 ) -> RequestOut:
-    found = find_request(session, caller, request_id)
-    try:
-        service.change_priority(found, caller.user, body.priority, now=utcnow())
-    except service.NotAllowed as error:
-        raise forbidden(str(error)) from None
-    session.commit()
-    session.refresh(found)
-    return request_out(http, session, caller, found)
+    return request_out(requests.change_priority(caller, request_id, body.priority))
 
 
 @router.post("/{request_id}/moves", response_model=RequestOut)
 def make_move(
-    request_id: int, body: MoveIn, caller: MovingCaller, session: DbSession, http: Request
+    request_id: int, body: MoveIn, caller: MovingCaller, requests: Requests
 ) -> RequestOut:
     """Move the request to another status, saving any photo uploads with a move that takes
     them (Done). Approve takes grams for every filament choice, holds them and moves on by
     itself to Queued or Waiting on Filament; Done, Failed and Cancelled release its holds.
     It answers 409 when the request is no longer in `from_status`, and 403 when the pipeline
     has no such move for the caller. Nothing is saved when it is refused."""
-    found = find_request(session, caller, request_id)
-    now = utcnow()
-    added: list[RequestPhoto] = []
-    try:
-        moved = holding.make_move(
-            session,
-            found,
-            expected=body.from_status,
-            to_status=body.to_status,
+    return request_out(
+        requests.move(
+            caller,
+            request_id,
+            body.from_status,
+            body.to_status,
             grams=body.grams,
-            movers=movers(caller, found),
-            user=caller.user,
             note=body.note,
-            now=now,
+            photo_ids=body.photo_ids,
         )
-        if body.photo_ids:
-            if not moved.move.photos:
-                raise Problems({photos.PHOTOS: NO_PHOTOS})
-            added = photos.add(session, found, body.photo_ids, caller.user, now)
-    except pipeline.Stale as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
-    except pipeline.NotAMove as error:
-        raise forbidden(str(error)) from None
-    except Problems as error:
-        raise problems(error.problems) from None
-    session.commit()
-    notify_after_commit(
-        http,
-        session,
-        lambda: notifications.request_moved(
-            moved, stored_photos(http).email_copies(added), added[0].id if added else None
-        ),
     )
-    session.refresh(found)
-    return request_out(http, session, caller, found)

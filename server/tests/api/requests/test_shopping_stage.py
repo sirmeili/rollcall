@@ -9,8 +9,13 @@ from api_helpers import CSRF
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from request_helpers import REQUESTS, approve, move, person, stock, submitted
+from sqlalchemy import event, select
+from sqlalchemy.orm import Session
 
+from filament_tracker.auth import Principal
+from filament_tracker.db.models import User
 from filament_tracker.domain.enums import Role
+from filament_tracker.print_requests.interface import PrintRequests
 
 LIST = "/api/v1/shopping-list"
 BLACK_PLA = "000000FF"
@@ -147,3 +152,23 @@ def test_a_dismissed_item_shows_nothing_until_it_shows_again(
     stage = {"stage": "on_list", "product_id": product, "on_order": 0, "need": 2}
     assert _shopping(frank, first) == [stage]
     assert _shopping(frank, second) == [stage]
+
+
+def test_reading_a_request_commits_nothing(
+    app: FastAPI, db: Session, sam: TestClient, frank: TestClient
+) -> None:
+    """Reading the stage leaves clearing dismissals to the shopping list's own reads
+    (ADR-0021, ADR-0023)."""
+    approved = _approved(sam, frank, 300)
+    product = _product(frank)
+    commits: list[Session] = []
+    event.listen(db, "after_commit", commits.append)
+    admin = db.scalars(select(User).where(User.username == "frank")).one()
+
+    detail = PrintRequests(db, app.state.print_requests).detail(
+        Principal(user=admin), approved["id"]
+    )
+
+    [choice] = detail.choices
+    assert choice.shopping is not None and choice.shopping.product_id == product
+    assert commits == []

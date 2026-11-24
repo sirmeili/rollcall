@@ -1,5 +1,7 @@
 """ADR-0014: Print Requests depends on Inventory, never the reverse. Reads each Inventory
-module's imports and fails on any import of Print Requests."""
+module's imports and fails on any import of Print Requests.
+
+ADR-0023: the request routes reach Print Requests only through its interface."""
 
 import ast
 from collections.abc import Iterable
@@ -10,8 +12,22 @@ import filament_tracker
 PACKAGE = Path(filament_tracker.__file__).parent
 PRINT_REQUESTS = ("filament_tracker.print_requests", "filament_tracker.db.request_models")
 
-# Print Requests' own code, and the app wiring, which sees both modules.
-NOT_INVENTORY = ("print_requests/*", "db/request_models.py", "api/request*.py", "main.py")
+# The request routes, which call Print Requests.
+REQUEST_ROUTES = (
+    "api/requests.py",
+    "api/request_files.py",
+    "api/request_holds.py",
+    "api/request_photos.py",
+    "api/request_schemas.py",
+    "api/request_views.py",
+)
+
+# The one Print Requests module the request routes may import: the interface, with its
+# dataclasses, Gate and Refused.
+INTERFACE = ("filament_tracker.print_requests.interface",)
+
+# Print Requests' own code, its routes, and the app wiring, which sees both modules.
+NOT_INVENTORY = ("print_requests/*", "db/request_models.py", *REQUEST_ROUTES, "main.py")
 
 # Imports that were there before this test. models.py puts every table on Base, and auth
 # answers /auth/me's has_requests. Each is allowed in that file only.
@@ -54,6 +70,18 @@ def test_inventory_never_imports_print_requests() -> None:
         name = path.relative_to(PACKAGE).as_posix()
         known = KNOWN.get(name, set())
         imported = {i for i in _print_requests(_imports(path)) if not _within(i, known)}
+        if imported:
+            found[name] = sorted(imported)
+
+    assert found == {}
+
+
+def test_the_request_routes_import_only_the_print_requests_interface() -> None:
+    found = {}
+    for name in REQUEST_ROUTES:
+        imported = {
+            i for i in _print_requests(_imports(PACKAGE / name)) if not _within(i, INTERFACE)
+        }
         if imported:
             found[name] = sorted(imported)
 

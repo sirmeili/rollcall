@@ -17,7 +17,7 @@ from sqlalchemy import select
 
 from filament_tracker.db.models import SpoolHold
 from filament_tracker.domain.enums import ReleaseReason, Role
-from filament_tracker.print_requests.holds_by_hand import NOT_NOW
+from filament_tracker.print_requests.filament import NOT_NOW
 from filament_tracker.print_requests.pipeline import STALE
 
 BLACK_PLA = "000000FF"

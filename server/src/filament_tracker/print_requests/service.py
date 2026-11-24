@@ -22,6 +22,7 @@ from filament_tracker.db.request_models import (
 )
 from filament_tracker.domain.enums import HistoryKind, Priority, RequestStatus
 from filament_tracker.print_requests.choices import choice_key, make_choices
+from filament_tracker.print_requests.refused import Refused
 from filament_tracker.print_requests.rules import (
     CHOICES,
     FILE,
@@ -31,7 +32,6 @@ from filament_tracker.print_requests.rules import (
     PRIORITY,
     QUANTITY,
     TITLE,
-    Problems,
     RequestFields,
     check,
 )
@@ -46,10 +46,6 @@ UPLOAD_GONE = "That file's upload wasn't found. Upload it again."
 CLOSED = "A closed request's priority can't be changed."
 
 
-class NotAllowed(Exception):
-    """The caller may see the request but not do this to it."""
-
-
 @dataclass(frozen=True)
 class Saved:
     request: PrintRequest
@@ -62,7 +58,7 @@ def _upload(session: Session, fields: RequestFields, user: User) -> RequestUploa
         return None
     upload = session.get(RequestUpload, fields.upload_id)
     if upload is None or upload.user_id != user.id:
-        raise Problems({FILE: UPLOAD_GONE})
+        raise Refused.invalid({FILE: UPLOAD_GONE})
     return upload
 
 
@@ -92,7 +88,7 @@ def _validate(
     today: date,
     file_on_disk: bool = False,
 ) -> list[FilamentChoice]:
-    """The choices to save; Problems with every mistake if anything is wrong. A kept file
+    """The choices to save; Refused with every mistake if anything is wrong. A kept file
     counts as the model only while it is still on disk."""
     keeps_file = (
         request is not None
@@ -107,7 +103,7 @@ def _validate(
     if choice_problem:
         problems[CHOICES] = choice_problem
     if problems:
-        raise Problems(problems)
+        raise Refused.invalid(problems)
     return choices
 
 
@@ -115,7 +111,7 @@ def submit(
     session: Session, user: User, fields: RequestFields, *, today: date, now: datetime
 ) -> PrintRequest:
     if not user.requester:
-        raise NotAllowed(NOT_A_REQUESTER)
+        raise Refused.forbidden(NOT_A_REQUESTER)
     fields = fields.cleaned()
     upload = _upload(session, fields, user)
     choices = _validate(session, None, fields, upload, today=today)
@@ -190,7 +186,7 @@ def edit(
     on disk."""
     reason = why_not_editable(request, user)
     if reason is not None:
-        raise NotAllowed(reason)
+        raise Refused.forbidden(reason)
     fields = fields.cleaned()
     upload = _upload(session, fields, user)
     choices = _validate(session, request, fields, upload, today=today, file_on_disk=file_on_disk)
@@ -224,7 +220,7 @@ def change_priority(
     """An Editor's or Admin's triage, while the request is open. The same priority again
     changes nothing."""
     if request.status.closed:
-        raise NotAllowed(CLOSED)
+        raise Refused.forbidden(CLOSED)
     if priority == request.priority:
         return
     request.history.append(

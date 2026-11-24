@@ -150,6 +150,19 @@ def test_replacing_the_file_deletes_the_old_one(sam: TestClient, files_dir: Path
     assert download.content == binary_stl()
 
 
+def test_a_refused_edit_keeps_the_old_file(sam: TestClient) -> None:
+    original = three_mf()
+    first = uploaded(sam, original, "v1.3mf")
+    created = submitted(sam, upload_id=first["id"])
+    second = uploaded(sam, binary_stl(), "v2.stl")
+
+    response = edit(sam, created["id"], upload_id=second["id"], needed_by="2000-01-01")
+
+    assert response.status_code == 422, response.text
+    download = sam.get(f"{REQUESTS}/{created['id']}/file")
+    assert download.content == original
+
+
 def test_removing_the_file(sam: TestClient, files_dir: Path) -> None:
     file = uploaded(sam, three_mf())
     created = submitted(sam, upload_id=file["id"])

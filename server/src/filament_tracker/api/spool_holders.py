@@ -1,7 +1,7 @@
 """A spool's held grams for Spool detail, and the requests holding it.
 
 Holds name their holder only by type and ID, and Inventory never imports Print Requests
-(ADR-0014). So the app wires in a `HolderReader` at start (`api/request_holders.py`) that
+(ADR-0014). So the app wires in a `HolderReader` at start (`print_requests/holders.py`) that
 says which request each holder belongs to (ADR-0020). Only Editors and Admins see those
 requests.
 """

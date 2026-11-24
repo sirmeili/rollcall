@@ -11,53 +11,27 @@ never treats it as anything else.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
 from starlette.requests import ClientDisconnect
 
-from filament_tracker.api.deps import notify_after_commit
 from filament_tracker.api.request_files import content_disposition
 from filament_tracker.api.request_schemas import PhotosIn, PhotoUploadOut, RequestOut
-from filament_tracker.api.request_views import model_files, request_out, stored_photos
-from filament_tracker.api.requests import RequestsCaller, find_request
-from filament_tracker.auth import AnyPrincipal, DbSession, forbidden, problems
-from filament_tracker.db.models import User
-from filament_tracker.db.request_models import FILE_NAME_MAX, PrintRequest, RequestPhoto
-from filament_tracker.db.types import utcnow
-from filament_tracker.print_requests import notifications, photos
-from filament_tracker.print_requests.access import is_admin
-from filament_tracker.print_requests.rules import Problems
+from filament_tracker.api.request_views import request_out
+from filament_tracker.api.requests import PhotosCaller, Requests, RequestsCaller
+from filament_tracker.print_requests.interface import FILE_NAME_MAX
 
 PHOTO_UPLOAD_PATH = "/requests/photo-uploads"
 
 router = APIRouter(tags=["requests"])
 
 
-def photo_admin(principal: AnyPrincipal) -> User:
-    """A signed-in Admin, checked before the body is read. Tokens act for no one, and a photo
-    records who uploaded it."""
-    if principal.user is None or not is_admin(principal):
-        raise forbidden(photos.ADMINS_ONLY)
-    return principal.user
-
-
-PhotoAdmin = Annotated[User, Depends(photo_admin)]
-
-
-def _photo(session: Session, found: PrintRequest, photo_id: UUID) -> RequestPhoto:
-    photo = session.get(RequestPhoto, photo_id)
-    if photo is None or photo.request_id != found.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such photo")
-    return photo
-
-
 @router.post(PHOTO_UPLOAD_PATH, response_model=PhotoUploadOut, status_code=201)
 async def upload_photo(
     http: Request,
-    user: PhotoAdmin,
-    session: DbSession,
+    caller: PhotosCaller,
+    requests: Requests,
     name: Annotated[str, Query(max_length=FILE_NAME_MAX)] = "",
 ) -> PhotoUploadOut:
     """Upload a JPEG or PNG photo of a finished print; the body is the photo. Save it with a
@@ -67,88 +41,37 @@ async def upload_photo(
     except ClientDisconnect:
         # Too large, or the browser went away: nothing was kept, and no one is listening.
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "upload not finished") from None
-    try:
-        photo = await run_in_threadpool(photos.reencode, body)
-    except photos.NotAPhoto as error:
-        raise problems({photos.PHOTO: str(error)}) from None
-    return await run_in_threadpool(_keep, stored_photos(http), session, user, name, photo)
-
-
-def _keep(
-    kept: photos.Photos, session: Session, user: User, name: str, photo: photos.Reencoded
-) -> PhotoUploadOut:
-    """Store the photo and commit: file and database work, run off the event loop."""
-    stored = kept.store(session, user, name, photo, utcnow())
-    session.commit()
-    return PhotoUploadOut(id=stored.id, name=stored.file_name)
+    # Image, file and database work, run off the event loop.
+    kept = await run_in_threadpool(requests.upload_photo, caller, name, body)
+    return PhotoUploadOut(id=kept.id, name=kept.name)
 
 
 @router.post("/requests/{request_id}/photos", response_model=RequestOut)
 def add_photos(
-    request_id: int,
-    body: PhotosIn,
-    _: PhotoAdmin,
-    caller: RequestsCaller,
-    session: DbSession,
-    http: Request,
+    request_id: int, body: PhotosIn, caller: PhotosCaller, requests: Requests
 ) -> RequestOut:
     """Save photo uploads with a Done or Picked Up request, up to 4 photos in all, emailing
     the requester the new photos."""
-    found = find_request(session, caller, request_id)
-    try:
-        added = photos.add(session, found, body.photo_ids, caller.user, utcnow())
-    except Problems as error:
-        raise problems(error.problems) from None
-    session.commit()
-    notify_after_commit(
-        http,
-        session,
-        lambda: notifications.new_photos(
-            found,
-            caller.user,
-            stored_photos(http).email_copies(added),
-            added[0].id if added else None,
-        ),
-    )
-    session.refresh(found)
-    return request_out(http, session, caller, found)
+    return request_out(requests.add_photos(caller, request_id, body.photo_ids))
 
 
 @router.delete("/requests/{request_id}/photos/{photo_id}", response_model=RequestOut)
 def remove_photo(
-    request_id: int,
-    photo_id: UUID,
-    _: PhotoAdmin,
-    caller: RequestsCaller,
-    session: DbSession,
-    http: Request,
+    request_id: int, photo_id: UUID, caller: PhotosCaller, requests: Requests
 ) -> RequestOut:
     """Remove a photo from a Done or Picked Up request, deleting its files."""
-    found = find_request(session, caller, request_id)
-    photo = _photo(session, found, photo_id)
-    try:
-        photos.remove(session, found, photo, caller.user, utcnow())
-    except Problems as error:
-        raise problems(error.problems) from None
-    session.commit()
-    stored_photos(http).delete(photo)
-    session.refresh(found)
-    return request_out(http, session, caller, found)
+    return request_out(requests.remove_photo(caller, request_id, photo_id))
 
 
 @router.get("/requests/{request_id}/photos/{photo_id}")
 def photo(
-    request_id: int, photo_id: UUID, caller: RequestsCaller, session: DbSession, http: Request
+    request_id: int, photo_id: UUID, caller: RequestsCaller, requests: Requests
 ) -> FileResponse:
     """A photo of the request's print, for anyone who can see the request."""
-    found = find_request(session, caller, request_id)
-    shown = _photo(session, found, photo_id)
-    files = model_files(http)
-    if not files.exists(shown.stored_name):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such photo")
+    shown = requests.photo_file(caller, request_id, photo_id)
     return FileResponse(
-        files.path(shown.stored_name),
-        media_type=photos.media_type(shown.stored_name),
+        shown.path,
+        media_type=shown.media_type,
         headers={
             "Content-Disposition": content_disposition(shown.file_name, "inline"),
             "X-Content-Type-Options": "nosniff",

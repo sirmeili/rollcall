@@ -18,9 +18,7 @@ from filament_tracker.api import (
     printers,
     push,
     request_files,
-    request_holders,
     request_holds,
-    request_needs,
     request_photos,
     requests,
     review,
@@ -53,9 +51,11 @@ from filament_tracker.notifications.low_stock import LowStockNotifications
 from filament_tracker.notifications.nearly_out import NearlyOutNotifications
 from filament_tracker.notifications.notifier import Notifier
 from filament_tracker.poll import Poll
-from filament_tracker.print_requests import retrying
+from filament_tracker.print_requests import filament, holders, needs
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
-from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
+from filament_tracker.print_requests.interface import Clock, Parts
+from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES, Photos
+from filament_tracker.print_requests.refused import Refused
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.push.firebase import firebase
 from filament_tracker.push.keys import vapid_keys
@@ -112,7 +112,7 @@ def create_app(
         engine = create_db_engine(settings.database_url)
         app.state.session_factory = create_session_factory(engine)
         # Waiting print requests take filament as soon as stock changes (ADR-0020).
-        on_change(app.state.session_factory, retrying.retry)
+        on_change(app.state.session_factory, filament.retry)
         box = SecretBox(load_key(settings.settings_key, settings.database_url))
         app.state.secret_box = box
         with app.state.session_factory() as session:
@@ -143,6 +143,14 @@ def create_app(
         # Where emails link to: PUBLIC_URL, read when each is built.
         notifier = Notifier(mail, push_sender, partial(store.text, "public_url"))
         app.state.notifier = notifier
+        # Each HTTP request's PrintRequests is made with these (ADR-0023).
+        app.state.print_requests = Parts(
+            notifier=notifier,
+            model_files=app.state.model_files,
+            photos=Photos(app.state.model_files),
+            settings=store,
+            clock=Clock(store.time_zone),
+        )
         # Always running, Home Assistant or not (ADR-0009).
         poll = Poll(
             app.state.session_factory,
@@ -187,9 +195,10 @@ def create_app(
     app.state.test_phone_notification_cooldowns = Cooldowns(TEST_PHONE_NOTIFICATION_GAP)
     app.state.model_files = ModelFiles(files_dir(settings.database_url))
     # Spool detail names the requests holding a spool through this (ADR-0020).
-    app.state.holder_reader = request_holders.holding_requests
-    app.state.request_needs_reader = request_needs.request_needs
+    app.state.holder_reader = holders.holding_requests
+    app.state.request_needs_reader = needs.request_needs
     app.add_exception_handler(RequestValidationError, validation_error)
+    app.add_exception_handler(Refused, requests.refused)
     app.add_middleware(
         BodySizeLimitMiddleware,
         larger={

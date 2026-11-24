@@ -3,7 +3,7 @@ of each product, and by how much.
 
 Wired in at start as the app's `RequestNeedsReader` (`services/shopping_list/needs.py`), so
 Inventory reads it without importing Print Requests (ADR-0014, ADR-0020). The shorts are
-`holding.short`'s, so an over-held spool's grams go to the requests in Active-tab order. A
+`filament.short`'s, so an over-held spool's grams go to the requests in Active-tab order. A
 request is named only for a viewer who may see it.
 """
 
@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.auth import Principal
 from filament_tracker.db.request_models import FilamentChoice
-from filament_tracker.print_requests import access, holding
+from filament_tracker.print_requests import access, filament
 from filament_tracker.services.shopping_list import RequestShort
 
 
@@ -22,7 +22,7 @@ def request_needs(session: Session, viewer: Principal) -> dict[int, list[Request
     """Each product's requests short of it, by product ID, in Active-tab order. A request
     with two choices short of one product is one reason, their grams added up. A catalog
     color choice with no product to land on is left out."""
-    shorts = {choice_id: grams for choice_id, grams in holding.short(session).items() if grams}
+    shorts = {choice_id: grams for choice_id, grams in filament.short(session).items() if grams}
     if not shorts:
         return {}
     choices = {
@@ -33,7 +33,7 @@ def request_needs(session: Session, viewer: Principal) -> dict[int, list[Request
     titles: dict[int, str | None] = {}
     for choice_id, short_g in shorts.items():
         choice = choices[choice_id]
-        product_id = holding.product_id(session, choice)
+        product_id = filament.product_id(session, choice)
         if product_id is None:
             continue
         request = choice.request
