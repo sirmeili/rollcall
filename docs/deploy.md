@@ -257,7 +257,7 @@ Phones with the `google` flavor of the app (see [android/README.md](../android/R
 
    Then delete the file. None of these is secret: Firebase puts them in apps.
 4. In the project's settings, under Cloud Messaging, check that **Firebase Cloud Messaging API (V1)** is enabled.
-5. Under Service accounts, choose **Generate new private key**. Paste the whole downloaded JSON file into **Service-account key** on the Settings page, and Save. It is stored encrypted and never shown again; delete the downloaded file and keep no other copy. (Or set all five as `FIREBASE_*` in `.env`; see [configuration.md](configuration.md).)
+5. Under Service accounts, choose **Generate new private key**. On the Settings page, choose the downloaded JSON file for **Service-account key**: it shows the file's name and the service account's email. Save. It is stored encrypted and never shown again; delete the downloaded file and keep no other copy. (Or set all five as `FIREBASE_*` in `.env`; see [configuration.md](configuration.md).)
 6. Open RollCall on each `google` phone, signed in. The app restarts itself once to start Firebase with the new settings.
 
 Then check, on a `google` phone without ntfy: its Settings say phone notifications work via Google, and **Send a test notification** arrives. A development build (`io.github.sirmeili.rollcall.debug`) needs its own Android app in the same project, added as in step 2; RollCall's settings hold one App ID, so test it with the debug app's App ID and put the release one back afterwards.

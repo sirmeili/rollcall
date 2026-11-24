@@ -55,6 +55,8 @@ const uvicorn = spawn(
       HA_TOKEN: "",
       // Nor the Open Filament Database: the catalog stays empty unless a test syncs it.
       CATALOG_SYNC: "off",
+      // Nor a real Firebase project: the Settings tests choose their own key file.
+      FIREBASE_SERVICE_ACCOUNT: "",
       SETTINGS_KEY: "",
     },
   },

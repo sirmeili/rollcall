@@ -3,6 +3,11 @@
 // printer whose AMS reports White PLA spool 4 at 0%.
 
 import { expect, test } from "@playwright/test";
+import {
+  SERVICE_ACCOUNT_EMAIL,
+  SERVICE_ACCOUNT_FILE,
+  serviceAccountKey,
+} from "../src/test/service-account.ts";
 import { failOnBrowserErrors, signIn, signInAt } from "./helpers.ts";
 
 failOnBrowserErrors();
@@ -193,6 +198,57 @@ test("admins set the time zone, and the web app uses it", async ({ page }) => {
 
   await page.getByRole("button", { name: "Use the .env value for Time zone" }).click();
   await expect(zone).toHaveValue("UTC");
+});
+
+test("admins choose a whole Firebase key file, the server accepts it, then clear it", async ({
+  page,
+}) => {
+  await signInAt(page, "/settings", "e2e-admin");
+  const phone = page.getByRole("form", { name: "Phone notifications" });
+  const key = serviceAccountKey();
+  expect(key.length).toBeGreaterThan(2000);
+
+  await phone.getByLabel("Service-account key", { exact: true }).setInputFiles({
+    name: SERVICE_ACCOUNT_FILE,
+    mimeType: "application/json",
+    buffer: Buffer.from(key),
+  });
+  await expect(
+    phone.getByText(`${SERVICE_ACCOUNT_FILE}, for ${SERVICE_ACCOUNT_EMAIL}`),
+  ).toBeVisible();
+  await phone.getByRole("button", { name: "Save" }).click();
+  await expect(phone.getByRole("status")).toHaveText(/^Saved\./);
+  await expect(phone.getByText("Saved here", { exact: true })).toBeVisible();
+  await expect(phone.getByText("Saved. Leave empty to keep it.")).toBeVisible();
+
+  await phone.getByRole("button", { name: "Clear Service-account key" }).click();
+  await expect(phone.getByRole("status")).toHaveText("Cleared.");
+  await expect(phone.getByText("Saved here", { exact: true })).toHaveCount(0);
+});
+
+test("a file that isn't a service-account key is refused on Save, and nothing is saved", async ({
+  page,
+}) => {
+  await signInAt(page, "/settings", "e2e-admin");
+  const phone = page.getByRole("form", { name: "Phone notifications" });
+  const picker = phone.getByLabel("Service-account key", { exact: true });
+  const notAKey = "use the service-account key file from Firebase, as JSON";
+  const files = [
+    ["notes.json", "not json at all", notAKey],
+    ["google-services.json", '{"project_info": {"project_id": "rollcall-test"}}', notAKey],
+    ["big.json", JSON.stringify({ padding: "x".repeat(9000) }), "at most 8192 characters"],
+  ];
+
+  for (const [name, text, problem] of files) {
+    await picker.setInputFiles({ name, mimeType: "application/json", buffer: Buffer.from(text) });
+    await phone.getByRole("button", { name: "Save" }).click();
+    await expect(phone.getByRole("alert")).toHaveText(`Service-account key: ${problem}`);
+  }
+  const saved = await page.evaluate(() =>
+    fetch("/api/v1/settings/phone-notifications").then((r) => r.json()),
+  );
+  const key = saved.settings.find((s: { key: string }) => s.key === "firebase_service_account");
+  expect(key.set).toBe(false);
 });
 
 test("admins make a machine token, use it once and revoke it", async ({ page, request }) => {

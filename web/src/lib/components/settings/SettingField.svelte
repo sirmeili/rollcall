@@ -4,7 +4,8 @@
 
   /** One setting: its box, where its value comes from, and the buttons to clear a secret
    * or go back to the .env value. A secret is never shown: its box starts empty, and
-   * leaving it empty keeps the saved one. */
+   * leaving it empty keeps the saved one. A file setting is chosen as a file instead:
+   * its text is the value, and only the file's name shows. */
   interface Props {
     info: FieldInfo;
     setting: SettingOut;
@@ -34,6 +35,30 @@
         : "Not set"
       : (info.placeholder ?? ""),
   );
+
+  let picker = $state<HTMLInputElement>();
+  /** What the chosen file is, from the field's own description of it. */
+  let chosenText = $state<string | null>(null);
+
+  async function choose(event: Event & { currentTarget: HTMLInputElement }): Promise<void> {
+    const file = event.currentTarget.files?.[0];
+    if (!file || !info.file) {
+      chosenText = null;
+      value = "";
+      return;
+    }
+    const text = await file.text();
+    value = text;
+    chosenText = info.file.describe(file.name, text);
+  }
+
+  // After a save the value starts empty again: so does the picker.
+  $effect(() => {
+    if (value === "" && picker) {
+      picker.value = "";
+      chosenText = null;
+    }
+  });
 </script>
 
 <div class="setting">
@@ -46,21 +71,35 @@
       data-source={setting.source}>{sourceText(setting)}</span
     >
   </div>
-  <input
-    {id}
-    type={setting.secret ? "password" : "text"}
-    autocomplete={setting.secret ? "new-password" : "off"}
-    autocapitalize="none"
-    spellcheck="false"
-    maxlength="1024"
-    inputmode={info.inputmode}
-    list={listId}
-    {placeholder}
-    aria-describedby="{id}-help"
-    aria-invalid={problem ? "true" : undefined}
-    disabled={busy}
-    bind:value
-  />
+  {#if info.file}
+    <input
+      {id}
+      bind:this={picker}
+      type="file"
+      accept={info.file.accept}
+      aria-describedby="{id}-chosen {id}-help"
+      aria-invalid={problem ? "true" : undefined}
+      disabled={busy}
+      onchange={choose}
+    />
+    <p id="{id}-chosen" class="chosen">{chosenText ?? placeholder}</p>
+  {:else}
+    <input
+      {id}
+      type={setting.secret ? "password" : "text"}
+      autocomplete={setting.secret ? "new-password" : "off"}
+      autocapitalize="none"
+      spellcheck="false"
+      maxlength="1024"
+      inputmode={info.inputmode}
+      list={listId}
+      {placeholder}
+      aria-describedby="{id}-help"
+      aria-invalid={problem ? "true" : undefined}
+      disabled={busy}
+      bind:value
+    />
+  {/if}
   {#if listId}
     <datalist id={listId}>
       {#each info.suggestions ?? [] as option (option)}<option value={option}></option>{/each}
@@ -135,6 +174,12 @@
 
   input {
     color: var(--text);
+  }
+
+  .chosen {
+    margin: 0;
+    font-size: 13px;
+    overflow-wrap: anywhere;
   }
 
   .help {

@@ -17,8 +17,9 @@ export async function signInAt(page: Page, path: string, username: string): Prom
   await expect(page).toHaveURL(new RegExp(`${path.replaceAll("/", "\\/")}$`));
 }
 
-// Expected failures: the signed-out check and a wrong password answer 401.
-const EXPECTED = /Failed to load resource: the server responded with a status of 401/;
+// Expected failures: the signed-out check and a wrong password answer 401, and a value
+// the server refuses answers 422, which the page shows.
+const EXPECTED = /Failed to load resource: the server responded with a status of (401|422)/;
 
 /** Fail each test in the file that logs a browser error. */
 export function failOnBrowserErrors(): void {
