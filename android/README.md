@@ -145,7 +145,7 @@ Run on each release candidate, on the release-signed APK installed from it. [doc
 - **Always**, on every release candidate, whatever changed: 3, 5, 6, 14, 16, 18, 25, 42, 48, 49.
 - **Triggers.** Each section names the app's Kotlin code and the web app's code that trigger it. Paths are under `android/app/src/` and `web/src/`, and a class's name covers its file in any source set (`main`, `google`, `foss`). A changed file runs every section that names it.
 - **Shared web code** runs Full web app and unpairing, and Back button: the API client and its errors (`lib/api/client.ts`, `lib/api/errors.ts`), the shared components (`lib/components/*.svelte`, `lib/components/shell/`, `lib/components/ui/`), the root layout (`routes/+layout.svelte`, `routes/+layout.ts`), the global styles and theme (`app.css`, `lib/theme.svelte.ts`, `lib/fonts.ts`, `lib/viewport.svelte.ts`), the HTML shell (`app.html`), and the web app's build and dependencies (`web/package.json`, `web/package-lock.json`, `web/vite.config.ts`, `web/tsconfig.json`).
-- **Unmapped files.** A changed file in `android/` or `web/` (or a part of `android/app/build.gradle`) that no section names makes the release a full run, and the record lists it, so its section can be named here. Files that aren't built into the app trigger nothing: tests (`*.test.ts`, `web/src/test/`, `web/e2e/`, `android/app/src/test*/`), docs (`*.md`), and the checks in `android/scripts/` and `web/scripts/`.
+- **Unmapped files.** A changed non-test file in the app or web source (or a part of `android/app/build.gradle`) that no section names makes the release a full run, and the record lists it, so its section can be named here. Test files trigger nothing (`*.test.ts`, `web/src/test/`, `web/e2e/`, `android/app/src/test*/`). Nor do files in `android/` or `web/` that are not app or web source: docs (`*.md`), and the checks in `android/scripts/` and `web/scripts/`, which aren't built into the app.
 - **Full run**, the whole checklist: a major or minor version; a changed release key; a Capacitor, Gradle, Android Gradle Plugin, Kotlin or Android SDK upgrade; a `targetSdk` or `minSdk` change; or a change to the permissions in an `AndroidManifest.xml`.
 
 **Setup and pairing**
@@ -182,7 +182,7 @@ Run on each release candidate, on the release-signed APK installed from it. [doc
 
 **Full web app and unpairing**
 
-*Triggers.* Kotlin: none. Web: shared web code (above), sign-in and the session (`lib/auth/`, `routes/login/`, `lib/components/LoginForm.svelte`), the Devices route (`routes/devices/`, `lib/components/devices/`, `lib/devices.ts`), unlinking (`lib/components/phone/PairedPhone.svelte`, `routes/pair/`), and every page of the full web app that no other section names: its route under `routes/`, its components under `lib/components/`, and its `lib/` and `lib/api/` modules.
+*Triggers.* Kotlin: none. Web: shared web code (above), sign-in and the session (`lib/auth/`, `routes/login/`, `lib/components/LoginForm.svelte`), the Devices route (`routes/devices/`, `lib/components/devices/`, `lib/devices.ts`), and unlinking (`lib/components/phone/PairedPhone.svelte`, `routes/pair/`). A page of the full web app that no section names is an unmapped file (above), so it makes a full run.
 
 18. `[either]` Open the full app and sign in: pages work, and "Back to Scan" returns to Scan.
 19. `[either]` Revoke the phone's token on Devices: the next scan says to pair the phone again.
