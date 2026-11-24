@@ -15,17 +15,22 @@ aapt2=$tools/aapt2
 apksigner=$tools/apksigner
 # On Windows (Git Bash) the tools are aapt2.exe and apksigner.bat.
 [[ -e $apksigner ]] || apksigner=$tools/apksigner.bat
-# A release candidate (1.2.3-rc.1) shares its final release's version code (ADR-0024).
-if [[ ! $version =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.[1-9][0-9]*)?$ ]]; then
-  echo "the version must look like 1.2.3 or 1.2.3-rc.1, got: $version" >&2
+# major.minor.patch, each 0-99 with no leading zero and not all 0, then optionally -rc.N with
+# N from 1 and no leading zero (docs/releasing.md, Versioning). A release candidate
+# (1.2.3-rc.1) shares its final release's version code (ADR-0024).
+part='(0|[1-9][0-9]?)'
+code=0
+if [[ $version =~ ^$part\.$part\.$part(-rc\.[1-9][0-9]*)?$ ]]; then
+  code=$((BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3]))
+fi
+if ((code == 0)); then
+  echo "the version must look like 1.2.3 or 1.2.3-rc.1 (each part 0-99 with no leading zero, not all 0; N from 1 with no leading zero), got: $version" >&2
   exit 1
 fi
-major=$((10#${BASH_REMATCH[1]}))
-minor=$((10#${BASH_REMATCH[2]}))
-patch=$((10#${BASH_REMATCH[3]}))
-code=$((major * 10000 + minor * 100 + patch))
 
-badging=$("$aapt2" dump badging "$apk" | head -n 1)
+# Only the first line, read without closing the pipe early (head would, and pipefail would
+# then fail on aapt2's SIGPIPE).
+badging=$("$aapt2" dump badging "$apk" | sed -n 1p)
 want="package: name='io.github.sirmeili.rollcall' versionCode='$code' versionName='$version'"
 if [[ $badging != "$want"* ]]; then
   echo "unexpected package line: $badging" >&2
