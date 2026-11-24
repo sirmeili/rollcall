@@ -14,11 +14,8 @@ from fastapi.responses import FileResponse
 from starlette.requests import ClientDisconnect
 
 from filament_tracker.api.request_schemas import UploadOut
-from filament_tracker.api.request_views import model_files
 from filament_tracker.api.requests import Requests, RequestsCaller, SubmittingCaller
-from filament_tracker.auth import DbSession
-from filament_tracker.db.request_models import FILE_NAME_MAX
-from filament_tracker.db.types import utcnow
+from filament_tracker.print_requests.interface import FILE_NAME_MAX
 
 UPLOAD_PATH = "/requests/uploads"
 
@@ -36,28 +33,25 @@ def content_disposition(name: str, disposition: str = "attachment") -> str:
 async def upload(
     http: Request,
     caller: SubmittingCaller,
-    session: DbSession,
+    requests: Requests,
     name: Annotated[str, Query(max_length=FILE_NAME_MAX)] = "",
 ) -> UploadOut:
     """Upload a 3MF or STL model file; the body is the file. Save it with a request by
     sending its `id` as `upload_id`."""
     try:
-        found = await model_files(http).receive(session, caller.user, name, http.stream(), utcnow())
+        kept = await requests.upload_model(caller, name, http.stream())
     except ClientDisconnect:
         # Too large, or the browser went away: nothing was kept, and no one is listening.
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "upload not finished") from None
-    session.commit()
-    return UploadOut(id=found.id, name=found.file_name, size=found.size, kind=found.kind)
+    return UploadOut(id=kept.id, name=kept.name, size=kept.size, kind=kept.kind)
 
 
 @router.get("/requests/{request_id}/file")
-def download(
-    request_id: int, caller: RequestsCaller, requests: Requests, http: Request
-) -> FileResponse:
+def download(request_id: int, caller: RequestsCaller, requests: Requests) -> FileResponse:
     """The request's model file, for its requester, Editors and Admins."""
     found = requests.model_file(caller, request_id)
     return FileResponse(
-        model_files(http).path(found.stored_name),
+        found.path,
         media_type="application/octet-stream",
         headers={
             "Content-Disposition": content_disposition(found.name),

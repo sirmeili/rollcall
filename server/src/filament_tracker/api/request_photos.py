@@ -14,18 +14,13 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
 from starlette.requests import ClientDisconnect
 
 from filament_tracker.api.request_files import content_disposition
 from filament_tracker.api.request_schemas import PhotosIn, PhotoUploadOut, RequestOut
-from filament_tracker.api.request_views import request_out, stored_photos
+from filament_tracker.api.request_views import request_out
 from filament_tracker.api.requests import PhotosCaller, Requests, RequestsCaller
-from filament_tracker.auth import DbSession
-from filament_tracker.db.models import User
-from filament_tracker.db.request_models import FILE_NAME_MAX
-from filament_tracker.db.types import utcnow
-from filament_tracker.print_requests import photos
+from filament_tracker.print_requests.interface import FILE_NAME_MAX
 
 PHOTO_UPLOAD_PATH = "/requests/photo-uploads"
 
@@ -36,7 +31,7 @@ router = APIRouter(tags=["requests"])
 async def upload_photo(
     http: Request,
     caller: PhotosCaller,
-    session: DbSession,
+    requests: Requests,
     name: Annotated[str, Query(max_length=FILE_NAME_MAX)] = "",
 ) -> PhotoUploadOut:
     """Upload a JPEG or PNG photo of a finished print; the body is the photo. Save it with a
@@ -46,17 +41,9 @@ async def upload_photo(
     except ClientDisconnect:
         # Too large, or the browser went away: nothing was kept, and no one is listening.
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "upload not finished") from None
-    photo = await run_in_threadpool(photos.reencode, body)
-    return await run_in_threadpool(_keep, stored_photos(http), session, caller.user, name, photo)
-
-
-def _keep(
-    kept: photos.Photos, session: Session, user: User, name: str, photo: photos.Reencoded
-) -> PhotoUploadOut:
-    """Store the photo and commit: file and database work, run off the event loop."""
-    stored = kept.store(session, user, name, photo, utcnow())
-    session.commit()
-    return PhotoUploadOut(id=stored.id, name=stored.file_name)
+    # Image, file and database work, run off the event loop.
+    kept = await run_in_threadpool(requests.upload_photo, caller, name, body)
+    return PhotoUploadOut(id=kept.id, name=kept.name)
 
 
 @router.post("/requests/{request_id}/photos", response_model=RequestOut)

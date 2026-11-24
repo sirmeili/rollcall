@@ -1,4 +1,5 @@
-"""Moving a request along the pipeline, and adding and removing photos of its print.
+"""Moving a request along the pipeline, and uploading, adding and removing photos of its
+print.
 
 Each action is one transaction (ADR-0023): it checks, changes and commits, then hands the
 notifications to the notifier and deletes a removed photo's files, and answers the request
@@ -34,7 +35,27 @@ class StoredPhoto:
     file_name: str
 
 
+@dataclass(frozen=True)
+class PhotoUpload:
+    """A photo kept until a request is saved with it, by sending its id."""
+
+    id: UUID
+    name: str
+
+
 class Moving(Core):
+    def upload_photo(self, caller: Principal, name: str, body: bytes) -> PhotoUpload:
+        """Check and re-encode an Admin's JPEG or PNG, keep it and commit; INVALID when it
+        isn't a photo. File and image work: call it off the event loop."""
+        self.check(caller, Gate.PHOTOS)
+        assert caller.user is not None  # noqa: S101 - the gate lets only people through
+        photo = photos.reencode(body)
+        kept = self._parts.photos.store(
+            self._session, caller.user, name, photo, self._parts.clock.now()
+        )
+        self._session.commit()
+        return PhotoUpload(id=kept.id, name=kept.file_name)
+
     def move(
         self,
         caller: Principal,
