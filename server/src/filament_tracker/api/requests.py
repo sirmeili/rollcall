@@ -29,7 +29,7 @@ from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.print_requests import holding, notifications, photos, pipeline, service
+from filament_tracker.print_requests import filament, notifications, photos, pipeline, service
 from filament_tracker.print_requests.access import is_admin, may_open_requests, may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
 from filament_tracker.print_requests.read import ListFilter, Tab, visible_requests
@@ -215,7 +215,7 @@ def make_move(
     now = utcnow()
     added: list[RequestPhoto] = []
     try:
-        moved = holding.make_move(
+        moved = filament.make_move(
             session,
             found,
             expected=body.from_status,

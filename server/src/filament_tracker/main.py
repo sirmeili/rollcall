@@ -51,7 +51,7 @@ from filament_tracker.notifications.low_stock import LowStockNotifications
 from filament_tracker.notifications.nearly_out import NearlyOutNotifications
 from filament_tracker.notifications.notifier import Notifier
 from filament_tracker.poll import Poll
-from filament_tracker.print_requests import holders, needs, retrying
+from filament_tracker.print_requests import filament, holders, needs
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES, ModelFiles, files_dir
 from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
 from filament_tracker.printer.manager import PrinterManager
@@ -110,7 +110,7 @@ def create_app(
         engine = create_db_engine(settings.database_url)
         app.state.session_factory = create_session_factory(engine)
         # Waiting print requests take filament as soon as stock changes (ADR-0020).
-        on_change(app.state.session_factory, retrying.retry)
+        on_change(app.state.session_factory, filament.retry)
         box = SecretBox(load_key(settings.settings_key, settings.database_url))
         app.state.secret_box = box
         with app.state.session_factory() as session:

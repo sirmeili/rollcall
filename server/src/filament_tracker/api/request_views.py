@@ -21,7 +21,7 @@ from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import Principal
 from filament_tracker.db.request_models import FilamentChoice, PrintRequest
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.print_requests import holding
+from filament_tracker.print_requests import filament
 from filament_tracker.print_requests.access import (
     may_change_holds,
     may_change_photos,
@@ -91,7 +91,7 @@ def _holds_out(session: Session, choice: FilamentChoice) -> list[HoldOut]:
             product_name=hold.spool.product.display_name,
             grams=hold.grams,
         )
-        for hold in holds.active_holds(session, holding.holder(choice))
+        for hold in holds.active_holds(session, filament.holder(choice))
     ]
 
 
@@ -108,7 +108,7 @@ def _stages(
     """The shopping list stage of each short choice's product, by product ID, read with the
     request-needs reader wired in at start so the print requests count."""
     needs: RequestNeedsReader = http.app.state.request_needs_reader
-    found = {holding.product_id(session, choice) for choice in short}
+    found = {filament.product_id(session, choice) for choice in short}
     product_ids = {product_id for product_id in found if product_id is not None}
     stages = shopping_list.stages(session, principal, needs, product_ids)
     # Reading the list clears the dismissals of products that need nothing any more.
@@ -120,7 +120,7 @@ def _stage_out(
     stages: dict[int, ItemStage], session: Session, choice: FilamentChoice
 ) -> ShoppingStageOut | None:
     """The stage of the short choice's product, if it has one."""
-    product_id = holding.product_id(session, choice)
+    product_id = filament.product_id(session, choice)
     found = stages.get(product_id) if product_id is not None else None
     if found is None:
         return None
@@ -135,7 +135,7 @@ def request_out(
     store = _store(http)
     reader = ChoiceReader(session, store.similarity_cutoff(), store.store_address())
     staff = sees_every_request(principal)
-    short_by_choice = holding.request_short(session, item)
+    short_by_choice = filament.request_short(session, item)
     stages = _stages(
         http, session, principal, [c for c in item.choices if short_by_choice.get(c.id)]
     )
@@ -165,7 +165,7 @@ def request_out(
                 grams=choice.grams if staff else None,
                 short_g=short if staff else None,
                 holds=_holds_out(session, choice) if staff else None,
-                available_g=holding.available(session, choice) if staff else None,
+                available_g=filament.available(session, choice) if staff else None,
                 shopping=_stage_out(stages, session, choice) if short else None,
             )
         )

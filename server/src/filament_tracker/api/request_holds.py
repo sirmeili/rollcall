@@ -21,7 +21,7 @@ from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.print_requests import holds_by_hand, pipeline
+from filament_tracker.print_requests import filament, pipeline
 from filament_tracker.print_requests.access import changes_holds
 from filament_tracker.print_requests.rules import Problems
 
@@ -54,7 +54,7 @@ def _change(
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
     except pipeline.NotAMove as error:
         raise forbidden(str(error)) from None
-    except holds_by_hand.NotFound as error:
+    except filament.NotFound as error:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from None
     except Problems as error:
         raise problems(error.problems) from None
@@ -80,7 +80,7 @@ def set_grams(
         session,
         caller,
         found,
-        lambda: holds_by_hand.set_grams(
+        lambda: filament.set_grams(
             session,
             found,
             choice_id,
@@ -110,7 +110,7 @@ def add_hold(
         session,
         caller,
         found,
-        lambda: holds_by_hand.add_hold(
+        lambda: filament.add_hold(
             session,
             found,
             choice_id,
@@ -140,7 +140,7 @@ def change_hold(
         session,
         caller,
         found,
-        lambda: holds_by_hand.change_hold(
+        lambda: filament.change_hold(
             session,
             found,
             hold_id,
@@ -170,7 +170,7 @@ def remove_hold(
         session,
         caller,
         found,
-        lambda: holds_by_hand.remove_hold(
+        lambda: filament.remove_hold(
             session, found, hold_id, expected=from_status, user=user, now=utcnow()
         ),
     )
