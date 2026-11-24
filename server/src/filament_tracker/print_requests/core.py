@@ -21,10 +21,6 @@ class Core:
         self._session = session
         self._parts = parts
 
-    def may(self, caller: Principal, gate: Gate) -> bool:
-        """Whether the caller passes the gate, before anything they sent is looked at."""
-        return why_not(self._session, caller, gate) is None
-
     def check(self, caller: Principal, gate: Gate) -> None:
         """Refuse the caller (FORBIDDEN) unless they pass the gate."""
         reason = why_not(self._session, caller, gate)
