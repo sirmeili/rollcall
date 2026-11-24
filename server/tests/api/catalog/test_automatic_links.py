@@ -290,3 +290,37 @@ def test_a_scan_renames_only_a_product_with_its_default_name(
 
     assert result["product"]["display_name"] == after
     assert _names(client) == [after]
+
+
+def test_a_sync_that_links_a_product_with_its_default_name_renames_it(
+    client: TestClient, token: str
+) -> None:
+    scan(client, token, BLACK, "received")
+    assert _names(client) == ["PLA Basic #000000"]
+
+    refresh(client)
+
+    assert _names(client) == ["Black PLA Basic"]
+
+
+def test_a_sync_that_links_a_product_with_a_typed_name_keeps_it(
+    client: TestClient, token: str
+) -> None:
+    made = scan(client, token, BLACK, "received")["product"]["id"]
+    client.patch(
+        f"{PRODUCTS}/{made}", json={"display_name": "My black"}, headers=admin()
+    ).raise_for_status()
+
+    refresh(client)
+
+    assert links(client) == {"My black": FROM_TAG}
+
+
+def test_a_lookup_of_a_tag_not_in_the_inventory_shows_the_default_name(
+    client: TestClient, token: str
+) -> None:
+    refresh(client)
+
+    result = scan(client, token, BLACK, "lookup")
+
+    assert result["product"]["display_name"] == "PLA Basic #000000"

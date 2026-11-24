@@ -197,7 +197,7 @@ def test_a_color_another_product_is_linked_to_is_refused(
     response = _link(editor, made["id"], "var-black")
 
     assert response.status_code == 422
-    assert response.json()["detail"] == "PLA Basic #000000 is already linked to that color."
+    assert response.json()["detail"] == "Black PLA Basic is already linked to that color."
     assert editor.get(f"/api/v1/products/{made['id']}").json()["product"]["catalog_link"] is None
 
 
