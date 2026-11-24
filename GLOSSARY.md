@@ -333,3 +333,17 @@ _Avoid_: Push (except for how it is delivered)
 
 **Notification settings**:
 A user's choice of which notifications they get, and how: by email, to their phone, or both.
+
+### Releases
+
+**Release candidate**:
+A build of the phone app published for testing before its version's final release, with a version such as `1.3.0-rc.1`. Test phones take it; everyday phones don't.
+_Avoid_: RC (except in tags and versions), beta, prerelease (that is how GitHub marks it)
+
+**Final release**:
+The release of a version that every phone gets, such as `1.3.0`, built from its newest release candidate's commit once its release record is approved.
+_Avoid_: Stable release, production release
+
+**Release record**:
+The issue that records one app release, from its first release candidate to its final release: the checklist steps in scope, their results and the sign-off.
+_Avoid_: Release check, release issue, release PR
