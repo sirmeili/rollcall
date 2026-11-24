@@ -47,12 +47,9 @@ class Moving(Core):
     def upload_photo(self, caller: Principal, name: str, body: bytes) -> PhotoUpload:
         """Check and re-encode an Admin's JPEG or PNG, keep it and commit; INVALID when it
         isn't a photo. File and image work: call it off the event loop."""
-        self.check(caller, Gate.PHOTOS)
-        assert caller.user is not None  # noqa: S101 - the gate lets only people through
+        user = self.check(caller, Gate.PHOTOS)
         photo = photos.reencode(body)
-        kept = self._parts.photos.store(
-            self._session, caller.user, name, photo, self._parts.clock.now()
-        )
+        kept = self._parts.photos.store(self._session, user, name, photo, self._parts.clock.now())
         self._session.commit()
         return PhotoUpload(id=kept.id, name=kept.file_name)
 
@@ -69,7 +66,7 @@ class Moving(Core):
         """Move the request from the status the caller saw it in, saving any photo uploads
         with a move that takes them (Done). STALE when it has moved on, FORBIDDEN when the
         pipeline has no such move for the caller."""
-        self.check(caller, Gate.MOVE)
+        user = self.check(caller, Gate.MOVE)
         found = self._find(caller, request_id)
         now = self._parts.clock.now()
         moved = filament.make_move(
@@ -79,7 +76,7 @@ class Moving(Core):
             to_status=to_status,
             grams=grams or {},
             movers=movers(caller, found),
-            user=caller.user,
+            user=user,
             note=note,
             now=now,
         )
@@ -87,7 +84,7 @@ class Moving(Core):
         if photo_ids:
             if not moved.move.photos:
                 raise Refused.invalid({photos.PHOTOS: NO_PHOTOS})
-            added = photos.add(self._session, found, photo_ids, caller.user, now)
+            added = photos.add(self._session, found, photo_ids, user, now)
         return self._saved(
             caller,
             found,
@@ -99,10 +96,9 @@ class Moving(Core):
     ) -> RequestDetail:
         """Save photo uploads with a Done or Picked Up request, up to 4 in all, telling the
         requester about the new photos."""
-        self.check(caller, Gate.PHOTOS)
+        user = self.check(caller, Gate.PHOTOS)
         found = self._find(caller, request_id)
-        added = photos.add(self._session, found, photo_ids, caller.user, self._parts.clock.now())
-        user = caller.user
+        added = photos.add(self._session, found, photo_ids, user, self._parts.clock.now())
         return self._saved(
             caller, found, lambda: notifications.new_photos(found, user, *self._copies(added))
         )
@@ -110,10 +106,10 @@ class Moving(Core):
     def remove_photo(self, caller: Principal, request_id: int, photo_id: UUID) -> RequestDetail:
         """Take a photo off a Done or Picked Up request; its files are deleted once that has
         committed."""
-        self.check(caller, Gate.PHOTOS)
+        user = self.check(caller, Gate.PHOTOS)
         found = self._find(caller, request_id)
         photo = self._photo(found, photo_id)
-        photos.remove(self._session, found, photo, caller.user, self._parts.clock.now())
+        photos.remove(self._session, found, photo, user, self._parts.clock.now())
         self._session.commit()
         self._parts.photos.delete(photo)
         return self._detail(caller, found)

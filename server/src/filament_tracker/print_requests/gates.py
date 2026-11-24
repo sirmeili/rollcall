@@ -7,6 +7,7 @@ status.
 
 from collections.abc import Callable
 from enum import Enum
+from typing import Literal
 
 from sqlalchemy.orm import Session
 
@@ -40,6 +41,10 @@ class Gate(Enum):
     HOLDS = "holds"
     # Upload, add or remove photos: a signed-in Admin.
     PHOTOS = "photos"
+
+
+# The gates that let only signed-in people through, so a caller who passes one has a user.
+PersonGate = Literal[Gate.SUBMIT, Gate.EDIT, Gate.HOLDS, Gate.PHOTOS]
 
 
 # A check, and the refusal's message when the caller fails it.

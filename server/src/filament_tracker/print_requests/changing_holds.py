@@ -124,9 +124,8 @@ class ChangingHolds(Core):
     ) -> RequestDetail:
         """Check the caller may change the request's holds, make the change and commit it;
         the request as the caller sees it after."""
-        self.check(caller, Gate.HOLDS)
+        user = self.check(caller, Gate.HOLDS)
         found = self._find(caller, request_id)
-        assert caller.user is not None  # noqa: S101 - the HOLDS gate lets only people through
-        change(found, caller.user)
+        change(found, user)
         self._session.commit()
         return self._detail(caller, found)

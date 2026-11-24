@@ -48,22 +48,18 @@ class Requesting(Core):
         """Keep a Requester's 3MF or STL, read from `body` as it arrives, and commit; INVALID
         when it is neither. Whatever `body` raises (the client going away) is raised as is,
         with nothing kept."""
-        self.check(caller, Gate.SUBMIT)
-        assert caller.user is not None  # noqa: S101 - the gate lets only people through
+        user = self.check(caller, Gate.SUBMIT)
         kept = await self._parts.model_files.receive(
-            self._session, caller.user, name, body, self._parts.clock.now()
+            self._session, user, name, body, self._parts.clock.now()
         )
         self._session.commit()
         return ModelUpload(id=kept.id, name=kept.file_name, size=kept.size, kind=kept.kind)
 
     def submit(self, caller: Principal, fields: RequestFields) -> RequestDetail:
         """A Requester's new request, Submitted. Editors and Admins are told of it."""
-        self.check(caller, Gate.SUBMIT)
-        assert caller.user is not None  # noqa: S101 - the gate lets only people through
+        user = self.check(caller, Gate.SUBMIT)
         clock = self._parts.clock
-        created = service.submit(
-            self._session, caller.user, fields, today=clock.today(), now=clock.now()
-        )
+        created = service.submit(self._session, user, fields, today=clock.today(), now=clock.now())
         self._session.commit()
         self._parts.notifier.send(self._session, lambda: notifications.new_request(created))
         return self._detail(caller, created)
@@ -71,15 +67,14 @@ class Requesting(Core):
     def edit(self, caller: Principal, request_id: int, fields: RequestFields) -> RequestDetail:
         """The requester sends every field again, while the request is Submitted. A model
         file the edit replaced or removed is deleted once the edit is saved."""
-        self.check(caller, Gate.EDIT)
-        assert caller.user is not None  # noqa: S101 - the gate lets only people through
+        user = self.check(caller, Gate.EDIT)
         found = self._find(caller, request_id)
         files = self._parts.model_files
         clock = self._parts.clock
         saved = service.edit(
             self._session,
             found,
-            caller.user,
+            user,
             fields,
             today=clock.today(),
             now=clock.now(),
@@ -93,9 +88,9 @@ class Requesting(Core):
         self, caller: Principal, request_id: int, priority: Priority
     ) -> RequestDetail:
         """An Editor's or Admin's triage of an open request."""
-        self.check(caller, Gate.PRIORITY)
+        user = self.check(caller, Gate.PRIORITY)
         found = self._find(caller, request_id)
-        service.change_priority(found, caller.user, priority, now=self._parts.clock.now())
+        service.change_priority(found, user, priority, now=self._parts.clock.now())
         self._session.commit()
         return self._detail(caller, found)
 

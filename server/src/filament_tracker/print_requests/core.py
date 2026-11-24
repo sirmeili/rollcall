@@ -1,12 +1,15 @@
 """What every group of Print Requests actions shares: the session, the app's parts, the
 gates, and finding a request the caller may see."""
 
+from typing import overload
+
 from sqlalchemy.orm import Session
 
 from filament_tracker.auth import Principal
+from filament_tracker.db.models import User
 from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.print_requests.access import may_see
-from filament_tracker.print_requests.gates import Gate, why_not
+from filament_tracker.print_requests.gates import Gate, PersonGate, why_not
 from filament_tracker.print_requests.parts import Parts
 from filament_tracker.print_requests.refused import Refused
 from filament_tracker.print_requests.views import RequestDetail, detail_of
@@ -21,11 +24,17 @@ class Core:
         self._session = session
         self._parts = parts
 
-    def check(self, caller: Principal, gate: Gate) -> None:
-        """Refuse the caller (FORBIDDEN) unless they pass the gate."""
+    @overload
+    def check(self, caller: Principal, gate: PersonGate) -> User: ...
+    @overload
+    def check(self, caller: Principal, gate: Gate) -> User | None: ...
+    def check(self, caller: Principal, gate: Gate) -> User | None:
+        """Refuse the caller (FORBIDDEN) unless they pass the gate; the user they act as,
+        which a gate that lets only people through guarantees."""
         reason = why_not(self._session, caller, gate)
         if reason is not None:
             raise Refused.forbidden(reason)
+        return caller.user
 
     def _find(self, caller: Principal, request_id: int) -> PrintRequest:
         """The request, or NOT_FOUND when there is none or the caller may not see it, so its
