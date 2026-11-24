@@ -221,3 +221,41 @@ def test_a_color_freed_by_moving_the_other_products_link_can_be_taken(
     _link(editor, product_id, "var-jade")
 
     assert _link(editor, made["id"], "var-black").status_code == 200
+
+
+def _made_by_hand(client: TestClient, editor: TestClient) -> int:
+    """A product added by hand with its default name, not linked."""
+    refresh(client)
+    return editor.post(
+        "/api/v1/products",
+        json={"display_name": "PLA #FFFFFF", "filament_type": "PLA", "color_rgba": "FFFFFFFF"},
+        headers=CSRF,
+    ).json()["id"]
+
+
+def test_a_manual_link_and_a_name_are_saved_in_one_update(
+    client: TestClient, editor: TestClient
+) -> None:
+    made = _made_by_hand(client, editor)
+
+    response = editor.patch(
+        f"/api/v1/products/{made}",
+        json={"catalog_color": "var-jade", "display_name": "Jade White PLA Basic"},
+        headers=CSRF,
+    )
+
+    assert response.status_code == 200, response.text
+    product = editor.get(f"/api/v1/products/{made}").json()["product"]
+    assert product["display_name"] == "Jade White PLA Basic"
+    assert product["catalog_link"]["uuid"] == "var-jade"
+    assert product["catalog_link"]["how"] == "hand"
+
+
+def test_a_manual_link_alone_leaves_the_name(client: TestClient, editor: TestClient) -> None:
+    made = _made_by_hand(client, editor)
+
+    assert _link(editor, made, "var-jade").status_code == 200
+
+    product = editor.get(f"/api/v1/products/{made}").json()["product"]
+    assert product["display_name"] == "PLA #FFFFFF"
+    assert product["catalog_link"]["uuid"] == "var-jade"
