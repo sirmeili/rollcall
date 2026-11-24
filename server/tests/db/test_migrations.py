@@ -571,3 +571,109 @@ def test_the_email_switches_carry_over_as_notification_choices(tmp_path: Path) -
         ("both_off", 0, 0),
     ]
     assert "notification_choice" not in tables
+
+
+def _seed_products(url: str, products: list[tuple[int, str, str, str | None, str | None]]) -> None:
+    # id, color, name, manual link, automatic link
+    engine = create_db_engine(url)
+    with engine.begin() as connection:
+        for id_, color, name, manual, auto in products:
+            connection.execute(
+                text(
+                    "INSERT INTO product (id, filament_type, color_rgba, display_name,"
+                    " low_stock_threshold, provisional, created_at, catalog_manual_uuid,"
+                    " catalog_auto_uuid) VALUES (:id, 'PLA', :c, :n, 0, 0, :w, :m, :a)"
+                ),
+                {
+                    "id": id_,
+                    "c": color,
+                    "n": name,
+                    "m": manual,
+                    "a": auto,
+                    "w": "2026-11-24 12:00:00.000000",
+                },
+            )
+    engine.dispose()
+
+
+def _product_names(url: str) -> list[tuple[int, str]]:
+    engine = create_db_engine(url)
+    with engine.connect() as connection:
+        rows = connection.execute(text("SELECT id, display_name FROM product ORDER BY id")).all()
+    engine.dispose()
+    return [(row[0], row[1]) for row in rows]
+
+
+def test_linked_products_with_their_default_name_take_their_catalog_name(
+    tmp_path: Path,
+) -> None:
+    url = f"sqlite:///{tmp_path / 'names.db'}"
+    upgrade(url, "72db02de11e5")
+    long_line = "PLA " + "Very Long Line " * 7
+    engine = create_db_engine(url)
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO catalog_brand VALUES ('b', 'Bambu Lab', '[]')"))
+        for line, name in [("basic", "PLA Basic"), ("long", long_line)]:
+            connection.execute(
+                text(
+                    "INSERT INTO catalog_filament (uuid, brand_uuid, position, name, material,"
+                    " moved_from) VALUES (:u, 'b', 0, :n, 'PLA', '[]')"
+                ),
+                {"u": line, "n": name},
+            )
+        for color, line, name in [
+            ("pink", "basic", "Hot Pink"),
+            ("black", "basic", "Black"),
+            ("sky", "long", "Sky Blue"),
+        ]:
+            connection.execute(
+                text(
+                    "INSERT INTO catalog_variant (uuid, filament_uuid, position, name, color_hex,"
+                    " extra_hexes, gradient, discontinued, moved_from)"
+                    " VALUES (:c, :l, 0, :n, '000000', '[]', 0, 0, '[]')"
+                ),
+                {"c": color, "l": line, "n": name},
+            )
+    engine.dispose()
+    _seed_products(
+        url,
+        [
+            (1, "FF5C8DFF", "PLA Basic #FF5C8D", None, "pink"),  # linked by its tag
+            (2, "FF5C8DFF", "PLA Basic #ff5C8d", "pink", None),  # by hand, hex in mixed case
+            (3, "000000FF", "PLA Basic #000000", "black", "pink"),  # the manual link wins
+            (4, "FF5C8DFF", "My pink", None, "pink"),  # a typed name
+            (5, "FF5C8DFF", "PLA Basic #FF5C8D", None, None),  # no link
+            (6, "FF5C8DFF", "PLA Basic #FF5C8D", "gone", "pink"),  # by hand to a dropped color
+            (7, "FF5C8DFF", "Pink, not #FF5C8E", None, "pink"),  # another color's hex
+            (8, "87CEEBFF", "PLA #87CEEB", None, "sky"),  # a catalog name over 100 characters
+        ],
+    )
+
+    upgrade(url)
+
+    assert _product_names(url) == [
+        (1, "Hot Pink PLA Basic"),
+        (2, "Hot Pink PLA Basic"),
+        (3, "Black PLA Basic"),
+        (4, "My pink"),
+        (5, "PLA Basic #FF5C8D"),
+        (6, "PLA Basic #FF5C8D"),
+        (7, "Pink, not #FF5C8E"),
+        (8, ("Sky Blue " + long_line)[:100]),
+    ]
+
+
+def test_with_no_catalog_synced_the_rename_changes_nothing(tmp_path: Path) -> None:
+    url = f"sqlite:///{tmp_path / 'unsynced.db'}"
+    upgrade(url, "72db02de11e5")
+    _seed_products(
+        url,
+        [
+            (1, "FF5C8DFF", "PLA Basic #FF5C8D", None, "pink"),
+            (2, "FF5C8DFF", "PLA Basic #FF5C8D", "pink", None),
+        ],
+    )
+
+    upgrade(url)
+
+    assert _product_names(url) == [(1, "PLA Basic #FF5C8D"), (2, "PLA Basic #FF5C8D")]
