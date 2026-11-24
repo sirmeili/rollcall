@@ -42,8 +42,8 @@ from filament_tracker.db.types import utcnow
 from filament_tracker.services.bambustudio_codes import ListInvalid, parse_color_codes
 from filament_tracker.services.catalog_download import Copy, DownloadFailed, download
 from filament_tracker.services.catalog_export import ExportInvalid, parse_export
-from filament_tracker.services.naming import name_newly_linked
 from filament_tracker.services.catalog_links import linked_product_ids, update_links
+from filament_tracker.services.naming import name_newly_linked
 
 logger = logging.getLogger(__name__)
 
