@@ -15,16 +15,16 @@ aapt2=$tools/aapt2
 apksigner=$tools/apksigner
 # On Windows (Git Bash) the tools are aapt2.exe and apksigner.bat.
 [[ -e $apksigner ]] || apksigner=$tools/apksigner.bat
-# major.minor.patch, each 0-99 with no leading zero and not all 0, then optionally -rc.N with
+# major.minor.patch, each 0-999 with no leading zero and not all 0, then optionally -rc.N with
 # N from 1 and no leading zero (docs/releasing.md, Versioning). A release candidate
 # (1.2.3-rc.1) shares its final release's version code (ADR-0024).
-part='(0|[1-9][0-9]?)'
+part='(0|[1-9][0-9]{0,2})'
 code=0
 if [[ $version =~ ^$part\.$part\.$part(-rc\.[1-9][0-9]*)?$ ]]; then
-  code=$((BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3]))
+  code=$((BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + BASH_REMATCH[3]))
 fi
 if ((code == 0)); then
-  echo "the version must look like 1.2.3 or 1.2.3-rc.1 (each part 0-99 with no leading zero, not all 0; N from 1 with no leading zero), got: $version" >&2
+  echo "the version must look like 1.2.3 or 1.2.3-rc.1 (each part 0-999 with no leading zero, not all 0; N from 1 with no leading zero), got: $version" >&2
   exit 1
 fi
 
