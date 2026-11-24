@@ -9,7 +9,7 @@ moving and changing holds.
 
 from filament_tracker.print_requests.changing_holds import ChangingHolds
 from filament_tracker.print_requests.gates import Gate
-from filament_tracker.print_requests.moving import Moving
+from filament_tracker.print_requests.moving import Moving, StoredPhoto
 from filament_tracker.print_requests.parts import Clock, Parts
 from filament_tracker.print_requests.read import Tab
 from filament_tracker.print_requests.reading import Reading
@@ -51,6 +51,7 @@ __all__ = [
     "RequestRow",
     "Requester",
     "ShoppingStage",
+    "StoredPhoto",
     "Swatch",
     "Tab",
 ]
