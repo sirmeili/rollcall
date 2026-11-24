@@ -362,3 +362,131 @@ describe("Products page, Catalog color dialog", () => {
     expect(await dialog.findByRole("alert")).toBeInTheDocument();
   });
 });
+
+describe("Products page, staging the catalog name", () => {
+  /** A product from the AMS with its default name, not linked. */
+  const DEFAULT_NAMED = summary({
+    product: product({
+      id: 5,
+      display_name: "PETG HF #008080",
+      filament_type: "PETG",
+      color_rgba: "008080FF",
+      provisional: true,
+      from_ams: true,
+      catalog_link: null,
+    }),
+  });
+
+  /** Picks a color in the product's Catalog color dialog and stages it. */
+  async function pick(name: string, color: RegExp): Promise<void> {
+    const dialog = await openDialog(name);
+    await userEvent.click(await dialog.findByRole("button", { name: color }));
+    await userEvent.click(dialog.getByRole("button", { name: "Save" }));
+  }
+
+  beforeEach(() => {
+    stock.updateProduct.mockResolvedValue(product());
+  });
+
+  it("shows the catalog name for a product with its default name, saved with the link", async () => {
+    stock.getInventory.mockResolvedValue([DEFAULT_NAMED]);
+    render(ProductsPage);
+
+    await pick("PETG HF #008080", /^Black, PETG HF/);
+
+    expect(screen.getByDisplayValue("Black PETG HF")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(stock.updateProduct).toHaveBeenCalledExactlyOnceWith(5, {
+      display_name: "Black PETG HF",
+      catalog_color: "var-petg-black",
+    });
+  });
+
+  it("saves the staged name as edited", async () => {
+    stock.getInventory.mockResolvedValue([DEFAULT_NAMED]);
+    render(ProductsPage);
+
+    await pick("PETG HF #008080", /^Black, PETG HF/);
+    await userEvent.type(screen.getByDisplayValue("Black PETG HF"), " spare");
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(stock.updateProduct).toHaveBeenCalledExactlyOnceWith(5, {
+      display_name: "Black PETG HF spare",
+      catalog_color: "var-petg-black",
+    });
+  });
+
+  it("stages only the link for a product whose name was typed", async () => {
+    render(ProductsPage);
+
+    await pick("Teal PETG", /^Black, PETG HF/);
+
+    expect(screen.getByDisplayValue("Teal PETG")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(stock.updateProduct).toHaveBeenCalledExactlyOnceWith(3, {
+      catalog_color: "var-petg-black",
+    });
+  });
+
+  it("keeps a name typed in the row before the color was picked", async () => {
+    stock.getInventory.mockResolvedValue([DEFAULT_NAMED]);
+    render(ProductsPage);
+
+    const name = await screen.findByDisplayValue("PETG HF #008080");
+    await userEvent.clear(name);
+    await userEvent.type(name, "Spare teal");
+    await pick("PETG HF #008080", /^Black, PETG HF/);
+
+    expect(screen.getByDisplayValue("Spare teal")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(stock.updateProduct).toHaveBeenCalledExactlyOnceWith(5, {
+      display_name: "Spare teal",
+      catalog_color: "var-petg-black",
+    });
+  });
+
+  it("stages only the link for a product that already has one", async () => {
+    const linked = summary({
+      product: product({ ...BY_TAG.product, display_name: "PLA Basic #000000" }),
+    });
+    stock.getInventory.mockResolvedValue([linked]);
+    render(ProductsPage);
+
+    await pick("PLA Basic #000000", /^Jade White, PLA Basic/);
+
+    expect(screen.getByDisplayValue("PLA Basic #000000")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(stock.updateProduct).toHaveBeenCalledExactlyOnceWith(1, { catalog_color: "var-jade" });
+  });
+
+  it("stages the catalog name over a link to a color no longer in the catalog", async () => {
+    const dropped = summary({
+      product: product({ ...DROPPED.product, display_name: "PLA #7FFF00" }),
+    });
+    stock.getInventory.mockResolvedValue([dropped]);
+    render(ProductsPage);
+
+    await pick("PLA #7FFF00", /^Green, PLA Basic/);
+
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(stock.updateProduct).toHaveBeenCalledExactlyOnceWith(4, {
+      display_name: "Green PLA Basic",
+      catalog_color: "var-green",
+    });
+  });
+
+  it("sends no name when a manual link is cleared", async () => {
+    const dropped = summary({
+      product: product({ ...DROPPED.product, display_name: "PLA #7FFF00" }),
+    });
+    stock.getInventory.mockResolvedValue([dropped]);
+    render(ProductsPage);
+
+    const dialog = await openDialog("PLA #7FFF00");
+    await userEvent.click(dialog.getByRole("button", { name: "Clear" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Save" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(stock.updateProduct).toHaveBeenCalledExactlyOnceWith(4, { catalog_color: null });
+  });
+});

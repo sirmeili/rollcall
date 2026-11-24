@@ -4,7 +4,12 @@
   import { getInventory, updateProduct } from "#lib/api/stock.ts";
   import type { ProductSummary } from "#lib/api/types.ts";
   import { session } from "#lib/auth/session.svelte.ts";
-  import { type CatalogEntry, catalogEntries, type LinkPick } from "#lib/catalog-links.ts";
+  import {
+    type CatalogEntry,
+    catalogEntries,
+    type LinkPick,
+    nameForPick,
+  } from "#lib/catalog-links.ts";
   import CatalogColorDialog from "#lib/components/products/CatalogColorDialog.svelte";
   import ProductTable from "#lib/components/products/ProductTable.svelte";
   import { changesFor, type Draft, draftOf, draftProblem, unsavedText } from "#lib/products.ts";
@@ -74,8 +79,16 @@
     opener?.focus();
   }
 
+  // A picked color also stages the product's catalog name while its row still holds its
+  // default name; clearing a link stages no name.
   function stage(change: LinkPick): void {
-    if (openId !== null) drafts[openId].catalog_color = change;
+    if (openProduct) {
+      const draft = drafts[openProduct.id];
+      draft.catalog_color = change;
+      const entry = typeof change === "string" ? byUuid.get(change) : undefined;
+      const name = nameForPick(openProduct, draft.display_name, entry);
+      if (name !== undefined) draft.display_name = name;
+    }
     closeDialog();
   }
 
