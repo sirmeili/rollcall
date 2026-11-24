@@ -11,6 +11,9 @@ export interface Draft {
   /** A staged manual catalog link from the Catalog color dialog: a catalog color's UUID,
    * null to clear the manual link, or undefined for no change. */
   catalog_color?: string | null;
+  /** The catalog name a picked color staged, so a later pick can tell whether the row's
+   * name is still that one or was edited since. */
+  picked_name?: string;
 }
 
 export function draftOf(product: Product): Draft {
