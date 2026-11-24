@@ -30,9 +30,9 @@ The changes since it are `git log --name-only <last tag>..origin/main -- android
 
 ## Versioning
 
-A version is `major.minor.patch`, each part 0 to 99 and not all 0, optionally followed by `-rc.N` for a release candidate, with N from 1 and no leading zero: `1.3.0`, `1.3.0-rc.1`, `1.3.0-rc.12`. The workflow, the Gradle build and `android/scripts/verify-release.sh` refuse anything else, such as `01.3.0`, `1.3.0-rc.01` or `1.3.0-beta`; the dry run refuses it too.
+A version is `major.minor.patch`, each part 0 to 999 and not all 0, optionally followed by `-rc.N` for a release candidate, with N from 1 and no leading zero: `1.3.0`, `1.3.0-rc.1`, `1.3.0-rc.12`. The workflow, the Gradle build and `android/scripts/verify-release.sh` refuse anything else, such as `01.3.0`, `1.3.0-rc.01` or `1.3.0-beta`; the dry run refuses it too.
 
-The app's version name is the full version, which Account and Devices show. Its version code comes from `major.minor.patch` alone (`major·10000 + minor·100 + patch`), so a release candidate shares its final release's code and each installs over the other (ADR-0024).
+The app's version name is the full version, which Account and Devices show. Its version code comes from `major.minor.patch` alone (`major·1000000 + minor·1000 + patch`: `1.3.0` is 1003000). A release candidate therefore shares its final release's code, and each installs over the other. Releases up to `1.2.0` used `major·10000 + minor·100 + patch`, whose codes are all lower, so phones on them still update in place (ADR-0024).
 
 Pick the next version from the last release:
 
@@ -108,7 +108,7 @@ The workflow rebuilds the app at the final version from that commit, because the
 
 | Tag | The workflow says | What it means | What to do |
 | --- | --- | --- | --- |
-| Any, and the dry run's version | The version `<version>` must look like 1.2.3, or 1.2.3-rc.1 for a release candidate, each part 0 to 99 with no leading zero and not all 0, and N from 1 with no leading zero (Versioning) | The version isn't `major.minor.patch`, each part 0 to 99 and not all 0, optionally followed by `-rc.N` with N from 1 and no leading zero, such as `app-v1.3.0-rc.01` or `app-v1.3.0-beta`. | Delete the tag and tag the release again with a valid version. |
+| Any, and the dry run's version | The version `<version>` must look like 1.2.3, or 1.2.3-rc.1 for a release candidate, each part 0 to 999 with no leading zero and not all 0, and N from 1 with no leading zero (Versioning) | The version isn't `major.minor.patch`, each part 0 to 999 and not all 0, optionally followed by `-rc.N` with N from 1 and no leading zero, such as `app-v1.3.0-rc.01` or `app-v1.3.0-beta`. | Delete the tag and tag the release again with a valid version. |
 | Any | The tagged commit `<commit>` is not in main (Release candidate) | The tag is on a commit that isn't in `main`, such as a branch's. | Delete the tag and tag a commit in `main`. |
 | Release candidate | `app-v<version>` is already released, so it can't have another release candidate (Versioning, Release candidate) | The final tag for this version exists. | Delete the tag, pick the next version and tag its first release candidate. |
 | Final | No release candidate for `<version>` (Release candidate) | No `app-v<version>-rc.N` tag exists. | Delete the tag, then tag and test `app-v<version>-rc.1` first. |
