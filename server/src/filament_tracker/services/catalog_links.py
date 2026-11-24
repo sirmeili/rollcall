@@ -294,7 +294,10 @@ def effective_uuid(product: Product, index: CatalogIndex) -> str | None:
 def effective_color(session: Session, product: Product) -> IndexedColor | None:
     """The catalog color a product is linked to, if it is in the catalog."""
     index = _session_index(session)
-    return index.colors.get(effective_uuid(product, index) or "")
+    uuid = effective_uuid(product, index)
+    if uuid:
+        return index.colors[uuid]
+    return None
 
 
 def linked_product_ids(session: Session) -> set[int]:
