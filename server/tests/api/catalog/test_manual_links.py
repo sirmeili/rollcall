@@ -7,7 +7,7 @@ import pytest
 from api_helpers import CSRF, admin, scan, signed_in
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from ofdb_fake import FakeSource, changed_export, gz, ok, refresh, variant
+from ofdb_fake import FakeSource, changed_export, export, gz, ok, refresh, variant
 
 from filament_tracker.decoder.synthetic import SyntheticTag
 from filament_tracker.domain.enums import Role
@@ -259,3 +259,45 @@ def test_a_manual_link_alone_leaves_the_name(client: TestClient, editor: TestCli
     product = editor.get(f"/api/v1/products/{made}").json()["product"]
     assert product["display_name"] == "PLA #FFFFFF"
     assert product["catalog_link"]["uuid"] == "var-jade"
+
+
+def _name(client: TestClient, product_id: int) -> str:
+    return client.get(f"/api/v1/products/{product_id}", headers=admin()).json()["product"][
+        "display_name"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("typed", "after"), [(None, "Jade White PLA Basic"), ("My white", "My white")]
+)
+def test_a_color_that_leaves_the_catalog_and_comes_back_renames_only_a_default_name(
+    client: TestClient, editor: TestClient, ofdb: FakeSource, typed: str | None, after: str
+) -> None:
+    made = _made_by_hand(client, editor)
+    _link(editor, made, "var-jade")
+    ofdb.serve(ok(gz(changed_export()), etag='"v2"'))  # Jade White is gone
+    refresh(client)
+    if typed is not None:
+        editor.patch(f"/api/v1/products/{made}", json={"display_name": typed}, headers=CSRF)
+    ofdb.serve(ok(gz(export()), etag='"v3"'))  # and back
+
+    refresh(client)
+
+    assert _name(client, made) == after
+
+
+def test_a_change_of_an_existing_link_renames_nothing(
+    client: TestClient, editor: TestClient, ofdb: FakeSource
+) -> None:
+    made = _made_by_hand(client, editor)
+    _link(editor, made, "var-jade")
+    merged = changed_export()
+    merged["variants"].append(
+        variant("var-white", "White", "#FFFFFF", "id-fil-pla-basic", moved_from=["var-jade"])
+    )
+    ofdb.serve(ok(gz(merged), etag='"v2"'))
+
+    refresh(client)
+
+    assert _read(client, made)["uuid"] == "var-white"
+    assert _name(client, made) == "PLA #FFFFFF"
