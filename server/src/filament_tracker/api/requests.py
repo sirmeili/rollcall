@@ -10,7 +10,6 @@ A Print Requests refusal answers, from every request route, with its kind's stat
 """
 
 from collections.abc import Callable
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -27,12 +26,12 @@ from filament_tracker.api.request_schemas import (
     RequestRowOut,
     SubmittedCountOut,
 )
-from filament_tracker.api.request_views import model_files, request_out, row_out, stored_photos
+from filament_tracker.api.request_views import request_out, row_out, stored_photos
 from filament_tracker.auth import AnyPrincipal, DbSession, Principal
 from filament_tracker.db.request_models import PrintRequest, RequestPhoto
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.print_requests import filament, notifications, photos, service
+from filament_tracker.print_requests import filament, notifications, photos
 from filament_tracker.print_requests.access import may_see, movers
 from filament_tracker.print_requests.choices import ChoiceInput
 from filament_tracker.print_requests.interface import Gate, Kind, PrintRequests, Refused, Tab
@@ -93,10 +92,6 @@ def find_request(session: Session, principal: Principal, request_id: int) -> Pri
     return found
 
 
-def _today(http: Request) -> date:
-    return http.app.state.print_requests.clock.today()
-
-
 def _fields(body: RequestIn) -> RequestFields:
     return RequestFields(
         title=body.title,
@@ -133,18 +128,8 @@ def submitted_count(caller: CountingCaller, requests: Requests) -> SubmittedCoun
 
 
 @router.post("", response_model=RequestOut, status_code=status.HTTP_201_CREATED)
-def submit(
-    body: RequestIn,
-    caller: SubmittingCaller,
-    requests: Requests,
-    session: DbSession,
-    http: Request,
-) -> RequestOut:
-    created = service.submit(session, caller.user, _fields(body), today=_today(http), now=utcnow())
-    session.commit()
-    notify_after_commit(http, session, lambda: notifications.new_request(created))
-    session.refresh(created)
-    return request_out(requests.detail(caller, created.id))
+def submit(body: RequestIn, caller: SubmittingCaller, requests: Requests) -> RequestOut:
+    return request_out(requests.submit(caller, _fields(body)))
 
 
 @router.get("/{request_id}", response_model=RequestOut)
@@ -154,43 +139,17 @@ def read(request_id: int, caller: RequestsCaller, requests: Requests) -> Request
 
 @router.patch("/{request_id}", response_model=RequestOut)
 def edit(
-    request_id: int,
-    body: RequestEdit,
-    caller: EditingCaller,
-    requests: Requests,
-    session: DbSession,
-    http: Request,
+    request_id: int, body: RequestEdit, caller: EditingCaller, requests: Requests
 ) -> RequestOut:
     """The requester edits every field again, while the request is Submitted."""
-    found = find_request(session, caller, request_id)
-    saved = service.edit(
-        session,
-        found,
-        caller.user,
-        _fields(body),
-        today=_today(http),
-        now=utcnow(),
-        file_on_disk=model_files(http).exists(found.file_stored_name),
-    )
-    session.commit()
-    model_files(http).delete(saved.old_file)
-    session.refresh(found)
-    return request_out(requests.detail(caller, found.id))
+    return request_out(requests.edit(caller, request_id, _fields(body)))
 
 
 @router.post("/{request_id}/priority", response_model=RequestOut)
 def change_priority(
-    request_id: int,
-    body: PriorityIn,
-    caller: PriorityCaller,
-    requests: Requests,
-    session: DbSession,
+    request_id: int, body: PriorityIn, caller: PriorityCaller, requests: Requests
 ) -> RequestOut:
-    found = find_request(session, caller, request_id)
-    service.change_priority(found, caller.user, body.priority, now=utcnow())
-    session.commit()
-    session.refresh(found)
-    return request_out(requests.detail(caller, found.id))
+    return request_out(requests.change_priority(caller, request_id, body.priority))
 
 
 @router.post("/{request_id}/moves", response_model=RequestOut)

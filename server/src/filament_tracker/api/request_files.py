@@ -15,11 +15,10 @@ from starlette.requests import ClientDisconnect
 
 from filament_tracker.api.request_schemas import UploadOut
 from filament_tracker.api.request_views import model_files
-from filament_tracker.api.requests import RequestsCaller, SubmittingCaller, find_request
+from filament_tracker.api.requests import Requests, RequestsCaller, SubmittingCaller
 from filament_tracker.auth import DbSession
 from filament_tracker.db.request_models import FILE_NAME_MAX
 from filament_tracker.db.types import utcnow
-from filament_tracker.print_requests.refused import Refused
 
 UPLOAD_PATH = "/requests/uploads"
 
@@ -53,18 +52,15 @@ async def upload(
 
 @router.get("/requests/{request_id}/file")
 def download(
-    request_id: int, caller: RequestsCaller, session: DbSession, http: Request
+    request_id: int, caller: RequestsCaller, requests: Requests, http: Request
 ) -> FileResponse:
     """The request's model file, for its requester, Editors and Admins."""
-    found = find_request(session, caller, request_id)
-    files = model_files(http)
-    if found.file_stored_name is None or not files.exists(found.file_stored_name):
-        raise Refused.not_found("this request has no file")
+    found = requests.model_file(caller, request_id)
     return FileResponse(
-        files.path(found.file_stored_name),
+        model_files(http).path(found.stored_name),
         media_type="application/octet-stream",
         headers={
-            "Content-Disposition": content_disposition(found.file_name or "model"),
+            "Content-Disposition": content_disposition(found.name),
             "X-Content-Type-Options": "nosniff",
         },
     )
