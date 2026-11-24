@@ -82,7 +82,7 @@ A phone added in Obtainium before the flavors has the filter `^rollcall-.*\.apk$
 
 For either tag, the **App release** workflow (`.github/workflows/app-release.yml`) builds the web app and both flavors of the Android app at that version (version code `major·10000 + minor·100 + patch`, shared by a release candidate and its final release), runs the Kotlin tests, signs them with the release key, checks each with `scripts/verify-release.sh` (app ID, version, a v2 signature and, when set, the expected certificate) and that both have the same certificate, and attaches `rollcall-<version>-google.apk` and `rollcall-<version>-foss.apk` to a GitHub Release named **RollCall app <version>**, with their SHA-256s, the certificate's SHA-256 and the pull requests merged since the last final release.
 
-A dry run (**Run workflow** on the Actions page, see step 5 below) does the same with any version and publishes nothing.
+A dry run (**Run workflow** on the Actions page, see step 5 below) does the same with a version you give, such as `1.2.3` or `1.2.3-rc.1`, and publishes nothing. It refuses a malformed version ([docs/releasing.md, Versioning](../docs/releasing.md#versioning)), but skips the release candidate and record rules.
 
 Make a release when a merged change affects the phone: the app holds its own copy of the web app, so a web change reaches the phones only in a new release. CI also builds a test release on every pull request that changes `android/` or `web/`, signed with a key made for that run, so a broken release setup shows up before a tag.
 

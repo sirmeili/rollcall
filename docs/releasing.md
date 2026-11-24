@@ -30,7 +30,7 @@ The changes since it are `git log --name-only <last tag>..origin/main -- android
 
 ## Versioning
 
-A version is `major.minor.patch`, each part 0 to 99 and not all 0, optionally followed by `-rc.N` for a release candidate, with N from 1 and no leading zero: `1.3.0`, `1.3.0-rc.1`, `1.3.0-rc.12`. The workflow, the Gradle build and `android/scripts/verify-release.sh` refuse anything else, such as `1.3.0-rc.01` or `1.3.0-beta`.
+A version is `major.minor.patch`, each part 0 to 99 and not all 0, optionally followed by `-rc.N` for a release candidate, with N from 1 and no leading zero: `1.3.0`, `1.3.0-rc.1`, `1.3.0-rc.12`. The workflow, the Gradle build and `android/scripts/verify-release.sh` refuse anything else, such as `01.3.0`, `1.3.0-rc.01` or `1.3.0-beta`; the dry run refuses it too.
 
 The app's version name is the full version, which Account and Devices show. Its version code comes from `major.minor.patch` alone (`major·10000 + minor·100 + patch`), so a release candidate shares its final release's code and each installs over the other (ADR-0024).
 
@@ -52,7 +52,7 @@ git tag app-v1.3.0-rc.1
 git push origin app-v1.3.0-rc.1
 ```
 
-The **App release** workflow builds both flavors at that version, signs and checks them, and publishes a GitHub prerelease titled **RollCall app 1.3.0-rc.1**. It refuses a malformed version ([Versioning](#versioning)), a commit not in `main`, and a release candidate for a version whose final tag already exists: pick the next version instead.
+The **App release** workflow builds both flavors at that version, signs and checks them, and publishes a GitHub prerelease titled **RollCall app 1.3.0-rc.1**. It refuses a malformed version ([Versioning](#versioning)), a commit not in `main`, and a release candidate for a version whose final tag already exists: pick the next version instead. [Final release](#final-release) lists every refusal.
 
 Then, on the record:
 
@@ -85,7 +85,7 @@ The phone checklist is in [android/README.md, Checklist](../android/README.md#ch
 
 - A release runs the Always steps, plus every section its changes since the last release trigger, unless a full-run trigger fires.
 - A changed file no section names makes it a full run, and the record lists the file, so the checklist can name it next time.
-- Each step in scope goes in the record as `- [ ] <step id>: <step text> (<flavor>)`, its flavor from the step's mark.
+- Each step in scope goes in the record as `- [ ] <step id>: <step text> (<flavors>)`, its flavors from the step's mark.
 - Results are posted per release candidate, as `Result:` lines on the record. A step marked `[both]` needs a result for each flavor.
 
 ## Waivers
@@ -104,15 +104,17 @@ git tag app-v1.3.0 'app-v1.3.0-rc.2^{commit}'
 git push origin app-v1.3.0
 ```
 
-The workflow rebuilds the app at the final version from that commit, because the version name is compiled in. Before building, it checks the tag and refuses, saying what to do:
+The workflow rebuilds the app at the final version from that commit, because the version name is compiled in. Before building, it checks the tag and refuses, saying what to do and naming a section of this page. Its refusals, for release candidates and final releases alike:
 
-| Refusal | What it means | What to do |
-| --- | --- | --- |
-| The version is malformed | The tag isn't `app-v<major>.<minor>.<patch>` ([Versioning](#versioning)). | Delete the tag and push a correct one. |
-| The commit isn't in `main` | The tag is on a branch's commit. | Delete the tag and tag a release candidate's commit in `main`. |
-| No release candidate for the version | No `app-v<version>-rc.*` tag exists. | Delete the tag and publish a [release candidate](#release-candidate) first. |
-| Not on the newest release candidate's commit | The final tag is on another commit, such as `main`'s tip; the message names the right commit. | Delete the tag and tag the newest release candidate's commit, as above. |
-| No signed-off record, or more than one | There isn't exactly one open issue titled exactly `App release <version>` with both `release-check` and `release-approved`. | Finish the checklist and sign off, or close or relabel the extra record, then delete the tag and push it again. |
+| Tag | The workflow says | What it means | What to do |
+| --- | --- | --- | --- |
+| Any, and the dry run's version | The version `<version>` must look like 1.2.3, or 1.2.3-rc.1 for a release candidate, each part 0 to 99 with no leading zero and not all 0, and N from 1 with no leading zero (Versioning) | The version isn't `major.minor.patch`, each part 0 to 99 and not all 0, optionally followed by `-rc.N` with N from 1 and no leading zero, such as `app-v1.3.0-rc.01` or `app-v1.3.0-beta`. | Delete the tag and tag the release again with a valid version. |
+| Any | The tagged commit `<commit>` is not in main (Release candidate) | The tag is on a commit that isn't in `main`, such as a branch's. | Delete the tag and tag a commit in `main`. |
+| Release candidate | `app-v<version>` is already released, so it can't have another release candidate (Versioning, Release candidate) | The final tag for this version exists. | Delete the tag, pick the next version and tag its first release candidate. |
+| Final | No release candidate for `<version>` (Release candidate) | No `app-v<version>-rc.N` tag exists. | Delete the tag, then tag and test `app-v<version>-rc.1` first. |
+| Final | `app-v<version>` is on `<commit>`, not on the newest release candidate (Final release) | The final tag is on another commit, such as `main`'s tip; the message names the newest release candidate and its commit. | Delete the tag and tag the commit the message names, as above. |
+| Final | No open release-check issue `App release <version>` with `release-approved` (Final release) | No open issue titled exactly `App release <version>` has both `release-check` and `release-approved`. | Finish the checklist and sign off, then delete the tag and push it again. |
+| Final | `<n>` open release-check issues are titled `App release <version>` with `release-approved` (Final release) | More than one open record matches, so the gate can't tell which is the release's. | Close all but the release's record, then delete the tag and push it again. |
 
 To delete a refused tag before pushing it again:
 
