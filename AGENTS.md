@@ -46,6 +46,10 @@ Keep `README.md` accurate. A change to what it describes (status, components, se
 - Working in `web/`: its commands, including the checks CI runs and the inner-loop test command, are in `web/README.md`.
 - Working in `android/`: its commands, including the checks CI runs and the inner-loop test command, are in `android/README.md`.
 
+## Releases
+
+Releasing the app, or running its phone checklist for a release: follow `docs/releasing.md`.
+
 ## Testing
 
 Narrow while working, complete before the PR, with evidence both times.
