@@ -188,7 +188,9 @@ jobs:
           export ANDROID_KEYSTORE_PASSWORD="$(openssl rand -hex 16)"
           keytool -genkeypair -keystore "$ANDROID_KEYSTORE_FILE" -storetype PKCS12             -alias rollcall -keyalg RSA -keysize 2048 -validity 1 -dname "CN=CI test"             -storepass "$ANDROID_KEYSTORE_PASSWORD"
           aapt2=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)/aapt2
-          version_code() { "$aapt2" dump badging "$1" | head -n 1 | grep -oE "versionCode='[0-9]+'"; }
+          # Empty when there is none, so the check below reports it. sed reads all of aapt2's
+          # output, so aapt2 never writes to a closed pipe.
+          version_code() { "$aapt2" dump badging "$1" | sed -nE "1s/.*versionCode='([0-9]+)'.*/\1/p"; }
           ./gradlew --no-daemon assembleRelease -PappVersion=1.2.3
           for flavor in google foss; do
             apk="app/build/outputs/apk/$flavor/release/app-$flavor-release.apk"
@@ -206,15 +208,17 @@ jobs:
               exit 1
             fi
           done
-          if ./gradlew --no-daemon help -PappVersion=1.2.3-rc.01 > "$RUNNER_TEMP/malformed.txt" 2>&1; then
-            echo "Gradle accepted the malformed version 1.2.3-rc.01" >&2
-            exit 1
-          fi
-          grep -q "appVersion must look like" "$RUNNER_TEMP/malformed.txt" || {
-            echo "Gradle failed on 1.2.3-rc.01, but not by refusing the version:" >&2
-            cat "$RUNNER_TEMP/malformed.txt" >&2
-            exit 1
-          }
+          for malformed in 1.2.3-rc.01 01.2.3; do
+            if ./gradlew --no-daemon help -PappVersion="$malformed" > "$RUNNER_TEMP/malformed.txt" 2>&1; then
+              echo "Gradle accepted the malformed version $malformed" >&2
+              exit 1
+            fi
+            grep -q "appVersion must look like" "$RUNNER_TEMP/malformed.txt" || {
+              echo "Gradle failed on $malformed, but not by refusing the version:" >&2
+              cat "$RUNNER_TEMP/malformed.txt" >&2
+              exit 1
+            }
+          done
 
   # The check the main ruleset requires. It passes when every job above passed or was skipped
   # because its area did not change, so adding a job means adding it here, not to the ruleset.
