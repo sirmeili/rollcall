@@ -118,7 +118,7 @@ The server keeps a local **catalog** of Bambu Lab's colors, copied from the Open
 - **Bambu Lab only**: other brands in the export are dropped.
 - **Failures keep the last copy**: a network error, an incomplete download, bad JSON, a changed shape or a missing field is recorded for that source with a short reason, and its copy stays as it was. Each source succeeds or fails on its own. Failures show only on the Settings page's Catalog card and, after 14 days of OFDB failures, the Catalog page; never in Review or Home Assistant.
 - **One at a time**: Refresh now while a sync is running is refused, and nothing new starts.
-- **Inventory untouched**: catalog links are the only product data a sync changes; it never changes other product fields, spools, tags or events, and makes no Review item or Home Assistant event.
+- **Inventory untouched**: catalog links, and the names of products that gain one while they still have their default name, are the only product data a sync changes; it never changes other product fields, spools, tags or events, and makes no Review item or Home Assistant event.
 
 ## Behind a reverse proxy
 

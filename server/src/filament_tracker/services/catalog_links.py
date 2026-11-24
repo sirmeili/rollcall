@@ -291,6 +291,33 @@ def effective_uuid(product: Product, index: CatalogIndex) -> str | None:
     return uuid if uuid in index.colors else None
 
 
+def effective_color(session: Session, product: Product) -> IndexedColor | None:
+    """The catalog color a product is linked to, if it is in the catalog."""
+    index = _session_index(session)
+    uuid = effective_uuid(product, index)
+    if uuid:
+        return index.colors[uuid]
+    return None
+
+
+def linked_product_ids(session: Session) -> set[int]:
+    """The IDs of the products with an effective link."""
+    index = load_index(session)
+    return {p.id for p in session.scalars(select(Product)) if effective_uuid(p, index)}
+
+
+def newly_linked(session: Session, linked_before: set[int]) -> list[tuple[Product, IndexedColor]]:
+    """The products with an effective link that are not in `linked_before` (the IDs of those
+    that had one), each with its catalog color."""
+    index = _session_index(session)
+    found = []
+    for product in session.scalars(select(Product)):
+        uuid = effective_uuid(product, index)
+        if uuid and product.id not in linked_before:
+            found.append((product, index.colors[uuid]))
+    return found
+
+
 def catalog_link(product: Product) -> CatalogLink | None:
     """The product's link as its reads show it, or None when it has none."""
     session = object_session(product)

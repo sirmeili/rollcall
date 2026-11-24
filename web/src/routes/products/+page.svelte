@@ -4,7 +4,12 @@
   import { getInventory, updateProduct } from "#lib/api/stock.ts";
   import type { ProductSummary } from "#lib/api/types.ts";
   import { session } from "#lib/auth/session.svelte.ts";
-  import { type CatalogEntry, catalogEntries, type LinkPick } from "#lib/catalog-links.ts";
+  import {
+    type CatalogEntry,
+    catalogEntries,
+    type LinkPick,
+    stagePick,
+  } from "#lib/catalog-links.ts";
   import CatalogColorDialog from "#lib/components/products/CatalogColorDialog.svelte";
   import ProductTable from "#lib/components/products/ProductTable.svelte";
   import { changesFor, type Draft, draftOf, draftProblem, unsavedText } from "#lib/products.ts";
@@ -75,7 +80,10 @@
   }
 
   function stage(change: LinkPick): void {
-    if (openId !== null) drafts[openId].catalog_color = change;
+    if (openProduct) {
+      const entry = typeof change === "string" ? byUuid.get(change) : undefined;
+      stagePick(openProduct, drafts[openProduct.id], change, entry);
+    }
     closeDialog();
   }
 

@@ -2,20 +2,27 @@
 BambuStudio's list, whose Bambu code finds its catalog color. Worked out after every sync
 and when a scan creates a product or fills in a provisional one."""
 
+from dataclasses import replace
+from datetime import UTC, datetime
 from typing import Any
 
+import pytest
 from api_helpers import admin, scan
 from bambustudio_fake import body, color_codes, entry
 from fastapi.testclient import TestClient
 from ofdb_fake import FakeSource, export, gz, ok, refresh, status
 from sqlalchemy.orm import Session
 
-from filament_tracker.db.models import Product
+from filament_tracker.db.models import Printer, Product
 from filament_tracker.decoder.synthetic import SyntheticTag
+from filament_tracker.printer.report import TrayReport
+from filament_tracker.services.ams import ingest
 
 PRODUCTS = "/api/v1/products"
 # PLA Basic Black as BambuStudio lists it: GFA00 and K0.
 BLACK = SyntheticTag(variant_id="A00-K0")
+TRAY = "A1B2C3D4E5F60718293A4B5C6D7E8F90"
+T0 = datetime(2026, 11, 1, 9, 0, tzinfo=UTC)
 
 FROM_TAG = {
     "uuid": "var-black",
@@ -206,3 +213,116 @@ def _size(uuid: str, variant_id: str, code: str) -> dict[str, Any]:
         "article_number": code,
         "discontinued": False,
     }
+
+
+# --- Catalog names -----------------------------------------------------------------------
+
+
+def _names(client: TestClient) -> list[str]:
+    return [p["display_name"] for p in client.get(PRODUCTS, headers=admin()).json()]
+
+
+def test_a_scan_that_creates_and_links_a_product_gives_it_the_catalog_name(
+    client: TestClient, token: str
+) -> None:
+    refresh(client)
+
+    result = scan(client, token, BLACK, "received")
+
+    assert result["product"]["display_name"] == "Black PLA Basic"
+    assert _names(client) == ["Black PLA Basic"]
+
+
+def test_a_scan_that_fills_in_an_ams_made_product_gives_it_the_catalog_name(
+    client: TestClient, token: str, db: Session
+) -> None:
+    refresh(client)
+    # The AMS reads a slightly different black from the tag's, and names the product after it.
+    printer = Printer(name="P1S", serial="01P00A000000001", host="192.168.1.40")
+    db.add(printer)
+    ingest(db, printer, [TrayReport(0, 0, TRAY, "GFA00", "PLA", "PLA Basic", "0A0B0CFF", 60)], T0)
+    db.commit()
+    assert _names(client) == ["PLA Basic #0A0B0C"]
+
+    result = scan(client, token, replace(BLACK, tray_uid=bytes.fromhex(TRAY)), "opened")
+
+    assert result["product"]["display_name"] == "Black PLA Basic"
+    assert _names(client) == ["Black PLA Basic"]
+
+
+def _made_by_hand(client: TestClient, name: str, color: str) -> None:
+    """A product added by hand, with a spool waiting for its first scan."""
+    made = client.post(
+        PRODUCTS,
+        json={"display_name": name, "filament_type": "PLA", "color_rgba": color},
+        headers=admin(),
+    ).json()
+    client.post(
+        "/api/v1/spools", json={"product_id": made["id"]}, headers=admin()
+    ).raise_for_status()
+
+
+# The same examples as the web's default-name tests (web/src/lib/product-names.test.ts): keep
+# the two in step. The web's trailing-space example can't be typed: names are stripped.
+@pytest.mark.parametrize(
+    ("name", "color", "after"),
+    [
+        ("PLA Basic #FF5C8D", "FF5C8DFF", "Black PLA Basic"),
+        ("PLA #FFFFFF", "FFFFFFFF", "Black PLA Basic"),
+        ("PLA Basic #ff5c8d", "FF5C8DFF", "Black PLA Basic"),
+        ("PLA Basic #Ff5C8d", "ff5c8dff", "Black PLA Basic"),
+        ("My own name #FF5C8D", "FF5C8DFF", "Black PLA Basic"),
+        ("Hot Pink PLA Basic", "FF5C8DFF", "Hot Pink PLA Basic"),
+        ("PLA Basic #FF5C8E", "FF5C8DFF", "PLA Basic #FF5C8E"),
+        ("PLA Basic #FF5C8", "FF5C8DFF", "PLA Basic #FF5C8"),
+        ("PLA Basic#FF5C8D", "FF5C8DFF", "PLA Basic#FF5C8D"),
+        ("PLA Basic #FF5C8DFF", "FF5C8DFF", "PLA Basic #FF5C8DFF"),
+        ("PLA Basic #FF5C8D (spare)", "FF5C8DFF", "PLA Basic #FF5C8D (spare)"),
+        ("#FF5C8D", "FF5C8DFF", "#FF5C8D"),
+    ],
+)
+def test_a_scan_renames_only_a_product_with_its_default_name(
+    client: TestClient, token: str, name: str, color: str, after: str
+) -> None:
+    refresh(client)
+    _made_by_hand(client, name, color)
+
+    # The tag reads the product's color, so the scan fills in the product made by hand.
+    result = scan(client, token, replace(BLACK, color_rgba=color.upper()), "received")
+
+    assert result["product"]["display_name"] == after
+    assert _names(client) == [after]
+
+
+def test_a_sync_that_links_a_product_with_its_default_name_renames_it(
+    client: TestClient, token: str
+) -> None:
+    scan(client, token, BLACK, "received")
+    assert _names(client) == ["PLA Basic #000000"]
+
+    refresh(client)
+
+    assert _names(client) == ["Black PLA Basic"]
+
+
+def test_a_sync_that_links_a_product_with_a_typed_name_keeps_it(
+    client: TestClient, token: str
+) -> None:
+    made = scan(client, token, BLACK, "received")["product"]["id"]
+    client.patch(
+        f"{PRODUCTS}/{made}", json={"display_name": "My black"}, headers=admin()
+    ).raise_for_status()
+
+    refresh(client)
+
+    assert links(client) == {"My black": FROM_TAG}
+
+
+def test_a_lookup_of_a_tag_not_in_the_inventory_shows_the_default_name(
+    client: TestClient, token: str
+) -> None:
+    refresh(client)
+
+    result = scan(client, token, BLACK, "lookup")
+
+    assert result["product"]["display_name"] == "PLA Basic #000000"

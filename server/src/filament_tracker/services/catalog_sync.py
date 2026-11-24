@@ -8,9 +8,11 @@ transaction. Any failure (network, an incomplete download, bad JSON, missing fie
 recorded for that source with a short reason and leaves its copy as it was; neither
 source's failure stops the other.
 
-Every run ends by working out catalog links again, whatever each source's result: the only
-product data a sync writes. Only one run happens at a time: a second one asked for meanwhile
-raises SyncBusy instead of starting. A run writes nothing to spools, tags or events.
+Every run ends by working out catalog links again, whatever each source's result, then gives
+each product that gained an effective link, and still has its default name, its catalog
+name: the only product data a sync writes. Only one run happens at a time: a second one
+asked for meanwhile raises SyncBusy instead of starting. A run writes nothing to spools,
+tags or events.
 """
 
 import logging
@@ -40,7 +42,8 @@ from filament_tracker.db.types import utcnow
 from filament_tracker.services.bambustudio_codes import ListInvalid, parse_color_codes
 from filament_tracker.services.catalog_download import Copy, DownloadFailed, download
 from filament_tracker.services.catalog_export import ExportInvalid, parse_export
-from filament_tracker.services.catalog_links import update_links
+from filament_tracker.services.catalog_links import linked_product_ids, update_links
+from filament_tracker.services.naming import name_newly_linked
 
 logger = logging.getLogger(__name__)
 
@@ -161,9 +164,12 @@ class CatalogSyncer:
         if not self._running.acquire(blocking=False):
             raise SyncBusy
         try:
+            # Noted before either source replaces its rows, which may drop or bring back colors.
+            with self._sessions() as session:
+                linked_before = linked_product_ids(session)
             for source in _SOURCES:
                 self._sync(source)
-            self._update_links()
+            self._update_links(linked_before)
         finally:
             self._running.release()
         return self.status()
@@ -182,11 +188,13 @@ class CatalogSyncer:
                 bambustudio=_status(session, CatalogSource.BAMBUSTUDIO),
             )
 
-    def _update_links(self) -> None:
-        """Work out catalog links again, whatever each source's result."""
+    def _update_links(self, linked_before: set[int]) -> None:
+        """Work out catalog links again, whatever each source's result, and name the products
+        that gained a link after their catalog color."""
         try:
             with self._sessions() as session, session.begin():
                 update_links(session)
+                name_newly_linked(session, linked_before)
         except SQLAlchemyError:
             logger.exception("catalog links could not be updated")
 

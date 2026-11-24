@@ -109,6 +109,9 @@ What makes two spools the same product: the material ID, variant ID and color re
 **Provisional product**:
 A product not yet identified from a tag: added by hand, first seen by the AMS, or made from a catalog color put on the shopping list. The first scan of its tag, if any, fills it in.
 
+**Default name**:
+The name a product is given when first seen on a tag or in the AMS: its material and its color, such as PLA Basic #FF0000. A name a person typed is not one.
+
 **Placeholder**:
 A spool with no tray UID, added by hand. The first scan of its product, if any, links it.
 
@@ -182,6 +185,9 @@ _Avoid_: Filament on its own
 **Catalog color**:
 One color of a filament line, whether owned or not.
 _Avoid_: Variant (that word is for the tag's variant ID)
+
+**Catalog name**:
+A catalog color's name followed by its filament line's, such as Hot Pink PLA Basic. A product with its default name takes it when linked.
 
 **Catalog link**:
 A product's tie to its catalog color. It is automatic when made from the product's tag IDs, or manual when set by a person, and a manual one is never replaced automatically. It stays in place whatever the product's stock.

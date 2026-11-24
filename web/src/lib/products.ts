@@ -2,6 +2,7 @@
 
 import type { ProductChanges } from "#lib/api/stock.ts";
 import type { Product, ProductSummary } from "#lib/api/types.ts";
+import { NAME_LENGTH } from "#lib/product-names.ts";
 
 /** Form values, as typed. Number inputs bind to numbers, or null when cleared. */
 export interface Draft {
@@ -11,6 +12,9 @@ export interface Draft {
   /** A staged manual catalog link from the Catalog color dialog: a catalog color's UUID,
    * null to clear the manual link, or undefined for no change. */
   catalog_color?: string | null;
+  /** The catalog name a picked color staged, so a later pick can tell whether the row's
+   * name is still that one or was edited since. */
+  picked_name?: string;
 }
 
 export function draftOf(product: Product): Draft {
@@ -29,7 +33,7 @@ function wholeIn(value: number | null, max: number): value is number {
 export function draftProblem(draft: Draft): string | null {
   const name = draft.display_name.trim();
   if (!name) return "Enter a name.";
-  if (name.length > 100) return "Names are at most 100 characters.";
+  if (name.length > NAME_LENGTH) return `Names are at most ${NAME_LENGTH} characters.`;
   if (!wholeIn(draft.low_stock_threshold, 1000)) return "Low at: a whole number, 0 to 1000.";
   if (!wholeIn(draft.nearly_out_pct, 100)) return "Nearly out: a whole number, 0 to 100.";
   return null;

@@ -2,9 +2,11 @@
  * color dialog's search and staged change. */
 
 import type { Catalog, CatalogColor } from "#lib/api/catalog.ts";
-import type { CatalogLink } from "#lib/api/types.ts";
+import type { CatalogLink, Product } from "#lib/api/types.ts";
 import { howText } from "#lib/catalog.ts";
 import { longDate } from "#lib/format.ts";
+import { catalogName, isDefaultName } from "#lib/product-names.ts";
+import type { Draft } from "#lib/products.ts";
 
 /** A catalog color with its filament line, as the dialog lists it. */
 export interface CatalogEntry {
@@ -100,6 +102,37 @@ export function searchEntries(
 /** A staged change to a product's manual link: a catalog color's UUID sets one, null
  * clears it, undefined leaves it. */
 export type LinkPick = string | null | undefined;
+
+/** The name staged with a picked color: its catalog name, when the product has no effective
+ * link and the name in its row (staged or saved) is still its default name. Otherwise
+ * undefined, and the row's name is left as it is. */
+function nameForPick(
+  product: Product,
+  rowName: string,
+  entry: CatalogEntry | undefined,
+): string | undefined {
+  if (!entry || product.catalog_link?.in_catalog) return undefined;
+  if (!isDefaultName(rowName.trim(), product.color_rgba)) return undefined;
+  return catalogName(entry.color.name, entry.line);
+}
+
+/** Stage a pick from the Catalog color dialog on a row's draft, with the name it brings
+ * (see nameForPick). A name a pick staged, and not edited since, follows later picks:
+ * another color replaces it with that color's catalog name, and clearing the link puts the
+ * saved name back. A name typed or edited in the row is never touched. */
+export function stagePick(
+  product: Product,
+  draft: Draft,
+  pick: LinkPick,
+  entry: CatalogEntry | undefined,
+): void {
+  draft.catalog_color = pick;
+  if (draft.picked_name !== undefined && draft.display_name === draft.picked_name) {
+    draft.display_name = product.display_name;
+  }
+  draft.picked_name = nameForPick(product, draft.display_name, entry);
+  if (draft.picked_name !== undefined) draft.display_name = draft.picked_name;
+}
 
 /** The change a pick makes to the saved link: undefined when it changes nothing (the same
  * manual link again, or clearing when there is no manual link). */

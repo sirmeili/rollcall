@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.catalog_models import CatalogFilament, CatalogVariant
 from filament_tracker.db.models import Product
 from filament_tracker.services.catalog_links import UnknownColor, linked_product, set_manual
+from filament_tracker.services.naming import catalog_name
 
 
 def product_for_color(session: Session, uuid: str, user_id: int | None, now: datetime) -> Product:
@@ -30,7 +31,7 @@ def product_for_color(session: Session, uuid: str, user_id: int | None, now: dat
     made = Product(
         filament_type=line.material,
         color_rgba=f"{color.color_hex.upper()}FF",
-        display_name=f"{color.name} {line.name}"[:100],
+        display_name=catalog_name(color.name, line.name),
         provisional=True,
         from_catalog=True,
     )
