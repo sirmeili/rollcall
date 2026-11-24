@@ -27,20 +27,18 @@ from filament_tracker.api.request_schemas import (
     RequestRowOut,
     SubmittedCountOut,
 )
-from filament_tracker.api.request_views import model_files, request_out, row_out, stored_photos
+from filament_tracker.api.request_views import model_files, request_out, row_out
 from filament_tracker.auth import AnyPrincipal, DbSession, Principal
-from filament_tracker.db.request_models import PrintRequest, RequestPhoto
+from filament_tracker.db.request_models import PrintRequest
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import RequestStatus
-from filament_tracker.print_requests import filament, notifications, photos, service
-from filament_tracker.print_requests.access import may_see, movers
+from filament_tracker.print_requests import notifications, service
+from filament_tracker.print_requests.access import may_see
 from filament_tracker.print_requests.choices import ChoiceInput
 from filament_tracker.print_requests.interface import Gate, Kind, PrintRequests, Refused, Tab
 from filament_tracker.print_requests.rules import RequestFields
 
 router = APIRouter(prefix="/requests", tags=["requests"])
-
-NO_PHOTOS = "Photos can be added only when moving a request to Done."
 
 STATUS = {
     Kind.NOT_FOUND: status.HTTP_404_NOT_FOUND,
@@ -195,43 +193,21 @@ def change_priority(
 
 @router.post("/{request_id}/moves", response_model=RequestOut)
 def make_move(
-    request_id: int,
-    body: MoveIn,
-    caller: MovingCaller,
-    requests: Requests,
-    session: DbSession,
-    http: Request,
+    request_id: int, body: MoveIn, caller: MovingCaller, requests: Requests
 ) -> RequestOut:
     """Move the request to another status, saving any photo uploads with a move that takes
     them (Done). Approve takes grams for every filament choice, holds them and moves on by
     itself to Queued or Waiting on Filament; Done, Failed and Cancelled release its holds.
     It answers 409 when the request is no longer in `from_status`, and 403 when the pipeline
     has no such move for the caller. Nothing is saved when it is refused."""
-    found = find_request(session, caller, request_id)
-    now = utcnow()
-    added: list[RequestPhoto] = []
-    moved = filament.make_move(
-        session,
-        found,
-        expected=body.from_status,
-        to_status=body.to_status,
-        grams=body.grams,
-        movers=movers(caller, found),
-        user=caller.user,
-        note=body.note,
-        now=now,
+    return request_out(
+        requests.move(
+            caller,
+            request_id,
+            body.from_status,
+            body.to_status,
+            grams=body.grams,
+            note=body.note,
+            photo_ids=body.photo_ids,
+        )
     )
-    if body.photo_ids:
-        if not moved.move.photos:
-            raise Refused.invalid({photos.PHOTOS: NO_PHOTOS})
-        added = photos.add(session, found, body.photo_ids, caller.user, now)
-    session.commit()
-    notify_after_commit(
-        http,
-        session,
-        lambda: notifications.request_moved(
-            moved, stored_photos(http).email_copies(added), added[0].id if added else None
-        ),
-    )
-    session.refresh(found)
-    return request_out(requests.detail(caller, found.id))
