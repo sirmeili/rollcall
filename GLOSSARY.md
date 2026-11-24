@@ -74,6 +74,10 @@ A phone paired with a code or QR code, belonging to no user.
 **Unlink**:
 A phone forgets its server.
 
+**Share**:
+Sending one file or link from another app on the phone to RollCall, which opens a print request or shopping list form filled in with it. Nothing is saved until the form is submitted. Only the phone app takes shares.
+_Avoid_: Import, send to, shopping list suggestion (a Suggestion is a Viewer's ask)
+
 ### People and access
 
 **Role**:
