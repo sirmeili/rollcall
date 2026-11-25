@@ -7,8 +7,7 @@
     busy: boolean;
     onrotate: (device: DeviceOut) => void;
     onrevoke: (device: DeviceOut) => void;
-    /** Needed only where a device can be deletable. */
-    ondelete?: (device: DeviceOut) => void;
+    ondelete: (device: DeviceOut) => void;
   }
 
   let { device, busy, onrotate, onrevoke, ondelete }: Props = $props();
@@ -29,7 +28,7 @@
     delete: {
       warning: "This can't be undone. The device would have to pair again.",
       label: "Delete",
-      run: () => ondelete?.(device),
+      run: () => ondelete(device),
     },
   };
 
