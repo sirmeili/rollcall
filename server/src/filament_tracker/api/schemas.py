@@ -101,7 +101,7 @@ class DeviceOut(BaseModel):
     owner: str | None = Field(
         default=None, description="The user a phone belongs to; none for a shared scanner"
     )
-    removable: bool = Field(
+    deletable: bool = Field(
         default=False, description="Revoked and no event names it, so it can be deleted"
     )
 

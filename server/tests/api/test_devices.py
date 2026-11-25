@@ -128,7 +128,7 @@ def test_a_revoked_device_with_no_history_can_be_deleted(
     assert "device scanner-1 deleted" in caplog.text
 
 
-def test_only_a_revoked_device_with_no_history_is_removable(client: TestClient, token: str) -> None:
+def test_only_a_revoked_device_with_no_history_is_deletable(client: TestClient, token: str) -> None:
     used = register(client, "scanner-2")
     scan(client, used, SyntheticTag(), "received", device_id="scanner-2")
     register(client, "scanner-3")
@@ -137,7 +137,7 @@ def test_only_a_revoked_device_with_no_history_is_removable(client: TestClient, 
 
     listed = client.get("/api/v1/devices", headers=admin()).json()
 
-    assert [(d["id"], d["removable"]) for d in listed] == [
+    assert [(d["id"], d["deletable"]) for d in listed] == [
         ("scanner-1", True),
         ("scanner-2", False),
         ("scanner-3", False),

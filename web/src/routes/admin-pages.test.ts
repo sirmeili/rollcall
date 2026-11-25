@@ -465,6 +465,7 @@ function scanner(overrides: Partial<DeviceOut> = {}): DeviceOut {
     queue_length: 0,
     online: true,
     revoked: false,
+    deletable: false,
     ...overrides,
   };
 }
@@ -606,8 +607,8 @@ describe("Devices page", () => {
 
   it("says why a revoked device with history is kept", async () => {
     admin.listDevices.mockResolvedValue([
-      scanner({ id: "old", name: "Old", revoked: true, removable: false }),
-      scanner({ id: "typo", name: "Typo", revoked: true, removable: true }),
+      scanner({ id: "old", name: "Old", revoked: true, deletable: false }),
+      scanner({ id: "typo", name: "Typo", revoked: true, deletable: true }),
     ]);
     render(DevicesPage);
 
@@ -618,8 +619,8 @@ describe("Devices page", () => {
     expect(within(typo).queryByText(/kept because/i)).toBeNull();
   });
 
-  it("deletes a removable device after confirming", async () => {
-    const unused = scanner({ id: "typo", name: "Typo scanner", revoked: true, removable: true });
+  it("deletes a deletable device after confirming", async () => {
+    const unused = scanner({ id: "typo", name: "Typo scanner", revoked: true, deletable: true });
     admin.listDevices.mockResolvedValueOnce([scanner(), unused]).mockResolvedValue([scanner()]);
     admin.deleteDevice.mockResolvedValue(undefined);
     render(DevicesPage);

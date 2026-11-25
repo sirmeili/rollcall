@@ -79,7 +79,7 @@ def _out(device: Device, *, has_history: bool = True) -> DeviceOut:
         online=is_online(device, utcnow()),
         revoked=device.revoked_at is not None,
         owner=device.user.username if device.user else None,
-        removable=device.revoked_at is not None and not has_history,
+        deletable=device.revoked_at is not None and not has_history,
     )
 
 

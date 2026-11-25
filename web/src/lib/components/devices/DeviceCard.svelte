@@ -7,7 +7,7 @@
     busy: boolean;
     onrotate: (device: DeviceOut) => void;
     onrevoke: (device: DeviceOut) => void;
-    /** Needed only where a device can be removable. */
+    /** Needed only where a device can be deletable. */
     ondelete?: (device: DeviceOut) => void;
   }
 
@@ -67,7 +67,7 @@
       <dd>{device.queue_length ?? "—"}</dd>
     </div>
   </dl>
-  {#if device.revoked && !device.removable}
+  {#if device.revoked && !device.deletable}
     <p class="muted small kept">Kept because its scans are in spool history.</p>
   {/if}
   {#if confirming}
@@ -89,7 +89,7 @@
           >Revoke</button
         >
       {/if}
-      {#if device.removable}
+      {#if device.deletable}
         <button type="button" class="danger" disabled={busy} onclick={() => (confirming = "delete")}
           >Delete</button
         >

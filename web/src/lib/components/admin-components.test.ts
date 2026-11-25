@@ -19,6 +19,7 @@ const DEVICE: DeviceOut = {
   queue_length: null,
   online: false,
   revoked: false,
+  deletable: false,
 };
 
 const USER: UserOut = {
