@@ -1,10 +1,13 @@
-# Publishes the Android app (android/README.md, Releases). Pushing a tag such as app-v1.2.0
-# on a commit in main builds both flavors of the app (google and foss) at that version, signs
-# them with the release key from the repository's secrets, checks them and attaches them to a
-# GitHub Release, where Obtainium on each phone finds the flavor it uses.
+# Publishes the Android app (docs/releasing.md). Pushing a tag such as app-v1.2.0, or
+# app-v1.2.0-rc.1 for a release candidate, on a commit in main builds both flavors of the app
+# (google and foss) at that version, signs them with the release key from the repository's
+# secrets, checks them and attaches them to a GitHub Release, where Obtainium on each phone
+# finds the flavor it uses. A release candidate is a prerelease. A final release must be on the
+# newest release candidate's commit and have an approved release record (ADR-0024).
 #
 # Run by hand from the Actions page ("Run workflow"), it is a dry run: the same build, signing
-# and checks with the release key, publishing nothing, to check the secrets before a tag.
+# and checks with the release key, publishing nothing, to check the secrets before a tag. It
+# checks only the version's form, not the release candidate and record rules.
 name: App release
 
 on:
@@ -13,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version to build for the dry run (nothing is published)
+        description: Version to build for the dry run, such as 1.2.3 or 1.2.3-rc.1 (nothing is published)
         default: "0.0.1"
         required: true
 
@@ -30,32 +33,73 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # create the release
+      issues: read # find the final release's approved release record
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Read the version from the tag (or the dry run's input), and check the commit is in main
+      # The tag rules (docs/releasing.md, ADR-0024), before anything is built. A release
+      # candidate needs its final release not yet out. A final release needs the newest release
+      # candidate's commit and exactly one open, approved release record. The dry run checks
+      # only the version's form.
+      - name: Read the version from the tag (or the dry run's input), and check the tag rules
         env:
           TAG: ${{ github.ref_name }}
           INPUT_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          refuse() {
+            echo "$1" >&2
+            exit 1
+          }
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             version="$INPUT_VERSION"
             echo "Dry run: nothing will be published."
           else
             version="${TAG#app-v}"
           fi
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "The version must look like 1.2.3 (the tag like app-v1.2.3)" >&2
-            exit 1
+          # major.minor.patch, each 0-999 with no leading zero and not all 0, then optionally
+          # -rc.N with N from 1 and no leading zero.
+          part='(0|[1-9][0-9]{0,2})'
+          if [[ ! "$version" =~ ^$part\.$part\.$part(-rc\.[1-9][0-9]*)?$ || "$version" =~ ^0\.0\.0 ]]; then
+            refuse "The version $version must look like 1.2.3, or 1.2.3-rc.1 for a release candidate (the tag like app-v1.2.3 or app-v1.2.3-rc.1), each part 0 to 999 with no leading zero and not all 0, and N from 1 with no leading zero: tag the release again with a valid version (docs/releasing.md, Versioning)"
           fi
+          base="${version%%-rc.*}"
           if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
-            git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
-              echo "The tagged commit is not in main" >&2
-              exit 1
-            }
+            commit=$(git rev-parse "$GITHUB_SHA^{commit}")
+            git merge-base --is-ancestor "$commit" origin/main ||
+              refuse "The tagged commit $commit is not in main: tag a commit in main (docs/releasing.md, Release candidate)"
+            if [[ "$version" == *-rc.* ]]; then
+              if git rev-parse -q --verify "refs/tags/app-v$base" > /dev/null; then
+                refuse "app-v$base is already released, so it can't have another release candidate: pick the next version (docs/releasing.md, Versioning) and tag its first release candidate (docs/releasing.md, Release candidate)"
+              fi
+            else
+              rc=$(git tag --list "app-v$base-rc.*" | sed -nE "s/^app-v${base//./[.]}-rc[.]([1-9][0-9]*)$/\1/p" | sort -n | tail -n 1)
+              if [[ -z "$rc" ]]; then
+                refuse "No release candidate for $base: tag and test app-v$base-rc.1 first (docs/releasing.md, Release candidate)"
+              fi
+              rc_commit=$(git rev-parse "app-v$base-rc.$rc^{commit}")
+              if [[ "$commit" != "$rc_commit" ]]; then
+                refuse "app-v$base is on $commit, not on the newest release candidate app-v$base-rc.$rc ($rc_commit): delete the tag and tag $rc_commit (docs/releasing.md, Final release)"
+              fi
+              records=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label release-check \
+                --label release-approved --limit 1000 --json title \
+                --jq "[.[] | select(.title == \"App release $base\")] | length")
+              if [[ "$records" == 0 ]]; then
+                refuse "No open release-check issue \`App release $base\` with \`release-approved\`: finish the checklist and sign off (docs/releasing.md, Final release)"
+              elif [[ "$records" != 1 ]]; then
+                refuse "$records open release-check issues are titled \`App release $base\` with \`release-approved\`: close all but the release's record (docs/releasing.md, Final release)"
+              fi
+            fi
           fi
-          echo "VERSION=$version" >> "$GITHUB_ENV"
+          # Release notes for both kinds start at the newest final release before this version.
+          previous=$(git tag --list 'app-v*' | sed -nE 's/^app-v([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' |
+            { cat; echo "$base"; } | sort -V -u | awk -v base="$base" '$0 == base { exit } { previous = $0 } END { print previous }')
+          {
+            echo "VERSION=$version"
+            if [[ "$version" == *-rc.* ]]; then echo "PRERELEASE=true"; fi
+            if [[ -n "$previous" ]]; then echo "NOTES_START_TAG=app-v$previous"; fi
+          } >> "$GITHUB_ENV"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
@@ -138,5 +182,10 @@ jobs:
             echo "- \`rollcall-$VERSION-foss.apk\` SHA-256: \`$(sha256sum "$foss" | cut -d' ' -f1)\`"
             echo "- Signing certificate SHA-256: \`$cert\`"
           } > "$RUNNER_TEMP/notes.md"
+          # A release candidate is a prerelease, so GitHub's Latest release and everyday phones'
+          # Obtainium entries skip it. The title stays "RollCall app <version>" for Obtainium's filter.
+          options=()
+          if [[ "$PRERELEASE" == true ]]; then options+=(--prerelease); fi
+          if [[ -n "$NOTES_START_TAG" ]]; then options+=(--notes-start-tag "$NOTES_START_TAG"); fi
           gh release create "$TAG" "$google" "$foss" --title "RollCall app $VERSION" \
-            --notes-file "$RUNNER_TEMP/notes.md" --generate-notes --verify-tag
+            --notes-file "$RUNNER_TEMP/notes.md" --generate-notes --verify-tag "${options[@]}"

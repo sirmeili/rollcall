@@ -84,6 +84,7 @@ GLOSSARY.md                   The domain language: spools, tags, states, events 
 docs/adr/                     Architecture decision records: why the hard-to-reverse choices were made
 docs/configuration.md         Every setting, its default and where it is set
 docs/testing.md               Test layers, coverage exclusions and the manual checklists
+docs/releasing.md             Releasing the phone app: versions, release candidates, the scoped checklist and the release record
 docs/deploy.md                Running RollCall with Docker Compose or Portainer: setup, proxy, Cloudflare Tunnel, backups, updates
 docs/home-assistant/          Example Home Assistant automation
 docs/mockups/web/             Web app page mockups and design tokens
@@ -100,6 +101,7 @@ android/                      Android phone app: Capacitor around the web app, K
 Dockerfile                    The image: the web app built with Node, served by the Python server
 deploy/                       Compose file and example settings for the home server; deploy/test/ is the end-to-end test stack
 .github/workflows/            CI: lint, tests, 90% coverage gates, dependency audits, end-to-end tests, a check for links to retired docs; the image build, test and publish; phone app releases. On a pull request, jobs for areas it does not change are skipped; `ci-ok` and `image-ok` are the checks `main` requires
+.github/ISSUE_TEMPLATE/       The release record issue template
 ```
 
 ## Documentation
@@ -144,7 +146,7 @@ npm run build && npx cap sync android   # Copy the web app into the Android proj
 ./gradlew assembleDebug                 # Build app/build/outputs/apk/<flavor>/debug/app-<flavor>-debug.apk
 ```
 
-The app comes in two flavors, released together: `google`, for phones with Google Play, and `foss`, with no Google code; [android/README.md](android/README.md#flavors) says which to pick. To install the app on a phone (releases through GitHub Releases and Obtainium, or a development build), make a release, run a phone test and work through the phone checklist, see [android/README.md](android/README.md).
+The app comes in two flavors, released together: `google`, for phones with Google Play, and `foss`, with no Google code; [android/README.md](android/README.md#flavors) says which to pick. To install the app on a phone (releases through GitHub Releases and Obtainium, or a development build), run a phone test or read the phone checklist, see [android/README.md](android/README.md). To make a release, through release candidates on test phones and a signed-off release record, follow [docs/releasing.md](docs/releasing.md).
 
 To build and run the Docker image, from the repository root:
 
