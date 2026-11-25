@@ -116,6 +116,10 @@ export function revokeDevice(id: string): Promise<void> {
   return api<void>(`/devices/${encodeURIComponent(id)}/revoke`, { method: "POST" });
 }
 
+export function deleteDevice(id: string): Promise<void> {
+  return api<void>(`/devices/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 export function listPrinters(): Promise<PrinterOut[]> {
   return api<PrinterOut[]>("/printers");
 }

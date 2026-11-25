@@ -239,6 +239,8 @@ export interface DeviceOut {
   revoked: boolean;
   /** The user a phone belongs to; null for a shared scanner. */
   owner?: string | null;
+  /** Revoked and no event names it, so it can be deleted. */
+  removable?: boolean;
 }
 
 /** A device with its token, shown once. */
