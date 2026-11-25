@@ -18,12 +18,14 @@ PROTECTED = [
     ("post", "/api/v1/scans"),
     ("get", "/api/v1/devices"),
     ("post", "/api/v1/devices"),
+    ("post", "/api/v1/devices/scanner-1/revoke"),
     ("delete", "/api/v1/devices/scanner-1"),
     ("post", f"/api/v1/events/{uuid4()}/revert"),
 ]
 ADMIN_ONLY = [
     ("get", "/api/v1/devices"),
     ("post", "/api/v1/devices"),
+    ("post", "/api/v1/devices/scanner-1/revoke"),
     ("delete", "/api/v1/devices/scanner-1"),
 ]
 
@@ -70,7 +72,7 @@ def test_the_admin_token_cannot_submit_scans(client: TestClient) -> None:
 
 def test_a_revoked_token_is_refused_everywhere(client: TestClient, token: str) -> None:
     received = scan(client, token, SyntheticTag(), "received")
-    client.delete("/api/v1/devices/scanner-1", headers=admin())
+    client.post("/api/v1/devices/scanner-1/revoke", headers=admin())
 
     body = scan_body(SyntheticTag(), "lookup")
     assert client.post("/api/v1/scans", json=body, headers=bearer(token)).status_code == 401

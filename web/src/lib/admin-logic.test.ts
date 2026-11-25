@@ -42,6 +42,7 @@ function device(overrides: Partial<DeviceOut> = {}): DeviceOut {
     queue_length: null,
     online: false,
     revoked: false,
+    deletable: false,
     ...overrides,
   };
 }

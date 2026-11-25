@@ -91,7 +91,11 @@ A token with a role, for Home Assistant and scripts, made on the Settings page.
 _Avoid_: Admin token, API key
 
 **Revoke**:
-Stop accepting a device token or machine token. The record is kept.
+Stop accepting a device token or machine token. The record is kept; a device with no history can then be deleted.
+
+**Delete**:
+Remove a revoked device that has no history from the list for good. It can't be re-enabled; it pairs again as a new device.
+_Avoid_: Remove, forget
 
 ### Stock
 

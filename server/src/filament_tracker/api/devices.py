@@ -1,6 +1,7 @@
-"""Register scanners and issue or revoke their tokens (Admin role or the admin token), and
-receive their heartbeats. A scanner can also revoke its own token when it is unlinked, and
-a signed-in user at home can set up their own phone."""
+"""Register scanners, issue or revoke their tokens and delete revoked ones that have no
+history (Admin role or the admin token), and receive their heartbeats. A scanner can also
+revoke its own token when it is unlinked, and a signed-in user at home can set up their own
+phone."""
 
 import logging
 import secrets
@@ -9,7 +10,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import delete, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import InstrumentedAttribute, Session
+from sqlalchemy.sql.expression import Exists
 
 from filament_tracker.api.deps import get_session
 from filament_tracker.api.schemas import (
@@ -32,7 +34,7 @@ from filament_tracker.auth import (
     new_device_token,
     settings_of,
 )
-from filament_tracker.db.models import Device
+from filament_tracker.db.models import Device, Event
 from filament_tracker.db.push_models import PushEndpoint
 from filament_tracker.db.types import utcnow
 from filament_tracker.net import is_trusted
@@ -49,9 +51,24 @@ MAX_OWN_DEVICES = 5
 
 
 def _stop_phone_notifications(session: Session, device: Device) -> None:
-    """A revoked or unlinked phone's push endpoint goes, so it gets no more phone
+    """A revoked, unlinked or deleted phone's push endpoint goes, so it gets no more phone
     notifications, even if it is re-enabled, until it registers again."""
     session.execute(delete(PushEndpoint).where(PushEndpoint.device_id == device.id))
+
+
+def _history_exists(device_id: str | InstrumentedAttribute[str]) -> Exists:
+    """A device has history when at least one event names it. Given ``Device.id``, it
+    is checked for each device a query selects."""
+    return select(Event.id).where(Event.device_id == device_id).exists()
+
+
+def _has_history(session: Session, device: Device) -> bool:
+    return bool(session.scalar(select(_history_exists(device.id))))
+
+
+def _deletable(device: Device, *, has_history: bool) -> bool:
+    """Only a revoked device that has no history can be deleted."""
+    return device.revoked_at is not None and not has_history
 
 
 def is_online(device: Device, now: datetime) -> bool:
@@ -62,7 +79,7 @@ def is_online(device: Device, now: datetime) -> bool:
     )
 
 
-def _out(device: Device) -> DeviceOut:
+def _out(device: Device, *, has_history: bool) -> DeviceOut:
     return DeviceOut(
         id=device.id,
         name=device.name,
@@ -73,6 +90,7 @@ def _out(device: Device) -> DeviceOut:
         online=is_online(device, utcnow()),
         revoked=device.revoked_at is not None,
         owner=device.user.username if device.user else None,
+        deletable=_deletable(device, has_history=has_history),
     )
 
 
@@ -158,12 +176,13 @@ def set_up_own_device(
     session.add(device)
     session.commit()
     logger.info("user %s set up phone %s", caller.user.id, device.id)
-    return DeviceCreated(**_out(device).model_dump(), token=token)
+    return DeviceCreated(**_out(device, has_history=False).model_dump(), token=token)
 
 
 @router.get("/devices", response_model=list[DeviceOut])
 def list_devices(_: Admin, session: SessionDep) -> list[DeviceOut]:
-    return [_out(d) for d in session.scalars(select(Device).order_by(Device.id))]
+    rows = session.execute(select(Device, _history_exists(Device.id)).order_by(Device.id))
+    return [_out(device, has_history=has_history) for device, has_history in rows]
 
 
 @router.post("/devices", response_model=DeviceCreated, status_code=status.HTTP_201_CREATED)
@@ -175,12 +194,14 @@ def register_device(body: DeviceCreate, _: Admin, session: SessionDep) -> Device
     device = Device(id=body.id, name=body.name, token_hash=hash_token(token))
     session.add(device)
     session.commit()
-    return DeviceCreated(**_out(device).model_dump(), token=token)
+    return DeviceCreated(**_out(device, has_history=False).model_dump(), token=token)
 
 
-@router.delete("/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/devices/{device_id}/revoke", status_code=status.HTTP_204_NO_CONTENT)
 def revoke_device(device_id: str, _: Admin, session: SessionDep) -> Response:
-    """Revoke a scanner's token. The device stays listed so its events keep their link."""
+    """Revoke a scanner's token, and drop a phone's push endpoint. Revoking twice is
+    harmless. The device stays listed; rotating its token re-enables it, and one with no
+    history can then be deleted."""
     device = session.get(Device, device_id)
     if device is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such device")
@@ -188,6 +209,28 @@ def revoke_device(device_id: str, _: Admin, session: SessionDep) -> Response:
         device.revoked_at = utcnow()
         _stop_phone_notifications(session, device)
         session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_device(device_id: str, _: Admin, session: SessionDep) -> Response:
+    """Delete a revoked device that has no history, with its push endpoint. It can't be
+    re-enabled; it pairs again as a new device."""
+    device = session.get(Device, device_id)
+    if device is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such device")
+    has_history = _has_history(session, device)
+    if not _deletable(device, has_history=has_history):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "this device is active; revoke it first, then delete it"
+            if device.revoked_at is None
+            else "this device has scan history, so it stays listed",
+        )
+    _stop_phone_notifications(session, device)
+    session.delete(device)
+    session.commit()
+    logger.info("device %s deleted", device_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -202,4 +245,5 @@ def rotate_token(device_id: str, _: Admin, session: SessionDep) -> DeviceCreated
     device.token_hash = hash_token(token)
     device.revoked_at = None
     session.commit()
-    return DeviceCreated(**_out(device).model_dump(), token=token)
+    out = _out(device, has_history=_has_history(session, device))
+    return DeviceCreated(**out.model_dump(), token=token)

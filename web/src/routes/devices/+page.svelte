@@ -7,6 +7,7 @@
     registerDevice,
     removePrinter,
     revokeDevice,
+    deleteDevice,
     rotateToken,
     testPrinter,
     unpinPrinter,
@@ -152,6 +153,13 @@
       message = `Revoked ${device.name}.`;
     });
   }
+
+  function deleteOne(device: DeviceOut): Promise<void> {
+    return change(async () => {
+      await deleteDevice(device.id);
+      message = `Deleted ${device.name}.`;
+    });
+  }
 </script>
 
 <svelte:head><title>Devices · RollCall</title></svelte:head>
@@ -227,7 +235,7 @@
     {:else}
       <div class="grid">
         {#each devices as device (device.id)}
-          <DeviceCard {device} {busy} onrotate={rotate} onrevoke={revoke} />
+          <DeviceCard {device} {busy} onrotate={rotate} onrevoke={revoke} ondelete={deleteOne} />
         {/each}
       </div>
     {/if}

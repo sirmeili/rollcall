@@ -19,6 +19,7 @@ const DEVICE: DeviceOut = {
   queue_length: null,
   online: false,
   revoked: false,
+  deletable: false,
 };
 
 const USER: UserOut = {
@@ -60,7 +61,13 @@ describe("EventRow", () => {
 describe("DeviceCard", () => {
   it("follows the device as it changes", async () => {
     const { rerender } = render(DeviceCard, {
-      props: { device: DEVICE, busy: false, onrotate: vi.fn(), onrevoke: vi.fn() },
+      props: {
+        device: DEVICE,
+        busy: false,
+        onrotate: vi.fn(),
+        onrevoke: vi.fn(),
+        ondelete: vi.fn(),
+      },
     });
     expect(screen.getAllByText("—")).toHaveLength(2);
     await rerender({ device: { ...DEVICE, online: true, fw_version: "1.0", queue_length: 3 } });
@@ -73,7 +80,13 @@ describe("DeviceCard", () => {
 
   it("says whose phone it is, or that it is shared", async () => {
     const { rerender } = render(DeviceCard, {
-      props: { device: DEVICE, busy: false, onrotate: vi.fn(), onrevoke: vi.fn() },
+      props: {
+        device: DEVICE,
+        busy: false,
+        onrotate: vi.fn(),
+        onrevoke: vi.fn(),
+        ondelete: vi.fn(),
+      },
     });
     expect(screen.getByText("Shared")).toBeInTheDocument();
     await rerender({ device: { ...DEVICE, owner: "bob" } });

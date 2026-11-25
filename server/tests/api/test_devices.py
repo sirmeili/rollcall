@@ -11,6 +11,7 @@ from api_helpers import (
     bearer,
     browser,
     register,
+    scan,
     scan_body,
     signed_in,
 )
@@ -21,9 +22,10 @@ from sqlalchemy.orm import Session
 from filament_tracker.auth import TOKEN_PREFIX, hash_token
 from filament_tracker.config import Settings
 from filament_tracker.db.models import Device
+from filament_tracker.db.push_models import PushEndpoint
 from filament_tracker.db.types import utcnow
 from filament_tracker.decoder.synthetic import SyntheticTag
-from filament_tracker.domain.enums import Role
+from filament_tracker.domain.enums import PushRoute, Role
 from filament_tracker.main import create_app
 
 
@@ -81,7 +83,7 @@ def test_a_revoked_device_can_no_longer_scan(client: TestClient) -> None:
     body = scan_body(SyntheticTag(), "lookup")
     assert client.post("/api/v1/scans", json=body, headers=bearer(token)).status_code == 200
 
-    assert client.delete("/api/v1/devices/scanner-1", headers=admin()).status_code == 204
+    assert client.post("/api/v1/devices/scanner-1/revoke", headers=admin()).status_code == 204
 
     assert client.post("/api/v1/scans", json=body, headers=bearer(token)).status_code == 401
     listed = client.get("/api/v1/devices", headers=admin()).json()
@@ -90,13 +92,89 @@ def test_a_revoked_device_can_no_longer_scan(client: TestClient) -> None:
 
 def test_revoking_twice_is_harmless(client: TestClient) -> None:
     register(client)
-    client.delete("/api/v1/devices/scanner-1", headers=admin())
+    client.post("/api/v1/devices/scanner-1/revoke", headers=admin())
 
-    assert client.delete("/api/v1/devices/scanner-1", headers=admin()).status_code == 204
+    assert client.post("/api/v1/devices/scanner-1/revoke", headers=admin()).status_code == 204
 
 
 def test_revoking_an_unknown_device_is_not_found(client: TestClient) -> None:
+    assert client.post("/api/v1/devices/nobody/revoke", headers=admin()).status_code == 404
+
+
+def test_an_active_device_cannot_be_deleted(client: TestClient, token: str) -> None:
+    response = client.delete("/api/v1/devices/scanner-1", headers=admin())
+
+    # Nor revoked: an old script that used DELETE to revoke fails safely.
+    assert response.status_code == 409
+    assert "revoke it first" in response.json()["detail"]
+    assert _listed(client)["revoked"] is False
+    body = scan_body(SyntheticTag(), "lookup")
+    assert client.post("/api/v1/scans", json=body, headers=bearer(token)).status_code == 200
+
+
+# --- Deleting ----------------------------------------------------------------------------
+
+
+def test_a_revoked_device_with_no_history_can_be_deleted(
+    client: TestClient, token: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level("INFO")
+    client.post("/api/v1/devices/scanner-1/revoke", headers=admin())
+
+    response = client.delete("/api/v1/devices/scanner-1", headers=admin())
+
+    assert response.status_code == 204
+    assert client.get("/api/v1/devices", headers=admin()).json() == []
+    assert "device scanner-1 deleted" in caplog.text
+
+
+def test_only_a_revoked_device_with_no_history_is_deletable(client: TestClient, token: str) -> None:
+    used = register(client, "scanner-2")
+    scan(client, used, SyntheticTag(), "received", device_id="scanner-2")
+    register(client, "scanner-3")
+    for device_id in ("scanner-1", "scanner-2"):
+        client.post(f"/api/v1/devices/{device_id}/revoke", headers=admin())
+
+    listed = client.get("/api/v1/devices", headers=admin()).json()
+
+    assert [(d["id"], d["deletable"]) for d in listed] == [
+        ("scanner-1", True),
+        ("scanner-2", False),
+        ("scanner-3", False),
+    ]
+
+
+def test_a_deleted_device_takes_its_push_endpoint_with_it(
+    client: TestClient, token: str, db: Session
+) -> None:
+    client.post("/api/v1/devices/scanner-1/revoke", headers=admin())
+    # Left behind, as by a release before revoking dropped endpoints.
+    db.add(PushEndpoint(device_id="scanner-1", route=PushRoute.WEB_PUSH, endpoint="https://p.test"))
+    db.commit()
+
+    assert client.delete("/api/v1/devices/scanner-1", headers=admin()).status_code == 204
+
+    db.expire_all()
+    assert db.get(PushEndpoint, "scanner-1") is None
+
+
+def test_deleting_an_unknown_or_deleted_device_is_not_found(client: TestClient, token: str) -> None:
+    client.post("/api/v1/devices/scanner-1/revoke", headers=admin())
+    client.delete("/api/v1/devices/scanner-1", headers=admin())
+
+    assert client.delete("/api/v1/devices/scanner-1", headers=admin()).status_code == 404
     assert client.delete("/api/v1/devices/nobody", headers=admin()).status_code == 404
+
+
+def test_a_revoked_device_with_history_stays_listed(client: TestClient, token: str) -> None:
+    scan(client, token, SyntheticTag(), "received")
+    client.post("/api/v1/devices/scanner-1/revoke", headers=admin())
+
+    response = client.delete("/api/v1/devices/scanner-1", headers=admin())
+
+    assert response.status_code == 409
+    assert "scan history" in response.json()["detail"]
+    assert _listed(client)["revoked"] is True
 
 
 def test_rotating_a_token_replaces_it(client: TestClient, token: str) -> None:
@@ -111,7 +189,7 @@ def test_rotating_a_token_replaces_it(client: TestClient, token: str) -> None:
 
 
 def test_rotating_re_enables_a_revoked_device(client: TestClient, token: str) -> None:
-    client.delete("/api/v1/devices/scanner-1", headers=admin())
+    client.post("/api/v1/devices/scanner-1/revoke", headers=admin())
 
     rotated = client.post("/api/v1/devices/scanner-1/rotate", headers=admin()).json()
 
@@ -171,7 +249,7 @@ def test_a_revoked_device_is_offline_and_cannot_send_heartbeats(
     client: TestClient, token: str
 ) -> None:
     client.post("/api/v1/devices/heartbeat", json=HEARTBEAT, headers=bearer(token))
-    client.delete("/api/v1/devices/scanner-1", headers=admin())
+    client.post("/api/v1/devices/scanner-1/revoke", headers=admin())
 
     assert _listed(client)["online"] is False
     response = client.post("/api/v1/devices/heartbeat", json=HEARTBEAT, headers=bearer(token))
@@ -303,7 +381,7 @@ def test_the_salt_is_only_for_devices(db_url: str, caplog: pytest.LogCaptureFixt
         assert refused.status_code == 403
         # Marked, so the phone app keeps its scans queued while away from home.
         assert refused.headers["x-rollcall-refused"] == "local-network-only"
-        client.delete("/api/v1/devices/scanner-1", headers=admin())
+        client.post("/api/v1/devices/scanner-1/revoke", headers=admin())
         assert client.get(url, headers=bearer(token)).status_code == 401
         for path in ("/api/v1/devices", "/api/v1/health"):
             assert SALT not in client.get(path, headers=admin()).text

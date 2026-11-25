@@ -31,6 +31,7 @@ const admin = vi.hoisted(() => ({
   registerDevice: vi.fn(),
   rotateToken: vi.fn(),
   revokeDevice: vi.fn(),
+  deleteDevice: vi.fn(),
   listUsers: vi.fn(),
   createUser: vi.fn(),
   updateUser: vi.fn(),
@@ -464,6 +465,7 @@ function scanner(overrides: Partial<DeviceOut> = {}): DeviceOut {
     queue_length: 0,
     online: true,
     revoked: false,
+    deletable: false,
     ...overrides,
   };
 }
@@ -601,6 +603,41 @@ describe("Devices page", () => {
     await userEvent.click(within(again).getByRole("button", { name: "Revoke" }));
     expect(admin.revokeDevice).toHaveBeenCalledWith("workbench");
     expect(await screen.findByRole("status")).toHaveTextContent("Revoked Workbench scanner.");
+  });
+
+  it("says why a revoked device with history is kept", async () => {
+    admin.listDevices.mockResolvedValue([
+      scanner({ id: "old", name: "Old", revoked: true, deletable: false }),
+      scanner({ id: "typo", name: "Typo", revoked: true, deletable: true }),
+    ]);
+    render(DevicesPage);
+
+    const old = await screen.findByRole("article", { name: "Old" });
+    expect(within(old).getByText(/kept because its scans are in spool history/i)).toBeVisible();
+    expect(within(old).queryByRole("button", { name: "Delete" })).toBeNull();
+    const typo = screen.getByRole("article", { name: "Typo" });
+    expect(within(typo).queryByText(/kept because/i)).toBeNull();
+  });
+
+  it("deletes a deletable device after confirming", async () => {
+    const unused = scanner({ id: "typo", name: "Typo scanner", revoked: true, deletable: true });
+    admin.listDevices.mockResolvedValueOnce([scanner(), unused]).mockResolvedValue([scanner()]);
+    admin.deleteDevice.mockResolvedValue(undefined);
+    render(DevicesPage);
+    const card = await screen.findByRole("article", { name: "Typo scanner" });
+    const active = screen.getByRole("article", { name: "Workbench scanner" });
+    expect(within(active).queryByRole("button", { name: "Delete" })).toBeNull();
+
+    await userEvent.click(within(card).getByRole("button", { name: "Delete" }));
+    expect(within(card).getByText(/can't be undone/)).toHaveTextContent(/pair again/);
+    await userEvent.click(within(card).getByRole("button", { name: "Cancel" }));
+    expect(admin.deleteDevice).not.toHaveBeenCalled();
+
+    await userEvent.click(within(card).getByRole("button", { name: "Delete" }));
+    await userEvent.click(within(card).getByRole("button", { name: "Delete" }));
+    expect(admin.deleteDevice).toHaveBeenCalledWith("typo");
+    expect(await screen.findByRole("status")).toHaveTextContent("Deleted Typo scanner.");
+    expect(screen.queryByRole("article", { name: "Typo scanner" })).toBeNull();
   });
 
   it("reports failed loads and changes", async () => {

@@ -7,17 +7,37 @@
     busy: boolean;
     onrotate: (device: DeviceOut) => void;
     onrevoke: (device: DeviceOut) => void;
+    ondelete: (device: DeviceOut) => void;
   }
 
-  let { device, busy, onrotate, onrevoke }: Props = $props();
+  let { device, busy, onrotate, onrevoke, ondelete }: Props = $props();
+
+  type Action = "rotate" | "revoke" | "delete";
+  /** What each action's confirm says, its button, and what it does. */
+  const CONFIRM: Record<Action, { warning: string; label: string; run: () => void }> = {
+    rotate: {
+      warning: "The old token stops working at once.",
+      label: "Rotate token",
+      run: () => onrotate(device),
+    },
+    revoke: {
+      warning: "The scanner can no longer send scans.",
+      label: "Revoke",
+      run: () => onrevoke(device),
+    },
+    delete: {
+      warning: "This can't be undone. The device would have to pair again.",
+      label: "Delete",
+      run: () => ondelete(device),
+    },
+  };
 
   /** Which action is waiting for a second click to confirm. */
-  let confirming = $state<"rotate" | "revoke" | null>(null);
+  let confirming = $state<Action | null>(null);
   const status = $derived(deviceStatus(device));
 
-  function confirm(): void {
-    if (confirming === "rotate") onrotate(device);
-    else onrevoke(device);
+  function confirm(action: Action): void {
+    CONFIRM[action].run();
     confirming = null;
   }
 </script>
@@ -46,15 +66,15 @@
       <dd>{device.queue_length ?? "—"}</dd>
     </div>
   </dl>
+  {#if device.revoked && !device.deletable}
+    <p class="muted small kept">Kept because its scans are in spool history.</p>
+  {/if}
   {#if confirming}
+    {@const action = confirming}
     <div class="actions" role="group" aria-label="Confirm">
-      <span class="small">
-        {confirming === "rotate"
-          ? "The old token stops working at once."
-          : "The scanner can no longer send scans."}
-      </span>
-      <button type="button" class="primary" disabled={busy} onclick={confirm}>
-        {confirming === "rotate" ? "Rotate token" : "Revoke"}
+      <span class="small">{CONFIRM[action].warning}</span>
+      <button type="button" class="primary" disabled={busy} onclick={() => confirm(action)}>
+        {CONFIRM[action].label}
       </button>
       <button type="button" onclick={() => (confirming = null)}>Cancel</button>
     </div>
@@ -66,6 +86,11 @@
       {#if !device.revoked}
         <button type="button" class="danger" disabled={busy} onclick={() => (confirming = "revoke")}
           >Revoke</button
+        >
+      {/if}
+      {#if device.deletable}
+        <button type="button" class="danger" disabled={busy} onclick={() => (confirming = "delete")}
+          >Delete</button
         >
       {/if}
     </div>
@@ -102,6 +127,10 @@
 
   .small {
     font-size: 13px;
+  }
+
+  .kept {
+    margin: 0;
   }
 
   .status {
