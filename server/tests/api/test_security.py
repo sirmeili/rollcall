@@ -19,12 +19,14 @@ PROTECTED = [
     ("get", "/api/v1/devices"),
     ("post", "/api/v1/devices"),
     ("post", "/api/v1/devices/scanner-1/revoke"),
+    ("delete", "/api/v1/devices/scanner-1"),
     ("post", f"/api/v1/events/{uuid4()}/revert"),
 ]
 ADMIN_ONLY = [
     ("get", "/api/v1/devices"),
     ("post", "/api/v1/devices"),
     ("post", "/api/v1/devices/scanner-1/revoke"),
+    ("delete", "/api/v1/devices/scanner-1"),
 ]
 
 

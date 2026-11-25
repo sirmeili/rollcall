@@ -77,6 +77,7 @@ ROUTES = [
     ("get", "/api/v1/devices", Role.ADMIN),
     ("post", "/api/v1/devices", Role.ADMIN),
     ("post", "/api/v1/devices/scanner-9/revoke", Role.ADMIN),
+    ("delete", "/api/v1/devices/scanner-9", Role.ADMIN),
     ("get", "/api/v1/tokens", Role.ADMIN),
     ("post", "/api/v1/tokens", Role.ADMIN),
     ("delete", "/api/v1/tokens/99", Role.ADMIN),
