@@ -33,7 +33,9 @@ function fakePlugin() {
       storage.delete(key);
     }),
     pushConfigure: vi.fn(
-      async (_options: { firebase: unknown }): Promise<{ restarting?: boolean }> => ({}),
+      async (_options: {
+        firebase: unknown;
+      }): Promise<{ restarting?: boolean } | undefined> => ({}),
     ),
     pushRoute: vi.fn(async () => ({ route: "unifiedpush" as const })),
     pushRegister: vi.fn(async (_options: { vapidKey: string }) => {}),
@@ -191,6 +193,14 @@ describe("phone notifications, through the plugin", () => {
 
     expect(fake.plugin.pushConfigure).toHaveBeenCalledWith({ firebase: null });
     expect(fake.plugin.pushConfigure).toHaveBeenCalledWith({ firebase });
+  });
+
+  it("reads no restart when the plugin resolves with nothing, as Android does when none is needed", async () => {
+    const fake = fakePlugin();
+    fake.plugin.pushConfigure.mockResolvedValue(undefined);
+    const native = nativeBridge(fake.plugin, "1.0", fakeApp().app);
+
+    expect(await native.pushConfigure(null)).toEqual({ restarting: false });
   });
 
   it("registers with the server's VAPID key, and unregisters", async () => {
