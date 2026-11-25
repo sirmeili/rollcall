@@ -21,7 +21,7 @@ describe("admin API calls", () => {
       "GET /devices": [],
       "POST /devices": { id: "shelf", token: "t" },
       "POST /devices/shelf/rotate": { id: "shelf", token: "t2" },
-      "DELETE /devices/shelf": null,
+      "POST /devices/shelf/revoke": null,
       "GET /users": [],
       "POST /users": { id: 4 },
       "PATCH /users/4": { id: 4 },
@@ -81,7 +81,7 @@ describe("admin API calls", () => {
       { method: "POST", path: "/spools", body: { product_id: 9, location: null, notes: "n" } },
       { method: "POST", path: "/devices", body: { id: "shelf", name: "Shelf" } },
       { method: "POST", path: "/devices/shelf/rotate", body: undefined },
-      { method: "DELETE", path: "/devices/shelf", body: undefined },
+      { method: "POST", path: "/devices/shelf/revoke", body: undefined },
       {
         method: "POST",
         path: "/users",

@@ -113,7 +113,7 @@ export function rotateToken(id: string): Promise<DeviceCreated> {
 }
 
 export function revokeDevice(id: string): Promise<void> {
-  return api<void>(`/devices/${encodeURIComponent(id)}`, { method: "DELETE" });
+  return api<void>(`/devices/${encodeURIComponent(id)}/revoke`, { method: "POST" });
 }
 
 export function listPrinters(): Promise<PrinterOut[]> {
