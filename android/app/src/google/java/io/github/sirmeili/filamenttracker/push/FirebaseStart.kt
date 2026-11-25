@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.net.Uri
+import android.util.Log
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.firebase.FirebaseApp
@@ -72,7 +73,10 @@ private class FirebaseFcm(private val context: Context) : FcmClient {
     private fun messaging() = FirebaseStart.running(context)?.let { FirebaseMessaging.getInstance() }
 
     override fun token(onToken: (String) -> Unit) {
-        messaging()?.token?.addOnSuccessListener { token -> token?.let(onToken) }
+        messaging()?.token
+            ?.addOnSuccessListener { token -> token?.let(onToken) }
+            // The reason only (such as SERVICE_NOT_AVAILABLE), never a token.
+            ?.addOnFailureListener { error -> Log.w("RollCall", "FCM token request failed: $error") }
     }
 
     override fun deleteToken() {

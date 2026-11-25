@@ -29,7 +29,10 @@ export interface FilamentTrackerPlugin {
   secureGet(options: { key: string }): Promise<{ value: string | null }>;
   secureSet(options: { key: string; value: string }): Promise<void>;
   secureRemove(options: { key: string }): Promise<void>;
-  pushConfigure(options: { firebase: FirebaseClient | null }): Promise<{ restarting?: boolean }>;
+  // Android resolves with nothing when no restart is needed.
+  pushConfigure(options: {
+    firebase: FirebaseClient | null;
+  }): Promise<{ restarting?: boolean } | undefined>;
   pushRoute(): Promise<{ route: PushRoute }>;
   pushRegister(options: { vapidKey: string }): Promise<void>;
   pushUnregister(): Promise<void>;
@@ -102,7 +105,7 @@ export function nativeBridge(
       stopping(app.addListener("backButton", ({ canGoBack }) => listener({ canGoBack }))),
     background: () => app.minimizeApp(),
     pushConfigure: async (firebase) => ({
-      restarting: (await plugin.pushConfigure({ firebase })).restarting === true,
+      restarting: (await plugin.pushConfigure({ firebase }))?.restarting === true,
     }),
     pushRoute: async () => (await plugin.pushRoute()).route,
     pushRegister: (vapidKey) => plugin.pushRegister({ vapidKey }),
