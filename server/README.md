@@ -154,7 +154,7 @@ $env:FT_TOKEN = $device.token
 $env:FT_DEVICE_ID = "simulator"
 ```
 
-To revoke it later: `Invoke-RestMethod -Method Delete -Uri http://localhost:8000/api/v1/devices/simulator -Headers $headers`.
+To revoke it later: `Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/devices/simulator/revoke -Headers $headers`.
 
 On the Devices page, registering a scanner or rotating its token also offers a QR code for the phone app, holding the server address and the token. The address defaults to the one in the browser and can be changed first.
 

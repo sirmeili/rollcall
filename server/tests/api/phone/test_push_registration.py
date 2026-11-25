@@ -156,7 +156,7 @@ def test_a_revoked_phone_is_refused_and_loses_its_endpoint(
     device_id = set_up_phone(user)
     register_phone(user, device_id, TestPhone())
 
-    client.delete(f"/api/v1/devices/{device_id}", headers=admin())
+    client.post(f"/api/v1/devices/{device_id}/revoke", headers=admin())
 
     assert register_phone(user, device_id, TestPhone()).status_code == 404
     # Re-enabled with a new token, it isn't registered until it registers again.

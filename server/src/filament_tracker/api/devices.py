@@ -178,9 +178,10 @@ def register_device(body: DeviceCreate, _: Admin, session: SessionDep) -> Device
     return DeviceCreated(**_out(device).model_dump(), token=token)
 
 
-@router.delete("/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/devices/{device_id}/revoke", status_code=status.HTTP_204_NO_CONTENT)
 def revoke_device(device_id: str, _: Admin, session: SessionDep) -> Response:
-    """Revoke a scanner's token. The device stays listed so its events keep their link."""
+    """Revoke a scanner's token, and drop a phone's push endpoint. Revoking twice is
+    harmless. The device stays listed; rotating its token re-enables it."""
     device = session.get(Device, device_id)
     if device is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such device")
