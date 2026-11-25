@@ -22,6 +22,7 @@ describe("admin API calls", () => {
       "POST /devices": { id: "shelf", token: "t" },
       "POST /devices/shelf/rotate": { id: "shelf", token: "t2" },
       "POST /devices/shelf/revoke": null,
+      "DELETE /devices/shelf": null,
       "GET /users": [],
       "POST /users": { id: 4 },
       "PATCH /users/4": { id: 4 },
@@ -56,6 +57,7 @@ describe("admin API calls", () => {
     expect((await admin.registerDevice("shelf", "Shelf")).token).toBe("t");
     expect((await admin.rotateToken("shelf")).token).toBe("t2");
     await admin.revokeDevice("shelf");
+    await admin.deleteDevice("shelf");
     await admin.listUsers();
     await admin.createUser("sam", "viewer", "a long password");
     await admin.updateUser(4, { role: "editor" });
@@ -82,6 +84,7 @@ describe("admin API calls", () => {
       { method: "POST", path: "/devices", body: { id: "shelf", name: "Shelf" } },
       { method: "POST", path: "/devices/shelf/rotate", body: undefined },
       { method: "POST", path: "/devices/shelf/revoke", body: undefined },
+      { method: "DELETE", path: "/devices/shelf", body: undefined },
       {
         method: "POST",
         path: "/users",
