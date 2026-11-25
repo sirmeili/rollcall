@@ -10,7 +10,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import delete, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import InstrumentedAttribute, Session
+from sqlalchemy.sql.expression import Exists
 
 from filament_tracker.api.deps import get_session
 from filament_tracker.api.schemas import (
@@ -55,9 +56,15 @@ def _stop_phone_notifications(session: Session, device: Device) -> None:
     session.execute(delete(PushEndpoint).where(PushEndpoint.device_id == device.id))
 
 
-def _has_history(session: Session, device_id: str) -> bool:
-    """A device has history when at least one event names it."""
-    return session.scalar(select(select(Event.id).where(Event.device_id == device_id).exists()))
+def _has_history(device_id: str | InstrumentedAttribute[str]) -> Exists:
+    """A device has history when at least one event names it. Given ``Device.id``, it
+    is checked for each device a query selects."""
+    return select(Event.id).where(Event.device_id == device_id).exists()
+
+
+def _deletable(device: Device, *, has_history: bool) -> bool:
+    """Only a revoked device that has no history can be deleted."""
+    return device.revoked_at is not None and not has_history
 
 
 def is_online(device: Device, now: datetime) -> bool:
@@ -79,7 +86,7 @@ def _out(device: Device, *, has_history: bool = True) -> DeviceOut:
         online=is_online(device, utcnow()),
         revoked=device.revoked_at is not None,
         owner=device.user.username if device.user else None,
-        deletable=device.revoked_at is not None and not has_history,
+        deletable=_deletable(device, has_history=has_history),
     )
 
 
@@ -170,9 +177,8 @@ def set_up_own_device(
 
 @router.get("/devices", response_model=list[DeviceOut])
 def list_devices(_: Admin, session: SessionDep) -> list[DeviceOut]:
-    with_history = set(session.scalars(select(Event.device_id).distinct()))
-    devices = session.scalars(select(Device).order_by(Device.id))
-    return [_out(d, has_history=d.id in with_history) for d in devices]
+    rows = session.execute(select(Device, _has_history(Device.id)).order_by(Device.id))
+    return [_out(device, has_history=has_history) for device, has_history in rows]
 
 
 @router.post("/devices", response_model=DeviceCreated, status_code=status.HTTP_201_CREATED)
@@ -209,13 +215,13 @@ def delete_device(device_id: str, _: Admin, session: SessionDep) -> Response:
     device = session.get(Device, device_id)
     if device is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such device")
-    if device.revoked_at is None:
+    has_history = bool(session.scalar(select(_has_history(device.id))))
+    if not _deletable(device, has_history=has_history):
         raise HTTPException(
-            status.HTTP_409_CONFLICT, "this device is active; revoke it first, then delete it"
-        )
-    if _has_history(session, device.id):
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "this device has scan history, so it stays listed"
+            status.HTTP_409_CONFLICT,
+            "this device is active; revoke it first, then delete it"
+            if device.revoked_at is None
+            else "this device has scan history, so it stays listed",
         )
     _stop_phone_notifications(session, device)
     session.delete(device)
