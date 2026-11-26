@@ -1,0 +1,20 @@
+# One release for the app and the server, and `latest` is the final release
+
+The phone app holds its own copy of the web app and talks to a server that was, until 1.3.0, published separately: every merge to `main` pushed the image as `latest`, and the server reported no version, so a phone on one release could be paired with a server built from any later commit, and no checklist ever ran against the image that shipped. From 1.4.0, a RollCall release is one version of all of it: the `google` and `foss` APKs and the server image (with its web app) are built from the same commit by one **Release** workflow, tested together, and published under one tag (`v<version>`, `v<version>-rc.<n>`) and one GitHub release. The version comes from the tag alone, as the app's already did (ADR-0024): the image takes it as a build argument and reports it, and the phone's Account shows the app's and the server's versions, with a note when they differ. The image is tagged `<version>-rc.<n>` for a release candidate and `<version>`, `<major>.<minor>` and `latest` for a final release, rebuilt from the latest candidate's commit like the APKs. A merge to `main` pushes only `main` and the commit, so a server left on `latest` gets only tested releases. Each release candidate is tested against its own image: the **Release** workflow upgrades the previous release's image to it in the Compose test stack, and a test server, a separate stack restored from the live backup with email, Home Assistant, printers and backups turned off, runs the previous release and is upgraded to the candidate before the checklist runs on a test phone paired with it.
+
+## Considered options
+
+- **Separate releases per part** (`app-v*` and `server-v*`), with a table of which app works with which server: each part could ship on its own schedule, but nothing would test a pair, and the table would need keeping. In a one-household install the server and the phones are updated together anyway, so a server-only fix bumping the app's version costs nothing.
+- **Keeping `latest` on `main`**: the home server would keep getting every merge, untested. Anyone who wants that sets `ROLLCALL_TAG=main`.
+- **Retagging the candidate's image for the final release**: no rebuild, but the image would report the candidate's version forever. The final release is rebuilt from the same commit instead, as the app is.
+- **Testing candidates on the live server**: real, but a bad candidate breaks RollCall for the household until it is rolled back. A test server restored from a scrubbed copy of the live backup tests the same migrations on the same data without that risk, and without emailing the household or publishing a second set of Home Assistant entities.
+- **A test server that keeps a baseline, so the test phone stays paired across candidates**: every checklist pairs a phone anyway, so each candidate starts from a fresh restore instead.
+- **A phone that refuses a server on another version**: phones update themselves through Obtainium while the server is updated by hand, so a mismatch will happen, but in one household it is short and rare. Account notes it, and nothing is blocked or tested in mismatched pairs.
+
+## Consequences
+
+- The release title stays **RollCall app and server <version>**, starting with `RollCall app `, because every everyday phone's Obtainium entry filters release titles by `^RollCall app `. Changing it means editing Obtainium on every phone.
+- A change under `server/`, `deploy/`, `Dockerfile` or `.dockerignore` now counts toward the next release, as `android/` and `web/` did, and the checklist gains server and web steps.
+- A major version now also means a server update that needs more than pulling and restarting. An app that needs a newer server is no longer a reason for one, since they ship as a pair.
+- The `app-v*` tags up to 1.3.0 stay. The first combined release, 1.4.0, has no versioned image before it, so its upgrade test starts from the image published for `app-v1.3.0`'s commit.
+- The scanner firmware joins the same release once it exists, rather than becoming a release target of its own.
