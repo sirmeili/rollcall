@@ -39,6 +39,7 @@ Run these from the repository root (Docker with Compose v2). CI runs the same ch
 - Run the end-to-end test stack against it: from `server/`, `FT_COMPOSE_STACK=1 uv run pytest tests/deploy --no-cov` (it starts `deploy/test/compose.yaml` and removes it with its volumes).
 - Scan the image before changing a base image digest: `docker scout cves --only-severity critical,high rollcall:test`. New base images follow the same rules as other dependencies (see [CODING_STANDARDS.md](../CODING_STANDARDS.md#dependencies)).
 - Make a backup now: `uv run ft-admin backup` (needs `BACKUP_DIR`), or `docker compose exec rollcall ft-admin backup` on the server. See [Backups](#backups).
+- On a test server only, never the live server: `ft-admin restore --for-test <backups directory>` replaces the database with the newest backup and scrubs it. See [Restoring a backup](../docs/deploy.md#restoring-a-backup).
 
 To run it on a server, see [docs/deploy.md](../docs/deploy.md).
 
