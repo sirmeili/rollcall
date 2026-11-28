@@ -473,6 +473,13 @@ function scanner(overrides: Partial<DeviceOut> = {}): DeviceOut {
 describe("Devices page", () => {
   beforeEach(() => admin.listPrinters.mockResolvedValue([]));
 
+  /** The names on the Scanners section's cards, in page order. */
+  function scannerNames(): (string | null)[] {
+    return within(screen.getByRole("region", { name: "Scanners" }))
+      .getAllByRole("article")
+      .map((card) => card.getAttribute("aria-label"));
+  }
+
   it("lists scanners with their status", async () => {
     admin.listDevices.mockResolvedValue([
       scanner(),
@@ -493,6 +500,7 @@ describe("Devices page", () => {
     const garage = screen.getByRole("article", { name: "Garage" });
     expect(within(garage).getByText("Offline")).toBeInTheDocument();
     expect(within(garage).getByText(/Never seen/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("switch", { name: "Show revoked (1)" }));
     const old = screen.getByRole("article", { name: "Old" });
     expect(within(old).queryByRole("button", { name: "Revoke" })).toBeNull();
     expect(within(old).getByRole("button", { name: "New token (re-enable)" })).toBeInTheDocument();
@@ -612,7 +620,8 @@ describe("Devices page", () => {
     ]);
     render(DevicesPage);
 
-    const old = await screen.findByRole("article", { name: "Old" });
+    await userEvent.click(await screen.findByRole("switch", { name: "Show revoked (2)" }));
+    const old = screen.getByRole("article", { name: "Old" });
     expect(within(old).getByText(/kept because its scans are in spool history/i)).toBeVisible();
     expect(within(old).queryByRole("button", { name: "Delete" })).toBeNull();
     const typo = screen.getByRole("article", { name: "Typo" });
@@ -624,7 +633,8 @@ describe("Devices page", () => {
     admin.listDevices.mockResolvedValueOnce([scanner(), unused]).mockResolvedValue([scanner()]);
     admin.deleteDevice.mockResolvedValue(undefined);
     render(DevicesPage);
-    const card = await screen.findByRole("article", { name: "Typo scanner" });
+    await userEvent.click(await screen.findByRole("switch", { name: "Show revoked (1)" }));
+    const card = screen.getByRole("article", { name: "Typo scanner" });
     const active = screen.getByRole("article", { name: "Workbench scanner" });
     expect(within(active).queryByRole("button", { name: "Delete" })).toBeNull();
 
@@ -638,6 +648,138 @@ describe("Devices page", () => {
     expect(admin.deleteDevice).toHaveBeenCalledWith("typo");
     expect(await screen.findByRole("status")).toHaveTextContent("Deleted Typo scanner.");
     expect(screen.queryByRole("article", { name: "Typo scanner" })).toBeNull();
+  });
+
+  it("hides revoked scanners until Show revoked is switched on", async () => {
+    admin.listDevices.mockResolvedValue([
+      scanner(),
+      scanner({ id: "old", name: "Old", revoked: true }),
+      scanner({ id: "gone", name: "Gone", revoked: true }),
+    ]);
+    render(DevicesPage);
+
+    await screen.findByRole("article", { name: "Workbench scanner" });
+    expect(screen.queryByRole("article", { name: "Old" })).toBeNull();
+    expect(screen.queryByRole("article", { name: "Gone" })).toBeNull();
+    const toggle = screen.getByRole("switch", { name: "Show revoked (2)" });
+    expect(toggle).not.toBeChecked();
+
+    await userEvent.click(toggle);
+    expect(screen.getByRole("article", { name: "Old" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Gone" })).toBeInTheDocument();
+  });
+
+  it("lists active scanners first, then revoked ones, each in ID order", async () => {
+    admin.listDevices.mockResolvedValue([
+      scanner({ id: "b-old", name: "B old", revoked: true }),
+      scanner({ id: "zeta", name: "Zeta" }),
+      scanner({ id: "alpha", name: "Alpha" }),
+      scanner({ id: "a-old", name: "A old", revoked: true }),
+    ]);
+    render(DevicesPage);
+
+    await screen.findByRole("article", { name: "Alpha" });
+    expect(scannerNames()).toEqual(["Alpha", "Zeta"]);
+    await userEvent.click(screen.getByRole("switch", { name: "Show revoked (2)" }));
+    expect(scannerNames()).toEqual(["Alpha", "Zeta", "A old", "B old"]);
+  });
+
+  it("removes a revoked scanner's card and says where it went", async () => {
+    admin.listDevices
+      .mockResolvedValueOnce([scanner()])
+      .mockResolvedValue([scanner({ revoked: true })]);
+    admin.revokeDevice.mockResolvedValue(undefined);
+    render(DevicesPage);
+    const card = await screen.findByRole("article", { name: "Workbench scanner" });
+
+    await userEvent.click(within(card).getByRole("button", { name: "Revoke" }));
+    await userEvent.click(within(card).getByRole("button", { name: "Revoke" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Revoked Workbench scanner. It's under Show revoked, where a new token re-enables it.",
+    );
+    expect(screen.queryByRole("article", { name: "Workbench scanner" })).toBeNull();
+    expect(screen.getByText("No active scanners.")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Show revoked (1)" })).toBeInTheDocument();
+    expect(screen.queryByText(/No scanners yet/)).toBeNull();
+  });
+
+  it("moves a re-enabled scanner into the active group", async () => {
+    admin.listDevices
+      .mockResolvedValueOnce([
+        scanner({ id: "old", name: "Old", revoked: true }),
+        scanner({ id: "zeta", name: "Zeta" }),
+      ])
+      .mockResolvedValue([
+        scanner({ id: "old", name: "Old" }),
+        scanner({ id: "zeta", name: "Zeta" }),
+      ]);
+    admin.rotateToken.mockResolvedValue({
+      ...scanner({ id: "old", name: "Old" }),
+      token: "ft_dev_new",
+    });
+    render(DevicesPage);
+    await userEvent.click(await screen.findByRole("switch", { name: "Show revoked (1)" }));
+    const card = screen.getByRole("article", { name: "Old" });
+
+    await userEvent.click(within(card).getByRole("button", { name: "New token (re-enable)" }));
+    await userEvent.click(within(card).getByRole("button", { name: "Rotate token" }));
+    await screen.findByRole("alert", { name: /New token for Old/ });
+    expect(scannerNames()).toEqual(["Old", "Zeta"]);
+    expect(screen.queryByRole("switch")).toBeNull();
+  });
+
+  it("turns the switch off when the last revoked scanner is re-enabled", async () => {
+    admin.listDevices
+      .mockResolvedValueOnce([
+        scanner({ id: "old", name: "Old", revoked: true }),
+        scanner({ id: "zeta", name: "Zeta" }),
+      ])
+      .mockResolvedValueOnce([
+        scanner({ id: "old", name: "Old" }),
+        scanner({ id: "zeta", name: "Zeta" }),
+      ])
+      .mockResolvedValue([
+        scanner({ id: "old", name: "Old" }),
+        scanner({ id: "zeta", name: "Zeta", revoked: true }),
+      ]);
+    admin.rotateToken.mockResolvedValue({
+      ...scanner({ id: "old", name: "Old" }),
+      token: "ft_dev_new",
+    });
+    admin.revokeDevice.mockResolvedValue(undefined);
+    render(DevicesPage);
+    await userEvent.click(await screen.findByRole("switch", { name: "Show revoked (1)" }));
+    const old = screen.getByRole("article", { name: "Old" });
+    await userEvent.click(within(old).getByRole("button", { name: "New token (re-enable)" }));
+    await userEvent.click(within(old).getByRole("button", { name: "Rotate token" }));
+    await screen.findByRole("alert", { name: /New token for Old/ });
+    expect(screen.queryByRole("switch")).toBeNull();
+
+    const zeta = screen.getByRole("article", { name: "Zeta" });
+    await userEvent.click(within(zeta).getByRole("button", { name: "Revoke" }));
+    await userEvent.click(within(zeta).getByRole("button", { name: "Revoke" }));
+    await screen.findByRole("status");
+    expect(screen.queryByRole("article", { name: "Zeta" })).toBeNull();
+    expect(screen.getByRole("switch", { name: "Show revoked (1)" })).not.toBeChecked();
+  });
+
+  it("shows no switch when no scanner is revoked", async () => {
+    admin.listDevices.mockResolvedValue([scanner()]);
+    render(DevicesPage);
+
+    await screen.findByRole("article", { name: "Workbench scanner" });
+    expect(screen.queryByRole("switch")).toBeNull();
+  });
+
+  it("prompts to register when no scanner was ever registered, with no switch", async () => {
+    admin.listDevices.mockResolvedValue([]);
+    render(DevicesPage);
+
+    expect(
+      await screen.findByText("No scanners yet. Register one to get its token."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No active scanners.")).toBeNull();
+    expect(screen.queryByRole("switch")).toBeNull();
   });
 
   it("reports failed loads and changes", async () => {

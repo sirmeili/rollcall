@@ -33,6 +33,15 @@ export function deviceStatus(device: DeviceOut): DeviceStatus {
   return device.online ? "online" : "offline";
 }
 
+/** The scanners the Devices page lists: active ones, then (when shown) revoked ones, each
+ * group in ID order. */
+export function listedScanners(devices: readonly DeviceOut[], showRevoked: boolean): DeviceOut[] {
+  const byId = (a: DeviceOut, b: DeviceOut): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  return devices
+    .filter((d) => showRevoked || !d.revoked)
+    .sort((a, b) => Number(a.revoked) - Number(b.revoked) || byId(a, b));
+}
+
 export const STATUS_LABELS: Record<DeviceStatus, string> = {
   online: "Online",
   offline: "Offline",

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { dayLabel, groupByDay, SOURCE_FILTERS, timeOfDay } from "#lib/activity.ts";
-import { ago, deviceId, DEVICE_ID_PATTERN, deviceStatus, seenText } from "#lib/devices.ts";
+import {
+  ago,
+  deviceId,
+  DEVICE_ID_PATTERN,
+  deviceStatus,
+  listedScanners,
+  seenText,
+} from "#lib/devices.ts";
 import { blankIsNull, emptyEntry, entryProblem, rgbaOf } from "#lib/manual-entry.ts";
 import {
   isLanHost,
@@ -126,6 +133,23 @@ describe("devices", () => {
     expect(deviceStatus(device({ online: true }))).toBe("online");
     expect(deviceStatus(device())).toBe("offline");
     expect(deviceStatus(device({ revoked: true, online: true }))).toBe("revoked");
+  });
+
+  it("lists active scanners first, then revoked ones when shown, each in ID order", () => {
+    const devices = [
+      device({ id: "b-old", revoked: true }),
+      device({ id: "zeta" }),
+      device({ id: "Zeta" }),
+      device({ id: "alpha" }),
+      device({ id: "a-old", revoked: true }),
+    ];
+    const ids = (show: boolean) => listedScanners(devices, show).map((d) => d.id);
+
+    expect(ids(false)).toEqual(["Zeta", "alpha", "zeta"]);
+    expect(ids(true)).toEqual(["Zeta", "alpha", "zeta", "a-old", "b-old"]);
+    expect(devices[0]?.id).toBe("b-old");
+    const twins = [device({ name: "First" }), device({ name: "Second" })];
+    expect(listedScanners(twins, false).map((d) => d.name)).toEqual(["First", "Second"]);
   });
 });
 

@@ -14,13 +14,14 @@
     type PrinterCheck,
     type PrinterFields,
   } from "#lib/api/admin.ts";
+  import type { Snapshot } from "@sveltejs/kit";
   import { describeError } from "#lib/api/errors.ts";
   import type { DeviceOut, PrinterOut } from "#lib/api/types.ts";
   import DeviceCard from "#lib/components/devices/DeviceCard.svelte";
   import PrinterCard from "#lib/components/devices/PrinterCard.svelte";
   import PrinterForm from "#lib/components/devices/PrinterForm.svelte";
   import TokenPanel from "#lib/components/devices/TokenPanel.svelte";
-  import { DEVICE_ID_PATTERN, deviceId } from "#lib/devices.ts";
+  import { DEVICE_ID_PATTERN, deviceId, listedScanners } from "#lib/devices.ts";
 
   let devices = $state<DeviceOut[] | null>(null);
   let failure = $state<string | null>(null);
@@ -28,6 +29,16 @@
   let printerFailure = $state<string | null>(null);
   let message = $state<string | null>(null);
   let busy = $state(false);
+  let showRevoked = $state(false);
+
+  /** Back and Forward bring the switch back as it was; a fresh visit starts with it off. */
+  export const snapshot: Snapshot<boolean> = {
+    capture: () => showRevoked,
+    restore: (value) => (showRevoked = value),
+  };
+
+  const revokedCount = $derived(devices?.filter((d) => d.revoked).length ?? 0);
+  const shownScanners = $derived(listedScanners(devices ?? [], showRevoked));
 
   let registering = $state(false);
   let addingPrinter = $state(false);
@@ -42,6 +53,8 @@
     try {
       devices = await listDevices();
       failure = null;
+      // With no scanner revoked the switch is hidden, so it goes back to off.
+      if (!devices.some((d) => d.revoked)) showRevoked = false;
     } catch (error) {
       failure = describeError(error);
     }
@@ -150,7 +163,7 @@
   function revoke(device: DeviceOut): Promise<void> {
     return change(async () => {
       await revokeDevice(device.id);
-      message = `Revoked ${device.name}.`;
+      message = `Revoked ${device.name}. It's under Show revoked, where a new token re-enables it.`;
     });
   }
 
@@ -225,16 +238,26 @@
   {#if message}<p role="status" class="muted">{message}</p>{/if}
 
   <section aria-labelledby="sc-h">
-    <h2 id="sc-h">Scanners</h2>
+    <div class="sectionhead">
+      <h2 id="sc-h">Scanners</h2>
+      {#if revokedCount > 0}
+        <label class="switch">
+          <input type="checkbox" role="switch" bind:checked={showRevoked} />
+          Show revoked ({revokedCount})
+        </label>
+      {/if}
+    </div>
     {#if failure}
       <p role="alert" class="error">{failure}</p>
     {:else if !devices}
       <p class="muted">Loading…</p>
     {:else if devices.length === 0}
       <p class="muted">No scanners yet. Register one to get its token.</p>
+    {:else if shownScanners.length === 0}
+      <p class="muted">No active scanners.</p>
     {:else}
       <div class="grid">
-        {#each devices as device (device.id)}
+        {#each shownScanners as device (device.id)}
           <DeviceCard {device} {busy} onrotate={rotate} onrevoke={revoke} ondelete={deleteOne} />
         {/each}
       </div>
@@ -301,6 +324,16 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+  }
+
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
   }
 
   .addform {
