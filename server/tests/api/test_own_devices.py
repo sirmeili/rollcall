@@ -15,6 +15,7 @@ from api_helpers import (
     browser,
     login,
     make_user,
+    over_plain_http,
     register,
     scan_body,
     signed_in,
@@ -271,6 +272,22 @@ def test_a_session_in_use_is_renewed_when_half_its_time_is_gone(
     # The renewed cookie keeps working, and the next request has nothing to renew.
     again = web.get("/api/v1/auth/me")
     assert again.status_code == 200 and "set-cookie" not in again.headers
+
+
+def test_a_renewed_cookie_drops_the_secure_flag_when_cookie_secure_is_false(
+    db_url: str,
+) -> None:
+    with over_plain_http(db_url) as (app, web):
+        make_user(app, "eve", Role.VIEWER)
+        assert login(web, "eve").status_code == 200
+        _expire_in(app, app.state.settings_store.session_days() / 2 - 1)
+        renewed = web.get("/api/v1/auth/me")
+
+    assert renewed.status_code == 200
+    cookie = renewed.headers["set-cookie"]
+    assert cookie.startswith("ft_session=")
+    assert "HttpOnly" in cookie and "SameSite=strict" in cookie
+    assert "secure" not in cookie.lower()
 
 
 def test_signing_out_is_not_undone_by_a_renewal(app: FastAPI, client: TestClient) -> None:

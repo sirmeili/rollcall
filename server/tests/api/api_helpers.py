@@ -1,5 +1,7 @@
 """Helpers for API tests: auth headers, device registration, scan bodies and users."""
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Any
 from uuid import uuid4
@@ -8,8 +10,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import Response
 
+from filament_tracker.config import Settings
 from filament_tracker.decoder.synthetic import SyntheticTag
 from filament_tracker.domain.enums import Role
+from filament_tracker.main import create_app
 from filament_tracker.services.accounts import create_user
 
 ADMIN_TOKEN = "test-admin-token-0123456789abcdef"  # noqa: S105 - test value
@@ -109,3 +113,41 @@ def signed_in(
     session = browser(app, client)
     assert login(session, name).status_code == 200
     return session
+
+
+@contextmanager
+def over_plain_http(db_url: str) -> Iterator[tuple[FastAPI, TestClient]]:
+    """An app with `cookie_secure` off, and a browser on the LAN reaching it over plain HTTP."""
+    settings = Settings(
+        database_url=db_url, admin_token=ADMIN_TOKEN, cookie_secure=False, _env_file=None
+    )
+    app = create_app(settings)
+    with TestClient(app, base_url="http://testserver", client=LAN_CLIENT) as web:
+        yield app, web
+
+
+# Every print request route and the lowest role allowed (None: depends on the request),
+# checked by requests/test_request_security.py.
+_REQUESTS = "/api/v1/requests"
+UPLOADS = f"{_REQUESTS}/uploads"
+PHOTO_UPLOADS = f"{_REQUESTS}/photo-uploads"
+A_PHOTO = f"{_REQUESTS}/1/photos/00000000-0000-0000-0000-000000000001"
+REQUEST_ROUTES = [
+    ("get", _REQUESTS, Role.EDITOR),
+    ("post", _REQUESTS, None),
+    ("get", f"{_REQUESTS}/count", Role.EDITOR),
+    ("get", f"{_REQUESTS}/1", Role.EDITOR),
+    ("patch", f"{_REQUESTS}/1", None),
+    ("post", f"{_REQUESTS}/1/priority", Role.EDITOR),
+    ("post", f"{_REQUESTS}/1/moves", Role.ADMIN),
+    ("post", UPLOADS, None),
+    ("get", f"{_REQUESTS}/1/file", Role.EDITOR),
+    ("post", PHOTO_UPLOADS, None),
+    ("post", f"{_REQUESTS}/1/photos", None),
+    ("delete", A_PHOTO, None),
+    ("get", A_PHOTO, Role.EDITOR),
+    ("put", f"{_REQUESTS}/1/choices/1/grams", None),
+    ("post", f"{_REQUESTS}/1/choices/1/holds", None),
+    ("put", f"{_REQUESTS}/1/holds/1", None),
+    ("delete", f"{_REQUESTS}/1/holds/1?from_status=queued", None),
+]

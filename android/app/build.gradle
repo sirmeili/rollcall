@@ -84,6 +84,21 @@ android {
     }
 }
 
+// Each variant's unit tests get its merged manifest, as the system property mergedManifest
+// (BackupRulesTest checks the app's data stays out of Android backup and device transfer).
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        def manifest = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.MERGED_MANIFEST.INSTANCE)
+        def testTask = "test${variant.name.capitalize()}UnitTest"
+        tasks.withType(Test).configureEach { task ->
+            if (task.name == testTask) {
+                task.inputs.file(manifest).withPathSensitivity(PathSensitivity.NONE)
+                task.jvmArgumentProviders.add({ ["-DmergedManifest=${manifest.get().asFile}"] } as CommandLineArgumentProvider)
+            }
+        }
+    }
+}
+
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
