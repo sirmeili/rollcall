@@ -81,7 +81,7 @@ To test the other flavor, download its APK from the release candidate's page and
 
 ## Checklist
 
-The phone checklist is in [android/README.md, Checklist](../android/README.md#checklist). Its step ids, flavor marks, Always list, each section's triggers, the shared web code and unmapped-file rules and the full-run triggers are all there; this page doesn't repeat them.
+The checklist is in [docs/checklist.md](checklist.md). Its step ids, flavor marks, Always list, each section's triggers, the shared web code and unmapped-file rules and the full-run triggers are all there; this page doesn't repeat them.
 
 - A release runs the Always steps, plus every section its changes since the last release trigger, unless a full-run trigger fires.
 - A changed non-test file in the app or web source that no section names makes it a full run, and the record lists the file, so the checklist can name it next time. Test files trigger nothing, nor do docs and the checks in `android/scripts/` and `web/scripts/`, which aren't app or web source.

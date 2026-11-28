@@ -17,7 +17,7 @@ labels: release-check
 
 ## Steps
 
-<!-- The Always steps and every step of the triggered sections, from android/README.md, Checklist, one per line:
+<!-- The Always steps and every step of the triggered sections, from docs/checklist.md, one per line:
 - [ ] <step id>: <step text> (<flavors>)
 -->
 
