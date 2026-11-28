@@ -1,11 +1,11 @@
 ---
-name: App release record
-about: The record of one app release, from its first release candidate to the final release (docs/releasing.md)
-title: "App release <version>"
+name: Release record
+about: The record of one RollCall release, from its first release candidate to the final release (docs/releasing.md)
+title: "RollCall release <version>"
 labels: release-check
 ---
 
-<!-- Replace <version> in the title with the final version, such as 1.3.0, exactly: the App release workflow finds this record by its title. Follow docs/releasing.md. -->
+<!-- Replace <version> in the title with the final version, such as 1.4.0, exactly: the Release workflow finds this record by its title. Follow docs/releasing.md. -->
 
 ## Version
 
