@@ -707,8 +707,14 @@ describe("Devices page", () => {
         scanner({ id: "old", name: "Old", revoked: true }),
         scanner({ id: "zeta", name: "Zeta" }),
       ])
-      .mockResolvedValue([scanner({ id: "old", name: "Old" }), scanner({ id: "zeta", name: "Zeta" })]);
-    admin.rotateToken.mockResolvedValue({ ...scanner({ id: "old", name: "Old" }), token: "ft_dev_new" });
+      .mockResolvedValue([
+        scanner({ id: "old", name: "Old" }),
+        scanner({ id: "zeta", name: "Zeta" }),
+      ]);
+    admin.rotateToken.mockResolvedValue({
+      ...scanner({ id: "old", name: "Old" }),
+      token: "ft_dev_new",
+    });
     render(DevicesPage);
     await userEvent.click(await screen.findByRole("switch", { name: "Show revoked (1)" }));
     const card = screen.getByRole("article", { name: "Old" });
