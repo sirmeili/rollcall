@@ -56,7 +56,7 @@ git tag v1.4.0-rc.1
 git push origin v1.4.0-rc.1
 ```
 
-The **Release** workflow builds both flavors of the app at that version, signs and checks them, builds the image at that version and runs it end to end in the Compose test stack, including the upgrade test from the previous release's image. Only when all of that passes does it push the image as `1.4.0-rc.1` and publish a GitHub prerelease titled **RollCall app and server 1.4.0-rc.1**. It refuses a malformed version ([Versioning](#versioning)), a commit not in `main`, and a release candidate for a version whose final tag already exists: pick the next version instead. [Final release](#final-release) lists every refusal.
+The **Release** workflow builds both flavors of the app at that version, signs and checks them, builds the image at that version and runs it end to end in the Compose test stack, including the upgrade test from the previous release's image. Only when all of that passes does it push the image as `1.4.0-rc.1` and publish a GitHub prerelease titled **RollCall app and server 1.4.0-rc.1**. It refuses a malformed version ([Versioning](#versioning)), a commit not in `main`, a release candidate for a version whose final tag already exists, and a version not newer than the newest final release: pick the next version instead. [Final release](#final-release) lists every refusal.
 
 Then, on the record:
 
@@ -98,12 +98,12 @@ In Portainer:
    - `ROLLCALL_TAG`, `CANDIDATE_TAG` and `RESTORE=1` as for the first release candidate's restore ([Testing a release candidate](#testing-a-release-candidate), step 3). The stack can't start without both tags, so deploying it is that first restore.
 3. **The live backups.** `prepare` reads the live stack's backup volume, `rollcall-backups`, read only. If the live stack keeps its backups on a host path instead ([docs/deploy.md, Backups](deploy.md#backups)), change `prepare`'s `live-backups:/live-backups:ro` to that path, such as `/mnt/backup/rollcall:/live-backups:ro`, and delete the `live-backups:` volume at the bottom of the file. A volume of another name only needs `LIVE_BACKUPS_VOLUME` set to it.
 4. **Away from home.** The away-from-home phone steps (22, 23, 29, 50 and 51) need the test server behind the Cloudflare Tunnel and Cloudflare Access, as the live server is ([docs/deploy.md, The reverse proxy](deploy.md#5-the-reverse-proxy)), on a second hostname such as `rollcall-candidate.example.com`:
-   1. In the pasted Compose file, rename the `rollcall` service to `candidate`, and add it to the tunnel's network as [A Cloudflare Tunnel](deploy.md#a-cloudflare-tunnel), step 3, does for the live server. The rename matters: on a shared network, Docker answers a service's name with every container of that name, so a second `rollcall` there would take a share of the live hostname's traffic. Its container is still `rollcall-candidate`.
+   1. In the pasted Compose file, add the `candidate` service to the tunnel's network as [A Cloudflare Tunnel](deploy.md#a-cloudflare-tunnel), step 3, does for the live server. The service is named `candidate`, not `rollcall`, because on a shared network Docker answers a service's name with every container of that name, so a second `rollcall` there would take a share of the live hostname's traffic. Its container is `rollcall-candidate`.
 
       ```yaml
       services:
         candidate:
-          # ...as the rollcall service in deploy/candidate/compose.yaml...
+          # ...as in deploy/candidate/compose.yaml...
           networks:
             - default
             - rollcall-tunnel
@@ -185,6 +185,7 @@ The workflow rebuilds the app and the image at the final version from that commi
 | --- | --- | --- | --- |
 | Any, and the dry run's version | The version `<version>` must look like 1.2.3, or 1.2.3-rc.1 for a release candidate (the tag like v1.2.3 or v1.2.3-rc.1), each part 0 to 999 with no leading zero and not all 0, and N from 1 with no leading zero (Versioning) | The version isn't `major.minor.patch`, each part 0 to 999 and not all 0, optionally followed by `-rc.N` with N from 1 and no leading zero, such as `v1.4.0-rc.01` or `v1.4.0-beta`. | Delete the tag and tag the release again with a valid version. |
 | Any | The tagged commit `<commit>` is not in main (Release candidate) | The tag is on a commit that isn't in `main`, such as a branch's. | Delete the tag and tag a commit in `main`. |
+| Any | `<version>` is not newer than the newest final release, `<tag>`, so latest would move back: pick the next version after `<newest>` (Versioning, Release candidate) | A later final release is already out (the newest final `v*` tag, else `app-v*`), such as `v1.3.9-rc.1` after `v1.4.0`. | Delete the tag, pick the next version after the newest final release and tag its first release candidate. |
 | Release candidate | `v<version>` is already released, so it can't have another release candidate (Versioning, Release candidate) | The final tag for this version exists (or, for 1.3.0 and earlier, `app-v<version>`). | Delete the tag, pick the next version and tag its first release candidate. |
 | Final | No release candidate for `<version>` (Release candidate) | No `v<version>-rc.N` tag exists. | Delete the tag, then tag and test `v<version>-rc.1` first. |
 | Final | `v<version>` is on `<commit>`, not on the newest release candidate `v<version>-rc.<n>` (`<its commit>`) (Final release) | The final tag is on another commit, such as `main`'s tip; the message names the newest release candidate and its commit. | Delete the tag and tag the commit the message names, as above. |

@@ -34,7 +34,9 @@ services:
     cap_drop:
       - ALL
 
-  rollcall:
+  # The test server. Its service is named candidate, not rollcall, so that on a shared
+  # network, such as the tunnel's, the name rollcall still means the live server.
+  candidate:
     image: ${ROLLCALL_IMAGE:-ghcr.io/sirmeili/rollcall:${ROLLCALL_TAG:?set ROLLCALL_TAG}}
     container_name: rollcall-candidate
     restart: unless-stopped
