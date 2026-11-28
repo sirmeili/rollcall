@@ -10,7 +10,6 @@ import pytest
 from filament_tracker.admin_cli import main
 from filament_tracker.config import Settings
 
-
 NOW = "2026-11-20 08:00:00.000000"
 
 
@@ -95,3 +94,144 @@ def test_restores_the_newest_of_several_backups_over_the_database(
     assert _usernames(target) == ["20261120"]
     assert "restored filament-20261120T080000Z.db" in capsys.readouterr().out
     assert len(list(backups.iterdir())) == 3
+
+
+SCRUBBED_SETTINGS = (
+    "smtp_host",
+    "smtp_port",
+    "smtp_security",
+    "smtp_user",
+    "smtp_password",
+    "smtp_from",
+    "mqtt_url",
+    "mqtt_user",
+    "mqtt_password",
+    "ha_url",
+    "ha_token",
+)
+KEPT_SETTINGS = (
+    "firebase_project_id",
+    "firebase_app_id",
+    "firebase_api_key",
+    "firebase_sender_id",
+    "firebase_service_account",
+    "tz",
+    "ha_discovery_prefix",
+    "public_url",
+)
+KEPT_TABLES = ("user", "product", "spool", "event", "print_request")
+SCANNER_TOKEN = "scanner-token-hash"  # noqa: S105 - test value
+PHONE_TOKEN = "phone-token-hash"  # noqa: S105 - test value
+
+
+def _add_live_data(path: Path) -> None:
+    """What a live server holds: an account, a linked product with a spool scanned by one
+    device, a second device with no history, a print request, a printer, a machine token,
+    push registrations and settings."""
+    _add_user(path, "frank")
+    statements: list[tuple[str, tuple[object, ...]]] = [
+        (
+            "INSERT INTO product (id, filament_type, color_rgba, display_name,"
+            " low_stock_threshold, provisional, created_at, catalog_manual_uuid)"
+            " VALUES (1, 'PLA', '000000FF', 'Black PLA', 0, 0, ?, ?)",
+            (NOW, "4f0c6c2e-0000-4000-8000-000000000001"),
+        ),
+        ("INSERT INTO spool (id, product_id, created_at) VALUES (1, 1, ?)", (NOW,)),
+        (
+            "INSERT INTO device (id, name, token_hash, created_at)"
+            " VALUES ('scanner', 'Kitchen scanner', ?, ?), ('phone', 'Phone', ?, ?)",
+            (SCANNER_TOKEN, NOW, PHONE_TOKEN, NOW),
+        ),
+        (
+            "INSERT INTO event (id, spool_id, type, source, device_id, occurred_at,"
+            " recorded_at, flagged) VALUES ('e1', 1, 'received', 'scanner', 'scanner', ?, ?, 0)",
+            (NOW, NOW),
+        ),
+        (
+            "INSERT INTO print_request (requester_id, title, notes, quantity, priority, status,"
+            " created_at, updated_at) VALUES (1, 'Hook', '', 1, 'normal', 'submitted', ?, ?)",
+            (NOW, NOW),
+        ),
+        (
+            "INSERT INTO printer (id, name, serial, host, access_code)"
+            " VALUES (1, 'P1S', '01P00A000000001', '192.168.1.50', 'sealed')",
+            (),
+        ),
+        (
+            "INSERT INTO printer_slot (printer_id, ams_index, tray_index, spool_id, updated_at)"
+            " VALUES (1, 0, 0, 1, ?)",
+            (NOW,),
+        ),
+        (
+            "INSERT INTO machine_token (name, role, token_hash, created_at)"
+            " VALUES ('Home Assistant', 'viewer', 'machine-token-hash', ?)",
+            (NOW,),
+        ),
+        (
+            "INSERT INTO push_endpoint (device_id, route, endpoint, registered_at, failures)"
+            " VALUES ('scanner', 'fcm', 'fcm-token', ?, 0),"
+            " ('phone', 'web_push', 'https://push.example', ?, 0)",
+            (NOW, NOW),
+        ),
+    ]
+    statements += [
+        (
+            "INSERT INTO setting (key, value, secret, updated_at) VALUES (?, ?, 0, ?)",
+            (key, f"live {key}", NOW),
+        )
+        for key in SCRUBBED_SETTINGS + KEPT_SETTINGS
+    ]
+    with sqlite3.connect(path) as db:
+        for sql, params in statements:
+            db.execute(sql, params)
+    db.close()
+
+
+def _table(path: Path, table: str) -> list[tuple[object, ...]]:
+    return _rows(path, f'SELECT * FROM "{table}" ORDER BY 1')  # noqa: S608 - test tables
+
+
+def _kept_settings(path: Path) -> list[tuple[object, ...]]:
+    return [row for row in _table(path, "setting") if row[0] in KEPT_SETTINGS]
+
+
+def _restore_live(backups: Path, template: Path, settings: Settings, capsys) -> tuple[Path, str]:
+    live = _db(backups / "filament-20261120T080000Z.db", template)
+    _add_live_data(live)
+    assert main(["restore", "--for-test", str(backups)], settings=settings) == 0
+    return live, capsys.readouterr().out
+
+
+def test_removes_what_could_reach_the_household(
+    backups: Path, target: Path, settings: Settings, migrated_template: Path, capsys
+) -> None:
+    _, out = _restore_live(backups, migrated_template, settings, capsys)
+
+    assert {key for (key,) in _rows(target, "SELECT key FROM setting")} == set(KEPT_SETTINGS)
+    for table in ("printer", "printer_slot", "machine_token", "push_endpoint"):
+        assert _table(target, table) == [], table
+    assert "removed 11 settings, 1 printer, 1 machine token, 2 push registrations" in out
+
+
+def test_deletes_devices_with_no_history_and_revokes_the_rest(
+    backups: Path, target: Path, settings: Settings, migrated_template: Path, capsys
+) -> None:
+    _, out = _restore_live(backups, migrated_template, settings, capsys)
+
+    [(device_id, revoked_at, token_hash)] = _rows(
+        target, "SELECT id, revoked_at, token_hash FROM device"
+    )
+    assert device_id == "scanner"
+    assert revoked_at is not None
+    assert token_hash not in (SCANNER_TOKEN, PHONE_TOKEN)
+    assert "1 device deleted, 1 revoked" in out
+
+
+def test_keeps_accounts_inventory_requests_and_firebase(
+    backups: Path, target: Path, settings: Settings, migrated_template: Path, capsys
+) -> None:
+    live, _ = _restore_live(backups, migrated_template, settings, capsys)
+
+    for table in KEPT_TABLES:
+        assert _table(target, table) == _table(live, table), table
+    assert _kept_settings(target) == _kept_settings(live)

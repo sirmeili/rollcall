@@ -10,6 +10,7 @@ from pathlib import Path
 
 from filament_tracker.app_settings.offline import database_file
 from filament_tracker.services.backup import backups
+from filament_tracker.services.scrub_for_test import scrub
 
 # SQLite's files beside a database: a stale one would be replayed into the restored copy.
 SIDE_FILES = ("-wal", "-shm", "-journal")
@@ -29,7 +30,8 @@ def restore_for_test(backups_dir: Path, database_url: str) -> str:
         raise NoBackup("DATABASE_URL must be a SQLite file")
     newest = found[-1]
     _copy(newest, target)
-    return f"restored {newest.name}"
+    removed = scrub(database_url)
+    return f"restored {newest.name}; removed {removed}"
 
 
 def _copy(source: Path, target: Path) -> None:
