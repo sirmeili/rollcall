@@ -243,6 +243,15 @@ describe("Spools page", () => {
     }
   });
 
+  it("gives a Viewer no Add spool on desktop", async () => {
+    signedInAs("viewer");
+    stock.listSpools.mockResolvedValue(page());
+    render(SpoolsPage);
+
+    await screen.findByText("Showing 1–2 of 2");
+    expect(screen.queryByRole("link", { name: "Add spool by hand" })).toBeNull();
+  });
+
   it("lists spools with counts, filters and search", async () => {
     stock.listSpools.mockResolvedValue(page());
     render(SpoolsPage);
