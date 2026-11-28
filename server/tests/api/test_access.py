@@ -110,6 +110,23 @@ def _call(client: TestClient, method: str, path: str, headers: dict[str, str] | 
 
 
 @pytest.mark.parametrize(("method", "path", "needed"), ROUTES)
+def test_each_route_refuses_no_credentials(
+    client: TestClient, method: str, path: str, needed: Role
+) -> None:
+    assert _call(client, method, path).status_code == 401
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "needed"), [r for r in ROUTES if not r[1].endswith("/revert")]
+)
+def test_each_route_refuses_a_scanner(
+    client: TestClient, token: str, method: str, path: str, needed: Role
+) -> None:
+    # A scanner's token reaches only the scanner routes and an undo of its own scan.
+    assert _call(client, method, path, bearer(token)).status_code == 403
+
+
+@pytest.mark.parametrize(("method", "path", "needed"), ROUTES)
 @pytest.mark.parametrize("role", list(Role))
 def test_each_route_needs_its_role(
     app: FastAPI, client: TestClient, method: str, path: str, needed: Role, role: Role
