@@ -203,6 +203,53 @@ def test_retries_then_gives_up_with_a_warning(
     assert TOKEN.get_secret_value() not in caplog.text
 
 
+class RecordingWait:
+    """Stands in for the sender's stop flag: records each wait instead of sleeping, and
+    reports stopping once `stop_after` waits have been made."""
+
+    def __init__(self, stop_after: int | None = None) -> None:
+        self.waits: list[float] = []
+        self._stop_after = stop_after
+
+    def is_set(self) -> bool:
+        return self._stop_after is not None and len(self.waits) >= self._stop_after
+
+    def wait(self, seconds: float) -> bool:
+        self.waits.append(seconds)
+        return self.is_set()
+
+
+def test_polls_every_five_seconds_by_default(sessions: sessionmaker[Session]) -> None:
+    events = HaEventSender(FakeRest(), sessions)
+    stop = RecordingWait(stop_after=2)
+    events._stopping = stop  # type: ignore[assignment]  # noqa: SLF001
+
+    events.run()
+
+    assert stop.waits == [5.0, 5.0]
+
+
+def test_default_retries_wait_1_4_and_15_seconds_then_drop(
+    sessions: sessionmaker[Session], caplog: pytest.LogCaptureFixture
+) -> None:
+    rest = FakeRest([Problem.UNREACHABLE] * 5)
+    events = HaEventSender(rest, sessions)
+    events.feed = EventFeed(started_at=T0 - timedelta(days=1))
+    stop = RecordingWait()
+    events._stopping = stop  # type: ignore[assignment]  # noqa: SLF001
+    with sessions() as session:
+        record(session, add_product(session), EventType.RECEIVED)
+
+    with caplog.at_level(logging.WARNING):
+        events.step()
+
+    assert len(rest.failures) == 1  # type: ignore[attr-defined]  # tried four times
+    assert stop.waits == [1.0, 4.0, 15.0]
+    assert rest.sent == []  # type: ignore[attr-defined]
+    assert "filament_tracker_spool_received not sent: unreachable" in caplog.text
+    assert events.status is EventsStatus.FAILING
+
+
 def test_a_retry_that_works_recovers(sessions: sessionmaker[Session]) -> None:
     rest = FakeRest([Problem.UNREACHABLE, Problem.ERROR])
     events = sender(sessions, rest)
