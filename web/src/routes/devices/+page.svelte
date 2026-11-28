@@ -21,7 +21,7 @@
   import PrinterCard from "#lib/components/devices/PrinterCard.svelte";
   import PrinterForm from "#lib/components/devices/PrinterForm.svelte";
   import TokenPanel from "#lib/components/devices/TokenPanel.svelte";
-  import { DEVICE_ID_PATTERN, deviceId } from "#lib/devices.ts";
+  import { DEVICE_ID_PATTERN, deviceId, listedScanners } from "#lib/devices.ts";
 
   let devices = $state<DeviceOut[] | null>(null);
   let failure = $state<string | null>(null);
@@ -38,12 +38,7 @@
   };
 
   const revokedCount = $derived(devices?.filter((d) => d.revoked).length ?? 0);
-  /** Active scanners, then (when shown) revoked ones, each group in ID order. */
-  const listed = $derived(
-    (devices ?? [])
-      .filter((d) => showRevoked || !d.revoked)
-      .sort((a, b) => Number(a.revoked) - Number(b.revoked) || (a.id < b.id ? -1 : 1)),
-  );
+  const shownScanners = $derived(listedScanners(devices ?? [], showRevoked));
 
   let registering = $state(false);
   let addingPrinter = $state(false);
@@ -258,11 +253,11 @@
       <p class="muted">Loading…</p>
     {:else if devices.length === 0}
       <p class="muted">No scanners yet. Register one to get its token.</p>
-    {:else if listed.length === 0}
+    {:else if shownScanners.length === 0}
       <p class="muted">No active scanners.</p>
     {:else}
       <div class="grid">
-        {#each listed as device (device.id)}
+        {#each shownScanners as device (device.id)}
           <DeviceCard {device} {busy} onrotate={rotate} onrevoke={revoke} ondelete={deleteOne} />
         {/each}
       </div>
