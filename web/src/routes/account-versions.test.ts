@@ -135,6 +135,20 @@ describe("account page, which release", () => {
     expect(screen.queryByText(NOTE)).toBeNull();
   });
 
+  it("shows no server version or note for a server from before versions", async () => {
+    inTheApp("1.4.0");
+    const server = fakeFetch({ "GET /health": { status: "ok" } });
+    vi.stubGlobal("fetch", server);
+
+    render(AccountPage);
+
+    expect(screen.getByText("RollCall app 1.4.0")).toBeInTheDocument();
+    await vi.waitFor(() => expect(server.calls.map((call) => call.path)).toContain("/health"));
+    await Promise.resolve();
+    expect(screen.queryByText(/RollCall server/)).toBeNull();
+    expect(screen.queryByText(NOTE)).toBeNull();
+  });
+
   it("still shows the app's version when the server cannot be reached", async () => {
     inTheApp("1.4.0");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("down")));
