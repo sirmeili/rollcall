@@ -141,7 +141,10 @@ test("the Show revoked switch survives Back, and a fresh visit starts with it of
   await page.getByRole("button", { name: "Done" }).click();
   const card = page.getByRole("article", { name: "Old scanner" });
   await card.getByRole("button", { name: "Revoke" }).click();
-  await card.getByRole("group", { name: "Confirm" }).getByRole("button", { name: "Revoke" }).click();
+  await card
+    .getByRole("group", { name: "Confirm" })
+    .getByRole("button", { name: "Revoke" })
+    .click();
   await expect(card).toHaveCount(0);
 
   await page.getByRole("switch", { name: /^Show revoked/ }).check();
