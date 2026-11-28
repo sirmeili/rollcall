@@ -31,8 +31,11 @@
   let showRevoked = $state(false);
 
   const revokedCount = $derived(devices?.filter((d) => d.revoked).length ?? 0);
+  /** Active scanners, then (when shown) revoked ones, each group in ID order. */
   const listed = $derived(
-    (devices ?? []).filter((d) => showRevoked || !d.revoked),
+    (devices ?? [])
+      .filter((d) => showRevoked || !d.revoked)
+      .sort((a, b) => Number(a.revoked) - Number(b.revoked) || (a.id < b.id ? -1 : 1)),
   );
 
   let registering = $state(false);
