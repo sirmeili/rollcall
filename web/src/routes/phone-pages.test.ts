@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Me } from "#lib/api/types.ts";
 import { browserBridge, setBridge } from "#lib/phone/bridge.ts";
 import { savePairing } from "#lib/phone/pairing-store.ts";
+import { viewport } from "#lib/viewport.svelte.ts";
 import { fakeBridge, fakeFetch, PAIRING, tagRead, type FakeBridge } from "../test/fake-bridge.ts";
 import tags from "../test/tags.json";
 
@@ -145,6 +146,30 @@ describe("layout in the phone app", () => {
     expect(await screen.findByRole("link", { name: "Scan" })).toHaveAttribute("href", "/scan");
     expect(screen.getByText("page content")).toBeInTheDocument();
     session.user = null;
+  });
+
+  it("keeps Scan in its own layout at phone width, and gives other pages the bottom bar", async () => {
+    await paired();
+    session.user = { id: 1, username: "frank", role: "viewer" } as Me;
+    session.loaded = true;
+    viewport().phone = true;
+    try {
+      at("/scan");
+      render(Layout, { children });
+
+      expect(await screen.findByText("page content")).toBeInTheDocument();
+      expect(screen.queryByRole("navigation", { name: "App" })).toBeNull();
+      expect(screen.queryByRole("link", { name: "RollCall, Inventory" })).toBeNull();
+
+      cleanup();
+      at("/spools");
+      render(Layout, { children });
+
+      expect(await screen.findByRole("navigation", { name: "App" })).toBeInTheDocument();
+    } finally {
+      viewport().phone = false;
+      session.user = null;
+    }
   });
 
   it("offers Pairing when the paired server cannot be reached", async () => {
