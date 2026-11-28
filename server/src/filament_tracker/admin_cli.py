@@ -6,12 +6,14 @@ always prompted for, never passed as arguments, so they stay out of shell histor
     ft-admin create-user USERNAME [--role viewer|editor|admin] [--requester]
     ft-admin reset-password USERNAME
     ft-admin backup
+    ft-admin restore --for-test BACKUPS_DIR   (test servers only, never the live server)
 """
 
 import argparse
 import getpass
 import sys
 from collections.abc import Callable, Sequence
+from pathlib import Path
 
 from sqlalchemy import select
 
@@ -29,6 +31,7 @@ from filament_tracker.services.accounts import (
     set_password,
 )
 from filament_tracker.services.backup import backup_database, prune
+from filament_tracker.services.restore_for_test import NoBackup, restore_for_test
 
 Prompt = Callable[[str], str]
 
@@ -47,6 +50,18 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser(
         "backup", help="back the database up to BACKUP_DIR now, like the nightly backup"
     )
+    restore = commands.add_parser(
+        "restore",
+        help=(
+            "test servers only, never the live server: replace the database with the newest"
+            " backup, then remove email, Home Assistant and printer settings, printers, machine"
+            " tokens and push registrations, delete devices with no history and revoke the rest"
+        ),
+    )
+    restore.add_argument(
+        "--for-test", action="store_true", required=True, help="say this is a test server"
+    )
+    restore.add_argument("backups_dir", type=Path, help="the live backups, read only")
     return parser
 
 
@@ -69,6 +84,16 @@ def _backup(settings: Settings) -> int:
     return 0
 
 
+def _restore(settings: Settings, backups_dir: Path) -> int:
+    try:
+        report = restore_for_test(backups_dir, settings.database_url)
+    except NoBackup as exc:
+        print(f"ft-admin: {exc}", file=sys.stderr)
+        return 1
+    print(report)
+    return 0
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -79,6 +104,8 @@ def main(
     settings = settings or Settings()
     if args.command == "backup":
         return _backup(settings)
+    if args.command == "restore":
+        return _restore(settings, args.backups_dir)
     upgrade(settings.database_url)
     engine = create_db_engine(settings.database_url)
     try:

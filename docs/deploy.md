@@ -275,7 +275,7 @@ Steps 1 to 4 work the same in Portainer, through its web UI:
 - **Registry**: Registries › Add registry › Custom registry, with URL `ghcr.io`, authentication on, username `sirmeili` and the `read:packages` token as the password.
 - **Stack**: Stacks › Add stack › Web editor, and paste `deploy/compose.yaml`. Change `env_file: .env` to `env_file: stack.env`: Portainer writes the stack's environment variables to `stack.env`, not `.env`. Add the settings from step 2 under Environment variables (Load variables from .env file accepts a filled-in copy of `.env.example`), then Deploy the stack.
 - **Setup code**: Containers › rollcall › Logs, and search for `setup code`.
-- **Commands** such as `ft-admin backup` or `ft-admin reset-password <username>`: Containers › rollcall › Console, with `/bin/sh`.
+- **Commands** such as `ft-admin backup` or `ft-admin reset-password <username>`: Containers › rollcall › Console, with `/bin/sh`. `ft-admin restore --for-test` is for a test server only, never the live server (see [Restoring a backup](#restoring-a-backup)).
 - **Changing a setting**: edit it under the stack's Environment variables, then Update the stack.
 - **Updating**: make a backup from the Console, then Stacks › rollcall › Update the stack with Re-pull image turned on.
 - **Restoring a backup** needs a shell on the server for the `docker run` command below; stop the stack from Portainer first and start it again afterwards.
@@ -325,6 +325,16 @@ docker compose start rollcall
 ```
 
 The database that was replaced is kept in `/data/before-restore/`. The server upgrades a restored database from an older version on start.
+
+`ft-admin restore --for-test <backups directory>` is a test-server command, never for the live server. It replaces the database at `DATABASE_URL` with the newest backup in that directory, without keeping the old one, and leaves the backups untouched. It then removes what could reach the household:
+
+- the email and Home Assistant settings;
+- printers;
+- machine tokens;
+- push registrations;
+- devices that no event names.
+
+It revokes the other devices instead of deleting them, so their history stays. Users, spools, events, products, catalog links, print requests and the Firebase settings are kept. It doesn't migrate the database, so a backup from an older release keeps its schema.
 
 ## Updating
 
