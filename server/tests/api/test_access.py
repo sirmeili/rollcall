@@ -2,9 +2,7 @@
 the LAN (with and without a reverse proxy), LAN-only API docs and security headers."""
 
 import re
-import sys
 from collections.abc import Iterator
-from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,6 +11,7 @@ from api_helpers import (
     BASE_URL,
     CSRF,
     INTERNET_CLIENT,
+    REQUEST_ROUTES,
     admin,
     bearer,
     browser,
@@ -29,11 +28,6 @@ from filament_tracker.db.models import Event
 from filament_tracker.decoder.synthetic import SyntheticTag
 from filament_tracker.domain.enums import EventSource, Role
 from filament_tracker.main import create_app
-
-# The print request routes, which their own suite checks (their access depends on the request
-# too).
-sys.path.insert(0, str(Path(__file__).parent / "requests"))
-from test_request_security import ROUTES as REQUEST_ROUTES  # noqa: E402
 
 # Every route that needs a role, and the lowest role allowed.
 ROUTES = [

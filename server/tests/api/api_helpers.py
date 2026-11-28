@@ -124,3 +124,30 @@ def over_plain_http(db_url: str) -> Iterator[tuple[FastAPI, TestClient]]:
     app = create_app(settings)
     with TestClient(app, base_url="http://testserver", client=LAN_CLIENT) as web:
         yield app, web
+
+
+# Every print request route and the lowest role allowed (None: depends on the request),
+# checked by requests/test_request_security.py.
+_REQUESTS = "/api/v1/requests"
+UPLOADS = f"{_REQUESTS}/uploads"
+PHOTO_UPLOADS = f"{_REQUESTS}/photo-uploads"
+A_PHOTO = f"{_REQUESTS}/1/photos/00000000-0000-0000-0000-000000000001"
+REQUEST_ROUTES = [
+    ("get", _REQUESTS, Role.EDITOR),
+    ("post", _REQUESTS, None),
+    ("get", f"{_REQUESTS}/count", Role.EDITOR),
+    ("get", f"{_REQUESTS}/1", Role.EDITOR),
+    ("patch", f"{_REQUESTS}/1", None),
+    ("post", f"{_REQUESTS}/1/priority", Role.EDITOR),
+    ("post", f"{_REQUESTS}/1/moves", Role.ADMIN),
+    ("post", UPLOADS, None),
+    ("get", f"{_REQUESTS}/1/file", Role.EDITOR),
+    ("post", PHOTO_UPLOADS, None),
+    ("post", f"{_REQUESTS}/1/photos", None),
+    ("delete", A_PHOTO, None),
+    ("get", A_PHOTO, Role.EDITOR),
+    ("put", f"{_REQUESTS}/1/choices/1/grams", None),
+    ("post", f"{_REQUESTS}/1/choices/1/holds", None),
+    ("put", f"{_REQUESTS}/1/holds/1", None),
+    ("delete", f"{_REQUESTS}/1/holds/1?from_status=queued", None),
+]

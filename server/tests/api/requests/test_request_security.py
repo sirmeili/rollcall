@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from api_helpers import CSRF, admin, bearer, register
+from api_helpers import CSRF, PHOTO_UPLOADS, UPLOADS, admin, bearer, register
+from api_helpers import REQUEST_ROUTES as ROUTES
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image
@@ -20,29 +21,6 @@ from request_helpers import REQUESTS, approve, move, person, request_body, stock
 from filament_tracker.domain.enums import Role
 from filament_tracker.print_requests.files import MAX_MODEL_BYTES
 from filament_tracker.print_requests.photos import MAX_PHOTO_BYTES
-
-UPLOADS = f"{REQUESTS}/uploads"
-PHOTO_UPLOADS = f"{REQUESTS}/photo-uploads"
-A_PHOTO = f"{REQUESTS}/1/photos/00000000-0000-0000-0000-000000000001"
-ROUTES = [
-    ("get", REQUESTS, Role.EDITOR),
-    ("post", REQUESTS, None),
-    ("get", f"{REQUESTS}/count", Role.EDITOR),
-    ("get", f"{REQUESTS}/1", Role.EDITOR),
-    ("patch", f"{REQUESTS}/1", None),
-    ("post", f"{REQUESTS}/1/priority", Role.EDITOR),
-    ("post", f"{REQUESTS}/1/moves", Role.ADMIN),
-    ("post", UPLOADS, None),
-    ("get", f"{REQUESTS}/1/file", Role.EDITOR),
-    ("post", PHOTO_UPLOADS, None),
-    ("post", f"{REQUESTS}/1/photos", None),
-    ("delete", A_PHOTO, None),
-    ("get", A_PHOTO, Role.EDITOR),
-    ("put", f"{REQUESTS}/1/choices/1/grams", None),
-    ("post", f"{REQUESTS}/1/choices/1/holds", None),
-    ("put", f"{REQUESTS}/1/holds/1", None),
-    ("delete", f"{REQUESTS}/1/holds/1?from_status=queued", None),
-]
 
 
 def _call(client: TestClient, method: str, path: str, headers: dict[str, str] | None = None) -> Any:
