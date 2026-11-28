@@ -4,7 +4,8 @@ updating on the broker, a backup, and a restart that keeps the data.
 
 Runs only when FT_COMPOSE_STACK is set (CI's image job sets it), with the image named by
 ROLLCALL_IMAGE (default `rollcall:test`); build it first with `docker build -t rollcall:test .`
-from the repository root. Docker must be running.
+from the repository root. Docker must be running. ROLLCALL_EXPECTED_VERSION is the version the
+image was built to report (default `dev`, for a build without version or commit).
 """
 
 import asyncio
@@ -34,6 +35,7 @@ SERVER = f"http://127.0.0.1:{PORT}"
 API = f"{SERVER}/api/v1"
 ADMIN = {"Authorization": "Bearer compose-test-admin-token-0123456789"}
 CSRF = {"X-Requested-With": "filament-tracker"}
+EXPECTED_VERSION = os.environ.get("ROLLCALL_EXPECTED_VERSION", "dev")
 PASSWORD = "correct horse battery"  # noqa: S105 - test value
 CODE = re.compile(r"setup code: ([A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4})")
 
@@ -92,9 +94,10 @@ def totals(done: Callable[[dict], bool]) -> dict:
 def test_the_image_end_to_end(stack: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     http = httpx.Client(timeout=10)
 
-    # Health, and the setup code in the log.
+    # Health, with the version the image was built with, and the setup code in the log.
     health = http.get(f"{API}/health").json()
     assert health["status"] == "ok"
+    assert health["version"] == EXPECTED_VERSION
     codes = CODE.findall(logs())
     assert len(codes) == 1
     assert http.get(f"{API}/setup").json()["open"] is True
