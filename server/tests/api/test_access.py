@@ -1,6 +1,7 @@
 """Security suite for M2: the role on every route, the CSRF header, bearer tokens only from
 the LAN (with and without a reverse proxy), LAN-only API docs and security headers."""
 
+import re
 from collections.abc import Iterator
 from uuid import UUID, uuid4
 
@@ -37,6 +38,8 @@ ROUTES = [
     ("get", "/api/v1/events", Role.VIEWER),
     ("get", "/api/v1/review", Role.VIEWER),
     ("get", "/api/v1/catalog", Role.VIEWER),
+    ("get", "/api/v1/catalog/sync", Role.ADMIN),
+    ("post", "/api/v1/catalog/sync", Role.ADMIN),
     ("get", "/api/v1/shopping-list", Role.VIEWER),
     ("post", "/api/v1/shopping-list/hand-reasons", Role.EDITOR),
     ("delete", "/api/v1/shopping-list/hand-reasons/99", Role.EDITOR),
@@ -100,6 +103,49 @@ ROUTES = [
 USER_ROUTES = [
     ("patch", "/api/v1/auth/me", Role.VIEWER),
     ("post", "/api/v1/settings/email/test", Role.ADMIN),
+    ("get", "/api/v1/push/config", Role.VIEWER),
+    ("put", "/api/v1/push/devices/phone-9", Role.VIEWER),
+    ("delete", "/api/v1/push/devices/phone-9", Role.VIEWER),
+    ("post", "/api/v1/push/devices/phone-9/test", Role.VIEWER),
+]
+
+
+# Every other route the app serves, as the app names it, and why it is not in the lists above.
+EXEMPT = [
+    # Open to anyone.
+    ("get", "/api/v1/health"),
+    ("get", "/api/v1/setup"),
+    ("post", "/api/v1/setup"),
+    # Signing in and out, and the signed-in user's own account.
+    ("post", "/api/v1/auth/login"),
+    ("post", "/api/v1/auth/logout"),
+    ("get", "/api/v1/auth/me"),
+    ("post", "/api/v1/auth/password"),
+    # For scanners only (test_security.py, test_devices.py).
+    ("post", "/api/v1/scans"),
+    ("post", "/api/v1/devices/heartbeat"),
+    ("post", "/api/v1/devices/unlink"),
+    ("get", "/api/v1/devices/provisioning"),
+    # A signed-in user registering their own phone.
+    ("post", "/api/v1/devices/mine"),
+    # Print requests, whose access depends on the request too (requests/test_request_security.py).
+    ("get", "/api/v1/requests"),
+    ("post", "/api/v1/requests"),
+    ("get", "/api/v1/requests/count"),
+    ("get", "/api/v1/requests/{request_id}"),
+    ("patch", "/api/v1/requests/{request_id}"),
+    ("post", "/api/v1/requests/{request_id}/priority"),
+    ("post", "/api/v1/requests/{request_id}/moves"),
+    ("post", "/api/v1/requests/uploads"),
+    ("get", "/api/v1/requests/{request_id}/file"),
+    ("post", "/api/v1/requests/photo-uploads"),
+    ("post", "/api/v1/requests/{request_id}/photos"),
+    ("delete", "/api/v1/requests/{request_id}/photos/{photo_id}"),
+    ("get", "/api/v1/requests/{request_id}/photos/{photo_id}"),
+    ("put", "/api/v1/requests/{request_id}/choices/{choice_id}/grams"),
+    ("post", "/api/v1/requests/{request_id}/choices/{choice_id}/holds"),
+    ("put", "/api/v1/requests/{request_id}/holds/{hold_id}"),
+    ("delete", "/api/v1/requests/{request_id}/holds/{hold_id}"),
 ]
 
 
@@ -107,6 +153,44 @@ def _call(client: TestClient, method: str, path: str, headers: dict[str, str] | 
     if method in ("post", "patch", "put"):
         return client.request(method.upper(), path, json={}, headers=headers)
     return client.request(method.upper(), path, headers=headers)
+
+
+def _template_of(method: str, path: str, served: set[tuple[str, str]]) -> tuple[str, str]:
+    """The served route a request in the lists above reaches (a literal one over one with a
+    parameter in the same place, as the app picks it)."""
+    matches = [
+        (m, template)
+        for m, template in served
+        if m == method and re.fullmatch(re.sub(r"\{[^/]+\}", "[^/]+", template), path)
+    ]
+    assert matches, f"{method} {path} is not a route the app serves"
+    return min(matches, key=lambda route: route[1].count("{"))
+
+
+def test_every_served_route_is_in_the_matrix_or_exempt(app: FastAPI) -> None:
+    served = {(m, path) for path, ops in app.openapi()["paths"].items() for m in ops}
+
+    listed = {_template_of(m, path, served) for m, path, _ in ROUTES + USER_ROUTES}
+
+    assert served - listed - set(EXEMPT) == set()  # a new route needs a row above
+    assert set(EXEMPT) - served == set()  # and an exempt route the app no longer serves goes
+
+
+@pytest.mark.parametrize(("method", "path", "needed"), ROUTES)
+def test_each_route_refuses_no_credentials(
+    client: TestClient, method: str, path: str, needed: Role
+) -> None:
+    assert _call(client, method, path).status_code == 401
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "needed"), [r for r in ROUTES if not r[1].endswith("/revert")]
+)
+def test_each_route_refuses_a_scanner(
+    client: TestClient, token: str, method: str, path: str, needed: Role
+) -> None:
+    # A scanner's token reaches only the scanner routes and an undo of its own scan.
+    assert _call(client, method, path, bearer(token)).status_code == 403
 
 
 @pytest.mark.parametrize(("method", "path", "needed"), ROUTES)
