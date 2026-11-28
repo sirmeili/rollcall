@@ -64,11 +64,11 @@ Everyday phones run the release app, **RollCall** (`io.github.sirmeili.rollcall`
 1. Install Obtainium from its [GitHub releases](https://github.com/ImranR98/Obtainium/releases) (the `app-release.apk` for most phones) or from F-Droid. Allow installs from the browser (or F-Droid) when Android asks.
 2. In Obtainium, tap **Add app** and enter `https://github.com/sirmeili/rollcall`. Before adding, set:
    - **Filter release titles by regular expression:** `^RollCall app ` (the repository may hold other releases later).
-   - **Version string extraction RegEx:** `(\d+\.\d+\.\d+)`, so the tag `app-v1.2.0` reads as `1.2.0`, the version the app reports.
+   - **Version string extraction RegEx:** `(\d+\.\d+\.\d+)`, so the tag `v1.4.0` reads as `1.4.0`, the version the app reports (and the older `app-v1.3.0` as `1.3.0`).
    - **Filter APKs by regular expression**, for the flavor you picked (see [Flavors](#flavors)): `^rollcall-.*-google\.apk$` for `google`, or `^rollcall-.*-foss\.apk$` for `foss`.
 3. Tap **Add**, then **Install**. Allow installs from Obtainium when Android asks.
 4. Open RollCall **at home** and set it up by signing in (below). The server hands out the tag key and the Cloudflare Access token only on the home network.
-5. Account shows the app's version (**RollCall app 1.2.0**); Devices shows each phone's version too.
+5. Account shows the app's version (**RollCall app 1.4.0**); Devices shows each phone's version too.
 
 Updates: Obtainium checks in the background and notifies when a release is out; tap **Update**. Android keeps the app's data, so the phone stays set up. An update must be signed with the same key as the installed app, so a phone with an app signed by another key (an old debug build) must uninstall it first.
 
@@ -78,13 +78,13 @@ A phone added in Obtainium before the flavors has the filter `^rollcall-.*\.apk$
 
 ## Releases
 
-[docs/releasing.md](../docs/releasing.md) is the release procedure: versions, the publish commands, the checks after each, and the release record. In short, every release goes through at least one release candidate, a tag such as `app-v1.3.0-rc.1` on a commit in `main`, published as a GitHub prerelease for test phones. The final release is the tag `app-v1.3.0` on the newest release candidate's commit, and the workflow refuses it until the release record, the open issue `App release 1.3.0`, carries the `release-approved` label.
+The app is released together with the server, as one release of RollCall at one version ([ADR-0025](../docs/adr/0025-one-release-for-the-app-and-the-server.md)). [docs/releasing.md](../docs/releasing.md) is the release procedure: versions, the publish commands, the checks after each, the test server and the release record. In short, every release goes through at least one release candidate, a tag such as `v1.4.0-rc.1` on a commit in `main`, published as a GitHub prerelease for test phones and tested on a test server. The final release is the tag `v1.4.0` on the newest release candidate's commit, and the workflow refuses it until the release record, the open issue `RollCall release 1.4.0`, carries the `release-approved` label. Releases up to 1.3.0 were the app alone, tagged `app-v<version>`.
 
-For either tag, the **App release** workflow (`.github/workflows/app-release.yml`) builds the web app and both flavors of the Android app at that version (version code `major·1000000 + minor·1000 + patch`, shared by a release candidate and its final release), runs the Kotlin tests, signs them with the release key, checks each with `scripts/verify-release.sh` (app ID, version, a v2 signature and, when set, the expected certificate) and that both have the same certificate, and attaches `rollcall-<version>-google.apk` and `rollcall-<version>-foss.apk` to a GitHub Release named **RollCall app <version>**, with their SHA-256s, the certificate's SHA-256 and the pull requests merged since the last final release.
+For either tag, the **Release** workflow (`.github/workflows/release.yml`) builds the web app and both flavors of the Android app at that version (version code `major·1000000 + minor·1000 + patch`, shared by a release candidate and its final release), runs the Kotlin tests, signs them with the release key, checks each with `scripts/verify-release.sh` (app ID, version, a v2 signature and, when set, the expected certificate) and that both have the same certificate, and attaches `rollcall-<version>-google.apk` and `rollcall-<version>-foss.apk` to a GitHub Release named **RollCall app and server <version>**, with their SHA-256s, the certificate's SHA-256, the server image's tags and digest, and the pull requests merged since the previous final release. It builds, tests and publishes the server image in the same run (docs/releasing.md). The title keeps starting with `RollCall app `, which everyday phones' Obtainium filter needs.
 
-A dry run (**Run workflow** on the Actions page, see step 5 below) does the same with a version you give, such as `1.2.3` or `1.2.3-rc.1`, and publishes nothing. It refuses a malformed version ([docs/releasing.md, Versioning](../docs/releasing.md#versioning)), but skips the release candidate and record rules.
+A dry run (**Run workflow** on the Actions page, see step 5 below) does the same with a version you give, such as `1.2.3` or `1.2.3-rc.1`, image included, and publishes nothing. It refuses a malformed version ([docs/releasing.md, Versioning](../docs/releasing.md#versioning)), but skips the release candidate and record rules.
 
-Make a release when a merged change affects the phone: the app holds its own copy of the web app, so a web change reaches the phones only in a new release. CI also builds a test release on every pull request that changes `android/` or `web/`, signed with a key made for that run, so a broken release setup shows up before a tag.
+Make a release when a merged change affects the phone or the server: the app holds its own copy of the web app, so a web change reaches the phones only in a new release, and everyday servers run only final releases. CI also builds a test release on every pull request that changes `android/` or `web/`, signed with a key made for that run, so a broken release setup shows up before a tag.
 
 ### The release key (once)
 
@@ -121,7 +121,7 @@ Every release must be signed with the same key: Android refuses an update signed
    gh variable set RELEASE_CERT_SHA256 -R sirmeili/rollcall --body "<the SHA-256 without colons>"
    ```
 
-5. Check the secrets with a dry run. GitHub never shows a secret again, so `gh secret list -R sirmeili/rollcall` only shows that they exist. On the Actions page, open **App release**, choose **Run workflow** on `main` and keep the version: it builds, signs and checks the app exactly as a release does, and publishes nothing. A green run, with the certificate's SHA-256 in its summary, means a tag will work. The secrets' values are never printed.
+5. Check the secrets with a dry run. GitHub never shows a secret again, so `gh secret list -R sirmeili/rollcall` only shows that they exist. On the Actions page, open **Release**, choose **Run workflow** on `main` and keep the version: it builds, signs and checks the app exactly as a release does, tests the image too, and publishes nothing. A green run, with the certificate's SHA-256 in its summary, means a tag will work. The secrets' values are never printed.
 
 ## Server for a phone test
 
