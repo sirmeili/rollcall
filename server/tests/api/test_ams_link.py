@@ -173,14 +173,14 @@ def test_a_tag_moves_its_spool_off_the_provisional_product_the_ams_made(
     tagged = _tagged_product(db)
     # Another color, so the AMS cannot match the tagged product and makes its own.
     _from_ams(db, TrayReport(0, 0, UID, "GFA00", "PLA", None, "FF0000FF", 60))
-    guess = _spool(db).product
-    assert guess.provisional
-    guess_id = guess.id
+    provisional = _spool(db).product
+    assert provisional.provisional
+    provisional_id = provisional.id
 
     scan(client, token, SyntheticTag(tray_uid=bytes.fromhex(UID)), "opened")
 
     assert _spool(db).product.id == tagged.id
-    assert not _product_exists(db, guess_id)
+    assert not _product_exists(db, provisional_id)
 
 
 def test_a_provisional_product_keeps_its_other_spool_when_a_tag_moves_one_off(
@@ -193,14 +193,14 @@ def test_a_provisional_product_keeps_its_other_spool_when_a_tag_moves_one_off(
         TrayReport(0, 0, UID, "GFA00", "PLA", None, "FF0000FF", 60),
         TrayReport(0, 1, other, "GFA00", "PLA", None, "FF0000FF", 60),
     )
-    guess_id = _spool(db).product.id
-    assert db.scalar(select(Spool).where(Spool.tray_uid == other)).product.id == guess_id
+    provisional_id = _spool(db).product.id
+    assert db.scalar(select(Spool).where(Spool.tray_uid == other)).product.id == provisional_id
 
     scan(client, token, SyntheticTag(tray_uid=bytes.fromhex(UID)), "opened")
 
     assert _spool(db).product.id == tagged.id
-    assert _product_exists(db, guess_id)
-    remaining = db.scalars(select(Spool.tray_uid).where(Spool.product_id == guess_id)).all()
+    assert _product_exists(db, provisional_id)
+    remaining = db.scalars(select(Spool.tray_uid).where(Spool.product_id == provisional_id)).all()
     assert remaining == [other]
 
 

@@ -43,14 +43,16 @@ def record(session: Session, product: Product, event_type: EventType, **kw: Any)
 
 
 class FakeRest(HaRest):
-    """Records fired events; fails as told."""
+    """Records fired events and counts tries; fails as told."""
 
     def __init__(self, failures: list[Problem] | None = None) -> None:
         super().__init__("http://ha.lan:8123", TOKEN)
         object.__setattr__(self, "sent", [])
         object.__setattr__(self, "failures", list(failures or []))
+        object.__setattr__(self, "tries", 0)
 
     def fire(self, event_type: str, data: dict[str, Any]) -> None:
+        object.__setattr__(self, "tries", self.tries + 1)  # type: ignore[attr-defined]
         if self.failures:  # type: ignore[attr-defined]
             raise HaRestError(self.failures.pop(0), 500)  # type: ignore[attr-defined]
         self.sent.append((event_type, data))  # type: ignore[attr-defined]
@@ -243,7 +245,7 @@ def test_default_retries_wait_1_4_and_15_seconds_then_drop(
     with caplog.at_level(logging.WARNING):
         events.step()
 
-    assert len(rest.failures) == 1  # type: ignore[attr-defined]  # tried four times
+    assert rest.tries == 4  # type: ignore[attr-defined]
     assert stop.waits == [1.0, 4.0, 15.0]
     assert rest.sent == []  # type: ignore[attr-defined]
     assert "filament_tracker_spool_received not sent: unreachable" in caplog.text

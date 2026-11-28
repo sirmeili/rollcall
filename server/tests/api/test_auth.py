@@ -3,15 +3,14 @@
 from datetime import timedelta
 
 from api_helpers import (
-    ADMIN_TOKEN,
     CSRF,
     INTERNET_CLIENT,
-    LAN_CLIENT,
     PASSWORD,
     admin,
     browser,
     login,
     make_user,
+    over_plain_http,
     signed_in,
 )
 from fastapi import FastAPI
@@ -19,11 +18,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from filament_tracker.config import Settings
 from filament_tracker.db.models import User, UserSession
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import Role
-from filament_tracker.main import create_app
 
 NEW_PASSWORD = "a brand new passphrase"  # noqa: S105 - test value
 
@@ -68,12 +65,7 @@ def test_login_sets_a_strict_session_cookie_and_returns_the_user(
 
 
 def test_cookie_secure_false_drops_only_the_secure_flag(db_url: str) -> None:
-    settings = Settings(
-        database_url=db_url, admin_token=ADMIN_TOKEN, cookie_secure=False, _env_file=None
-    )
-    app = create_app(settings)
-
-    with TestClient(app, base_url="http://testserver", client=LAN_CLIENT) as web:
+    with over_plain_http(db_url) as (app, web):
         make_user(app, "alice", Role.EDITOR)
         response = login(web, "alice")
 
