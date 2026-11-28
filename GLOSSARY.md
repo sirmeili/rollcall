@@ -284,6 +284,16 @@ _Avoid_: Job (that is the printer's), order
 **Filament choice**:
 One filament a print request asks for: an in-stock product or a catalog color, with an optional note such as "accents". A request has one or more.
 
+**Model filament**:
+One filament a 3MF model file is set up with in the slicer, with its type and color, and its grams when the file is sliced. A filament choice can be matched to one; the choice need not be that type or color.
+_Avoid_: Slot (that is the AMS's), project filament
+
+**Plate**:
+One build plate's worth of a 3MF model file: the objects printed together in one go. A file has one or more, and every plate in it is part of the print.
+
+**Sliced file**:
+A 3MF model file exported from the slicer after slicing, so it carries the slicer's estimates of grams and time. A **project file** is one saved without slicing: it has the plates, parts and model filaments, but no estimates.
+
 **Priority**:
 How soon a print request is wanted: Urgent, Normal or No rush.
 
