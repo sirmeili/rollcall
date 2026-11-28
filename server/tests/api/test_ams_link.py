@@ -153,6 +153,57 @@ def test_a_tag_wins_over_a_matched_real_product(
     assert _product_exists(db, real.id)
 
 
+def _tagged_product(db: Session) -> Product:
+    """The product a default synthetic tag belongs to."""
+    product = Product(
+        material_id="GFA00",
+        variant_id="A00-K00",
+        filament_type="PLA",
+        color_rgba="000000FF",
+        display_name="PLA Basic Black",
+    )
+    db.add(product)
+    db.commit()
+    return product
+
+
+def test_a_tag_moves_its_spool_off_the_provisional_product_the_ams_made(
+    client: TestClient, token: str, db: Session
+) -> None:
+    tagged = _tagged_product(db)
+    # Another color, so the AMS cannot match the tagged product and makes its own.
+    _from_ams(db, TrayReport(0, 0, UID, "GFA00", "PLA", None, "FF0000FF", 60))
+    guess = _spool(db).product
+    assert guess.provisional
+    guess_id = guess.id
+
+    scan(client, token, SyntheticTag(tray_uid=bytes.fromhex(UID)), "opened")
+
+    assert _spool(db).product.id == tagged.id
+    assert not _product_exists(db, guess_id)
+
+
+def test_a_provisional_product_keeps_its_other_spool_when_a_tag_moves_one_off(
+    client: TestClient, token: str, db: Session
+) -> None:
+    tagged = _tagged_product(db)
+    other = "0F1E2D3C4B5A69788796A5B4C3D2E1F0"
+    _from_ams(
+        db,
+        TrayReport(0, 0, UID, "GFA00", "PLA", None, "FF0000FF", 60),
+        TrayReport(0, 1, other, "GFA00", "PLA", None, "FF0000FF", 60),
+    )
+    guess_id = _spool(db).product.id
+    assert db.scalar(select(Spool).where(Spool.tray_uid == other)).product.id == guess_id
+
+    scan(client, token, SyntheticTag(tray_uid=bytes.fromhex(UID)), "opened")
+
+    assert _spool(db).product.id == tagged.id
+    assert _product_exists(db, guess_id)
+    remaining = db.scalars(select(Spool.tray_uid).where(Spool.product_id == guess_id)).all()
+    assert remaining == [other]
+
+
 @pytest.mark.parametrize("remaining", [0, 5])
 def test_review_lists_spools_the_ams_reports_at_zero(
     app: FastAPI, db: Session, remaining: int
