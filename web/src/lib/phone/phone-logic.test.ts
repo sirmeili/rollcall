@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
+import { clockTime } from "#lib/format.ts";
 import { checkPairing, parsePairing } from "#lib/pairing.ts";
 import { browserBridge, bridge, setBridge } from "#lib/phone/bridge.ts";
 import { cardLine, chipKind, chipText, NFC_MESSAGES } from "#lib/phone/card-text.ts";
@@ -526,6 +527,31 @@ describe("scan screen parts", async () => {
     });
     expect(screen.getByRole("listitem")).not.toHaveTextContent(" · #");
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull(); // not the last scan
+  });
+
+  it("lists a spool with its color, name, time and number", () => {
+    const at = new Date(2026, 9, 20, 16, 5).getTime();
+    render(DeliveryList, {
+      rows: [
+        {
+          eventId: "e1",
+          card: { ...spool, colorRgba: "00AE42FF" },
+          action: "received",
+          at,
+          queued: false,
+          undone: false,
+        },
+      ],
+      totals: { received: 1, opened: 0, empty: 0 },
+      undoable: null,
+      fresh: null,
+      onundo: vi.fn(),
+      onclear: vi.fn(),
+    });
+    const row = screen.getByRole("listitem");
+    expect(row).toHaveTextContent("PLA Basic #000000");
+    expect(row).toHaveTextContent(`${clockTime(at)} · #7`);
+    expect(row.querySelector<HTMLElement>(".ring")?.style.borderColor).toBe("rgb(0, 174, 66)");
   });
 
   it("says Online, Offline, Away and the queue size in the header", () => {
