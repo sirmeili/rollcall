@@ -27,6 +27,9 @@ on:
 permissions:
   contents: read
 
+env:
+  IMAGE: ghcr.io/sirmeili/rollcall # the server image's repository
+
 # An explicit bash runs with pipefail, so a failed check piped through tee fails its step.
 defaults:
   run:
@@ -159,6 +162,8 @@ jobs:
   app:
     needs: check
     runs-on: ubuntu-latest
+    outputs:
+      cert: ${{ steps.apks.outputs.cert }} # the signing certificate's SHA-256
     env:
       VERSION: ${{ needs.check.outputs.version }}
     steps:
@@ -195,6 +200,7 @@ jobs:
       # Both flavors must share the app ID and the certificate, so a phone can switch between
       # them by installing the other over the top.
       - name: Check the APKs
+        id: apks
         working-directory: android
         env:
           RELEASE_CERT_SHA256: ${{ vars.RELEASE_CERT_SHA256 }}
@@ -205,23 +211,24 @@ jobs:
             cp "app/build/outputs/apk/$flavor/release/app-$flavor-release.apk" "$apk"
             scripts/verify-release.sh "$apk" "$VERSION" "$RELEASE_CERT_SHA256" | tee -a "$RUNNER_TEMP/app/verify.txt"
           done
-          certs=$(sed -n 's/.*certificate SHA-256 //p' "$RUNNER_TEMP/app/verify.txt" | sort -u | wc -l)
-          if [[ "$certs" != 1 ]]; then
+          certs=$(sed -n 's/.*certificate SHA-256 //p' "$RUNNER_TEMP/app/verify.txt" | sort -u)
+          if [[ -z "$certs" || $(wc -l <<<"$certs") != 1 ]]; then
             echo "The two flavors are signed with different certificates" >&2
             exit 1
           fi
+          echo "cert=$certs" >> "$GITHUB_OUTPUT"
       - name: Report the dry run's signing
         if: github.event_name == 'workflow_dispatch'
         env:
           RELEASE_CERT_SHA256: ${{ vars.RELEASE_CERT_SHA256 }}
+          CERT: ${{ steps.apks.outputs.cert }}
         run: |
-          cert=$(sed -n 's/.*certificate SHA-256 //p' "$RUNNER_TEMP/app/verify.txt" | head -n 1)
           {
             echo "### Dry run: the app passed, and nothing was published"
             echo
             echo "The release key secrets decode, unlock and sign both flavors (google and foss) of version $VERSION."
             echo
-            echo "- Signing certificate SHA-256: \`$cert\`"
+            echo "- Signing certificate SHA-256: \`$CERT\`"
             if [[ -n "$RELEASE_CERT_SHA256" ]]; then
               echo "- It matches RELEASE_CERT_SHA256."
             else
@@ -272,10 +279,10 @@ jobs:
             exit 0
           fi
           if [[ "$PREVIOUS_TAG" == v* ]]; then
-            image="ghcr.io/sirmeili/rollcall:${PREVIOUS_TAG#v}"
+            image="$IMAGE:${PREVIOUS_TAG#v}"
             docker pull --platform linux/amd64 "$image"
           else
-            image="ghcr.io/sirmeili/rollcall:$PREVIOUS_COMMIT"
+            image="$IMAGE:$PREVIOUS_COMMIT"
             if ! docker pull --platform linux/amd64 "$image"; then
               echo "No image for $PREVIOUS_TAG's commit $PREVIOUS_COMMIT: building it."
               git worktree add --detach "$RUNNER_TEMP/previous" "$PREVIOUS_COMMIT"
@@ -364,10 +371,10 @@ jobs:
       - name: Push the image's tags
         run: |
           for tag in $IMAGE_TAGS; do
-            docker tag rollcall:release "ghcr.io/sirmeili/rollcall:$tag"
-            docker push "ghcr.io/sirmeili/rollcall:$tag"
+            docker tag rollcall:release "$IMAGE:$tag"
+            docker push "$IMAGE:$tag"
           done
-          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "ghcr.io/sirmeili/rollcall:${IMAGE_TAGS%% *}")
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:${IMAGE_TAGS%% *}")
           echo "DIGEST=${digest#*@}" >> "$GITHUB_ENV"
       - name: Log out
         if: always()
@@ -376,8 +383,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+          CERT: ${{ needs.app.outputs.cert }}
         run: |
-          cert=$(sed -n 's/.*certificate SHA-256 //p' "$RUNNER_TEMP/app/verify.txt" | head -n 1)
           google="$RUNNER_TEMP/app/rollcall-$VERSION-google.apk"
           foss="$RUNNER_TEMP/app/rollcall-$VERSION-foss.apk"
           tags=""
@@ -389,8 +396,8 @@ jobs:
             echo
             echo "- \`rollcall-$VERSION-google.apk\` SHA-256: \`$(sha256sum "$google" | cut -d' ' -f1)\`"
             echo "- \`rollcall-$VERSION-foss.apk\` SHA-256: \`$(sha256sum "$foss" | cut -d' ' -f1)\`"
-            echo "- Signing certificate SHA-256: \`$cert\`"
-            echo "- Image \`ghcr.io/sirmeili/rollcall\`, tagged $tags"
+            echo "- Signing certificate SHA-256: \`$CERT\`"
+            echo "- Image \`$IMAGE\`, tagged $tags"
             echo "- Image digest: \`$DIGEST\`"
           } > "$RUNNER_TEMP/notes.md"
           # A release candidate is a prerelease, so GitHub's Latest release and everyday phones'
