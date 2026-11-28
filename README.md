@@ -85,6 +85,7 @@ docs/adr/                     Architecture decision records: why the hard-to-rev
 docs/configuration.md         Every setting, its default and where it is set
 docs/testing.md               Test layers, coverage exclusions and the manual checklists
 docs/releasing.md             Releasing the phone app: versions, release candidates, the scoped checklist and the release record
+docs/checklist.md             The checklist run on each release candidate: phone, web app and server steps
 docs/deploy.md                Running RollCall with Docker Compose or Portainer: setup, proxy, Cloudflare Tunnel, backups, updates
 docs/home-assistant/          Example Home Assistant automation
 docs/mockups/web/             Web app page mockups and design tokens
