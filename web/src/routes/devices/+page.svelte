@@ -159,7 +159,7 @@
   function revoke(device: DeviceOut): Promise<void> {
     return change(async () => {
       await revokeDevice(device.id);
-      message = `Revoked ${device.name}.`;
+      message = `Revoked ${device.name}. It's under Show revoked, where a new token re-enables it.`;
     });
   }
 
@@ -249,6 +249,8 @@
       <p class="muted">Loading…</p>
     {:else if devices.length === 0}
       <p class="muted">No scanners yet. Register one to get its token.</p>
+    {:else if listed.length === 0}
+      <p class="muted">No active scanners.</p>
     {:else}
       <div class="grid">
         {#each listed as device (device.id)}
