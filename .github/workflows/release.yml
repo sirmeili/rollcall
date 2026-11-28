@@ -33,8 +33,8 @@ defaults:
     shell: bash
 
 jobs:
-  # The tag rules (docs/releasing.md, ADR-0024), before anything is built. A release candidate
-  # needs its final release not yet out. A final release needs the newest release candidate's
+  # The tag rules (docs/releasing.md, ADR-0024), before anything is built. Every version must be
+  # newer than the newest final release. A release candidate needs its final release not yet out. A final release needs the newest release candidate's
   # commit and exactly one open, approved release record. The dry run checks only the
   # version's form.
   check:
@@ -80,6 +80,22 @@ jobs:
             commit=$(git rev-parse "$GITHUB_SHA^{commit}")
             git merge-base --is-ancestor "$commit" origin/main ||
               refuse "The tagged commit $commit is not in main: tag a commit in main (docs/releasing.md, Release candidate)"
+            # Newer than the newest final release (v*, else app-v*), so latest never moves
+            # back. A final release's own tag is left out of the comparison.
+            newest_final() {
+              git tag --list "$1*" | sed -nE "s/^$1([0-9]+\.[0-9]+\.[0-9]+)$/\1/p" |
+                awk -v base="$base" -v prefix="$1" '$0 != base || prefix != "v"' | sort -V | tail -n 1
+            }
+            newest_tag=""
+            if newest=$(newest_final v) && [[ -n "$newest" ]]; then
+              newest_tag="v$newest"
+            elif newest=$(newest_final app-v) && [[ -n "$newest" ]]; then
+              newest_tag="app-v$newest"
+            fi
+            # The newer of the two sorts last, and an equal one is not newer either.
+            if [[ -n "$newest_tag" && "$(printf '%s\n' "$base" "$newest" | sort -V | tail -n 1)" == "$newest" ]]; then
+              refuse "$version is not newer than the newest final release, $newest_tag, so latest would move back: pick the next version after $newest (docs/releasing.md, Versioning) and tag its first release candidate (docs/releasing.md, Release candidate)"
+            fi
             if [[ "$version" == *-rc.* ]]; then
               # Up to 1.3.0, a final release was tagged app-v<version>.
               for released in "v$base" "app-v$base"; do
