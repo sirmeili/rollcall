@@ -6,7 +6,6 @@ from typing import Any
 from uuid import UUID
 
 from api_helpers import (
-    ADMIN_TOKEN,
     BASE_URL,
     CSRF,
     INTERNET_CLIENT,
@@ -16,6 +15,7 @@ from api_helpers import (
     browser,
     login,
     make_user,
+    over_plain_http,
     register,
     scan_body,
     signed_in,
@@ -28,12 +28,10 @@ from test_devices import salted_app
 
 from filament_tracker.api.devices import MAX_OWN_DEVICES
 from filament_tracker.auth import REFUSED_HEADER, TOKEN_PREFIX, hash_token
-from filament_tracker.config import Settings
 from filament_tracker.db.models import Device, Event, User
 from filament_tracker.db.types import utcnow
 from filament_tracker.decoder.synthetic import SyntheticTag
 from filament_tracker.domain.enums import Role
-from filament_tracker.main import create_app
 
 MINE = "/api/v1/devices/mine"
 
@@ -279,12 +277,7 @@ def test_a_session_in_use_is_renewed_when_half_its_time_is_gone(
 def test_a_renewed_cookie_drops_the_secure_flag_when_cookie_secure_is_false(
     db_url: str,
 ) -> None:
-    settings = Settings(
-        database_url=db_url, admin_token=ADMIN_TOKEN, cookie_secure=False, _env_file=None
-    )
-    app = create_app(settings)
-
-    with TestClient(app, base_url="http://testserver", client=LAN_CLIENT) as web:
+    with over_plain_http(db_url) as (app, web):
         make_user(app, "eve", Role.VIEWER)
         assert login(web, "eve").status_code == 200
         _expire_in(app, app.state.settings_store.session_days() / 2 - 1)
