@@ -281,6 +281,15 @@ describe("account page in the phone app", () => {
     expect(screen.queryByRole("link", { name: /This phone/ })).toBeNull();
     expect(screen.queryByText(/RollCall app/)).toBeNull();
   });
+
+  it("says a paired phone is Paired, linking to Pairing", async () => {
+    await paired();
+    render(AccountPage);
+    const row = screen.getByRole("link", { name: /This phone/ });
+    expect(row).toHaveAttribute("href", "/pair");
+    expect(row).toHaveTextContent("Paired");
+    expect(row).not.toHaveTextContent("Not set up");
+  });
 });
 
 /** The pairing page on a new phone, switched to pairing with a code. */
