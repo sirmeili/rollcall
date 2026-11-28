@@ -58,6 +58,8 @@
     try {
       devices = await listDevices();
       failure = null;
+      // With no scanner revoked the switch is hidden, so it goes back to off.
+      if (!devices.some((d) => d.revoked)) showRevoked = false;
     } catch (error) {
       failure = describeError(error);
     }

@@ -730,6 +730,41 @@ describe("Devices page", () => {
     expect(screen.queryByRole("switch")).toBeNull();
   });
 
+  it("turns the switch off when the last revoked scanner is re-enabled", async () => {
+    admin.listDevices
+      .mockResolvedValueOnce([
+        scanner({ id: "old", name: "Old", revoked: true }),
+        scanner({ id: "zeta", name: "Zeta" }),
+      ])
+      .mockResolvedValueOnce([
+        scanner({ id: "old", name: "Old" }),
+        scanner({ id: "zeta", name: "Zeta" }),
+      ])
+      .mockResolvedValue([
+        scanner({ id: "old", name: "Old" }),
+        scanner({ id: "zeta", name: "Zeta", revoked: true }),
+      ]);
+    admin.rotateToken.mockResolvedValue({
+      ...scanner({ id: "old", name: "Old" }),
+      token: "ft_dev_new",
+    });
+    admin.revokeDevice.mockResolvedValue(undefined);
+    render(DevicesPage);
+    await userEvent.click(await screen.findByRole("switch", { name: "Show revoked (1)" }));
+    const old = screen.getByRole("article", { name: "Old" });
+    await userEvent.click(within(old).getByRole("button", { name: "New token (re-enable)" }));
+    await userEvent.click(within(old).getByRole("button", { name: "Rotate token" }));
+    await screen.findByRole("alert", { name: /New token for Old/ });
+    expect(screen.queryByRole("switch")).toBeNull();
+
+    const zeta = screen.getByRole("article", { name: "Zeta" });
+    await userEvent.click(within(zeta).getByRole("button", { name: "Revoke" }));
+    await userEvent.click(within(zeta).getByRole("button", { name: "Revoke" }));
+    await screen.findByRole("status");
+    expect(screen.queryByRole("article", { name: "Zeta" })).toBeNull();
+    expect(screen.getByRole("switch", { name: "Show revoked (1)" })).not.toBeChecked();
+  });
+
   it("shows no switch when no scanner is revoked", async () => {
     admin.listDevices.mockResolvedValue([scanner()]);
     render(DevicesPage);
