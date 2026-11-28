@@ -293,6 +293,7 @@ jobs:
           echo "PREVIOUS_IMAGE=$image" >> "$GITHUB_ENV"
           echo "The upgrade test starts from $PREVIOUS_TAG's image, $image." >> "$GITHUB_STEP_SUMMARY"
       - name: Log out
+        if: always()
         run: docker logout ghcr.io
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
