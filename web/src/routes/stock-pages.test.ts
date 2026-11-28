@@ -125,6 +125,26 @@ describe("Inventory page", () => {
     expect(screen.queryByRole("table")).toBeNull();
   });
 
+  it("does not save the filters, unlike the view", async () => {
+    const first = render(InventoryPage);
+    await screen.findByRole("heading", { name: "Gray PETG" });
+    await userEvent.type(screen.getByRole("searchbox"), "black");
+    await userEvent.click(screen.getByRole("button", { name: "Low stock 1" }));
+    expect(screen.queryByRole("heading", { name: "Gray PETG" })).toBeNull();
+    first.unmount();
+
+    render(InventoryPage);
+    expect(await screen.findByRole("heading", { name: "Gray PETG" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Black PLA Basic" })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox")).toHaveValue("");
+    const quick = screen.getByRole("group", { name: "Quick filters" });
+    for (const chip of within(quick).getAllByRole("button")) {
+      expect(chip).toHaveAttribute("aria-pressed", "false");
+    }
+    const keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i));
+    expect(keys.filter((key) => key !== "ft-inventory-view")).toEqual([]);
+  });
+
   it("says when nothing matches and clears the filters", async () => {
     render(InventoryPage);
     await screen.findByRole("heading", { name: "Gray PETG" });
@@ -221,6 +241,15 @@ describe("Spools page", () => {
     } finally {
       viewport().phone = false;
     }
+  });
+
+  it("gives a Viewer no Add spool on desktop", async () => {
+    signedInAs("viewer");
+    stock.listSpools.mockResolvedValue(page());
+    render(SpoolsPage);
+
+    await screen.findByText("Showing 1–2 of 2");
+    expect(screen.queryByRole("link", { name: "Add spool by hand" })).toBeNull();
   });
 
   it("lists spools with counts, filters and search", async () => {
