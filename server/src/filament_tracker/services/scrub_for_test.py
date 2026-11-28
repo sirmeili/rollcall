@@ -63,7 +63,7 @@ def scrub(database_url: str) -> Scrubbed:
             printers = _delete(db, tables, "printer")
             tokens = _delete(db, tables, "machine_token")
             settings = _delete_settings(db, tables)
-            deleted, revoked = _devices(db, tables)
+            deleted, revoked = _devices(db)
     finally:
         engine.dispose()
     return Scrubbed(settings, printers, tokens, push, deleted, revoked)
@@ -84,11 +84,9 @@ def _delete_settings(db: Connection, tables: set[str]) -> int:
     return db.execute(statement, {"keys": list(SETTINGS)}).rowcount
 
 
-def _devices(db: Connection, tables: set[str]) -> tuple[int, int]:
+def _devices(db: Connection) -> tuple[int, int]:
     """Delete the devices no event names. The rest keep their history, so they are revoked,
-    with a token hash no token has."""
-    if "device" not in tables:
-        return 0, 0
+    with a token hash no token has. Every release has had the device and event tables."""
     named = "SELECT device_id FROM event WHERE device_id IS NOT NULL"
     deleted = db.execute(text(f"DELETE FROM device WHERE id NOT IN ({named})")).rowcount  # noqa: S608
     revoked = 0
