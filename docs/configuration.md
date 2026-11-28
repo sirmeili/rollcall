@@ -40,4 +40,13 @@ The pull request that adds, removes or changes a setting in `server/src/filament
 | `DATABASE_URL` | `sqlite:////data/filament.db` | The SQLite database; defaults to `data/filament.db` beside the server | No |
 | `BACKUP_DIR` | `/backups` | Where the nightly backups go (03:00 in `TZ`, 14 kept). Unset: no backups (the Docker image sets it) | No |
 
+## Build arguments
+
+The image takes these as `docker build --build-arg`, and the server reads them at start from the environment variables of the same name, which the image sets from them. They are not settings: they say which release the image is (see [ADR 0025](adr/0025-one-release-for-the-app-and-the-server.md)), and the health response (`/api/v1/health`) and Account report it. Both are empty by default.
+
+| Build argument | Example | Purpose |
+| --- | --- | --- |
+| `ROLLCALL_VERSION` | `1.4.0`, `1.4.0-rc.1` | The release version, which the Release workflow takes from the tag. Empty: the server reports `dev (<short commit>)`, or `dev` without a commit |
+| `ROLLCALL_COMMIT` | `5ad64bf…` (the full commit) | The commit the image was built from; the server reports its first 7 characters when there is no version. The Image workflow passes it |
+
 The command-line tools read a few variables of their own, such as `FT_TOKEN` for the scan simulator. Those are not server settings; see `server/README.md`.

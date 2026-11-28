@@ -340,14 +340,26 @@ A user's choice of which notifications they get, and how: by email, to their pho
 
 ### Releases
 
+**Release**:
+One version of all of RollCall, such as `1.4.0`: the phone app and the server, with its web app, built from the same commit and tested together, so any part of a release works with the rest of it. The scanner firmware joins once it exists. Up to `1.3.0`, a release was the phone app alone.
+_Avoid_: App release, server release (there are no separate ones)
+
 **Release candidate**:
-A build of the phone app published for testing before its version's final release, with a version such as `1.3.0-rc.1`. Test phones take it; everyday phones don't.
+A build of a release published for testing before its version's final release, with a version such as `1.4.0-rc.1`. Test phones and test servers take it; everyday phones and servers don't.
 _Avoid_: RC (except in tags and versions), beta, prerelease (that is how GitHub marks it)
 
 **Final release**:
-The release of a version that every phone gets, such as `1.3.0`, built from its newest release candidate's commit once its release record is approved.
+The release of a version that every phone and server gets, such as `1.4.0`, built from its newest release candidate's commit once its release record is approved.
 _Avoid_: Stable release, production release
 
+**Test server**:
+A RollCall server kept only for trying release candidates, running a copy of the real data with email, Home Assistant, printers and backups turned off, so testing never reaches the household.
+_Avoid_: Staging, dev server
+
+**Test phone**:
+A phone, or an Android private space on one, that takes release candidates and is paired with the test server for good.
+_Avoid_: Beta phone
+
 **Release record**:
-The issue that records one app release, from its first release candidate to its final release: the checklist steps in scope, their results and the sign-off.
+The issue that records one release, from its first release candidate to its final release: the checklist steps in scope, their results and the sign-off.
 _Avoid_: Release check, release issue, release PR

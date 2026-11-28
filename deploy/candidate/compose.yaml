@@ -1,0 +1,93 @@
+# The test server (docs/releasing.md), beside the live stack: a copy of the live data for
+# trying release candidates, with its own port and data. Put this file and a .env made from
+# .env.example in one folder, or add it in Portainer with the settings as the stack's
+# environment variables. Settings are passed one by one, never from the live .env, so email,
+# Home Assistant and printers can't be turned on by a copied setting.
+#
+# Each candidate starts from a fresh restore: set RESTORE=1, ROLLCALL_TAG to the previous
+# release and CANDIDATE_TAG to the candidate, and update the stack; then set RESTORE=0 and
+# ROLLCALL_TAG to the candidate, and update it again.
+name: rollcall-candidate
+services:
+  # Runs once, with the candidate's image, before the server starts. With RESTORE=1 it
+  # replaces the test server's database with the newest live backup and scrubs it
+  # (ft-admin restore --for-test, docs/deploy.md); otherwise it changes nothing.
+  prepare:
+    image: ${CANDIDATE_IMAGE:-ghcr.io/sirmeili/rollcall:${CANDIDATE_TAG:?set CANDIDATE_TAG}}
+    environment:
+      RESTORE: ${RESTORE:-0}
+    command:
+      - sh
+      - -c
+      - >-
+        if [ "$$RESTORE" = 1 ]; then exec ft-admin restore --for-test /live-backups;
+        else echo "RESTORE is not 1: the test server's data is left as it is"; fi
+    volumes:
+      - data:/data
+      # The live server's backups, which the test server only reads.
+      - live-backups:/live-backups:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # The test server. Its service is named candidate, not rollcall, so that on a shared
+  # network, such as the tunnel's, the name rollcall still means the live server.
+  candidate:
+    image: ${ROLLCALL_IMAGE:-ghcr.io/sirmeili/rollcall:${ROLLCALL_TAG:?set ROLLCALL_TAG}}
+    container_name: rollcall-candidate
+    restart: unless-stopped
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
+        restart: true
+    # BACKUP_DIR unset, so the test server makes no backups. The image sets it, so the
+    # server is started without it.
+    command:
+      - env
+      - -u
+      - BACKUP_DIR
+      - uvicorn
+      - filament_tracker.main:create_app
+      - --factory
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    environment:
+      # The live server's key, so the restored Firebase settings and salt can be read.
+      - SETTINGS_KEY=${SETTINGS_KEY:?set SETTINGS_KEY to the live server's settings key}
+      # Passed only when set, as in the live .env.
+      - TRUSTED_NETWORKS
+      - FORWARDED_ALLOW_IPS
+      - COOKIE_SECURE
+      - TZ
+      - CATALOG_SYNC
+    ports:
+      - "${CANDIDATE_PORT:-8001}:8000"
+    volumes:
+      # Its own data, never the live server's.
+      - data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  # The test server's own data (rollcall-candidate_data).
+  data:
+  # The live stack's backup volume (docs/deploy.md, Backups).
+  live-backups:
+    external: true
+    name: ${LIVE_BACKUPS_VOLUME:-rollcall-backups}

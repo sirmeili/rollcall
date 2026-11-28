@@ -1,6 +1,6 @@
 # Deploying RollCall with Docker
 
-RollCall runs as one container on an x86-64 Linux server with Docker and Docker Compose. The image is `ghcr.io/sirmeili/rollcall`, private, built and published by GitHub Actions on every merge to `main` (tags `latest` and the commit SHA). It holds the server and the built web app, runs as an unprivileged user (uid 10001), and keeps everything it writes on two volumes: the database and the nightly backups.
+RollCall runs as one container on an x86-64 Linux server with Docker and Docker Compose. The image is `ghcr.io/sirmeili/rollcall`, private, built and published by GitHub Actions: each release of RollCall, the phone app and the server together, publishes it under its version, and `latest` is the newest final release ([Updating](#updating) lists the tags). It holds the server and the built web app, runs as an unprivileged user (uid 10001), and keeps everything it writes on two volumes: the database and the nightly backups.
 
 ## What you need
 
@@ -275,9 +275,9 @@ Steps 1 to 4 work the same in Portainer, through its web UI:
 - **Registry**: Registries › Add registry › Custom registry, with URL `ghcr.io`, authentication on, username `sirmeili` and the `read:packages` token as the password.
 - **Stack**: Stacks › Add stack › Web editor, and paste `deploy/compose.yaml`. Change `env_file: .env` to `env_file: stack.env`: Portainer writes the stack's environment variables to `stack.env`, not `.env`. Add the settings from step 2 under Environment variables (Load variables from .env file accepts a filled-in copy of `.env.example`), then Deploy the stack.
 - **Setup code**: Containers › rollcall › Logs, and search for `setup code`.
-- **Commands** such as `ft-admin backup` or `ft-admin reset-password <username>`: Containers › rollcall › Console, with `/bin/sh`.
+- **Commands** such as `ft-admin backup` or `ft-admin reset-password <username>`: Containers › rollcall › Console, with `/bin/sh`. `ft-admin restore --for-test` is for a test server only, never the live server (see [Restoring a backup](#restoring-a-backup)).
 - **Changing a setting**: edit it under the stack's Environment variables, then Update the stack.
-- **Updating**: make a backup from the Console, then Stacks › rollcall › Update the stack with Re-pull image turned on.
+- **Updating**: make a backup from the Console, then, if the server is pinned to a version, change `ROLLCALL_TAG` under the stack's Environment variables, and Stacks › rollcall › Update the stack with Re-pull image turned on.
 - **Restoring a backup** needs a shell on the server for the `docker run` command below; stop the stack from Portainer first and start it again afterwards.
 
 ## Backups
@@ -326,7 +326,33 @@ docker compose start rollcall
 
 The database that was replaced is kept in `/data/before-restore/`. The server upgrades a restored database from an older version on start.
 
+`ft-admin restore --for-test <backups directory>` is a test-server command, never for the live server. It replaces the database at `DATABASE_URL` with the newest backup in that directory, without keeping the old one, and leaves the backups untouched. It then removes what could reach the household:
+
+- the email and Home Assistant settings;
+- printers;
+- machine tokens;
+- push registrations;
+- devices that no event names.
+
+It revokes the other devices instead of deleting them, so their history stays. Users, spools, events, products, catalog links, print requests and the Firebase settings are kept. It doesn't migrate the database, so a backup from an older release keeps its schema.
+
 ## Updating
+
+Update the server when a release of RollCall comes out. Each release is the phone app and the server together, at one version, and its GitHub release names the image's tags. Phones update themselves through Obtainium, so update the server around the same time: until then, Account on an updated phone notes that the server is on an older release. Nothing stops working meanwhile.
+
+`ROLLCALL_TAG` in `.env` chooses the image the server runs. Left unset, it is `latest`.
+
+| `ROLLCALL_TAG` | The image | Updates to |
+| --- | --- | --- |
+| `latest` | The newest final release. | Every final release, majors included. |
+| `<major>.<minor>`, such as `1.4` | The newest final release of that minor version. | Its patch releases (`1.4.1`) only. Change it for `1.5` or `2.0`. |
+| `<version>`, such as `1.4.0` | Exactly that final release. It never changes. | Nothing, until you change it. |
+| `<version>-rc.<n>`, such as `1.4.0-rc.1` | A release candidate, for a test server only ([docs/releasing.md](releasing.md#testing-a-release-candidate)). | Nothing. |
+| `main` | The newest merge to `main`, which no release checklist has run on. It reports `dev (<short commit>)` as its version. | Every merge, untested. Use it only to try unreleased work on purpose. |
+
+Each merge to `main` is also tagged with its full commit SHA. To pin a version, set it, such as `ROLLCALL_TAG=1.4.0`, then `docker compose up -d`; to update a pinned server, change it to the new version. A major version can need more than pulling the image and restarting: read the release's notes before updating to one.
+
+To update:
 
 ```sh
 cd /opt/rollcall
@@ -335,7 +361,7 @@ docker compose pull
 docker compose up -d
 ```
 
-The server upgrades the database on start. To go back to an earlier image, set `ROLLCALL_TAG` in `.env` to that commit's SHA and run `docker compose up -d`; a database already upgraded by a newer version may need the backup made before the update.
+The server upgrades the database on start. Account then shows the server's version, such as **RollCall server 1.4.0**, as does `/api/v1/health`. To go back to an earlier release, set `ROLLCALL_TAG` in `.env` to its version and run `docker compose up -d`; a database already upgraded by a newer version may need the backup made before the update.
 
 ## Logs and health
 
@@ -352,3 +378,5 @@ The server upgrades the database on start. To go back to an earlier image, set `
   docker build -t rollcall:test .
   cd server && FT_COMPOSE_STACK=1 uv run pytest tests/deploy --no-cov
   ```
+
+- The same run includes the upgrade test, `server/tests/deploy/test_upgrade.py`: data added on a previous image (`PREVIOUS_IMAGE`, by default the image under test) is backed up, restored and scrubbed by the test server's `prepare` service (`deploy/candidate/compose.yaml`), and served by the image under test ([docs/testing.md](testing.md)).

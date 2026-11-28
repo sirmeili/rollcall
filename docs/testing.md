@@ -22,6 +22,7 @@ The server is fully testable without hardware. Firmware logic is unit tested on 
 | Printer on hardware | Connection and pin, every AMS and AMS HT slot, tray UID matching a scanned tag, automatic Opened, remaining % | `ft-printer check` and a manual checklist, before a release that changes the printer link |
 | Home Assistant on hardware | The five entities and their values, unavailable on stop, back after a Home Assistant restart, events, the low-stock automation, the Settings page Test and Save | `ft-ha check` and a manual checklist, before a release that changes the Home Assistant link |
 | End to end | Scan simulator drives Received, Opened, Empty for a spool; HA entities update | Docker Compose test stack with a Mosquitto container |
+| Upgrade | A previous image's data upgraded by a new image as a test server does it: an account, a spool scanned by the simulator, a print request, a phone registered for phone notifications, a machine token, a printer, and email, Home Assistant and Firebase settings added on the previous image and backed up; `prepare` in the test server's stack (`deploy/candidate/compose.yaml`) restoring and scrubbing the backup with the new image; then the new image's version, the account, spool, request and Firebase settings still there, no device, machine token or push registration that works, email, Home Assistant and printers off, no backups, and `prepare` changing nothing with `RESTORE=0` | `server/tests/deploy/test_upgrade.py` with the previous image (`PREVIOUS_IMAGE`) in the end-to-end stack and the new one (`ROLLCALL_IMAGE`) in the test server's stack; the Image workflow runs it with the image under test as both |
 | Firmware logic | Screen flow, tag parsing, offline queue, dedupe, button thresholds | PC unit tests with fakes; 90% coverage, excluding a named list of hardware drivers |
 | Firmware screens | Every screen and soft-key mapping | Screen simulator |
 | Firmware on hardware | Read through lid and box, each soft key and touch target, menu navigation, timeout, offline queue, OTA, plus the excluded drivers | Manual checklist per release |
@@ -54,7 +55,7 @@ It also leaves out generated classes (`R`, `BuildConfig`, `Manifest`), which hol
 
 | Checklist | When it runs | Where it lives |
 | --- | --- | --- |
-| Phone on hardware | On each release candidate of the phone app, scoped by its changes as [docs/releasing.md](releasing.md#checklist) says | [android/README.md, Checklist](../android/README.md#checklist) |
+| Release: the phone on hardware, the web app and the server | On each release candidate, on a test phone and the test server, scoped by its changes as [docs/releasing.md](releasing.md#checklist) says | [docs/checklist.md](checklist.md) |
 | Printer on hardware | Before a release that changes the printer link | [server/README.md, Check a real printer](../server/README.md#check-a-real-printer) |
 | Home Assistant on hardware | Before a release that changes the Home Assistant link | [server/README.md, Check against Home Assistant](../server/README.md#check-against-home-assistant) |
 | Firmware on hardware | Before each firmware release | Not written yet; it comes with the firmware on real hardware |

@@ -1,9 +1,10 @@
 name: Image
 
 # Builds the Docker image on every pull request that changes what goes into it, and runs it
-# end to end in the Compose test stack. On every merge to main, the image is built and tested
-# and the same image is pushed to the private ghcr.io/sirmeili/rollcall, tagged latest and
-# with the commit (docs/deploy.md).
+# end to end in the Compose test stack and through the upgrade test (docs/testing.md). On
+# every merge to main, the image is built and tested and the same image is pushed to the
+# private ghcr.io/sirmeili/rollcall, tagged main and with the commit (docs/deploy.md). latest
+# is only ever a final release, pushed by the Release workflow (ADR-0025).
 
 on:
   pull_request:
@@ -49,8 +50,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # With the commit and no version, the image reports dev (<short commit>).
       - name: Build the image (x86-64)
-        run: docker build --platform linux/amd64 --tag rollcall:test .
+        run: |
+          docker build --platform linux/amd64 --build-arg "ROLLCALL_COMMIT=$GITHUB_SHA" --tag rollcall:test .
+          echo "ROLLCALL_EXPECTED_VERSION=dev (${GITHUB_SHA::7})" >> "$GITHUB_ENV"
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
@@ -59,14 +63,18 @@ jobs:
       - name: Install the test dependencies
         working-directory: server
         run: uv sync --locked
-      - name: Run the image end to end in the Compose test stack
+      # The end-to-end stack, and the upgrade test with the image under test as both the
+      # previous and the new image, so prepare and the scrub run on every change.
+      - name: Run the image end to end in the Compose test stack, and the upgrade test
         working-directory: server
         run: uv run pytest tests/deploy --no-cov -v
         env:
           FT_COMPOSE_STACK: "1"
           ROLLCALL_IMAGE: rollcall:test
+          PREVIOUS_IMAGE: rollcall:test
       - name: Show the stack's log if it failed
         if: failure()
+        # The upgrade test prints its two stacks' logs into its own report before removing them.
         run: docker compose -f deploy/test/compose.yaml logs --no-color || true
       - name: Save the image for publishing
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -101,9 +109,9 @@ jobs:
         run: echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push latest and the commit
+      - name: Push main and the commit
         run: |
-          for tag in latest "$GITHUB_SHA"; do
+          for tag in main "$GITHUB_SHA"; do
             docker tag rollcall:test "ghcr.io/sirmeili/rollcall:$tag"
             docker push "ghcr.io/sirmeili/rollcall:$tag"
           done

@@ -64,11 +64,11 @@ Everyday phones run the release app, **RollCall** (`io.github.sirmeili.rollcall`
 1. Install Obtainium from its [GitHub releases](https://github.com/ImranR98/Obtainium/releases) (the `app-release.apk` for most phones) or from F-Droid. Allow installs from the browser (or F-Droid) when Android asks.
 2. In Obtainium, tap **Add app** and enter `https://github.com/sirmeili/rollcall`. Before adding, set:
    - **Filter release titles by regular expression:** `^RollCall app ` (the repository may hold other releases later).
-   - **Version string extraction RegEx:** `(\d+\.\d+\.\d+)`, so the tag `app-v1.2.0` reads as `1.2.0`, the version the app reports.
+   - **Version string extraction RegEx:** `(\d+\.\d+\.\d+)`, so the tag `v1.4.0` reads as `1.4.0`, the version the app reports (and the older `app-v1.3.0` as `1.3.0`).
    - **Filter APKs by regular expression**, for the flavor you picked (see [Flavors](#flavors)): `^rollcall-.*-google\.apk$` for `google`, or `^rollcall-.*-foss\.apk$` for `foss`.
 3. Tap **Add**, then **Install**. Allow installs from Obtainium when Android asks.
 4. Open RollCall **at home** and set it up by signing in (below). The server hands out the tag key and the Cloudflare Access token only on the home network.
-5. Account shows the app's version (**RollCall app 1.2.0**); Devices shows each phone's version too.
+5. Account shows the app's version (**RollCall app 1.4.0**); Devices shows each phone's version too.
 
 Updates: Obtainium checks in the background and notifies when a release is out; tap **Update**. Android keeps the app's data, so the phone stays set up. An update must be signed with the same key as the installed app, so a phone with an app signed by another key (an old debug build) must uninstall it first.
 
@@ -78,13 +78,13 @@ A phone added in Obtainium before the flavors has the filter `^rollcall-.*\.apk$
 
 ## Releases
 
-[docs/releasing.md](../docs/releasing.md) is the release procedure: versions, the publish commands, the checks after each, and the release record. In short, every release goes through at least one release candidate, a tag such as `app-v1.3.0-rc.1` on a commit in `main`, published as a GitHub prerelease for test phones. The final release is the tag `app-v1.3.0` on the newest release candidate's commit, and the workflow refuses it until the release record, the open issue `App release 1.3.0`, carries the `release-approved` label.
+The app is released together with the server, as one release of RollCall at one version ([ADR-0025](../docs/adr/0025-one-release-for-the-app-and-the-server.md)). [docs/releasing.md](../docs/releasing.md) is the release procedure: versions, the publish commands, the checks after each, the test server and the release record. In short, every release goes through at least one release candidate, a tag such as `v1.4.0-rc.1` on a commit in `main`, published as a GitHub prerelease for test phones and tested on a test server. The final release is the tag `v1.4.0` on the newest release candidate's commit, and the workflow refuses it until the release record, the open issue `RollCall release 1.4.0`, carries the `release-approved` label. Releases up to 1.3.0 were the app alone, tagged `app-v<version>`.
 
-For either tag, the **App release** workflow (`.github/workflows/app-release.yml`) builds the web app and both flavors of the Android app at that version (version code `major·1000000 + minor·1000 + patch`, shared by a release candidate and its final release), runs the Kotlin tests, signs them with the release key, checks each with `scripts/verify-release.sh` (app ID, version, a v2 signature and, when set, the expected certificate) and that both have the same certificate, and attaches `rollcall-<version>-google.apk` and `rollcall-<version>-foss.apk` to a GitHub Release named **RollCall app <version>**, with their SHA-256s, the certificate's SHA-256 and the pull requests merged since the last final release.
+For either tag, the **Release** workflow (`.github/workflows/release.yml`) builds the web app and both flavors of the Android app at that version (version code `major·1000000 + minor·1000 + patch`, shared by a release candidate and its final release), runs the Kotlin tests, signs them with the release key, checks each with `scripts/verify-release.sh` (app ID, version, a v2 signature and, when set, the expected certificate) and that both have the same certificate, and attaches `rollcall-<version>-google.apk` and `rollcall-<version>-foss.apk` to a GitHub Release named **RollCall app and server <version>**, with their SHA-256s, the certificate's SHA-256, the server image's tags and digest, and the pull requests merged since the previous final release. It builds, tests and publishes the server image in the same run (docs/releasing.md). The title keeps starting with `RollCall app `, which everyday phones' Obtainium filter needs.
 
-A dry run (**Run workflow** on the Actions page, see step 5 below) does the same with a version you give, such as `1.2.3` or `1.2.3-rc.1`, and publishes nothing. It refuses a malformed version ([docs/releasing.md, Versioning](../docs/releasing.md#versioning)), but skips the release candidate and record rules.
+A dry run (**Run workflow** on the Actions page, see step 5 below) does the same with a version you give, such as `1.2.3` or `1.2.3-rc.1`, image included, and publishes nothing. It refuses a malformed version ([docs/releasing.md, Versioning](../docs/releasing.md#versioning)), but skips the release candidate and record rules.
 
-Make a release when a merged change affects the phone: the app holds its own copy of the web app, so a web change reaches the phones only in a new release. CI also builds a test release on every pull request that changes `android/` or `web/`, signed with a key made for that run, so a broken release setup shows up before a tag.
+Make a release when a merged change affects the phone or the server: the app holds its own copy of the web app, so a web change reaches the phones only in a new release, and everyday servers run only final releases. CI also builds a test release on every pull request that changes `android/` or `web/`, signed with a key made for that run, so a broken release setup shows up before a tag.
 
 ### The release key (once)
 
@@ -121,7 +121,7 @@ Every release must be signed with the same key: Android refuses an update signed
    gh variable set RELEASE_CERT_SHA256 -R sirmeili/rollcall --body "<the SHA-256 without colons>"
    ```
 
-5. Check the secrets with a dry run. GitHub never shows a secret again, so `gh secret list -R sirmeili/rollcall` only shows that they exist. On the Actions page, open **App release**, choose **Run workflow** on `main` and keep the version: it builds, signs and checks the app exactly as a release does, and publishes nothing. A green run, with the certificate's SHA-256 in its summary, means a tag will work. The secrets' values are never printed.
+5. Check the secrets with a dry run. GitHub never shows a secret again, so `gh secret list -R sirmeili/rollcall` only shows that they exist. On the Actions page, open **Release**, choose **Run workflow** on `main` and keep the version: it builds, signs and checks the app exactly as a release does, tests the image too, and publishes nothing. A green run, with the certificate's SHA-256 in its summary, means a tag will work. The secrets' values are never printed.
 
 ## Server for a phone test
 
@@ -138,112 +138,4 @@ uv run uvicorn filament_tracker.main:create_app --factory --host 0.0.0.0 --port 
 
 ## Checklist
 
-Run on each release candidate, on the release-signed APK installed from it. [docs/releasing.md](../docs/releasing.md#checklist) says how a release is scoped and run, and where the results go: the release's record issue.
-
-- **Step ids.** A step's number is its id, and it never changes: a new step is added at the end, and a removed step stays as `Retired.`, so a `Result:` line and a reference such as "as in 3" keep meaning the same step.
-- **Flavors.** Each step names the flavor it needs: `[either]` runs once, on either flavor; `[both]` runs on `google` and on `foss`; `[google]` and `[foss]` run on that flavor only.
-- **Always**, on every release candidate, whatever changed: 3, 5, 6, 14, 16, 18, 25, 42, 48, 49.
-- **Triggers.** Each section names the app's Kotlin code and the web app's code that trigger it. Paths are under `android/app/src/` and `web/src/`, and a class's name covers its file in any source set (`main`, `google`, `foss`). A changed file runs every section that names it.
-- **Shared web code** runs Full web app and unpairing, and Back button: the API client and its errors (`lib/api/client.ts`, `lib/api/errors.ts`), the shared components (`lib/components/*.svelte`, `lib/components/shell/`, `lib/components/ui/`), the root layout (`routes/+layout.svelte`, `routes/+layout.ts`), the global styles and theme (`app.css`, `lib/theme.svelte.ts`, `lib/fonts.ts`, `lib/viewport.svelte.ts`), the HTML shell (`app.html`), and the web app's build and dependencies (`web/package.json`, `web/package-lock.json`, `web/vite.config.ts`, `web/tsconfig.json`).
-- **Unmapped files.** A changed non-test file in the app or web source (or a part of `android/app/build.gradle`) that no section names makes the release a full run, and the record lists it, so its section can be named here. Test files trigger nothing (`*.test.ts`, `web/src/test/`, `web/e2e/`, `android/app/src/test*/`). Nor do files in `android/` or `web/` that are not app or web source: docs (`*.md`), and the checks in `android/scripts/` and `web/scripts/`, which aren't built into the app.
-- **Full run**, the whole checklist: a major or minor version; a changed release key; a Capacitor, Gradle, Android Gradle Plugin, Kotlin or Android SDK upgrade; a `targetSdk` or `minSdk` change; or a change to the permissions in an `AndroidManifest.xml`.
-
-**Setup and pairing**
-
-*Triggers.* Kotlin: `MainActivity`, `FilamentTrackerPlugin`, `SecureStore`, `NfcState`, `Flavor` (its QR scanner). Web: the Pair route (`routes/pair/`), the phone's set-up and pairing screens (`lib/components/phone/` `SetUpPhone`, `ServerAddress`, `PairWithCode`, `PairedPhone`, `StartScreen`, and `lib/start-screen.ts`), pairing (`lib/pairing.ts`, `lib/phone/pairing-store.ts`), the phone bridge (`lib/phone/bridge.ts`, `lib/phone/native-bridge.ts`), the phone's session and state (`lib/phone/session.ts`, `lib/phone/phone-state.svelte.ts`), the device API (`lib/phone/device-api.ts`), and the Devices route (`routes/devices/`, `lib/components/devices/`, `lib/devices.ts`).
-
-1. `[either]` First launch opens "Set up this phone", asking for the server's address, with "Pair with a code instead".
-2. `[either]` With NFC turned off in Android settings, Scan says NFC is off. Turn NFC on and come back: within a few seconds it asks for a tap, without restarting the app.
-3. `[either]` Pair with a code instead: on the PC, register a device on Devices, set the server address and show the QR code. Scan it in the app: the app opens Scan, and within a minute Devices shows the phone Online with the release candidate's version, such as `app-1.3.0-rc.1`, and Account shows **RollCall app 1.3.0-rc.1**.
-4. `[either]` Typed pairing: an `http://` address that is not on the LAN, such as `http://example.com`, is refused with a message about the home network.
-
-**Scanning**
-
-*Triggers.* Kotlin: `TagReader`, `AndroidMifare`, `TagKeys`, `Hex`, `FilamentTrackerPlugin`. Web: the Scan route (`routes/scan/`), the scan flow (`lib/phone/scan-flow.ts`, `lib/phone/pause.ts`, `lib/phone/card-text.ts`), decoding a tag on the phone (`lib/phone/tag-decode.ts`), Delivery (`lib/phone/delivery.svelte.ts`), the scan screen's components (`lib/components/phone/` `ActionKeys`, `CardChip`, `CountdownBar`, `DeliveryList`, `DeliveryPanel`, `DeliveryToggle`, `LastScanBar`, `ScanCard`, `ScanHeader`, `ScanIcon`, `ScanResult`, `TapTarget`), and the phone bridge (`lib/phone/bridge.ts`, `lib/phone/native-bridge.ts`).
-
-5. `[either]` Tap a spool the server knows: once the whole tag is read the phone buzzes once and beeps (the beep follows the notification volume); the card then shows its name, color swatch and state with its date, and the suggested action is highlighted.
-6. `[either]` Choose an action: the app shows "Recorded …", and Activity shows the event from the phone.
-7. `[either]` Tap and choose nothing: after 15 seconds the screen goes back to waiting, and no event is recorded.
-8. `[either]` A known spool never offers the same action twice, so this one is checked offline (see 14).
-9. `[either]` Undo on the last scan: the app shows "Undid …", and Activity shows the event undone.
-10. `[either]` Tap a spool the server has never seen: New is offered, and choosing it adds the spool.
-11. `[either]` Tap a card that is not a Bambu tag, such as a transit card: nothing breaks, and the app keeps waiting for a tap.
-12. `[either]` Pull a spool away during the read: two short buzzes and a low tone, and the app keeps waiting for the next tap. Leave a spool on the phone after a read: it is not read again until it is lifted and tapped again.
-13. `[either]` A sealed spool reads through its box, as in M0a.
-
-**Offline**
-
-*Triggers.* Kotlin: `AndroidStorage`. Web: the offline queue (`lib/phone/queue.ts`), decoding a tag on the phone (`lib/phone/tag-decode.ts`), and the phone's session and state (`lib/phone/session.ts`, `lib/phone/phone-state.svelte.ts`, `lib/phone/device-api.ts`), which say whether it is Online, Away or Offline.
-
-14. `[either]` Stop the server, then tap a spool: the card shows the product decoded on the phone with New, Opened and Empty. Choose one: Scan shows "1 queued". Tap the same spool within 30 seconds and choose the same action: the app says it was already recorded, and the queue still holds one scan (check 8).
-15. `[either]` Undo the queued scan: the queue is empty, and nothing reaches the server later.
-16. `[either]` Queue another scan, then start the server: within a few minutes the queue empties, and Activity shows the event with the time of the tap.
-17. `[either]` Close the app fully and reopen it: it opens on Scan, still paired, and a queued scan is still queued.
-
-**Full web app and unpairing**
-
-*Triggers.* Kotlin: none. Web: shared web code (above), sign-in and the session (`lib/auth/`, `routes/login/`, `lib/components/LoginForm.svelte`), the Devices route (`routes/devices/`, `lib/components/devices/`, `lib/devices.ts`), and unlinking (`lib/components/phone/PairedPhone.svelte`, `routes/pair/`). A page of the full web app that no section names is an unmapped file (above), so it makes a full run.
-
-18. `[either]` Open the full app and sign in: pages work, and "Back to Scan" returns to Scan.
-19. `[either]` Revoke the phone's token on Devices: the next scan says to pair the phone again.
-20. `[either]` Unlink this phone (from Scan's Pairing button): it returns to Pairing, says the token was revoked, and Devices lists the phone as revoked.
-21. `[either]` Pair again, stop the server, then open the full app: "Cannot reach the server" offers Phone pairing. Unlink there: the app says the server could not be reached and the phone is still listed; Devices still shows it active until revoked there.
-22. `[either]` Away from home (mobile data, with the Access service token saved in Settings and the app opened once at home): the pages load without an Access sign-in, Scan shows Away, and a scan is decoded on the phone and queued. Back home, the queue empties and Activity shows the scan.
-23. `[either]` Without the service token, away from home: Scan shows Offline (not Online), a queued scan stays queued, and sign-in says it cannot reach the server instead of waiting.
-24. `[either]` With the phone on USB, `adb logcat` captured during pairing and a scan shows no device token, tag key constant, tag UID or block data. Search it for `ftd_` and for the UID's hex digits.
-
-**Setting up by signing in**
-
-*Triggers.* Kotlin: `SecureStore`. Web: the Login route (`routes/login/`, `lib/components/LoginForm.svelte`), setting the phone up as a user's own (`lib/phone/own-phone.ts`), the address step (`lib/components/phone/SetUpPhone.svelte`, `ServerAddress.svelte`), the screen it opens on (`lib/components/phone/OpensOn.svelte`), the start screen (`lib/components/phone/StartScreen.svelte`, `lib/start-screen.ts`), and roles (`lib/roles.ts`).
-
-25. `[either]` Unlink, then at home enter the server's address and sign in as an Editor: the app sets itself up without a code and asks what the phone is mainly for. Devices lists the phone under its model name, belonging to that user.
-26. `[either]` Choose "Looking at stock": the app opens on Inventory, now and after closing and reopening it. Change it to "Scanning" on the Pairing page: it opens on Scan.
-27. `[either]` Scan a spool and record an action: Activity shows it as "user (phone model)".
-28. `[either]` Set up a phone as a Viewer: tapping a spool shows its card with Info and Cancel only and "Your account can look spools up but not record them", online and with the server stopped.
-29. `[either]` Try setting up away from home (mobile data): the app says to finish setting up at home. "Use a different server" goes back to the address.
-30. `[either]` Unlink a phone set up by signing in: it is signed out and back at the address step.
-
-**Back button**
-
-*Triggers.* Kotlin: `MainActivity` (Back itself is Capacitor's App plugin, so its upgrade is a full run). Web: shared web code (above), Back handling (`lib/phone/back.ts`, `lib/phone/back-layer.svelte.ts`, `lib/phone/bridge.ts`, `lib/phone/native-bridge.ts`), navigation (`lib/nav.ts`), the leave warning (`lib/leave-warning.svelte.ts`, `lib/components/LeaveWarning.svelte`), the focus trap (`lib/focus-trap.ts`), the start screen (`lib/components/phone/StartScreen.svelte`), Delivery and the scan card (`lib/phone/delivery.svelte.ts`, `lib/components/phone/ScanCard.svelte`), and every sheet and dialog: any `*Sheet.svelte` or `*Dialog.svelte` under `lib/components/` (the menu sheet, the filter sheets, the print request and catalog color dialogs).
-
-Run each step with the swipe-back gesture and, where the phone has one, the Back key.
-
-31. `[either]` Back a page: from Inventory open a spool, then hop to Activity with the bottom nav. Back returns to the spool, and Back again to Inventory.
-32. `[either]` The opening screen to the background: close the app fully and reopen it, so Scan has nothing before it. Turn on Delivery and record a spool, then press Back: the app goes to the background without closing. Reopen it from the recent apps: Scan shows, with Delivery on and the spool in its list.
-33. `[either]` Nothing on the start screen: close the app fully, reopen it and press Back while the start screen shows. Nothing happens, and the app opens as usual.
-34. `[either]` The menu sheet closes first: on Inventory open the menu, then press Back. The menu closes and Inventory stays. Open the filter sheet, then the menu over it: Back closes the menu only, and Back again the filter sheet.
-35. `[either]` A filter sheet closes first: on Spools open the filter sheet and choose a state, then press Back. The sheet closes, Spools stays, and the filters are as they were. Do the same on Catalog.
-36. `[either]` A dialog closes first: as an Admin, open a submitted print request, tap Reject, then press Back. The dialog closes, the request stays Submitted, and Back again leaves the page.
-37. `[either]` A scan card before choosing an action: on Scan tap a spool, then press Back. The card closes, Scan is back at Ready, and nothing is recorded: Activity has no new event. Do the same with Delivery on: Delivery stays on and its list is unchanged.
-38. `[either]` A scan card after choosing an action: on Scan tap a spool and choose an action, then press Back. The card closes and Scan is back at Ready, with the action kept, not undone: Activity shows it. Do the same with Delivery on: Delivery stays on and the spool stays in its list.
-39. `[either]` After pairing (QR code, typed code, or setting up by signing in), Back from the opened page sends the app to the background.
-40. `[either]` After saving a form (a new print request, an edited request, a new spool), Back from the page it opens skips the form.
-41. `[either]` The leave warning: start a new print request and type a title, then press Back. "Leave without saving?" shows: Back on it, or Stay, keeps the form with the title. Press Back again and choose Leave: the previous page shows. Open a submitted request as an Admin, tap Reject, type a reason and press Back: the warning shows, Stay keeps the dialog and the reason, and Leave closes it.
-
-**Flavors**
-
-*Triggers.* Kotlin: `AppFlavor`, `Flavor`, and the Gradle flavors: `productFlavors`, the `googleImplementation` and `fossImplementation` dependencies and `checkFossHasNoGoogleServices` in `android/app/build.gradle`, and the `google` and `foss` `AndroidManifest.xml`. Web: none.
-
-42. `[both]` On a phone set up with one flavor of this release candidate, install the other flavor's APK of the same release candidate over the top: it installs without uninstalling, opens still set up (Scan, or the page chosen in 26) and a scan records. Install the first flavor's APK back over it: still set up. Start once from each flavor.
-
-**Phone notifications**
-
-*Triggers.* Kotlin: `PushBridge`, `PushRoutes`, `PushEndpointStore`, `PushEvents`, `Notifier`, `PhoneNotification`, `NotificationChannels`, `Distributors`, `UnifiedPush*`, `Firebase*`, `FcmRoute`, `GoogleRoutes`, `Photo*`, `Flavor` (its push routes), `FilamentTrackerPlugin`. Web: the phone's notifications (`lib/phone/push.ts`, `lib/phone/permission.ts`, `lib/phone/notification-status.ts`, `lib/components/phone/PhoneNotifications.svelte`), the Account route and its Notifications list (`routes/account/`, `lib/components/account/NotificationSettings.svelte`, `lib/notifications.ts`), and the Firebase settings (`lib/components/settings/PhoneNotificationSettings.svelte`). Also the server's push sender (`server/src/filament_tracker/push/`, `server/src/filament_tracker/api/push.py`) when it changed since the last release, though it ships in the server image, not the app.
-
-43. `[either]` On a phone set up by signing in, with ntfy installed and RollCall's notifications allowed in Android's settings, close the app and turn Wi-Fi off (mobile data). From a PC, mark one of that user's print requests Done: the notification shows within a minute, and Android's settings for RollCall list a channel for each kind.
-44. `[either]` Tap it: the app opens on the request's page.
-45. `[either]` Sign out in the full app, then tap a new notification: the app asks to sign in, then opens its page.
-46. `[either]` On a shared phone (paired with a code) with ntfy installed, sign in to the full app: ntfy lists no RollCall subscription, and no notifications arrive.
-47. `[either]` On an Android 13 or later phone, set it up by signing in: Android asks once whether RollCall may show notifications. Refuse: Pairing says RollCall isn't allowed to show notifications and how to allow it, and Account's Phone switches are unchanged. Allow notifications in Android's settings and come back: Pairing says they work, via ntfy. Close and reopen the app: it doesn't ask again.
-48. `[both]` On a phone set up by signing in with the previous release of the same flavor, install this release candidate from Obtainium ([docs/releasing.md](../docs/releasing.md#installing-a-release-candidate)): it installs as an update, without uninstalling, and opens still set up, on the page chosen in 26, and a scan records. On the first open (at home), Android asks once whether RollCall may show notifications when the previous release had no phone notifications (1.2.0 and older), and doesn't ask when it had; reopening never asks again.
-49. `[either]` On Pairing, tap Send a test notification: "Sent a test notification to this phone" shows, and the notification arrives. Uninstall ntfy and open Pairing: it says to install ntfy.
-50. `[either]` Away from home (mobile data), unlink the phone: ntfy no longer lists a RollCall subscription, and marking one of that user's print requests Done from a PC shows no notification on it.
-51. `[either]` On Wi-Fi at home, with the app closed, mark one of that user's print requests Done with a photo from a PC: the notification shows the photo, and expanding it shows it large. Do it again away from home (mobile data), with Cloudflare Access in front of the server: the photo shows too. Sign out in the full app and do it once more: the notification shows its text only.
-52. `[google]` `google` via FCM: set up Firebase on the Settings page, choosing the downloaded service-account key file in a desktop browser, then once more in the full app on a phone: each time the field shows the file's name and the service account's email, and Save says Saved. On a `google` phone without ntfy (or any other distributor), sign in: the app restarts itself once, then Pairing says phone notifications work via Google. Tap Send a test notification: it arrives. Close the app, turn Wi-Fi off and mark one of the user's requests Done with a photo from a PC: the notification shows with the photo, and tapping it opens the request.
-53. `[google]` `google` with ntfy installed uses ntfy: install ntfy on the phone from 52 and open RollCall: ntfy lists a RollCall subscription, Pairing says via ntfy, and the next notification arrives through ntfy.
-54. `[foss]` `foss` via ntfy: on a `foss` phone with ntfy, steps 43 and 44 pass, and Firebase set up on the server changes nothing (no restart).
-55. `[google]` Change a Firebase setting on the Settings page (or pair the `google` phone with another server): the next time the app opens signed in it restarts itself once, and FCM notifications still arrive.
-56. `[foss]` `foss` QR code: on a `foss` phone, Pair with a code instead and scan the Devices page's QR code: the app asks for the camera the first time, the ZXing scanner reads the code held upright, and pairing finishes as in 3. Back out of the scanner: the app returns to Pairing with nothing scanned.
-
-A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.
+The release checklist, run on each release candidate, is in [docs/checklist.md](../docs/checklist.md).
