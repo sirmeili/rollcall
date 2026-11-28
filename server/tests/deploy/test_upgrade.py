@@ -159,7 +159,7 @@ def test_the_new_image_upgrades_the_previous_images_data(
     tokens = use_the_previous_image(tmp_path, monkeypatch)
 
     # prepare restores the backup with the new image, then the new image serves it.
-    CANDIDATE.up("rollcall")
+    CANDIDATE.up("candidate")
     assert "restored filament-" in CANDIDATE.logs("prepare")
     assert httpx.get(f"{CANDIDATE.api}/health").json()["version"] == EXPECTED_VERSION
 
@@ -183,7 +183,7 @@ def test_the_new_image_upgrades_the_previous_images_data(
         refused = httpx.get(f"{CANDIDATE.api}/spools", headers={"Authorization": f"Bearer {token}"})
         assert refused.status_code == 401
     assert frank.get("/tokens").json() == []
-    assert CANDIDATE.run_in("rollcall", "python", "-c", PUSH_REGISTRATIONS).strip() == "0"
+    assert CANDIDATE.run_in("candidate", "python", "-c", PUSH_REGISTRATIONS).strip() == "0"
     assert frank.get("/printers").json() == []
     for group, key in [
         ("email", "smtp_host"),
@@ -195,14 +195,14 @@ def test_the_new_image_upgrades_the_previous_images_data(
 
     # The server runs without BACKUP_DIR, so it makes no backups.
     environ = CANDIDATE.run_in(
-        "rollcall", "python", "-c", "print('BACKUP_DIR=' in open('/proc/1/environ').read())"
+        "candidate", "python", "-c", "print('BACKUP_DIR=' in open('/proc/1/environ').read())"
     )
     assert environ.strip() == "False"
 
     # With RESTORE=0, prepare changes nothing: a scanner added after the upgrade stays.
     _created(frank.post("/devices", json={"id": "after-upgrade", "name": "After the upgrade"}))
     CANDIDATE.env["RESTORE"] = "0"
-    CANDIDATE.up("rollcall")
+    CANDIDATE.up("candidate")
     assert "RESTORE is not 1" in CANDIDATE.logs("prepare")
     frank = signed_in(CANDIDATE, "frank", PASSWORD)
     assert [d["id"] for d in frank.get("/devices").json()] == ["after-upgrade", "upgrade-sim"]

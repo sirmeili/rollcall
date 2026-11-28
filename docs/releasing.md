@@ -98,12 +98,12 @@ In Portainer:
    - `ROLLCALL_TAG`, `CANDIDATE_TAG` and `RESTORE=1` as for the first release candidate's restore ([Testing a release candidate](#testing-a-release-candidate), step 3). The stack can't start without both tags, so deploying it is that first restore.
 3. **The live backups.** `prepare` reads the live stack's backup volume, `rollcall-backups`, read only. If the live stack keeps its backups on a host path instead ([docs/deploy.md, Backups](deploy.md#backups)), change `prepare`'s `live-backups:/live-backups:ro` to that path, such as `/mnt/backup/rollcall:/live-backups:ro`, and delete the `live-backups:` volume at the bottom of the file. A volume of another name only needs `LIVE_BACKUPS_VOLUME` set to it.
 4. **Away from home.** The away-from-home phone steps (22, 23, 29, 50 and 51) need the test server behind the Cloudflare Tunnel and Cloudflare Access, as the live server is ([docs/deploy.md, The reverse proxy](deploy.md#5-the-reverse-proxy)), on a second hostname such as `rollcall-candidate.example.com`:
-   1. In the pasted Compose file, rename the `rollcall` service to `candidate`, and add it to the tunnel's network as [A Cloudflare Tunnel](deploy.md#a-cloudflare-tunnel), step 3, does for the live server. The rename matters: on a shared network, Docker answers a service's name with every container of that name, so a second `rollcall` there would take a share of the live hostname's traffic. Its container is still `rollcall-candidate`.
+   1. In the pasted Compose file, add the `candidate` service to the tunnel's network as [A Cloudflare Tunnel](deploy.md#a-cloudflare-tunnel), step 3, does for the live server. The service is named `candidate`, not `rollcall`, because on a shared network Docker answers a service's name with every container of that name, so a second `rollcall` there would take a share of the live hostname's traffic. Its container is `rollcall-candidate`.
 
       ```yaml
       services:
         candidate:
-          # ...as the rollcall service in deploy/candidate/compose.yaml...
+          # ...as in deploy/candidate/compose.yaml...
           networks:
             - default
             - rollcall-tunnel
