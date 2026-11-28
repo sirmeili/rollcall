@@ -131,6 +131,36 @@ test("admins register a scanner and see its token and pairing code once", async 
   await expect(page.locator("code")).toHaveCount(0);
 });
 
+test("the Show revoked switch survives Back, and a fresh visit starts with it off", async ({
+  page,
+}) => {
+  await signInAt(page, "/devices", "e2e-admin");
+  await page.getByRole("button", { name: "Register scanner" }).click();
+  await page.getByLabel("Name").fill("Old scanner");
+  await page.getByRole("button", { name: "Create token" }).click();
+  await page.getByRole("button", { name: "Done" }).click();
+  const card = page.getByRole("article", { name: "Old scanner" });
+  await card.getByRole("button", { name: "Revoke" }).click();
+  await card.getByRole("group", { name: "Confirm" }).getByRole("button", { name: "Revoke" }).click();
+  await expect(card).toHaveCount(0);
+
+  await page.getByRole("switch", { name: /^Show revoked/ }).check();
+  await expect(card).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Main" });
+  await nav.getByRole("link", { name: "Users" }).click();
+  await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
+
+  await page.goBack();
+  await expect(page.getByRole("switch", { name: /^Show revoked/ })).toBeChecked();
+  await expect(card).toBeVisible();
+  await expect(page).toHaveURL(/\/devices$/);
+
+  await nav.getByRole("link", { name: "Users" }).click();
+  await nav.getByRole("link", { name: "Devices" }).click();
+  await expect(page.getByRole("switch", { name: /^Show revoked/ })).not.toBeChecked();
+  await expect(card).toHaveCount(0);
+});
+
 test("admins create a user who then changes their password", async ({ page, browser }) => {
   await signInAt(page, "/users", "e2e-admin");
   await page.getByRole("button", { name: "New user" }).click();

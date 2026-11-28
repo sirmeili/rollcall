@@ -14,6 +14,7 @@
     type PrinterCheck,
     type PrinterFields,
   } from "#lib/api/admin.ts";
+  import type { Snapshot } from "@sveltejs/kit";
   import { describeError } from "#lib/api/errors.ts";
   import type { DeviceOut, PrinterOut } from "#lib/api/types.ts";
   import DeviceCard from "#lib/components/devices/DeviceCard.svelte";
@@ -29,6 +30,12 @@
   let message = $state<string | null>(null);
   let busy = $state(false);
   let showRevoked = $state(false);
+
+  /** Back and Forward bring the switch back as it was; a fresh visit starts with it off. */
+  export const snapshot: Snapshot<boolean> = {
+    capture: () => showRevoked,
+    restore: (value) => (showRevoked = value),
+  };
 
   const revokedCount = $derived(devices?.filter((d) => d.revoked).length ?? 0);
   /** Active scanners, then (when shown) revoked ones, each group in ID order. */
