@@ -158,6 +158,15 @@ test("the Show revoked switch survives Back, and a fresh visit starts with it of
   await expect(card).toBeVisible();
   await expect(page).toHaveURL(/\/devices$/);
 
+  await page.getByRole("switch", { name: /^Show revoked/ }).uncheck();
+  await expect(card).toHaveCount(0);
+  await nav.getByRole("link", { name: "Users" }).click();
+  await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("switch", { name: /^Show revoked/ })).not.toBeChecked();
+  await expect(card).toHaveCount(0);
+  await expect(page).toHaveURL(/\/devices$/);
+
   await nav.getByRole("link", { name: "Users" }).click();
   await nav.getByRole("link", { name: "Devices" }).click();
   await expect(page.getByRole("switch", { name: /^Show revoked/ })).not.toBeChecked();
