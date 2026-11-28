@@ -17,20 +17,20 @@ class BackupRulesTest {
     // the app's own folders.
     private val appDomains = setOf("root", "file", "database", "sharedpref", "external")
 
+    private fun parse(file: File): Element =
+        DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
+            .newDocumentBuilder().parse(file).documentElement
+
     private fun application(): Element {
         val path = System.getProperty("mergedManifest")
         assertNotNull("the mergedManifest system property (app/build.gradle)", path)
-        val document = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
-            .newDocumentBuilder().parse(File(path))
-        return document.getElementsByTagName("application").item(0) as Element
+        return parse(File(path)).getElementsByTagName("application").item(0) as Element
     }
 
     private fun rules(): Element {
         val name = application().getAttributeNS(androidNs, "dataExtractionRules")
         assertEquals("@xml/data_extraction_rules", name)
-        val file = File("src/main/res/xml/data_extraction_rules.xml")
-        return DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
-            .newDocumentBuilder().parse(file).documentElement
+        return parse(File("src/main/res/xml/data_extraction_rules.xml"))
     }
 
     private fun excludedDomains(rules: Element, section: String): Set<String> {
