@@ -2,7 +2,9 @@
 the LAN (with and without a reverse proxy), LAN-only API docs and security headers."""
 
 import re
+import sys
 from collections.abc import Iterator
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
@@ -27,6 +29,11 @@ from filament_tracker.db.models import Event
 from filament_tracker.decoder.synthetic import SyntheticTag
 from filament_tracker.domain.enums import EventSource, Role
 from filament_tracker.main import create_app
+
+# The print request routes, which their own suite checks (their access depends on the request
+# too).
+sys.path.insert(0, str(Path(__file__).parent / "requests"))
+from test_request_security import ROUTES as REQUEST_ROUTES  # noqa: E402
 
 # Every route that needs a role, and the lowest role allowed.
 ROUTES = [
@@ -109,8 +116,12 @@ USER_ROUTES = [
     ("post", "/api/v1/push/devices/phone-9/test", Role.VIEWER),
 ]
 
+# A scanner's token reaches only the scanner routes and an undo of its own scan.
+NOT_SCANNER_ROUTES = [(m, path) for m, path, _ in ROUTES if not path.endswith("/revert")]
 
-# Every other route the app serves, as the app names it, and why it is not in the lists above.
+
+# Every other route the app serves, as the app names it, and why it is not in the lists above
+# or REQUEST_ROUTES.
 EXEMPT = [
     # Open to anyone.
     ("get", "/api/v1/health"),
@@ -128,24 +139,6 @@ EXEMPT = [
     ("get", "/api/v1/devices/provisioning"),
     # A signed-in user registering their own phone.
     ("post", "/api/v1/devices/mine"),
-    # Print requests, whose access depends on the request too (requests/test_request_security.py).
-    ("get", "/api/v1/requests"),
-    ("post", "/api/v1/requests"),
-    ("get", "/api/v1/requests/count"),
-    ("get", "/api/v1/requests/{request_id}"),
-    ("patch", "/api/v1/requests/{request_id}"),
-    ("post", "/api/v1/requests/{request_id}/priority"),
-    ("post", "/api/v1/requests/{request_id}/moves"),
-    ("post", "/api/v1/requests/uploads"),
-    ("get", "/api/v1/requests/{request_id}/file"),
-    ("post", "/api/v1/requests/photo-uploads"),
-    ("post", "/api/v1/requests/{request_id}/photos"),
-    ("delete", "/api/v1/requests/{request_id}/photos/{photo_id}"),
-    ("get", "/api/v1/requests/{request_id}/photos/{photo_id}"),
-    ("put", "/api/v1/requests/{request_id}/choices/{choice_id}/grams"),
-    ("post", "/api/v1/requests/{request_id}/choices/{choice_id}/holds"),
-    ("put", "/api/v1/requests/{request_id}/holds/{hold_id}"),
-    ("delete", "/api/v1/requests/{request_id}/holds/{hold_id}"),
 ]
 
 
@@ -156,8 +149,9 @@ def _call(client: TestClient, method: str, path: str, headers: dict[str, str] | 
 
 
 def _template_of(method: str, path: str, served: set[tuple[str, str]]) -> tuple[str, str]:
-    """The served route a request in the lists above reaches (a literal one over one with a
-    parameter in the same place, as the app picks it)."""
+    """The served route a request in the lists above reaches, ignoring its query (a literal one
+    over one with a parameter in the same place, as the app picks it)."""
+    path = path.split("?")[0]
     matches = [
         (m, template)
         for m, template in served
@@ -170,26 +164,21 @@ def _template_of(method: str, path: str, served: set[tuple[str, str]]) -> tuple[
 def test_every_served_route_is_in_the_matrix_or_exempt(app: FastAPI) -> None:
     served = {(m, path) for path, ops in app.openapi()["paths"].items() for m in ops}
 
-    listed = {_template_of(m, path, served) for m, path, _ in ROUTES + USER_ROUTES}
+    listed = {_template_of(m, path, served) for m, path, _ in ROUTES + USER_ROUTES + REQUEST_ROUTES}
 
     assert served - listed - set(EXEMPT) == set()  # a new route needs a row above
     assert set(EXEMPT) - served == set()  # and an exempt route the app no longer serves goes
 
 
-@pytest.mark.parametrize(("method", "path", "needed"), ROUTES)
-def test_each_route_refuses_no_credentials(
-    client: TestClient, method: str, path: str, needed: Role
-) -> None:
+@pytest.mark.parametrize(("method", "path"), [(m, path) for m, path, _ in ROUTES])
+def test_each_route_refuses_no_credentials(client: TestClient, method: str, path: str) -> None:
     assert _call(client, method, path).status_code == 401
 
 
-@pytest.mark.parametrize(
-    ("method", "path", "needed"), [r for r in ROUTES if not r[1].endswith("/revert")]
-)
+@pytest.mark.parametrize(("method", "path"), NOT_SCANNER_ROUTES)
 def test_each_route_refuses_a_scanner(
-    client: TestClient, token: str, method: str, path: str, needed: Role
+    client: TestClient, token: str, method: str, path: str
 ) -> None:
-    # A scanner's token reaches only the scanner routes and an undo of its own scan.
     assert _call(client, method, path, bearer(token)).status_code == 403
 
 
