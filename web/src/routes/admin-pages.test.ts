@@ -473,6 +473,13 @@ function scanner(overrides: Partial<DeviceOut> = {}): DeviceOut {
 describe("Devices page", () => {
   beforeEach(() => admin.listPrinters.mockResolvedValue([]));
 
+  /** The names on the Scanners section's cards, in page order. */
+  function scannerNames(): (string | null)[] {
+    return within(screen.getByRole("region", { name: "Scanners" }))
+      .getAllByRole("article")
+      .map((card) => card.getAttribute("aria-label"));
+  }
+
   it("lists scanners with their status", async () => {
     admin.listDevices.mockResolvedValue([
       scanner(),
@@ -670,16 +677,11 @@ describe("Devices page", () => {
       scanner({ id: "a-old", name: "A old", revoked: true }),
     ]);
     render(DevicesPage);
-    const scanners = await screen.findByRole("region", { name: "Scanners" });
-    const names = (): (string | null)[] =>
-      within(scanners)
-        .getAllByRole("article")
-        .map((card) => card.getAttribute("aria-label"));
 
-    await within(scanners).findByRole("article", { name: "Alpha" });
-    expect(names()).toEqual(["Alpha", "Zeta"]);
+    await screen.findByRole("article", { name: "Alpha" });
+    expect(scannerNames()).toEqual(["Alpha", "Zeta"]);
     await userEvent.click(screen.getByRole("switch", { name: "Show revoked (2)" }));
-    expect(names()).toEqual(["Alpha", "Zeta", "A old", "B old"]);
+    expect(scannerNames()).toEqual(["Alpha", "Zeta", "A old", "B old"]);
   });
 
   it("removes a revoked scanner's card and says where it went", async () => {
@@ -722,11 +724,7 @@ describe("Devices page", () => {
     await userEvent.click(within(card).getByRole("button", { name: "New token (re-enable)" }));
     await userEvent.click(within(card).getByRole("button", { name: "Rotate token" }));
     await screen.findByRole("alert", { name: /New token for Old/ });
-    const scanners = screen.getByRole("region", { name: "Scanners" });
-    const names = within(scanners)
-      .getAllByRole("article")
-      .map((c) => c.getAttribute("aria-label"));
-    expect(names).toEqual(["Old", "Zeta"]);
+    expect(scannerNames()).toEqual(["Old", "Zeta"]);
     expect(screen.queryByRole("switch")).toBeNull();
   });
 
