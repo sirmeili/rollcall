@@ -9,6 +9,7 @@ import pytest
 
 from filament_tracker.admin_cli import main
 from filament_tracker.config import Settings
+from filament_tracker.db.migrate import upgrade
 
 NOW = "2026-11-20 08:00:00.000000"
 
@@ -235,3 +236,66 @@ def test_keeps_accounts_inventory_requests_and_firebase(
     for table in KEPT_TABLES:
         assert _table(target, table) == _table(live, table), table
     assert _kept_settings(target) == _kept_settings(live)
+
+
+# The revision before the newest, and one from before settings, printer slots, machine
+# tokens and push registrations existed.
+EARLIER = "72db02de11e5"
+EARLIEST_WITH_USERS = "4c7498d5acb1"
+
+
+def _at_revision(path: Path, revision: str) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    upgrade(f"sqlite:///{path}", revision)
+    return path
+
+
+def _revision(path: Path) -> list[tuple[object, ...]]:
+    return _rows(path, "SELECT version_num FROM alembic_version")
+
+
+def test_an_earlier_schema_is_scrubbed_and_not_migrated(
+    backups: Path, target: Path, settings: Settings, tmp_path: Path, capsys
+) -> None:
+    template = _at_revision(tmp_path / "earlier.db", EARLIER)
+
+    live, out = _restore_live(backups, template, settings, capsys)
+
+    assert _revision(target) == [(EARLIER,)]
+    assert {key for (key,) in _rows(target, "SELECT key FROM setting")} == set(KEPT_SETTINGS)
+    for table in KEPT_TABLES:
+        assert _table(target, table) == _table(live, table), table
+    assert "removed 11 settings, 1 printer, 1 machine token, 2 push registrations" in out
+    assert "1 device deleted, 1 revoked" in out
+
+
+def test_tables_an_old_schema_lacks_are_skipped(
+    backups: Path, target: Path, settings: Settings, capsys
+) -> None:
+    live = _at_revision(backups / "filament-20261106T080000Z.db", EARLIEST_WITH_USERS)
+    _run(
+        live,
+        "INSERT INTO device (id, name, token_hash, created_at) VALUES ('scanner', 'S', 'h', ?)",
+        NOW,
+    )
+
+    code = main(["restore", "--for-test", str(backups)], settings=settings)
+
+    assert code == 0
+    assert _revision(target) == [(EARLIEST_WITH_USERS,)]
+    assert _table(target, "device") == []
+    assert "removed 0 settings, 0 printers, 0 machine tokens, 0 push registrations" in (
+        capsys.readouterr().out
+    )
+
+
+def test_refuses_a_database_that_is_not_a_file(
+    backups: Path, migrated_template: Path, capsys
+) -> None:
+    _db(backups / "filament-20261120T080000Z.db", migrated_template)
+    in_memory = Settings(database_url="sqlite://", _env_file=None)
+
+    code = main(["restore", "--for-test", str(backups)], settings=in_memory)
+
+    assert code == 1
+    assert "DATABASE_URL must be a SQLite file" in capsys.readouterr().err
