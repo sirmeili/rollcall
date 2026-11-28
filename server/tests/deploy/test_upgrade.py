@@ -72,6 +72,9 @@ def stacks() -> Iterator[None]:
     try:
         yield
     finally:
+        # Printed before the stacks go, so a failed test's report carries their logs.
+        print(PREVIOUS.compose("logs", "--no-color", check=False))
+        print(CANDIDATE.compose("logs", "--no-color", check=False))
         CANDIDATE.compose("down", "--volumes", check=False)
         PREVIOUS.compose("down", "--volumes", check=False)
 

@@ -72,19 +72,10 @@ jobs:
           FT_COMPOSE_STACK: "1"
           ROLLCALL_IMAGE: rollcall:test
           PREVIOUS_IMAGE: rollcall:test
-      - name: Show the stacks' logs if the tests failed
+      - name: Show the stack's log if it failed
         if: failure()
-        # The end-to-end stack, then the upgrade test's two stacks, under the project names
-        # test_upgrade.py gives them. The test server's file needs its required settings set
-        # to be read; the logs don't use them.
-        env:
-          CANDIDATE_TAG: unused
-          ROLLCALL_TAG: unused
-          SETTINGS_KEY: unused
-        run: |
-          docker compose -f deploy/test/compose.yaml logs --no-color || true
-          docker compose -f deploy/test/compose.yaml -p rollcall-upgrade-previous logs --no-color || true
-          docker compose -f deploy/candidate/compose.yaml -p rollcall-upgrade-candidate logs --no-color || true
+        # The upgrade test prints its two stacks' logs into its own report before removing them.
+        run: docker compose -f deploy/test/compose.yaml logs --no-color || true
       - name: Save the image for publishing
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: docker save rollcall:test | gzip > "$RUNNER_TEMP/rollcall.tar.gz"
