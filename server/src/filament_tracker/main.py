@@ -75,6 +75,7 @@ from filament_tracker.services.printers import seed_printers
 from filament_tracker.services.setup import SetupGate
 from filament_tracker.services.stock_changes import on_change
 from filament_tracker.services.throttle import LoginThrottle
+from filament_tracker.version import server_version
 from filament_tracker.webapp import default_web_dir, mount_web_app
 
 API_PREFIX = "/api/v1"
@@ -187,6 +188,8 @@ def create_app(
 
     app = FastAPI(title="RollCall", lifespan=lifespan)
     app.state.settings = settings
+    # Read once at start: the image's build arguments (ADR-0025).
+    app.state.version = server_version()
     app.state.login_throttle = LoginThrottle()
     # Wrong setup codes are throttled like sign-ins, but apart from them.
     app.state.setup_throttle = LoginThrottle()
