@@ -49,6 +49,13 @@ ENV PATH=/app/.venv/bin:$PATH \
 LABEL org.opencontainers.image.source="https://github.com/sirmeili/rollcall" \
       org.opencontainers.image.title="RollCall" \
       org.opencontainers.image.description="Self-hosted tracker for Bambu Lab filament spools"
+# Which release this is (docs/configuration.md, Build arguments): the server reports the
+# version, else `dev (<short commit>)`, else `dev`. Declared late, so a new commit rebuilds
+# only these layers.
+ARG ROLLCALL_VERSION=""
+ARG ROLLCALL_COMMIT=""
+ENV ROLLCALL_VERSION=$ROLLCALL_VERSION \
+    ROLLCALL_COMMIT=$ROLLCALL_COMMIT
 USER rollcall
 WORKDIR /data
 VOLUME ["/data", "/backups"]
