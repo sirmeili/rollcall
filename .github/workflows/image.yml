@@ -3,7 +3,8 @@ name: Image
 # Builds the Docker image on every pull request that changes what goes into it, and runs it
 # end to end in the Compose test stack and through the upgrade test (docs/testing.md). On
 # every merge to main, the image is built and tested and the same image is pushed to the
-# private ghcr.io/sirmeili/rollcall, tagged latest and with the commit (docs/deploy.md).
+# private ghcr.io/sirmeili/rollcall, tagged main and with the commit (docs/deploy.md). latest
+# is only ever a final release, pushed by the Release workflow (ADR-0025).
 
 on:
   pull_request:
@@ -107,9 +108,9 @@ jobs:
         run: echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push latest and the commit
+      - name: Push main and the commit
         run: |
-          for tag in latest "$GITHUB_SHA"; do
+          for tag in main "$GITHUB_SHA"; do
             docker tag rollcall:test "ghcr.io/sirmeili/rollcall:$tag"
             docker push "ghcr.io/sirmeili/rollcall:$tag"
           done
