@@ -1,6 +1,7 @@
 <script lang="ts">
   // Account (docs/mockups/mobile-web/PhoneAccount.dc.html): Appearance, the email address
-  // and notification settings, the password, this phone (in the app) and Sign out, at every screen size.
+  // and notification settings, the password, this phone (in the app), the server's and the app's
+  // releases and Sign out, at every screen size.
   import { goto } from "$app/navigation";
   import { LOGIN_PATH } from "#lib/auth/redirect.ts";
   import { session } from "#lib/auth/session.svelte.ts";
@@ -8,8 +9,8 @@
   import ChangePassword from "#lib/components/account/ChangePassword.svelte";
   import EmailAddress from "#lib/components/account/EmailAddress.svelte";
   import NotificationSettings from "#lib/components/account/NotificationSettings.svelte";
+  import ReleaseVersions from "#lib/components/account/ReleaseVersions.svelte";
   import { askToLeave } from "#lib/leave-warning.svelte.ts";
-  import { bridge } from "#lib/phone/bridge.ts";
   import { phone } from "#lib/phone/phone-state.svelte.ts";
   import { ROLE_LABELS } from "#lib/roles.ts";
   import { theme } from "#lib/theme.svelte.ts";
@@ -98,10 +99,7 @@
     <div id="change-password"><ChangePassword /></div>
   {/if}
 
-  {#if phone.app}
-    <!-- Which release this phone runs, to compare with the latest on GitHub (Obtainium). -->
-    <p class="muted version">RollCall app {bridge().appVersion.replace(/^app-/, "")}</p>
-  {/if}
+  <ReleaseVersions signedIn={session.user !== null} app={phone.app} />
 
   <button type="button" class="signout" onclick={signOut} disabled={busy}>Sign out</button>
 </div>
@@ -159,11 +157,6 @@
 
   .grow {
     flex: 1;
-  }
-
-  .version {
-    margin: 0;
-    font-size: 13px;
   }
 
   .state {
