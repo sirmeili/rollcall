@@ -362,3 +362,5 @@ The server upgrades the database on start. To go back to an earlier image, set `
   docker build -t rollcall:test .
   cd server && FT_COMPOSE_STACK=1 uv run pytest tests/deploy --no-cov
   ```
+
+- The same run includes the upgrade test, `server/tests/deploy/test_upgrade.py`: data added on a previous image (`PREVIOUS_IMAGE`, by default the image under test) is backed up, restored and scrubbed by the test server's `prepare` service (`deploy/candidate/compose.yaml`), and served by the image under test ([docs/testing.md](testing.md)).

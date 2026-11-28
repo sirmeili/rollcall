@@ -99,7 +99,7 @@ server/                       FastAPI server: decoder, database, event log, API,
 web/                          SvelteKit web app (TypeScript), built to static files the server serves
 android/                      Android phone app: Capacitor around the web app, Kotlin NFC plugin
 Dockerfile                    The image: the web app built with Node, served by the Python server
-deploy/                       Compose file and example settings for the home server; deploy/test/ is the end-to-end test stack
+deploy/                       Compose file and example settings for the home server; deploy/candidate/ is the test server's, and deploy/test/ is the end-to-end test stack
 .github/workflows/            CI: lint, tests, 90% coverage gates, dependency audits, end-to-end tests, a check for links to retired docs; the image build, test and publish; phone app releases. On a pull request, jobs for areas it does not change are skipped; `ci-ok` and `image-ok` are the checks `main` requires
 .github/ISSUE_TEMPLATE/       The release record issue template
 ```
@@ -152,7 +152,7 @@ To build and run the Docker image, from the repository root:
 
 ```sh
 docker build -t rollcall:test .
-cd server && FT_COMPOSE_STACK=1 uv run pytest tests/deploy --no-cov   # The end-to-end test stack
+cd server && FT_COMPOSE_STACK=1 uv run pytest tests/deploy --no-cov   # The end-to-end test stack and the upgrade test
 ```
 
 To run it on a server, see [docs/deploy.md](docs/deploy.md).

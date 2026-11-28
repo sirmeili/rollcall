@@ -1,9 +1,9 @@
 name: Image
 
 # Builds the Docker image on every pull request that changes what goes into it, and runs it
-# end to end in the Compose test stack. On every merge to main, the image is built and tested
-# and the same image is pushed to the private ghcr.io/sirmeili/rollcall, tagged latest and
-# with the commit (docs/deploy.md).
+# end to end in the Compose test stack and through the upgrade test (docs/testing.md). On
+# every merge to main, the image is built and tested and the same image is pushed to the
+# private ghcr.io/sirmeili/rollcall, tagged latest and with the commit (docs/deploy.md).
 
 on:
   pull_request:
@@ -62,12 +62,15 @@ jobs:
       - name: Install the test dependencies
         working-directory: server
         run: uv sync --locked
-      - name: Run the image end to end in the Compose test stack
+      # The end-to-end stack, and the upgrade test with the image under test as both the
+      # previous and the new image, so prepare and the scrub run on every change.
+      - name: Run the image end to end in the Compose test stack, and the upgrade test
         working-directory: server
         run: uv run pytest tests/deploy --no-cov -v
         env:
           FT_COMPOSE_STACK: "1"
           ROLLCALL_IMAGE: rollcall:test
+          PREVIOUS_IMAGE: rollcall:test
       - name: Show the stack's log if it failed
         if: failure()
         run: docker compose -f deploy/test/compose.yaml logs --no-color || true
