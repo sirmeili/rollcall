@@ -13,12 +13,18 @@ Run on each release candidate: the phone steps on the release-signed APK install
 
 **Setup and pairing**
 
-*Triggers.* Kotlin: `MainActivity`, `FilamentTrackerPlugin`, `SecureStore`, `NfcState`, `Flavor` (its QR scanner). Web: the Pair route (`routes/pair/`), the phone's set-up and pairing screens (`lib/components/phone/` `SetUpPhone`, `ServerAddress`, `PairWithCode`, `PairedPhone`, `StartScreen`, and `lib/start-screen.ts`), pairing (`lib/pairing.ts`, `lib/phone/pairing-store.ts`), the phone bridge (`lib/phone/bridge.ts`, `lib/phone/native-bridge.ts`), the phone's session and state (`lib/phone/session.ts`, `lib/phone/phone-state.svelte.ts`), the device API (`lib/phone/device-api.ts`), and the Devices route (`routes/devices/`, `lib/components/devices/`, `lib/devices.ts`).
+*Triggers.* Kotlin: `MainActivity`, `FilamentTrackerPlugin`, `SecureStore`, `AndroidStorage`, `KeystoreKey`, `PrefsValues`, `NfcState`, `Flavor` (its QR scanner), and the main `AndroidManifest.xml` (`main/AndroidManifest.xml`). Web: the Pair route (`routes/pair/`), the phone's set-up and pairing screens (`lib/components/phone/` `SetUpPhone`, `ServerAddress`, `PairWithCode`, `PairedPhone`, `StartScreen`, and `lib/start-screen.ts`), pairing (`lib/pairing.ts`, `lib/phone/pairing-store.ts`), the phone bridge (`lib/phone/bridge.ts`, `lib/phone/native-bridge.ts`), the phone's session and state (`lib/phone/session.ts`, `lib/phone/phone-state.svelte.ts`), the device API (`lib/phone/device-api.ts`), and the Devices route (`routes/devices/`, `lib/components/devices/`, `lib/devices.ts`).
 
 1. `[either]` First launch opens "Set up this phone", asking for the server's address, with "Pair with a code instead".
 2. `[either]` With NFC turned off in Android settings, Scan says NFC is off. Turn NFC on and come back: within a few seconds it asks for a tap, without restarting the app.
 3. `[either]` Pair with a code instead: on the PC, register a device on Devices, set the test server's address and show the QR code. Scan it in the app: the app opens Scan, and within a minute Devices shows the phone Online with the release candidate's version, such as `app-1.3.0-rc.1`, and Account shows **RollCall app 1.3.0-rc.1**.
 4. `[either]` Typed pairing: an `http://` address that is not on the LAN, such as `http://example.com`, is refused with a message about the home network.
+
+<!-- A new list, so Markdown keeps the step ids that follow: a step added later takes the next free number. -->
+
+66. `[either]` Encrypted storage, only on a full run or when `SecureStore`, `AndroidStorage`, `KeystoreKey` or `PrefsValues` changed: build the debug APK from the candidate's tag (`./gradlew assembleDebug`, as in [android/README.md](../android/README.md#build)). It uses the debug build because `run-as` needs a debuggable app, and it installs beside the release app as `io.github.sirmeili.rollcall.debug`. Pair it with the test server, then `adb shell run-as io.github.sirmeili.rollcall.debug cat shared_prefs/secure-store.xml` shows only hex values: no `ftd_`, no tag key constant and no Access client secret. Uninstall the debug app afterwards. The code is `android/app/src/main/java/io/github/sirmeili/filamenttracker/storage/AndroidStorage.kt`; its only test, `SecureStoreTest.kt`, uses a software key.
+67. `[either]` Backup opt-out: with the release candidate installed, `adb shell dumpsys package io.github.sirmeili.rollcall` shows no `ALLOW_BACKUP` in the package flags (`android:allowBackup` in `android/app/src/main/AndroidManifest.xml`). The exclusion from device-to-device transfer is checked by the automated `BackupRulesTest.kt`, not here.
+68. `[either]` Plain HTTP ([ADR-0011](adr/0011-android-plain-http-lan-check-at-pairing.md)): at home, pair over the test server's plain LAN address (`http://<server>:8001`, not the tunnel) and record a scan: Activity shows it.
 
 **Scanning**
 
@@ -47,7 +53,7 @@ Run on each release candidate: the phone steps on the release-signed APK install
 
 *Triggers.* Kotlin: none. Web: shared web code (above), sign-in and the session (`lib/auth/`, `routes/login/`, `lib/components/LoginForm.svelte`), the Devices route (`routes/devices/`, `lib/components/devices/`, `lib/devices.ts`), and unlinking (`lib/components/phone/PairedPhone.svelte`, `routes/pair/`). A page of the full web app that no section names is an unmapped file (above), so it makes a full run.
 
-18. `[either]` Open the full app and sign in: pages work, and "Back to Scan" returns to Scan.
+18. `[either]` Open the full app and sign in: pages work, and **Scan** returns to Scan.
 19. `[either]` Revoke the phone's token on Devices: the next scan says to pair the phone again.
 20. `[either]` Unlink this phone (from Scan's Pairing button): it returns to Pairing, says the token was revoked, and Devices lists the phone as revoked.
 21. `[either]` Pair again, stop the server, then open the full app: "Cannot reach the server" offers Phone pairing. Unlink there: the app says the server could not be reached and the phone is still listed; Devices still shows it active until revoked there.
@@ -65,6 +71,10 @@ Run on each release candidate: the phone steps on the release-signed APK install
 28. `[either]` Set up a phone as a Viewer: tapping a spool shows its card with Info and Cancel only and "Your account can look spools up but not record them", online and with the server stopped.
 29. `[either]` Try setting up away from home (mobile data): the app says to finish setting up at home. "Use a different server" goes back to the address.
 30. `[either]` Unlink a phone set up by signing in: it is signed out and back at the address step.
+
+<!-- A new list, so Markdown keeps the step ids that follow: a step added later takes the next free number. -->
+
+69. `[either]` Start screen on the dark theme: with the phone on the dark theme, close the app fully and reopen it: the start screen's words are drawn light, and readable. It is CSS only (`lib/components/phone/StartScreen.svelte`), which neither jsdom nor Playwright can reach.
 
 **Back button**
 
