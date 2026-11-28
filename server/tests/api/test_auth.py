@@ -3,8 +3,10 @@
 from datetime import timedelta
 
 from api_helpers import (
+    ADMIN_TOKEN,
     CSRF,
     INTERNET_CLIENT,
+    LAN_CLIENT,
     PASSWORD,
     admin,
     browser,
@@ -17,9 +19,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from filament_tracker.config import Settings
 from filament_tracker.db.models import User, UserSession
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import Role
+from filament_tracker.main import create_app
 
 NEW_PASSWORD = "a brand new passphrase"  # noqa: S105 - test value
 
@@ -61,6 +65,23 @@ def test_login_sets_a_strict_session_cookie_and_returns_the_user(
     assert response.cookies["ft_session"] not in stored.token_hash
     assert len(stored.token_hash) == 64
     assert db.get(User, 1).last_login_at is not None
+
+
+def test_cookie_secure_false_drops_only_the_secure_flag(db_url: str) -> None:
+    settings = Settings(
+        database_url=db_url, admin_token=ADMIN_TOKEN, cookie_secure=False, _env_file=None
+    )
+    app = create_app(settings)
+
+    with TestClient(app, base_url="http://testserver", client=LAN_CLIENT) as web:
+        make_user(app, "alice", Role.EDITOR)
+        response = login(web, "alice")
+
+    assert response.status_code == 200
+    cookie = response.headers["set-cookie"].lower()
+    for attribute in ("ft_session=", "httponly", "samesite=strict", "path=/"):
+        assert attribute in cookie
+    assert "secure" not in cookie
 
 
 def test_me_returns_the_signed_in_user(app: FastAPI, client: TestClient) -> None:

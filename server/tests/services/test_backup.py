@@ -11,11 +11,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from filament_tracker.admin_cli import main as admin_main
+from filament_tracker.app_settings.crypto import key_file_for, read_or_create_key_file
+from filament_tracker.app_settings.offline import database_file
 from filament_tracker.config import Settings
 from filament_tracker.main import _backups, create_app
 from filament_tracker.services.backup import (
     CHECK_SECONDS,
     KEEP,
+    NAME,
     BackupScheduler,
     backup_database,
     backup_name,
@@ -297,6 +300,51 @@ def test_the_server_runs_backups_only_with_a_backup_dir(
         pass
 
     assert "nightly backups at 03:00 (UTC)" in caplog.text
+
+
+def test_the_server_backs_up_in_the_time_zone_saved_in_the_app(
+    tmp_path: Path, db_url: str, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("TZ", raising=False)
+    app = create_app(Settings(database_url=db_url, _env_file=None))
+    with TestClient(app):
+        app.state.settings_store.save({"tz": "America/Chicago"})  # the Settings page
+    caplog.set_level(logging.INFO, logger="filament_tracker.services.backup")
+
+    settings = Settings(database_url=db_url, backup_dir=tmp_path / "b", _env_file=None)
+    with TestClient(create_app(settings)):
+        pass
+
+    assert "nightly backups at 03:00 (America/Chicago)" in caplog.text
+
+
+def _key_beside(db_url: str) -> None:
+    key = key_file_for(db_url)
+    assert key is not None
+    read_or_create_key_file(key)
+    assert key.exists()
+
+
+def test_a_nightly_backup_never_copies_the_settings_key(tmp_path: Path, db_url: str) -> None:
+    _key_beside(db_url)
+    source = database_file(db_url)
+    assert source is not None
+    scheduler = BackupScheduler(source, tmp_path / "b", lambda: "UTC")
+
+    assert scheduler.run_once(at("2026-11-10T03:00:00Z")) is not None
+
+    assert [p.name for p in (tmp_path / "b").iterdir()] == ["filament-20261110T030000Z.db"]
+
+
+def test_ft_admin_backup_never_copies_the_settings_key(tmp_path: Path, db_url: str) -> None:
+    _key_beside(db_url)
+    settings = Settings(database_url=db_url, backup_dir=tmp_path / "b", _env_file=None)
+
+    assert admin_main(["backup"], settings=settings) == 0
+
+    files = list((tmp_path / "b").iterdir())
+    assert len(files) == 1
+    assert NAME.fullmatch(files[0].name)
 
 
 def test_in_memory_databases_are_not_backed_up(tmp_path: Path) -> None:
