@@ -55,7 +55,7 @@ It also leaves out generated classes (`R`, `BuildConfig`, `Manifest`), which hol
 
 | Checklist | When it runs | Where it lives |
 | --- | --- | --- |
-| Phone on hardware | On each release candidate of the phone app, scoped by its changes as [docs/releasing.md](releasing.md#checklist) says | [android/README.md, Checklist](../android/README.md#checklist) |
+| Phone on hardware | On each release candidate of the phone app, scoped by its changes as [docs/releasing.md](releasing.md#checklist) says | [docs/checklist.md](checklist.md) |
 | Printer on hardware | Before a release that changes the printer link | [server/README.md, Check a real printer](../server/README.md#check-a-real-printer) |
 | Home Assistant on hardware | Before a release that changes the Home Assistant link | [server/README.md, Check against Home Assistant](../server/README.md#check-against-home-assistant) |
 | Firmware on hardware | Before each firmware release | Not written yet; it comes with the firmware on real hardware |
