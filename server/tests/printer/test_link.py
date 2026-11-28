@@ -50,6 +50,7 @@ class FakeClient:
         self.kwargs = kwargs
         self.subscribed: list[str] = []
         self.published: list[tuple[str, str]] = []
+        self.publishes_before_messages = 0
         self._payloads = payloads
 
     async def __aenter__(self) -> "FakeClient":
@@ -68,6 +69,10 @@ class FakeClient:
     def messages(self) -> Any:
         async def deliver() -> Any:
             await asyncio.sleep(0)  # let the pushall task run first
+            for _ in range(100):  # bounded, so a link that stops publishing fails, not hangs
+                if len(self.published) >= self.publishes_before_messages:
+                    break
+                await asyncio.sleep(0)
             for payload in self._payloads:
                 yield FakeMessage(payload)
             raise aiomqtt.MqttError("disconnected")
@@ -86,6 +91,9 @@ class Harness:
         self.sleeps: list[float] = []
         self.now = T0
         self.max_sleeps = 1
+        self.pushall_fires = 0
+        self.pushall_sleeps: list[float] = []
+        self.publishes_before_messages = 0
         self.link = PrinterLink(
             CONFIG,
             printer_id,
@@ -101,6 +109,7 @@ class Harness:
         if isinstance(plan, BaseException):
             raise plan
         client = FakeClient(plan, kwargs)
+        client.publishes_before_messages = self.publishes_before_messages
         self.clients.append(client)
         return client
 
@@ -111,7 +120,10 @@ class Harness:
 
     async def sleep(self, seconds: float) -> None:
         if seconds == PUSHALL_SECONDS:
-            await asyncio.Event().wait()  # the pushall timer: wait until cancelled
+            self.pushall_sleeps.append(seconds)
+            if len(self.pushall_sleeps) > self.pushall_fires:
+                await asyncio.Event().wait()  # the pushall timer: wait until cancelled
+            return
         self.sleeps.append(seconds)
         if len(self.sleeps) >= self.max_sleeps:
             raise Stop
@@ -174,6 +186,21 @@ def test_first_connect_pins_the_certificate_then_reads_reports(harness: Harness)
     assert (printer.cert_sha256, printer.last_report_at) == (PIN, T0)
     assert spool_count(harness) == 2
     assert harness.link.status.state is LinkState.DISCONNECTED
+
+
+def test_pushall_is_published_again_every_30_minutes(harness: Harness) -> None:
+    harness.pushall_fires = 2
+    harness.publishes_before_messages = 3
+
+    harness.run()
+
+    assert harness.pushall_sleeps == [30 * 60] * 3
+    pushall = (f"device/{CONFIG.serial}/request", json.dumps(PUSHALL))
+    assert harness.clients[0].published == [pushall] * 3
+
+
+def test_pushall_interval_is_30_minutes() -> None:
+    assert link_module.PUSHALL_EVERY == timedelta(minutes=30)
 
 
 def test_a_stored_pin_is_used_without_fetching(harness: Harness) -> None:

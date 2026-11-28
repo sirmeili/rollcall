@@ -188,6 +188,33 @@ def test_undoing_an_earlier_event_replays_the_rest(session: Session, spool: Spoo
     assert stored.received_at == T1  # the Opened now implies the receive
 
 
+def test_a_repeated_received_takes_effect_when_the_first_is_undone(
+    session: Session, spool: Spool
+) -> None:
+    first = append_event(session, spool, EventType.RECEIVED, SCANNER, T0).event
+    append_event(session, spool, EventType.RECEIVED, SCANNER, T1)
+
+    revert_event(session, first, UI, T2)
+
+    stored = _reload(session, spool)
+    assert stored.state is SpoolState.SEALED
+    assert stored.received_at == T1
+
+
+def test_a_repeated_opened_takes_effect_when_the_first_is_undone(
+    session: Session, spool: Spool
+) -> None:
+    append_event(session, spool, EventType.RECEIVED, SCANNER, T0)
+    first = append_event(session, spool, EventType.OPENED, SCANNER, T1).event
+    append_event(session, spool, EventType.OPENED, SCANNER, T2)
+
+    revert_event(session, first, UI, T2 + timedelta(hours=1))
+
+    stored = _reload(session, spool)
+    assert stored.state is SpoolState.OPEN
+    assert stored.opened_at == T2
+
+
 def test_an_event_cannot_be_undone_twice(session: Session, spool: Spool) -> None:
     received = append_event(session, spool, EventType.RECEIVED, SCANNER, T0).event
     revert_event(session, received, UI, T1)

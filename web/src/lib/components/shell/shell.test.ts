@@ -256,6 +256,12 @@ describe("the bottom bar", () => {
     expect(screen.getByRole("link", { name: "Shopping list, 3 suggested" })).toBeInTheDocument();
   });
 
+  it("marks Menu while Review has items waiting", () => {
+    render(PhoneNav, { user: ADMIN, pathname: "/", reviewCount: 3, shoppingCount: 0 });
+
+    expect(screen.getByRole("button", { name: "Menu" }).querySelector(".dot")).not.toBeNull();
+  });
+
   it("puts no mark on Menu when nothing waits", () => {
     render(PhoneNav, { user: VIEWER, pathname: "/", reviewCount: 0 });
 
