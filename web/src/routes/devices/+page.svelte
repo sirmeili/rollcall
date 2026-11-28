@@ -28,6 +28,12 @@
   let printerFailure = $state<string | null>(null);
   let message = $state<string | null>(null);
   let busy = $state(false);
+  let showRevoked = $state(false);
+
+  const revokedCount = $derived(devices?.filter((d) => d.revoked).length ?? 0);
+  const listed = $derived(
+    (devices ?? []).filter((d) => showRevoked || !d.revoked),
+  );
 
   let registering = $state(false);
   let addingPrinter = $state(false);
@@ -225,7 +231,15 @@
   {#if message}<p role="status" class="muted">{message}</p>{/if}
 
   <section aria-labelledby="sc-h">
-    <h2 id="sc-h">Scanners</h2>
+    <div class="sectionhead">
+      <h2 id="sc-h">Scanners</h2>
+      {#if revokedCount > 0}
+        <label class="switch">
+          <input type="checkbox" role="switch" bind:checked={showRevoked} />
+          Show revoked ({revokedCount})
+        </label>
+      {/if}
+    </div>
     {#if failure}
       <p role="alert" class="error">{failure}</p>
     {:else if !devices}
@@ -234,7 +248,7 @@
       <p class="muted">No scanners yet. Register one to get its token.</p>
     {:else}
       <div class="grid">
-        {#each devices as device (device.id)}
+        {#each listed as device (device.id)}
           <DeviceCard {device} {busy} onrotate={rotate} onrevoke={revoke} ondelete={deleteOne} />
         {/each}
       </div>
@@ -301,6 +315,16 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+  }
+
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
   }
 
   .addform {

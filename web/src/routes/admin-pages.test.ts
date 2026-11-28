@@ -493,6 +493,7 @@ describe("Devices page", () => {
     const garage = screen.getByRole("article", { name: "Garage" });
     expect(within(garage).getByText("Offline")).toBeInTheDocument();
     expect(within(garage).getByText(/Never seen/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("switch", { name: "Show revoked (1)" }));
     const old = screen.getByRole("article", { name: "Old" });
     expect(within(old).queryByRole("button", { name: "Revoke" })).toBeNull();
     expect(within(old).getByRole("button", { name: "New token (re-enable)" })).toBeInTheDocument();
@@ -612,7 +613,8 @@ describe("Devices page", () => {
     ]);
     render(DevicesPage);
 
-    const old = await screen.findByRole("article", { name: "Old" });
+    await userEvent.click(await screen.findByRole("switch", { name: "Show revoked (2)" }));
+    const old = screen.getByRole("article", { name: "Old" });
     expect(within(old).getByText(/kept because its scans are in spool history/i)).toBeVisible();
     expect(within(old).queryByRole("button", { name: "Delete" })).toBeNull();
     const typo = screen.getByRole("article", { name: "Typo" });
@@ -624,7 +626,8 @@ describe("Devices page", () => {
     admin.listDevices.mockResolvedValueOnce([scanner(), unused]).mockResolvedValue([scanner()]);
     admin.deleteDevice.mockResolvedValue(undefined);
     render(DevicesPage);
-    const card = await screen.findByRole("article", { name: "Typo scanner" });
+    await userEvent.click(await screen.findByRole("switch", { name: "Show revoked (1)" }));
+    const card = screen.getByRole("article", { name: "Typo scanner" });
     const active = screen.getByRole("article", { name: "Workbench scanner" });
     expect(within(active).queryByRole("button", { name: "Delete" })).toBeNull();
 
@@ -638,6 +641,25 @@ describe("Devices page", () => {
     expect(admin.deleteDevice).toHaveBeenCalledWith("typo");
     expect(await screen.findByRole("status")).toHaveTextContent("Deleted Typo scanner.");
     expect(screen.queryByRole("article", { name: "Typo scanner" })).toBeNull();
+  });
+
+  it("hides revoked scanners until Show revoked is switched on", async () => {
+    admin.listDevices.mockResolvedValue([
+      scanner(),
+      scanner({ id: "old", name: "Old", revoked: true }),
+      scanner({ id: "gone", name: "Gone", revoked: true }),
+    ]);
+    render(DevicesPage);
+
+    await screen.findByRole("article", { name: "Workbench scanner" });
+    expect(screen.queryByRole("article", { name: "Old" })).toBeNull();
+    expect(screen.queryByRole("article", { name: "Gone" })).toBeNull();
+    const toggle = screen.getByRole("switch", { name: "Show revoked (2)" });
+    expect(toggle).not.toBeChecked();
+
+    await userEvent.click(toggle);
+    expect(screen.getByRole("article", { name: "Old" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Gone" })).toBeInTheDocument();
   });
 
   it("reports failed loads and changes", async () => {
