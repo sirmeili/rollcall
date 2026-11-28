@@ -30,6 +30,9 @@ a{color:inherit;text-decoration:none}a:hover{color:inherit}
 .status .d{width:8px;height:8px;border-radius:50%}
 .status.on .d{background:var(--okdot)}
 .status.off .d{border:1.5px solid var(--muted);box-sizing:border-box}
+.sw{width:52px;height:32px;border-radius:999px;border:0;background:var(--line);position:relative;cursor:pointer;flex:none;padding:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .15s}
+.sw.on{background:var(--accent)}.sw.on::after{left:23px}
 .kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
 .kv dt{font-size:12px;color:var(--muted);font-weight:500}
 .kv dd{margin:2px 0 0;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500}
@@ -92,7 +95,10 @@ RollCall
 </sc-if>
 
 <section aria-labelledby="sc-h" style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
 <h2 id="sc-h" style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 600">Scanners</h2>
+<div style="display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; font-weight: 600"><span id="rv-l">Show revoked ({{revokedCount}})</span><button type="button" class="{{swRevoked}}" role="switch" aria-checked="{{showRevokedStr}}" aria-labelledby="rv-l" onClick="{{toggleRevoked}}"></button></div>
+</div>
 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px">
 <sc-for list="{{scanners}}" as="d" hint-placeholder-count="2">
 <article class="dev">
@@ -107,8 +113,8 @@ RollCall
 <div><dt>Scans today</dt><dd>{{d.scans}}</dd></div>
 </dl>
 <div style="display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; border-top: 1px solid var(--line); padding-top: 14px">
-<button class="btn" type="button">Rotate token</button>
-<button class="btn danger" type="button">Revoke</button>
+<button class="btn" type="button">{{d.rotateLabel}}</button>
+<sc-if value="{{d.active}}" hint-placeholder-val="{{true}}"><button class="btn danger" type="button">Revoke</button></sc-if>
 </div>
 </article>
 </sc-for>
@@ -137,21 +143,34 @@ RollCall
 <script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":1100}}'>
 var SCANNERS = [
   { name: 'Workbench scanner', seen: 'Last seen 2 min ago', online: true, fw: '0.3.1', queue: 0, scans: 4 },
-  { name: 'Garage scanner', seen: 'Last seen 2 h ago', online: false, fw: '0.3.0', queue: 3, scans: 0 }
+  { name: 'Garage scanner', seen: 'Last seen 2 h ago', online: false, fw: '0.3.0', queue: 3, scans: 0 },
+  { name: 'Old dev phone', seen: 'Last seen 12 days ago', revoked: true, fw: '1.4.0', queue: 0, scans: 0 }
 ];
 class Component extends DCLogic {
-  constructor(props) { super(props); this.state = { dark: null, reg: 'none' }; }
+  constructor(props) { super(props); this.state = { dark: null, reg: 'none', showRevoked: true }; }
   renderVals() {
     var self = this;
     var dark = this.state.dark === null ? !!this.props.dark : this.state.dark;
-    var scanners = SCANNERS.map(function (d) {
-      return Object.assign({}, d, { stCls: d.online ? 'status on' : 'status off', stLabel: d.online ? 'Online' : 'Offline' });
+    var showRevoked = this.state.showRevoked;
+    // Active scanners first, then (when shown) revoked ones.
+    var ordered = SCANNERS.filter(function (d) { return !d.revoked; })
+      .concat(showRevoked ? SCANNERS.filter(function (d) { return d.revoked; }) : []);
+    var scanners = ordered.map(function (d) {
+      return Object.assign({}, d, {
+        active: !d.revoked,
+        stCls: d.online ? 'status on' : 'status off',
+        stLabel: d.revoked ? 'Revoked' : d.online ? 'Online' : 'Offline',
+        rotateLabel: d.revoked ? 'New token (re-enable)' : 'Rotate token'
+      });
     });
     return {
       dark: dark, light: !dark, theme: dark ? 'dark' : 'light',
       themeLabel: dark ? 'Switch to light theme' : 'Switch to dark theme',
       toggleTheme: function () { self.setState({ dark: !dark }); },
       scanners: scanners,
+      revokedCount: SCANNERS.filter(function (d) { return d.revoked; }).length,
+      swRevoked: showRevoked ? 'sw on' : 'sw', showRevokedStr: String(showRevoked),
+      toggleRevoked: function () { self.setState({ showRevoked: !showRevoked }); },
       regForm: this.state.reg === 'form', regToken: this.state.reg === 'token',
       openReg: function () { self.setState({ reg: 'form' }); },
       register: function () { self.setState({ reg: 'token' }); },
